@@ -424,7 +424,9 @@ export default function PlanConfirmation() {
                   <ul className="text-xs text-yellow-700 space-y-1">
                     <li className="flex items-start gap-2">
                       <Clock className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                      <span>يتم تجديد الاشتراك تلقائياً</span>
+                      <span>
+                        لا يتم تجديد الاشتراك تلقائياً
+                        </span>
                     </li>
                     <li className="flex items-start gap-2">
                       <Shield className="w-3 h-3 mt-0.5 flex-shrink-0" />
