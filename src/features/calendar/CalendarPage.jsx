@@ -42,7 +42,7 @@ export default function CalendarPage() {
     data: onlineBookingsData, 
     isLoading: isOnlineBookingsLoading,
     refetch: refetchOnlineBookings 
-  } = useAppointments("", 1, 100, { source: "booking" })
+  } = useAppointments("", 1, 100, { from: "booking" })
 
   const handleFilterChange = (newFilters) => {
     setFilters(newFilters)

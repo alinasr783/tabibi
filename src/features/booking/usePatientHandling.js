@@ -25,7 +25,7 @@ export default function usePatientHandling() {
                 // If patient exists, return existing patient
                 if (searchResults && searchResults.length > 0) {
                     const existingPatient = searchResults[0]
-                    toast.success("تم العثور على المريض في النظام")
+                    // toast.success("تم العثور على المريض في النظام")
                     return existingPatient
                 }
 
@@ -39,11 +39,11 @@ export default function usePatientHandling() {
                 }
 
                 const newPatient = await createPatient(payload)
-                toast.success("تم إضافة المريض بنجاح")
+                // toast.success("تم إضافة المريض بنجاح")
                 return newPatient
             } catch (error) {
                 console.error("Error handling patient:", error)
-                toast.error("حدث خطأ أثناء معالجة بيانات المريض")
+                // toast.error("حدث خطأ أثناء معالجة بيانات المريض")
                 throw error
             }
         },

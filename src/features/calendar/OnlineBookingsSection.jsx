@@ -30,7 +30,7 @@ export default function OnlineBookingsSection() {
   const queryClient = useQueryClient();
   
   // Fetch only online bookings (from: booking) with pending/confirmed/rejected status
-  const filters = { source: "booking" };
+  const filters = { from: "booking" };
   const { 
     data: onlineBookingsData, 
     isLoading, 
