@@ -109,7 +109,7 @@ export default function Hero() {
                     whileTap={{ scale: 0.95 }}
                   >
                     <Stethoscope className="size-5" />
-                    ابدا دلوقتي ببلاش 
+                    ابدا ببلاش 
                   </motion.button>
                 </Link>
                 <motion.button
