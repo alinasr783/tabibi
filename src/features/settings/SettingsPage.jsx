@@ -1,8 +1,9 @@
 import { Key, User } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader } from "../../components/ui/card";
 import ChangePasswordTab from "./ChangePasswordTab";
 import PersonalInfoTab from "./PersonalInfoTab";
+import { useLocation } from "react-router-dom";
 
 const tabs = [
   { id: "personal", label: "البيانات الشخصية", icon: User },
@@ -10,9 +11,16 @@ const tabs = [
 ];
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState("personal");  
+  const [activeTab, setActiveTab] = useState("personal");
+  const location = useLocation();
+  
+  // Apply scroll to top on route changes
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+  
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20 md:pb-0">
       <div className="space-y-3">
         <div className="flex items-center gap-3">
           <div>

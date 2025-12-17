@@ -8,13 +8,20 @@ import { PAGE_SIZE } from "../../constants/pagination";
 import PatientCreateDialog from "./PatientCreateDialog";
 import PatientsTable from "./PatientsTable";
 import usePatients from "./usePatients";
+import { useLocation } from "react-router-dom";
 
 export default function PatientsPage() {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
+  const location = useLocation();
   
+  // Apply scroll to top on route changes
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+
   const { data, isLoading, refetch } = usePatients(query, page);
 
   // Calculate statistics
@@ -53,7 +60,7 @@ export default function PatientsPage() {
   };
 
   return (
-    <div className="space-y-6 p-4 md:p-6 bg-gray-50 min-h-screen" dir="rtl">
+    <div className="space-y-6 p-4 md:p-6 bg-gray-50 min-h-screen pb-20 md:pb-0" dir="rtl">
       {/* Header Section - Redesigned */}
       <div className="space-y-6">
         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
@@ -201,48 +208,20 @@ export default function PatientsPage() {
       <Card className="border border-gray-200 shadow-sm">
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="p-4">
-              <TableSkeleton columns={5} rows={PAGE_SIZE} />
-            </div>
-          ) : filteredPatients.length > 0 ? (
+            <TableSkeleton />
+          ) : (
             <PatientsTable
               patients={filteredPatients}
-              total={filteredPatients.length}
+              total={totalPatients}
               page={page}
               pageSize={PAGE_SIZE}
               onPageChange={setPage}
             />
-          ) : (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-                <Users className="w-8 h-8 text-gray-400" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">لا توجد نتائج</h3>
-              <p className="text-gray-500 mb-6">
-                {query ? "لم يتم العثور على مرضى مطابقين لبحثك" : "لا توجد مرضى مسجلين حتى الآن"}
-              </p>
-              <Button
-                onClick={() => setOpen(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                <Plus className="w-4 h-4 ml-2" />
-                إضافة مريض جديد
-              </Button>
-            </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Quick Add Button for Mobile */}
-      <Button
-        onClick={() => setOpen(true)}
-        className="fixed bottom-6 left-6 md:hidden h-14 w-14 rounded-full bg-blue-600 hover:bg-blue-700 shadow-lg z-40"
-        size="icon"
-      >
-        <Plus className="w-6 h-6" />
-      </Button>
-
-      {/* Quick Add Patient Modal */}
+      {/* Patient Create Dialog */}
       <PatientCreateDialog open={open} onClose={() => setOpen(false)} />
     </div>
   );

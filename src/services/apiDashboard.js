@@ -210,7 +210,7 @@ export async function getRecentActivity(page = 1, pageSize = 5) {
     // Transform data for activity feed
     const transformedData = recentAppointments.map(appointment => ({
         id: appointment.id,
-        title: `حجز موعد - ${appointment.patient?.name || 'مريض'}`,
+        title: `حجز معاد - ${appointment.patient?.name || 'مريض'}`,
         time: new Date(appointment.date).toLocaleDateString('ar-EG', {
             weekday: 'long',
             year: 'numeric',
@@ -219,7 +219,9 @@ export async function getRecentActivity(page = 1, pageSize = 5) {
             hour: '2-digit',
             minute: '2-digit'
         }),
-        tag: appointment.status === 'pending' ? 'جديد' : null
+        tag: appointment.status === 'pending' ? 'جديد' : null,
+        type: 'appointment',
+        appointmentId: appointment.id
     }))
 
     return {

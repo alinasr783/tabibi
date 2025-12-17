@@ -34,7 +34,7 @@ export default function DataTable({
         {data.length > 0 ? (
           <div className="space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
             {data.map((row) => (
-              <div key={rowKey(row)} className="table-row border border-gray-200 rounded-lg p-4">
+              <div key={rowKey(row)} className="table-row border border-gray-200 rounded-xl p-4 bg-white shadow-sm">
                 {columns.map((col, i) => {
                   const value = col.render ? col.render(row) : row[col.accessor] ?? "-";
                   // Skip action columns on mobile if they contain buttons
@@ -46,9 +46,9 @@ export default function DataTable({
                     );
                   }
                   return (
-                    <div key={i} className="table-cell mb-2 last:mb-0" data-label={col.header}>
-                      <span className="font-medium text-gray-700">{col.header}: </span>
-                      {value}
+                    <div key={i} className="table-cell mb-3 last:mb-0" data-label={col.header}>
+                      <span className="font-medium text-gray-700 text-sm">{col.header}: </span>
+                      <span className="text-gray-900 text-sm">{value}</span>
                     </div>
                   );
                 })}

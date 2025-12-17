@@ -1,15 +1,22 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import FinanceOverview from "../features/finance/FinanceOverview";
 import FinanceTransactions from "../features/finance/FinanceTransactions";
 import FinanceReports from "../features/finance/FinanceReports";
+import { useLocation } from "react-router-dom";
 
 export default function Finance() {
   const [activeTab, setActiveTab] = useState("overview");
+  const location = useLocation();
+
+  // Apply scroll to top on route changes
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20 md:pb-0">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>

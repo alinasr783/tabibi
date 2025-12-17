@@ -1,1383 +1,648 @@
-import {format} from "date-fns";
-import {ar} from "date-fns/locale";
-import {
-  ArrowLeft,
-  Calendar,
-  Edit,
-  FileText,
-  Wallet,
-  User,
-  Phone,
-  Clock,
-  MapPin,
-  AlertCircle,
-  Stethoscope,
-  Shield,
-  Download,
-  Printer,
-  MessageSquare,
-  CheckCircle,
-  XCircle,
-  Clock3,
-  MoreVertical,
-  Mail,
-  Plus,
-  X
-} from "lucide-react";
-import {useState, useEffect} from "react";
-import {useNavigate, useParams} from "react-router-dom";
-import {Button} from "../../components/ui/button";
-import {Card, CardContent, CardHeader, CardTitle, CardFooter} from "../../components/ui/card";
-import {Badge} from "../../components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "../../components/ui/dialog";
-import {Input} from "../../components/ui/input";
-import {Label} from "../../components/ui/label";
-import {Skeleton} from "../../components/ui/skeleton";
-import {Textarea} from "../../components/ui/textarea";
-import {Tabs, TabsContent, TabsList, TabsTrigger} from "../../components/ui/tabs";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator
-} from "../../components/ui/dropdown-menu";
-import { Switch } from "../../components/ui/switch";
-import { Separator } from "../../components/ui/separator";
-import useAppointment from "./useAppointment";
-import useUpdateAppointmentHandler from "./useUpdateAppointmentHandler";
+import { CalendarPlus, Search, Clock, CalendarDays, Filter, RefreshCw, Plus, Users, Calendar, CheckCircle, X, AlertCircle, Zap, TrendingUp, Star, ChevronLeft, ChevronRight, Menu, Phone, Mail, MessageSquare } from "lucide-react"
+import { useEffect, useState } from "react"
+import { Button } from "../../components/ui/button"
+import { Card, CardContent } from "../../components/ui/card"
+import { Input } from "../../components/ui/input"
+import TableSkeleton from "../../components/ui/table-skeleton"
+import { APPOINTMENTS_PAGE_SIZE } from "../../constants/pagination"
+import AppointmentCreateDialog from "./AppointmentCreateDialog"
+import AppointmentsFilter from "./AppointmentsFilter"
+import AppointmentsTable from "./AppointmentsTable"
+import useAppointments from "./useAppointments"
+import OnlineBookingsSection from "./OnlineBookingsSection"
+import OnlineBookingsTable from "../online-booking/OnlineBookingsTable"
+import { useNavigate, useLocation } from "react-router-dom"
+import { Badge } from "../../components/ui/badge"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../components/ui/tabs"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "../../components/ui/sheet"
 
-export default function AppointmentDetailPage() {
-  const {appointmentId} = useParams();
-  const {data: appointment, isLoading, error, refetch} = useAppointment(appointmentId);
+export default function CalendarPage() {
   const navigate = useNavigate();
-  const {handleAppointmentUpdate, isPending: isUpdating} = useUpdateAppointmentHandler();
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
-  const [showPrescriptionDialog, setShowPrescriptionDialog] = useState(false);
-  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
-  const [showCallDialog, setShowCallDialog] = useState(false);
-  const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
-  const [showExportDialog, setShowExportDialog] = useState(false);
-  const [showPrintDialog, setShowPrintDialog] = useState(false);
-  const [showFollowUpDialog, setShowFollowUpDialog] = useState(false);
-  const [medications, setMedications] = useState([{ name: '', dosage: '', duration: '', instructions: '' }]);
+  const location = useLocation();
+  const [query, setQuery] = useState("")
+  const [page, setPage] = useState(1)
+  const [allAppointmentsPage, setAllAppointmentsPage] = useState(1)
+  const [filters, setFilters] = useState({})
+  const [open, setOpen] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
+  const [activeTab, setActiveTab] = useState("upcoming")
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   
-  const [editData, setEditData] = useState({
-    date: "",
-    notes: "",
-    price: "",
-    status: "",
-    diagnosis: "",
-    treatment: ""
-  });
-
-  // Medication management functions
-  const addMedication = () => {
-    setMedications([...medications, { name: '', dosage: '', duration: '', instructions: '' }]);
-  };
-
-  const removeMedication = (index) => {
-    if (medications.length > 1) {
-      const newMedications = medications.filter((_, i) => i !== index);
-      setMedications(newMedications);
-    }
-  };
-
-  const updateMedication = (index, field, value) => {
-    const newMedications = [...medications];
-    newMedications[index][field] = value;
-    setMedications(newMedications);
-  };
-
-  const handleCreatePrescription = () => {
-    // Implement prescription creation logic here
-    console.log("Creating prescription with medications:", medications);
-    // For now, we'll just close the dialog and show a toast
-    setShowPrescriptionDialog(false);
-    // Reset medications to initial state
-    setMedications([{ name: '', dosage: '', duration: '', instructions: '' }]);
-    // In a real implementation, you would call an API to create the prescription
-    // and possibly redirect to the prescription page
-    alert("تم إنشاء الوصفة الطبية بنجاح!");
-  };
-
-  const statusConfig = {
-    pending: {label: "في انتظار التأكيد", variant: "warning", icon: Clock3, color: "text-yellow-600", bg: "bg-yellow-50", border: "border-yellow-200"},
-    confirmed: {label: "مؤكد", variant: "success", icon: CheckCircle, color: "text-green-600", bg: "bg-green-50", border: "border-green-200"},
-    completed: {label: "مكتمل", variant: "default", icon: Shield, color: "text-blue-600", bg: "bg-blue-50", border: "border-blue-200"},
-    cancelled: {label: "ملغي", variant: "destructive", icon: XCircle, color: "text-red-600", bg: "bg-red-50", border: "border-red-200"},
-    in_progress: {label: "قيد الكشف", variant: "info", icon: Stethoscope, color: "text-purple-600", bg: "bg-purple-50", border: "border-purple-200"}
-  };
-
-  const sourceConfig = {
-    booking: {label: "حجز إلكتروني", variant: "info", icon: "🌐"},
-    clinic: {label: "حجز مباشر", variant: "secondary", icon: "🏥"},
-    phone: {label: "هاتفي", variant: "default", icon: "📞"}
-  };
-
-  // Initialize edit data when appointment loads
+  // Apply scroll to top on route changes
   useEffect(() => {
-    if (appointment) {
-      setEditData({
-        date: appointment.date || "",
-        notes: appointment.notes || "",
-        price: appointment.price || "",
-        status: appointment.status || "",
-        diagnosis: appointment.diagnosis || "",
-        treatment: appointment.treatment || ""
-      });
-    }
-  }, [appointment]);
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+  
+  // Fetch upcoming appointments
+  const { 
+    data: upcomingData, 
+    isLoading: isUpcomingLoading,
+    refetch: refetchUpcoming 
+  } = useAppointments(query, page, APPOINTMENTS_PAGE_SIZE, { status: "upcoming" })
+  
+  // Fetch all appointments
+  const { 
+    data: allData, 
+    isLoading: isAllLoading,
+    refetch: refetchAll 
+  } = useAppointments(query, allAppointmentsPage, APPOINTMENTS_PAGE_SIZE, filters)
+  
+  // Fetch online bookings (similar to OnlineBookingsSection)
+  const { 
+    data: onlineBookingsData, 
+    isLoading: isOnlineBookingsLoading,
+    refetch: refetchOnlineBookings 
+  } = useAppointments("", 1, 100, { from: "booking" })
 
-  const openEditModal = () => {
-    setEditData({
-      date: appointment?.date || "",
-      notes: appointment?.notes || "",
-      price: appointment?.price || "",
-      status: appointment?.status || "",
-      diagnosis: appointment?.diagnosis || "",
-      treatment: appointment?.treatment || ""
-    });
-    setIsEditModalOpen(true);
-  };
-
-  const handleEditChange = (field, value) => {
-    setEditData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
-
-  const handleSaveEdit = async () => {
-    await handleAppointmentUpdate(appointmentId, editData);
-    setIsEditModalOpen(false);
-    refetch();
-  };
-
-  const handlePrintTicket = () => {
-    setIsActionsMenuOpen(false);
-    // Implement print functionality
-    window.print();
-  };
-
-  const handleExportData = () => {
-    setIsActionsMenuOpen(false);
-    // Implement export functionality
-    console.log("Exporting appointment data...");
-  };
-
-  const handleSendReminder = () => {
-    setIsActionsMenuOpen(false);
-    // setShowReminderDialog(true); // Comment out the dialog
-    
-    // Create a WhatsApp message with appointment details
-    const phoneNumber = appointment?.patient?.phone?.replace(/\D/g, ''); // Remove non-digits
-    if (!phoneNumber) {
-      alert("رقم الهاتف غير متوفر");
-      return;
-    }
-    
-    // Format the appointment date for the message
-    const appointmentDate = formatDate(appointment?.date);
-    const doctorName = appointment?.doctor?.name || "الدكتور";
-    
-    // Create the WhatsApp message
-    const message = `مرحبًا ${appointment?.patient?.name || 'سيد/سيدة'}،
-    
-هذه رسالة تذكير بموعدك مع ${doctorName} في ${appointmentDate}.
-    
-يرجى الحضور قبل 10 دقائق من الموعد المحدد.
-    
-شكراً لك.`;
-    
-    // Encode the message for URL
-    const encodedMessage = encodeURIComponent(message);
-    
-    // Open WhatsApp with the message
-    const whatsappUrl = `https://wa.me/+2${phoneNumber}?text=${encodedMessage}`;
-    window.open(whatsappUrl, '_blank');
-  };
-
-  const handleAddToCalendar = () => {
-    // Implement add to calendar functionality
-    console.log("Adding to calendar...");
-  };
-
-  const handleRegisterPayment = () => {
-    setShowPaymentDialog(true);
-  };
-
-  const handleGenerateInvoice = () => {
-    setShowInvoiceDialog(true);
-  };
-
-  const handleSendPatientReminder = () => {
-    // Create a WhatsApp message with appointment details
-    const phoneNumber = appointment?.patient?.phone?.replace(/\D/g, ''); // Remove non-digits
-    if (!phoneNumber) {
-      alert("رقم الهاتف غير متوفر");
-      return;
-    }
-    
-    // Format the appointment date for the message
-    const appointmentDate = formatDate(appointment?.date);
-    const doctorName = appointment?.doctor?.name || "الدكتور";
-    
-    // Create the WhatsApp message
-    const message = `مرحبًا ${appointment?.patient?.name || 'سيد/سيدة'}،
-    
-هذه رسالة تذكير بموعدك مع ${doctorName} في ${appointmentDate}.
-    
-يرجى الحضور قبل 10 دقائق من الموعد المحدد.
-    
-شكراً لك.`;
-    
-    // Encode the message for URL
-    const encodedMessage = encodeURIComponent(message);
-    
-    // Open WhatsApp with the message
-    const whatsappUrl = `https://wa.me/+2${phoneNumber}?text=${encodedMessage}`;
-    window.open(whatsappUrl, '_blank');
-    
-    // Don't show the dialog since we're opening WhatsApp directly
-    // setShowReminderDialog(true);
-  };
-
-  const handleCallPatient = () => {
-    setShowCallDialog(true);
-  };
-
-  const handleWritePrescription = () => {
-    setShowPrescriptionDialog(true);
-  };
-
-  const handleSharePrescriptionWhatsApp = () => {
-    // Create a WhatsApp message with prescription details
-    const phoneNumber = appointment?.patient?.phone?.replace(/\D/g, ''); // Remove non-digits
-    if (!phoneNumber) {
-      alert("رقم هاتف المريض غير متوفر");
-      return;
-    }
-    
-    // Create the prescription message
-    let message = `السلام عليكم ${appointment?.patient?.name || 'سيد/سيدة'}，
-    
-مرفق لكم الوصفة الطبية من د. ${appointment?.doctor?.name || 'الطبيب'}:
-    
-`;
-    
-    // Add medications to the message
-    medications.forEach((med, index) => {
-      message += `الدواء #${index + 1}: ${med.name || 'غير محدد'}
-الجرعة: ${med.dosage || 'غير محددة'}
-المدة: ${med.duration || 'غير محددة'}`;
-      
-      if (med.instructions) {
-        message += `
-تعليمات خاصة: ${med.instructions}`;
-      }
-      
-      message += '\n\n';
-    });
-    
-    message += `تاريخ الوصفة: ${format(new Date(), "d MMMM yyyy", {locale: ar})}
-    
-يرجى اتباع التعليمات المذكورة وإحضار الوصفة عند زيارة العيادة القادمة.
-    
-شكراً لك.`;
-    
-    // Encode the message for URL
-    const encodedMessage = encodeURIComponent(message);
-    
-    // Open WhatsApp with the message
-    const whatsappUrl = `https://wa.me/+2${phoneNumber}?text=${encodedMessage}`;
-    window.open(whatsappUrl, '_blank');
-  };
-
-  const handleStartExamination = () => {
-    handleStatusChange('in_progress');
-  };
-
-  const handleStatusChange = async (newStatus) => {
-    try {
-      await handleAppointmentUpdate(appointmentId, { ...editData, status: newStatus });
-      refetch();
-      // Show success message
-      const statusLabel = statusConfig[newStatus]?.label || 'الحالة';
-      alert(`تم تغيير الحالة إلى: ${statusLabel}`);
-    } catch (error) {
-      console.error("Error updating status:", error);
-      alert("حدث خطأ أثناء تحديث الحالة");
-    }
-  };
-
-  const handleBookFollowUp = () => {
-    setShowFollowUpDialog(true);
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return "-";
-    try {
-      return format(new Date(dateString), "EEEE، d MMMM yyyy - hh:mm a", {locale: ar});
-    } catch {
-      return dateString;
-    }
-  };
-
-  const calculatePatientAge = (birthDate) => {
-    if (!birthDate) return "غير معروف";
-    const today = new Date();
-    const birth = new Date(birthDate);
-    let age = today.getFullYear() - birth.getFullYear();
-    const monthDiff = today.getMonth() - birth.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-      age--;
-    }
-    return `${age} سنة`;
-  };
-
-  const LoadingSkeleton = () => (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-6" dir="rtl">
-      <div className="max-w-6xl mx-auto space-y-6">
-        {/* Header Skeleton */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-3">
-            <Skeleton className="h-10 w-64" />
-            <Skeleton className="h-4 w-48" />
-          </div>
-          <div className="flex gap-3">
-            <Skeleton className="h-10 w-32" />
-            <Skeleton className="h-10 w-24" />
-          </div>
-        </div>
-
-        {/* Status Card Skeleton */}
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <Skeleton className="h-14 w-14 rounded-full" />
-                <div className="space-y-2">
-                  <Skeleton className="h-6 w-32" />
-                  <Skeleton className="h-4 w-40" />
-                </div>
-              </div>
-              <Skeleton className="h-8 w-24" />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Grid Skeleton */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {Array.from({length: 6}).map((_, i) => (
-            <Card key={i}>
-              <CardHeader>
-                <Skeleton className="h-5 w-32" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-8 w-full" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-
-  if (isLoading) return <LoadingSkeleton />;
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50 p-6" dir="rtl">
-        <div className="max-w-4xl mx-auto space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">تفاصيل الحجز</h1>
-              <p className="text-gray-500 text-sm mt-1">عرض معلومات الحجز</p>
-            </div>
-            <Button
-              variant="ghost"
-              className="gap-2"
-              onClick={() => navigate(-1)}>
-              <ArrowLeft className="size-4" />
-              رجوع
-            </Button>
-          </div>
-
-          <Card className="border-red-200 bg-red-50">
-            <CardContent className="py-12 text-center">
-              <AlertCircle className="size-12 text-red-500 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-red-700 mb-2">حدث خطأ</h3>
-              <p className="text-red-600 mb-4">تعذر تحميل تفاصيل الحجز</p>
-              <div className="flex gap-3 justify-center">
-                <Button onClick={() => refetch()} variant="outline" className="border-red-300">
-                  المحاولة مرة أخرى
-                </Button>
-                <Button onClick={() => navigate(-1)} variant="ghost">
-                  العودة للقائمة
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
+  const handleFilterChange = (newFilters) => {
+    setFilters(newFilters)
+    setPage(1)
+    setAllAppointmentsPage(1)
+  }
+  
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    await Promise.all([refetchUpcoming(), refetchAll()])
+    setTimeout(() => setIsRefreshing(false), 500)
   }
 
-  const StatusIcon = statusConfig[appointment?.status]?.icon || Clock3;
+  // Auto-refresh every 10 minutes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refetchUpcoming()
+      refetchAll()
+    }, 10 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [refetchUpcoming, refetchAll])
 
-  return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-6" dir="rtl">
-      <div className="max-w-6xl mx-auto space-y-6">
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">تفاصيل الحجز</h1>
-              <Badge variant="outline" className="text-sm font-normal">
-                رقم: #{appointmentId?.slice(-6)}
-              </Badge>
-            </div>
-            <p className="text-gray-500 text-sm">
-              آخر تحديث: {format(new Date(appointment?.updatedAt || Date.now()), "d MMMM yyyy - hh:mm a", {locale: ar})}
-            </p>
-          </div>
-          
-          <div className="flex flex-wrap gap-3">
-            <Button
-              variant="outline"
-              onClick={openEditModal}
-              className="gap-2 bg-white hover:bg-gray-50 border-gray-300">
-              <Edit className="size-4" />
-              تعديل الحجز
-            </Button>
-            
-            <DropdownMenu open={isActionsMenuOpen} onOpenChange={setIsActionsMenuOpen}>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-2">
-                  <MoreVertical className="size-4" />
-                  المزيد
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56">
-                <DropdownMenuItem className="gap-3 cursor-pointer" onClick={handlePrintTicket}>
-                  <Printer className="size-4" />
-                  طباعة التذكرة
-                </DropdownMenuItem>
-                <DropdownMenuItem className="gap-3 cursor-pointer" onClick={handleExportData}>
-                  <Download className="size-4" />
-                  تصدير البيانات
-                </DropdownMenuItem>
-                <DropdownMenuItem className="gap-3 cursor-pointer" onClick={handleSendReminder}>
-                  <MessageSquare className="size-4" />
-                  إرسال تذكير
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem 
-                  className="gap-3 text-red-600 cursor-pointer"
-                  onClick={() => handleStatusChange('cancelled')}
-                >
-                  <XCircle className="size-4" />
-                  إلغاء الحجز
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+  // Stats calculations
+  const today = new Date().toISOString().split('T')[0]
+  const todayAppointments = upcomingData?.items?.filter(a => a.date === today) || []
+  const completedToday = todayAppointments.filter(a => a.status === 'completed').length
+  const pendingToday = todayAppointments.filter(a => a.status === 'pending' || a.status === 'confirmed').length
+  
+  const stats = {
+    today: todayAppointments.length,
+    completedToday,
+    pendingToday,
+    upcoming: upcomingData?.total || 0,
+    total: allData?.total || 0
+  }
 
-            <Button
-              variant="ghost"
-              className="gap-2"
-              onClick={() => navigate(-1)}>
-              <ArrowLeft className="size-4" />
-              رجوع
-            </Button>
-          </div>
-        </div>
-
-        {/* Status Quick Actions */}
-        <div className="flex flex-wrap gap-3">
-          {Object.entries(statusConfig).map(([key, config]) => {
-            const Icon = config.icon;
-            if (key === appointment?.status) return null;
-            return (
-              <Button
-                key={key}
-                variant="outline"
-                size="sm"
-                className="gap-2"
-                onClick={() => handleStatusChange(key)}
-              >
-                <Icon className="size-4" />
-                {config.label}
-              </Button>
-            );
-          })}
-        </div>
-
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Appointment Details */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Status Card */}
-            <Card className={`${statusConfig[appointment?.status]?.bg} ${statusConfig[appointment?.status]?.border} border-2`}>
-              <CardContent className="p-6">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                  <div className="flex items-start gap-4">
-                    <div className={`p-3 rounded-full ${statusConfig[appointment?.status]?.bg}`}>
-                      <StatusIcon className={`size-6 ${statusConfig[appointment?.status]?.color}`} />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-xl font-bold text-gray-900">{statusConfig[appointment?.status]?.label}</h3>
-                      <div className="flex flex-wrap gap-4 mt-3">
-                        <div className="flex items-center gap-2 text-gray-600">
-                          <Clock className="size-4" />
-                          <span className="text-sm font-medium">المصدر:</span>
-                          <Badge variant={sourceConfig[appointment?.from]?.variant || "secondary"} className="text-xs">
-                            {sourceConfig[appointment?.from]?.label}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-2 text-gray-600">
-                          <AlertCircle className="size-4" />
-                          <span className="text-sm font-medium">الأولوية:</span>
-                          <Badge 
-                            variant={appointment?.priority === 'high' ? 'destructive' : 'default'} 
-                            className="text-xs"
-                          >
-                            {appointment?.priority === 'high' ? 'عاجل' : 'عادي'}
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Patient Information */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-3 text-lg">
-                  <User className="size-6 text-blue-600" />
-                  معلومات المريض
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-sm text-gray-500 mb-2 block">الاسم الكامل</Label>
-                      <div className="font-bold text-xl">{appointment?.patient?.name || "-"}</div>
-                      <div className="text-gray-500 text-sm mt-1">{appointment?.patient?.arabicName || ""}</div>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm text-gray-500 mb-2 block">رقم الملف</Label>
-                      <div className="font-medium">#{appointment?.patient?.fileNumber || "غير محدد"}</div>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-sm text-gray-500 mb-2 block">معلومات الاتصال</Label>
-                      <div className="flex items-center gap-3 mb-2">
-                        <Phone className="size-4 text-gray-400" />
-                        <span className="font-medium">{appointment?.patient?.phone || "-"}</span>
-                      </div>
-                      <div className="text-gray-600 text-sm">
-                        {appointment?.patient?.email || "لا يوجد بريد إلكتروني"}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-sm text-gray-500 mb-2 block">المعلومات الشخصية</Label>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <div className="text-sm text-gray-500">العمر</div>
-                          <div className="font-medium">{calculatePatientAge(appointment?.patient?.birthDate)}</div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-gray-500">الجنس</div>
-                          <div className="font-medium">{appointment?.patient?.gender === 'male' ? 'ذكر' : 'أنثى'}</div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-gray-500">فصيلة الدم</div>
-                          <div className="font-medium">{appointment?.patient?.bloodType || "غير معروفة"}</div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-gray-500">الوزن</div>
-                          <div className="font-medium">{appointment?.patient?.weight ? `${appointment.patient.weight} كجم` : "-"}</div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                <Separator className="my-6" />
-                
-                <div className="flex justify-end">
-                  <Button 
-                    variant="outline" 
-                    className="gap-2"
-                    onClick={() => navigate(`/patients/${appointment?.patient?.id}`)}>
-                    عرض الملف الطبي الكامل
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Medical Details */}
-            <Tabs defaultValue="notes" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="notes">ملاحظات الحجز</TabsTrigger>
-                <TabsTrigger value="diagnosis">التشخيص</TabsTrigger>
-                <TabsTrigger value="treatment">العلاج</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="notes" className="space-y-4">
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="space-y-4">
-                      <div>
-                        <Label className="text-sm text-gray-500 mb-2 block">ملاحظات مبدئية</Label>
-                        <Textarea
-                          className="min-h-[100px] mb-4"
-                          placeholder="أدخل ملاحظات الحجز هنا..."
-                          value={editData.notes}
-                          onChange={(e) => handleEditChange("notes", e.target.value)}
-                        />
-                        <div className="flex justify-end">
-                          <Button 
-                            onClick={handleSaveEdit}
-                            disabled={isUpdating}
-                            className="gap-2"
-                          >
-                            {isUpdating ? (
-                              <>
-                                <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                جاري الحفظ...
-                              </>
-                            ) : (
-                              "حفظ الملاحظات"
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <Label className="text-sm text-gray-500 mb-2 block">تاريخ الأعراض</Label>
-                        <div className="bg-gray-50 rounded-lg p-4 border">
-                          <p className="text-gray-700">
-                            {appointment?.symptomsHistory || "غير مسجل"}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-              
-              <TabsContent value="diagnosis">
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-sm text-gray-500">التشخيص الأولي</Label>
-                        <Switch checked={appointment?.diagnosisConfirmed} />
-                      </div>
-                      <Textarea 
-                        className="min-h-[200px]"
-                        placeholder="أدخل التشخيص هنا..."
-                        value={editData.diagnosis}
-                        onChange={(e) => handleEditChange("diagnosis", e.target.value)}
-                      />
-                      <div className="flex justify-end">
-                        <Button 
-                          onClick={handleSaveEdit}
-                          disabled={isUpdating}
-                          className="gap-2"
-                        >
-                          {isUpdating ? (
-                            <>
-                              <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                              جاري الحفظ...
-                            </>
-                          ) : (
-                            "حفظ التشخيص"
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-              
-              <TabsContent value="treatment">
-                <Card>
-                  <CardContent className="p-6">
-                    <Textarea 
-                      className="min-h-[200px]"
-                      placeholder="أدوصف العلاج الموصى به هنا..."
-                      value={editData.treatment}
-                      onChange={(e) => handleEditChange("treatment", e.target.value)}
-                    />
-                    <div className="flex justify-end mt-4">
-                      <Button 
-                        onClick={handleSaveEdit}
-                        disabled={isUpdating}
-                        className="gap-2"
-                      >
-                        {isUpdating ? (
-                          <>
-                            <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            جاري الحفظ...
-                          </>
-                        ) : (
-                          "حفظ العلاج"
-                        )}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
-          </div>
-
-          {/* Right Column - Quick Info & Actions */}
-          <div className="space-y-6">
-            {/* Quick Actions Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle>إجراءات سريعة</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button variant="outline" className="w-full justify-start gap-3" onClick={handleSendPatientReminder}>
-                  <MessageSquare className="size-4" />
-                  إرسال تذكير
-                </Button>
-                <Button variant="outline" className="w-full justify-start gap-3" onClick={handleCallPatient}>
-                  <Phone className="size-4" />
-                  اتصال بالمريض
-                </Button>
-                <Button variant="outline" className="w-full justify-start gap-3" onClick={handleWritePrescription}>
-                  <FileText className="size-4" />
-                  كتابة وصفة
-                </Button>
-                <Button variant="outline" className="w-full justify-start gap-3" onClick={handleSharePrescriptionWhatsApp}>
-                  <MessageSquare className="size-4" />
-                  إرسال الوصفة عبر واتساب
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Appointment Time Card */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-3">
-                  <Calendar className="size-5 text-blue-600" />
-                  موعد الكشف
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-blue-600 mb-2">
-                      {format(new Date(appointment?.date), "d", {locale: ar})}
-                    </div>
-                    <div className="text-lg font-semibold">
-                      {format(new Date(appointment?.date), "MMMM yyyy", {locale: ar})}
-                    </div>
-                    <div className="text-gray-500 mt-1">
-                      {format(new Date(appointment?.date), "EEEE", {locale: ar})}
-                    </div>
-                  </div>
-                    
-                    <Separator />
-                    
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-gray-600">
-                          <Clock className="size-4" />
-                          <span>الوقت:</span>
-                        </div>
-                        <div className="font-bold">{format(new Date(appointment?.date), "hh:mm a", {locale: ar})}</div>
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-gray-600">
-                          <MapPin className="size-4" />
-                          <span>المكان:</span>
-                        </div>
-                        <div className="font-medium">العيادة {appointment?.clinicNumber || "1"}</div>
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-gray-600">
-                          <User className="size-4" />
-                          <span>الطبيب:</span>
-                        </div>
-                        <div className="font-medium">د. {appointment?.doctor?.name || "أحمد محمد"}</div>
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-gray-600">
-                          <Clock className="size-4" />
-                          <span>تم الإنشاء:</span>
-                        </div>
-                        <div className="font-medium">{format(new Date(appointment?.created_at), "d MMMM yyyy - hh:mm a", {locale: ar})}</div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <Button className="w-full gap-2" onClick={handleSendPatientReminder}>
-                    <MessageSquare className="size-4" />
-                    إرسال تذكير
-                  </Button>
-                </CardFooter>
-            </Card>
-
-            {/* Financial Card - Hidden */}
-            {/* <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-3">
-                  <Wallet className="size-5 text-green-600" />
-                  التفاصيل المالية
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">سعر الكشف:</span>
-                      <span className="font-bold text-lg">{appointment?.price?.toFixed(2) || "0.00"} ج.م</span>
-                    </div>
-                    
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">الخصم:</span>
-                      <span className="text-red-600">- {(appointment?.discount || 0).toFixed(2)} ج.م</span>
-                    </div>
-                    
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">الضريبة:</span>
-                      <span className="text-gray-600">+ {(appointment?.tax || 0).toFixed(2)} ج.م</span>
-                    </div>
-                    
-                    <Separator className="my-2" />
-                    
-                    <div className="flex justify-between items-center pt-2">
-                      <span className="font-bold text-gray-900">المبلغ الإجمالي:</span>
-                      <span className="font-bold text-xl text-green-600">
-                        {((appointment?.price || 0) - (appointment?.discount || 0) + (appointment?.tax || 0)).toFixed(2)} ج.م
-                      </span>
-                    </div>
-                  </div>
-                  
-                  <div className="pt-4 space-y-3">
-                    <div>
-                      <Label className="text-sm text-gray-500 mb-2 block">طريقة الدفع</Label>
-                      <div className="flex gap-2">
-                        <Badge variant={appointment?.paymentMethod === 'cash' ? 'default' : 'outline'}>
-                          نقدي
-                        </Badge>
-                        <Badge variant={appointment?.paymentMethod === 'card' ? 'default' : 'outline'}>
-                          بطاقة
-                        </Badge>
-                        <Badge variant={appointment?.paymentMethod === 'insurance' ? 'default' : 'outline'}>
-                          تأمين
-                        </Badge>
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm text-gray-500 mb-2 block">حالة الدفع</Label>
-                      <Badge variant={appointment?.paymentStatus === 'paid' ? 'success' : 'destructive'}>
-                        {appointment?.paymentStatus === 'paid' ? 'مدفوع' : 'غير مدفوع'}
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-              <CardFooter className="flex-col gap-3">
-                <Button variant="outline" className="w-full gap-2" onClick={handleRegisterPayment}>
-                  <Wallet className="size-4" />
-                  تسجيل الدفع
-                </Button>
-                <Button variant="ghost" className="w-full gap-2" onClick={handleGenerateInvoice}>
-                  <FileText className="size-4" />
-                  إصدار فاتورة
-                </Button>
-              </CardFooter>
-            </Card> */}
-
-            {/* Next Appointment */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium">الموعد القادم</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-4">
-                  <div className="text-gray-500 mb-2">لا يوجد موعد قادم</div>
-                  <Button variant="outline" size="sm" onClick={handleBookFollowUp}>
-                    حجز متابعة
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+  // Responsive table scroll container
+  const TableContainer = ({ children }) => (
+    <div className="relative overflow-hidden">
+      <div className="overflow-x-auto -mx-4 md:mx-0">
+        <div className="min-w-[700px] md:min-w-0 px-4 md:px-0">
+          {children}
         </div>
       </div>
+      <div className="md:hidden text-center mt-2 text-sm text-gray-500">
+        <span className="inline-flex items-center gap-1">
+          <ChevronLeft className="w-4 h-4" />
+          اسحب لليمين لمشاهدة كل البيانات
+          <ChevronRight className="w-4 h-4" />
+        </span>
+      </div>
+    </div>
+  )
 
-      {/* Edit Appointment Modal */}
-      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-3 text-lg">
-              <Edit className="size-5" />
-              تعديل بيانات الحجز
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-6 py-4">
-            <Tabs defaultValue="basic" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="basic">البيانات الأساسية</TabsTrigger>
-                <TabsTrigger value="medical">المعلومات الطبية</TabsTrigger>
-                <TabsTrigger value="financial">المالية</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="basic" className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="date" className="flex items-center gap-2">
-                      <Calendar className="size-4" />
-                      التاريخ والوقت *
-                    </Label>
-                    <Input
-                      id="date"
-                      type="datetime-local"
-                      value={
-                        editData.date
-                          ? new Date(editData.date).toISOString().slice(0, 16)
-                          : ""
-                      }
-                      onChange={(e) => handleEditChange("date", e.target.value)}
-                      className="w-full"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="status">حالة الحجز</Label>
-                    <select
-                      id="status"
-                      value={editData.status}
-                      onChange={(e) => handleEditChange("status", e.target.value)}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                    >
-                      {Object.entries(statusConfig).map(([key, config]) => (
-                        <option key={key} value={key}>{config.label}</option>
-                      ))}
-                    </select>
-                  </div>
+  return (
+    <div className="min-h-screen bg-gray-50/50 p-3 md:p-6 pb-20 md:pb-6" dir="rtl">
+      <div className="max-w-[1920px] mx-auto">
+        {/* Mobile Header */}
+        <div className="md:hidden sticky top-0 z-30 bg-white border-b border-gray-200 -mx-3 px-3 py-3 mb-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10 rounded-full"
+                onClick={() => setIsMobileMenuOpen(true)}
+              >
+                <Menu className="w-5 h-5" />
+              </Button>
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600">
+                  <CalendarPlus className="w-5 h-5 text-white" />
                 </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="notes" className="flex items-center gap-2">
-                    <FileText className="size-4" />
-                    ملاحظات الحجز
-                  </Label>
-                  <Textarea
-                    id="notes"
-                    value={editData.notes}
-                    onChange={(e) => handleEditChange("notes", e.target.value)}
-                    placeholder="أدخل أي ملاحظات مهمة بخصوص الحجز..."
-                    className="w-full min-h-[100px]"
-                    rows={4}
-                  />
+                <div>
+                  <h1 className="text-xl font-bold text-gray-900">المواعيد</h1>
+                  <p className="text-xs text-gray-500">{stats.total} موعد</p>
                 </div>
-              </TabsContent>
-              
-              <TabsContent value="medical" className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="diagnosis">التشخيص</Label>
-                  <Textarea
-                    id="diagnosis"
-                    value={editData.diagnosis}
-                    onChange={(e) => handleEditChange("diagnosis", e.target.value)}
-                    placeholder="أدخل التشخيص..."
-                    className="min-h-[150px]"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="treatment">العلاج الموصى به</Label>
-                  <Textarea
-                    id="treatment"
-                    value={editData.treatment}
-                    onChange={(e) => handleEditChange("treatment", e.target.value)}
-                    placeholder="أدخل تفاصيل العلاج..."
-                    className="min-h-[150px]"
-                  />
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="financial" className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="price" className="flex items-center gap-2">
-                      <Wallet className="size-4" />
-                      السعر (جنية مصري)
-                    </Label>
-                    <div className="relative">
-                      <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">
-                        ج.م
-                      </span>
-                      <Input
-                        id="price"
-                        type="number"
-                        value={editData.price}
-                        onChange={(e) => handleEditChange("price", e.target.value)}
-                        placeholder="0.00"
-                        className="w-full pr-12"
-                        min="0"
-                        step="0.01"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="discount">الخصم</Label>
-                    <Input
-                      id="discount"
-                      type="number"
-                      value={appointment?.discount || 0}
-                      onChange={(e) => handleEditChange("discount", e.target.value)}
-                      className="w-full"
-                      min="0"
-                    />
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="paymentMethod">طريقة الدفع</Label>
-                    <select
-                      id="paymentMethod"
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                    >
-                      <option value="cash">نقدي</option>
-                      <option value="card">بطاقة</option>
-                      <option value="insurance">تأمين</option>
-                    </select>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="paymentStatus">حالة الدفع</Label>
-                    <select
-                      id="paymentStatus"
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                    >
-                      <option value="pending">معلق</option>
-                      <option value="paid">مدفوع</option>
-                      <option value="partial">جزئي</option>
-                    </select>
-                  </div>
-                </div>
-              </TabsContent>
-            </Tabs>
+              </div>
+            </div>
             
-            <DialogFooter className="flex flex-col sm:flex-row gap-3 pt-6 border-t">
+            <div className="flex items-center gap-2">
               <Button
                 variant="outline"
-                onClick={() => setIsEditModalOpen(false)}
-                className="w-full sm:w-auto">
-                إلغاء
+                size="icon"
+                className="h-10 w-10 rounded-full"
+                onClick={handleRefresh}
+              >
+                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
               </Button>
               <Button
-                onClick={handleSaveEdit}
-                disabled={isUpdating}
-                className="w-full sm:w-auto gap-2 bg-blue-600 hover:bg-blue-700">
-                {isUpdating ? (
-                  <>
-                    <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    جاري الحفظ...
-                  </>
-                ) : (
-                  "حفظ التغييرات"
-                )}
+                onClick={() => setOpen(true)}
+                className="h-10 gap-2 bg-gradient-to-l from-blue-500 to-blue-600 text-white rounded-full px-4 shadow-lg"
+              >
+                <Plus className="w-4 h-4" />
+                <span className="text-sm font-medium">جديد</span>
               </Button>
-            </DialogFooter>
+            </div>
           </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Prescription Dialog */}
-      <Dialog open={showPrescriptionDialog} onOpenChange={setShowPrescriptionDialog}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="size-5" />
-              كتابة وصفة طبية
-            </DialogTitle>
-          </DialogHeader>
-          <div className="py-4 max-h-[70vh] overflow-y-auto">
-            <div className="space-y-4">
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h3 className="font-semibold mb-2">تفاصيل الوصفة</h3>
-                <p className="text-gray-600 text-sm">سيتم إنشاء وصفة طبية للحجز الحالي</p>
+          
+          {/* Mobile Quick Stats */}
+          <div className="flex gap-2 mt-3 overflow-x-auto pb-2">
+            <div className="flex-shrink-0 min-w-[120px] bg-gradient-to-l from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-3">
+              <div className="flex items-center justify-between">
+                <div className="text-blue-600 font-bold text-lg">{stats.today}</div>
+                <div className="p-1.5 rounded-lg bg-white">
+                  <Zap className="w-3.5 h-3.5 text-blue-600" />
+                </div>
               </div>
+              <div className="text-xs text-blue-700 mt-1 font-medium">اليوم</div>
+            </div>
+            
+            <div className="flex-shrink-0 min-w-[120px] bg-gradient-to-l from-green-50 to-green-100 border border-green-200 rounded-xl p-3">
+              <div className="flex items-center justify-between">
+                <div className="text-green-600 font-bold text-lg">{stats.upcoming}</div>
+                <div className="p-1.5 rounded-lg bg-white">
+                  <TrendingUp className="w-3.5 h-3.5 text-green-600" />
+                </div>
+              </div>
+              <div className="text-xs text-green-700 mt-1 font-medium">قادمة</div>
+            </div>
+            
+            <div className="flex-shrink-0 min-w-[120px] bg-gradient-to-l from-purple-50 to-purple-100 border border-purple-200 rounded-xl p-3">
+              <div className="flex items-center justify-between">
+                <div className="text-purple-600 font-bold text-lg">{stats.total}</div>
+                <div className="p-1.5 rounded-lg bg-white">
+                  <Star className="w-3.5 h-3.5 text-purple-600" />
+                </div>
+              </div>
+              <div className="text-xs text-purple-700 mt-1 font-medium">المجموع</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Desktop Header */}
+        <div className="hidden md:block mb-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-3 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg">
+                  <CalendarPlus className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900">إدارة المواعيد</h1>
+                  <p className="text-gray-500">سهولة التحكم في كل حجوزاتك</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="gap-1">
+                  <Zap className="w-3 h-3" />
+                  {stats.today} موعد اليوم
+                </Badge>
+                <Badge variant="outline" className="gap-1">
+                  <TrendingUp className="w-3 h-3" />
+                  {stats.upcoming} قادمة
+                </Badge>
+              </div>
+              <Button
+                onClick={() => setOpen(true)}
+                className="h-12 gap-3 bg-gradient-to-l from-blue-500 via-blue-600 to-blue-500 bg-[length:200%] hover:bg-[length:100%] transition-all duration-500 text-white shadow-lg hover:shadow-xl rounded-xl px-6"
+              >
+                <Plus className="w-5 h-5" />
+                <span className="font-semibold">موعد جديد</span>
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Desktop Stats Grid */}
+        <div className="hidden md:grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="bg-gradient-to-l from-blue-50 to-white border border-blue-100 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-300">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-2.5 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-md">
+                <Zap className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex gap-2">
+                <Badge className="bg-green-100 text-green-700 hover:bg-green-100">
+                  ✓ {stats.completedToday}
+                </Badge>
+                <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">
+                  ⏱ {stats.pendingToday}
+                </Badge>
+              </div>
+            </div>
+            <div className="text-3xl font-bold text-gray-900 mb-2">{stats.today}</div>
+            <p className="text-gray-600 font-medium">مواعيد اليوم</p>
+            <div className="mt-4 pt-4 border-t border-blue-100">
+              <div className="flex items-center text-sm text-gray-500">
+                <Clock className="w-3.5 h-3.5 ml-1" />
+                آخر تحديث: {new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-l from-green-50 to-white border border-green-100 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-300">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-2.5 rounded-xl bg-gradient-to-br from-green-500 to-green-600 shadow-md">
+                <TrendingUp className="w-5 h-5 text-white" />
+              </div>
+              <Badge className="bg-green-100 text-green-700 hover:bg-green-100">
+                قادمة
+              </Badge>
+            </div>
+            <div className="text-3xl font-bold text-gray-900 mb-2">{stats.upcoming}</div>
+            <p className="text-gray-600 font-medium">موعد في المستقبل</p>
+            <div className="mt-4 pt-4 border-t border-green-100">
+              <div className="text-sm text-gray-500">
+                متابعة جميع المواعيد القادمة
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-l from-purple-50 to-white border border-purple-100 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-300">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-2.5 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 shadow-md">
+                <Star className="w-5 h-5 text-white" />
+              </div>
+              <Badge className="bg-purple-100 text-purple-700 hover:bg-purple-100">
+                إجمالي
+              </Badge>
+            </div>
+            <div className="text-3xl font-bold text-gray-900 mb-2">{stats.total}</div>
+            <p className="text-gray-600 font-medium">موعد إجمالي</p>
+            <div className="mt-4 pt-4 border-t border-purple-100">
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <CalendarDays className="w-3.5 h-3.5" />
+                جميع المواعيد المسجلة
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Search and Actions Bar */}
+        <div className="mb-6">
+          <div className="flex flex-col md:flex-row gap-4 justify-between">
+            {/* Search */}
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <Input
+                  className="w-full pr-12 h-12 md:h-11 bg-white border-gray-300 focus:border-blue-500 rounded-xl md:rounded-lg text-base md:text-sm"
+                  placeholder="ابحث عن موعد، مريض، رقم هاتف..."
+                  value={query}
+                  onChange={(e) => {
+                    setQuery(e.target.value)
+                    setPage(1)
+                    setAllAppointmentsPage(1)
+                  }}
+                />
+                {query && (
+                  <button
+                    onClick={() => setQuery("")}
+                    className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+            
+            {/* Actions */}
+            <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0">
+              <Button
+                variant="outline"
+                onClick={() => navigate("/work-mode")}
+                className="h-12 md:h-11 border-gray-300 hover:bg-gray-50 rounded-xl md:rounded-lg flex-shrink-0 gap-2 px-4"
+              >
+                <Calendar className="w-4 h-4" />
+                <span className="hidden md:inline">وضع العمل</span>
+                <span className="md:hidden">العمل</span>
+              </Button>
               
-              {/* Prescription Form with Multiple Medications */}
-              <div className="space-y-6">
-                {medications.map((med, index) => (
-                  <div key={index} className="border border-gray-200 rounded-lg p-4 space-y-4">
-                    <div className="flex justify-between items-center">
-                      <h4 className="font-medium">الدواء #{index + 1}</h4>
-                      {medications.length > 1 && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeMedication(index)}
-                          className="text-red-600 hover:text-red-800 hover:bg-red-50"
-                        >
-                          <X className="size-4" />
-                        </Button>
-                      )}
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor={`medication-${index}`}>اسم الدواء</Label>
-                      <Input 
-                        id={`medication-${index}`}
-                        placeholder="أدخل اسم الدواء"
-                        value={med.name}
-                        onChange={(e) => updateMedication(index, 'name', e.target.value)}
-                        className="w-full"
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor={`dosage-${index}`}>الجرعة</Label>
-                      <Input 
-                        id={`dosage-${index}`}
-                        placeholder="مثال: ملعقة صغيرة مرتين يومياً"
-                        value={med.dosage}
-                        onChange={(e) => updateMedication(index, 'dosage', e.target.value)}
-                        className="w-full"
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor={`duration-${index}`}>مدة الاستخدام</Label>
-                      <Input 
-                        id={`duration-${index}`}
-                        placeholder="مثال: 7 أيام"
-                        value={med.duration}
-                        onChange={(e) => updateMedication(index, 'duration', e.target.value)}
-                        className="w-full"
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor={`instructions-${index}`}>تعليمات خاصة</Label>
-                      <Textarea 
-                        id={`instructions-${index}`}
-                        placeholder="أدخل أي تعليمات خاصة لاستخدام الدواء"
-                        value={med.instructions}
-                        onChange={(e) => updateMedication(index, 'instructions', e.target.value)}
-                        className="min-h-[80px]"
-                      />
-                    </div>
+              <Button
+                variant={showFilters ? "default" : "outline"}
+                onClick={() => setShowFilters(!showFilters)}
+                className="h-12 md:h-11 border-gray-300 hover:bg-gray-50 rounded-xl md:rounded-lg flex-shrink-0 gap-2 px-4"
+              >
+                <Filter className="w-4 h-4" />
+                <span className="hidden md:inline">فلاتر</span>
+              </Button>
+              
+              <Button
+                variant="outline"
+                onClick={handleRefresh}
+                className="h-12 md:h-11 border-gray-300 hover:bg-gray-50 rounded-xl md:rounded-lg flex-shrink-0 gap-2 px-4"
+              >
+                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <span className="hidden md:inline">تحديث</span>
+              </Button>
+              
+              <Button
+                onClick={() => setOpen(true)}
+                className="hidden md:flex h-11 bg-blue-600 hover:bg-blue-700 text-white rounded-lg gap-2 px-6"
+              >
+                <Plus className="w-4 h-4" />
+                موعد جديد
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Filters Section */}
+        {showFilters && (
+          <div className="mb-6 animate-in fade-in duration-300">
+            <AppointmentsFilter onFilterChange={handleFilterChange} />
+          </div>
+        )}
+
+        {/* Modern Tab Navigation */}
+        <div className="mb-6">
+          <div className="md:hidden">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-3 rounded-xl bg-gray-100 p-1">
+                <TabsTrigger value="upcoming" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                  <div className="flex items-center gap-2 py-2">
+                    <Clock className="w-4 h-4" />
+                    <span>القادمة</span>
+                    {stats.upcoming > 0 && (
+                      <Badge className="h-5 px-1.5 bg-blue-100 text-blue-700 hover:bg-blue-100">
+                        {stats.upcoming}
+                      </Badge>
+                    )}
                   </div>
-                ))}
-                
-                <Button 
-                  variant="outline" 
-                  onClick={addMedication}
-                  className="w-full gap-2"
+                </TabsTrigger>
+                <TabsTrigger value="all" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                  <div className="flex items-center gap-2 py-2">
+                    <CalendarDays className="w-4 h-4" />
+                    <span>الكل</span>
+                  </div>
+                </TabsTrigger>
+                <TabsTrigger value="bookings" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                  <div className="flex items-center gap-2 py-2">
+                    <Users className="w-4 h-4" />
+                    <span>الحجوزات</span>
+                    {onlineBookingsData?.items?.length > 0 && (
+                      <Badge className="h-5 px-1.5 bg-amber-100 text-amber-700 hover:bg-amber-100">
+                        {onlineBookingsData.items.length}
+                      </Badge>
+                    )}
+                  </div>
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="upcoming" className="mt-4">
+                {isUpcomingLoading ? (
+                  <TableSkeleton />
+                ) : (
+                  <TableContainer>
+                    <AppointmentsTable
+                      appointments={upcomingData?.items || []}
+                      total={upcomingData?.total || 0}
+                      page={page}
+                      pageSize={APPOINTMENTS_PAGE_SIZE}
+                      onPageChange={setPage}
+                      isLoading={isUpcomingLoading}
+                    />
+                  </TableContainer>
+                )}
+              </TabsContent>
+              
+              <TabsContent value="all" className="mt-4">
+                {isAllLoading ? (
+                  <TableSkeleton />
+                ) : (
+                  <TableContainer>
+                    <AppointmentsTable
+                      appointments={allData?.items || []}
+                      total={allData?.total || 0}
+                      page={allAppointmentsPage}
+                      pageSize={APPOINTMENTS_PAGE_SIZE}
+                      onPageChange={setAllAppointmentsPage}
+                      isLoading={isAllLoading}
+                    />
+                  </TableContainer>
+                )}
+              </TabsContent>
+              
+              <TabsContent value="bookings" className="mt-4">
+                {isOnlineBookingsLoading ? (
+                  <TableSkeleton />
+                ) : (
+                  <TableContainer>
+                    <OnlineBookingsTable
+                      bookings={onlineBookingsData?.items || []}
+                      total={onlineBookingsData?.total || 0}
+                      page={1}
+                      pageSize={100}
+                      onPageChange={() => {}}
+                      isLoading={isOnlineBookingsLoading}
+                    />
+                  </TableContainer>
+                )}
+              </TabsContent>
+            </Tabs>
+          </div>
+
+          {/* Desktop Tabs */}
+          <div className="hidden md:block">
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mb-6">
+              <div className="flex">
+                <button
+                  className={`flex-1 py-4 px-6 text-center transition-all font-medium ${
+                    activeTab === "upcoming"
+                      ? "text-blue-600 border-b-2 border-blue-500 bg-blue-50/50"
+                      : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                  }`}
+                  onClick={() => {
+                    setActiveTab("upcoming")
+                    setPage(1)
+                  }}
                 >
-                  <Plus className="size-4" />
-                  إضافة دواء آخر
-                </Button>
-              </div>
-              
-              <div className="flex justify-end gap-3 pt-4">
-                <Button variant="outline" onClick={() => setShowPrescriptionDialog(false)}>
-                  إلغاء
-                </Button>
-                <Button onClick={handleCreatePrescription}>
-                  إنشاء الوصفة
-                </Button>
+                  <div className="flex items-center justify-center gap-2">
+                    <Clock className="w-4 h-4" />
+                    <span>القادمة</span>
+                    {stats.upcoming > 0 && (
+                      <span className="bg-blue-100 text-blue-600 text-xs px-2 py-1 rounded-full">
+                        {stats.upcoming}
+                      </span>
+                    )}
+                  </div>
+                </button>
+                
+                <button
+                  className={`flex-1 py-4 px-6 text-center transition-all font-medium ${
+                    activeTab === "all"
+                      ? "text-blue-600 border-b-2 border-blue-500 bg-blue-50/50"
+                      : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                  }`}
+                  onClick={() => {
+                    setActiveTab("all")
+                    setAllAppointmentsPage(1)
+                  }}
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <CalendarDays className="w-4 h-4" />
+                    <span>كل المواعيد</span>
+                    {stats.total > 0 && (
+                      <span className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-full">
+                        {stats.total}
+                      </span>
+                    )}
+                  </div>
+                </button>
+                
+                <button
+                  className={`flex-1 py-4 px-6 text-center transition-all font-medium ${
+                    activeTab === "bookings"
+                      ? "text-blue-600 border-b-2 border-blue-500 bg-blue-50/50"
+                      : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                  }`}
+                  onClick={() => setActiveTab("bookings")}
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <Users className="w-4 h-4" />
+                    <span>الحجوزات الإلكترونية</span>
+                    {onlineBookingsData?.items?.length > 0 && (
+                      <span className="bg-amber-100 text-amber-600 text-xs px-2 py-1 rounded-full">
+                        {onlineBookingsData.items.length}
+                      </span>
+                    )}
+                  </div>
+                </button>
               </div>
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
-      {/* Payment Dialog */}
-      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Wallet className="size-5" />
-              تسجيل دفع الحجز
-            </DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>المبلغ المطلوب</Label>
-                  <div className="text-2xl font-bold text-green-600">
-                    {((appointment?.price || 0) - (appointment?.discount || 0) + (appointment?.tax || 0)).toFixed(2)} ج.م
-                  </div>
-                </div>
-                <div>
-                  <Label>المبلغ المدفوع</Label>
-                  <Input type="number" placeholder="0.00" />
-                </div>
-              </div>
+            {/* Content based on active tab */}
+            {activeTab === "upcoming" && (
               <div>
-                <Label>طريقة الدفع</Label>
-                <select className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background">
-                  <option value="cash">نقدي</option>
-                  <option value="card">بطاقة</option>
-                  <option value="insurance">تأمين</option>
-                </select>
+                {isUpcomingLoading ? (
+                  <TableSkeleton />
+                ) : (
+                  <TableContainer>
+                    <AppointmentsTable
+                      appointments={upcomingData?.items || []}
+                      total={upcomingData?.total || 0}
+                      page={page}
+                      pageSize={APPOINTMENTS_PAGE_SIZE}
+                      onPageChange={setPage}
+                      isLoading={isUpcomingLoading}
+                    />
+                  </TableContainer>
+                )}
               </div>
-              <div className="flex justify-end gap-3 pt-4">
-                <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>
-                  إلغاء
-                </Button>
-                <Button>
-                  تسجيل الدفع
-                </Button>
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+            )}
 
-      {/* Call Dialog */}
-      <Dialog open={showCallDialog} onOpenChange={setShowCallDialog}>
-        <DialogContent className="sm:max-w-[400px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Phone className="size-5" />
-              اتصال بالمريض
-            </DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <div className="space-y-4">
-              <div className="text-center">
-                <div className="text-lg font-semibold">{appointment?.patient?.name}</div>
-                <div className="text-gray-600">{appointment?.patient?.phone}</div>
-              </div>
-              <div className="flex justify-center gap-3 pt-4">
-                <Button variant="outline" onClick={() => setShowCallDialog(false)}>
-                  إلغاء
-                </Button>
-                <Button className="gap-2">
-                  <Phone className="size-4" />
-                  اتصال
-                </Button>
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Invoice Dialog */}
-      <Dialog open={showInvoiceDialog} onOpenChange={setShowInvoiceDialog}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="size-5" />
-              إصدار فاتورة
-            </DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <div className="space-y-4">
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h3 className="font-semibold mb-2">تفاصيل الفاتورة</h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span>سعر الكشف:</span>
-                    <span>{appointment?.price?.toFixed(2) || "0.00"} ج.م</span>
-                  </div>
-                  <div className="flex justify-between text-red-600">
-                    <span>الخصم:</span>
-                    <span>- {(appointment?.discount || 0).toFixed(2)} ج.م</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>الضريبة:</span>
-                    <span>+ {(appointment?.tax || 0).toFixed(2)} ج.م</span>
-                  </div>
-                  <Separator />
-                  <div className="flex justify-between font-bold">
-                    <span>المجموع:</span>
-                    <span>{((appointment?.price || 0) - (appointment?.discount || 0) + (appointment?.tax || 0)).toFixed(2)} ج.م</span>
-                  </div>
-                </div>
-              </div>
-              <div className="flex justify-end gap-3 pt-4">
-                <Button variant="outline" onClick={() => setShowInvoiceDialog(false)}>
-                  إلغاء
-                </Button>
-                <Button className="gap-2">
-                  <Download className="size-4" />
-                  تنزيل الفاتورة
-                </Button>
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Follow-up Dialog */}
-      <Dialog open={showFollowUpDialog} onOpenChange={setShowFollowUpDialog}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Calendar className="size-5" />
-              حجز متابعة
-            </DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>تاريخ المتابعة</Label>
-                  <Input type="date" />
-                </div>
-                <div>
-                  <Label>وقت المتابعة</Label>
-                  <Input type="time" />
-                </div>
-              </div>
+            {activeTab === "all" && (
               <div>
-                <Label>ملاحظات المتابعة</Label>
-                <Textarea placeholder="أدخل ملاحظات المتابعة..." className="min-h-[80px]" />
+                {isAllLoading ? (
+                  <TableSkeleton />
+                ) : (
+                  <TableContainer>
+                    <AppointmentsTable
+                      appointments={allData?.items || []}
+                      total={allData?.total || 0}
+                      page={allAppointmentsPage}
+                      pageSize={APPOINTMENTS_PAGE_SIZE}
+                      onPageChange={setAllAppointmentsPage}
+                      isLoading={isAllLoading}
+                    />
+                  </TableContainer>
+                )}
               </div>
-              <div className="flex justify-end gap-3 pt-4">
-                <Button variant="outline" onClick={() => setShowFollowUpDialog(false)}>
-                  إلغاء
-                </Button>
-                <Button>
-                  حجز المتابعة
-                </Button>
+            )}
+
+            {activeTab === "bookings" && (
+              <div>
+                {isOnlineBookingsLoading ? (
+                  <TableSkeleton />
+                ) : (
+                  <TableContainer>
+                    <OnlineBookingsTable
+                      bookings={onlineBookingsData?.items || []}
+                      total={onlineBookingsData?.total || 0}
+                      page={1}
+                      pageSize={100}
+                      onPageChange={() => {}}
+                      isLoading={isOnlineBookingsLoading}
+                    />
+                  </TableContainer>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Mobile Side Menu */}
+        <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+          <SheetContent side="right" className="w-[85vw] max-w-md">
+            <SheetHeader>
+              <SheetTitle className="text-right">القائمة</SheetTitle>
+            </SheetHeader>
+            <div className="mt-6 space-y-4">
+              <Button
+                variant="outline"
+                className="w-full justify-start gap-3 h-12 rounded-xl"
+                onClick={() => {
+                  setIsMobileMenuOpen(false)
+                  navigate("/work-mode")
+                }}
+              >
+                <Calendar className="w-5 h-5" />
+                وضع العمل
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start gap-3 h-12 rounded-xl"
+                onClick={() => {
+                  setIsMobileMenuOpen(false)
+                  setShowFilters(!showFilters)
+                }}
+              >
+                <Filter className="w-5 h-5" />
+                {showFilters ? 'إخفاء الفلاتر' : 'الفلاتر'}
+              </Button>
+              <div className="pt-4 border-t">
+                <div className="text-sm font-medium text-gray-500 mb-3">الإحصائيات</div>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-700">مواعيد اليوم</span>
+                    <Badge className="bg-blue-100 text-blue-700">{stats.today}</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-700">القادمة</span>
+                    <Badge className="bg-green-100 text-green-700">{stats.upcoming}</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-700">المجموع</span>
+                    <Badge className="bg-purple-100 text-purple-700">{stats.total}</Badge>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+          </SheetContent>
+        </Sheet>
+
+        {/* Floating Action Button for Mobile */}
+        <Button
+          onClick={() => setOpen(true)}
+          className="fixed bottom-6 right-6 md:hidden h-14 w-14 rounded-full shadow-xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 z-50 animate-bounce shadow-lg"
+          size="icon"
+        >
+          <Plus className="w-6 h-6" />
+        </Button>
+
+        {/* Appointment Create Dialog */}
+        <AppointmentCreateDialog open={open} onClose={() => setOpen(false)} />
+      </div>
     </div>
-  );
+  )
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useLocation } from "react-router-dom"
 import { Card } from "../../components/ui/card"
 import { useAuth } from "../auth/AuthContext"
 import useClinic from "../auth/useClinic"
@@ -14,8 +14,14 @@ import { Button } from "../../components/ui/button"
 
 export default function ClinicPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { user } = useAuth()
   
+  // Apply scroll to top on route changes
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+
   const {
     data: clinic,
     isLoading: isClinicLoading,
@@ -123,7 +129,7 @@ export default function ClinicPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-6">
+    <div className="min-h-screen bg-gray-50 p-4 md:p-6 pb-20 md:pb-0">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-8">

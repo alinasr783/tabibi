@@ -1,19 +1,42 @@
-import { CheckCircle, Calendar, User, Phone, MapPin } from "lucide-react";
+import { Calendar, User, Phone, MapPin } from "lucide-react";
 import { Card, CardContent } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
+import { useEffect, useRef } from "react";
+import lottie from "lottie-web";
 
 export default function BookingSuccessCard({ onReset, appointmentId, clinic }) {
+  const animationContainer = useRef(null);
+
+  useEffect(() => {
+    let anim;
+    if (animationContainer.current) {
+      anim = lottie.loadAnimation({
+        container: animationContainer.current,
+        renderer: 'svg',
+        loop: false,
+        autoplay: true,
+        path: '/animations/tick-animation.json'
+      });
+    }
+
+    return () => {
+      if (anim) anim.destroy();
+    };
+  }, []);
+
   return (
     <div className="min-h-screen bg-white flex items-center justify-center p-4" dir="rtl">
       <Card className="w-full max-w-md border border-gray-200 shadow-sm">
         <CardContent className="p-6">
-          {/* Success Icon and Message */}
+          {/* Success Animation and Message */}
           <div className="text-center mb-8">
-            <div className="w-16 h-16 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center">
-              <CheckCircle className="w-10 h-10 text-green-600" />
-            </div>
-            <h2 className="text-xl font-bold text-gray-900 mb-2">كده خلصنا!</h2>
-            <p className="text-gray-600">حجزك اتحفظ ورقم الحجز هو:</p>
+            <div 
+              className="w-48 h-48 mx-auto mb-4 transform scale-150 origin-center" 
+              ref={animationContainer}
+              style={{ transform: 'scale(1.5)', transformOrigin: 'center' }}
+            ></div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">كده خلصنا</h2>
+            <p className="text-gray-600">حجزك اتبعت للعيادة ورقمك هو </p>
             <div className="mt-4 p-3 bg-gray-50 rounded-lg">
               <p className="font-bold text-lg text-gray-900">{appointmentId || "قيد المعالجة"}</p>
             </div>

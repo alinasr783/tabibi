@@ -1,5 +1,4 @@
 import {CalendarDays, Clock, Users, Wallet} from "lucide-react";
-import {useState} from "react";
 import {Card, CardContent} from "../../components/ui/card";
 import {
   Select,
@@ -34,10 +33,9 @@ function Stat({icon: Icon, label, value, isLoading}) {
   );
 }
 
-export default function SummaryCards() {
+export default function SummaryCards({ filter, setFilter }) {
   const {data: stats, isLoading} = useDashboardStats();
   const {data: planData} = usePlan();
-  const [filter, setFilter] = useState("month");
   const {data: filteredStats, isLoading: isFilteredLoading} =
     useFilteredPatientStats(filter);
 
@@ -52,23 +50,21 @@ export default function SummaryCards() {
 
   return (
     <div className="space-y-4">
-      {/* Filter Section */}
-      <div className="flex justify-end">
-        <div className="w-40">
-          <Select value={filter} onValueChange={setFilter}>
-            <SelectTrigger className="h-8 text-sm">
-              <SelectValue placeholder="اختر فترة" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="week">آخر أسبوع</SelectItem>
-              <SelectItem value="month">آخر شهر</SelectItem>
-              <SelectItem value="threeMonths">آخر 3 أشهر</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+      {/* Filter Section - Only shown when SummaryCards is used in mobile layout */}
+      <div className="w-full lg:hidden">
+        <Select value={filter} onValueChange={setFilter}>
+          <SelectTrigger className="h-8 text-sm w-full">
+            <SelectValue placeholder="اختر فترة" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="week">آخر أسبوع</SelectItem>
+            <SelectItem value="month">آخر شهر</SelectItem>
+            <SelectItem value="threeMonths">آخر 3 أشهر</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards - Always shown except when specifically hidden */}
       <div
         className={`grid gap-3 ${
           isIncomeEnabled

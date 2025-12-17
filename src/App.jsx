@@ -33,6 +33,7 @@ import Subscriptions from "./pages/Subscriptions";
 import WorkMode from "./pages/WorkMode";
 import OfflineIndicator from "./components/OfflineIndicator";
 import { OfflineProvider } from "./features/offline-mode/OfflineContext";
+
 // Memoize route components to prevent unnecessary re-renders
 const MemoizedLanding = memo(Landing);
 const MemoizedLogin = memo(Login);
@@ -57,6 +58,192 @@ const MemoizedStaff = memo(Staff);
 const MemoizedSubscriptions = memo(Subscriptions);
 const MemoizedWorkMode = memo(WorkMode);
 
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/" element={<MemoizedLanding />} />
+      <Route
+        path="/login"
+        element={
+          <PublicRoute>
+            <MemoizedLogin />
+          </PublicRoute>
+        }
+      />
+      <Route path="/plan/:planId" element={<MemoizedPlanConfirmation />} />
+      <Route path="/payment/callback" element={<MemoizedPaymentCallback />} />
+      <Route
+        path="/signup"
+        element={
+          <PublicRoute>
+            <MemoizedSignup />
+          </PublicRoute>
+        }
+      />
+      <Route
+        element={
+          <ProtectedRoute>
+            <NoSubscriptionGuard>
+              <DoctorLayout />
+            </NoSubscriptionGuard>
+          </ProtectedRoute>
+        }>
+        <Route
+          path="/dashboard"
+          element={
+            <PermissionGuard requiredPermission="dashboard">
+              <MemoizedDashboard />
+            </PermissionGuard>
+          }
+        />
+        <Route
+          path="/appointments"
+          element={
+            <PermissionGuard requiredPermission="appointments">
+              <SubscriptionExpiryGuard>
+                <MemoizedCalendar />
+              </SubscriptionExpiryGuard>
+            </PermissionGuard>
+          }
+        />
+        <Route
+          path="/patients"
+          element={
+            <PermissionGuard requiredPermission="patients">
+              <SubscriptionExpiryGuard>
+                <MemoizedPatients />
+              </SubscriptionExpiryGuard>
+            </PermissionGuard>
+          }
+        />
+        <Route
+          path="/patients/:id"
+          element={
+            <PermissionGuard requiredPermission="patients">
+              <SubscriptionExpiryGuard>
+                <MemoizedPatientDetailPage />
+              </SubscriptionExpiryGuard>
+            </PermissionGuard>
+          }
+        />
+        <Route
+          path="/patients/:patientId/visits/:visitId"
+          element={
+            <PermissionGuard requiredPermission="patients">
+              <SubscriptionExpiryGuard>
+                <MemoizedVisitDetailPage />
+              </SubscriptionExpiryGuard>
+            </PermissionGuard>
+          }
+        />
+        <Route
+          path="/patients/:patientId/plans/:planId"
+          element={
+            <PermissionGuard requiredPermission="patients">
+              <SubscriptionExpiryGuard>
+                <MemoizedPatientPlanDetailPage />
+              </SubscriptionExpiryGuard>
+            </PermissionGuard>
+          }
+        />
+        <Route
+          path="/clinic"
+          element={
+            <PermissionGuard requiredPermission="clinic">
+              <MemoizedClinic />
+            </PermissionGuard>
+          }
+        />
+        <Route
+          path="/online-booking"
+          element={
+            <PermissionGuard requiredPermission="clinic">
+              <SubscriptionExpiryGuard>
+                <MemoizedOnlineBooking />
+              </SubscriptionExpiryGuard>
+            </PermissionGuard>
+          }
+        />
+        <Route
+          path="/treatments"
+          element={
+            <PermissionGuard requiredPermission="patients">
+              <SubscriptionExpiryGuard>
+                <MemoizedTreatmentPlans />
+              </SubscriptionExpiryGuard>
+            </PermissionGuard>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <PermissionGuard requiredPermission="settings">
+              <MemoizedSettings />
+            </PermissionGuard>
+          }
+        />
+        <Route
+          path="/appointments/:appointmentId"
+          element={
+            <PermissionGuard requiredPermission="appointments">
+              <SubscriptionExpiryGuard>
+                <MemoizedAppointmentDetailPage />
+              </SubscriptionExpiryGuard>
+            </PermissionGuard>
+          }
+        />
+        <Route
+          path="/finance"
+          element={
+            <PermissionGuard requiredPermission="finance">
+              <SubscriptionExpiryGuard>
+                <MemoizedFinance />
+              </SubscriptionExpiryGuard>
+            </PermissionGuard>
+          }
+        />
+        <Route
+          path="/notifications"
+          element={
+            <PermissionGuard requiredPermission="notifications">
+              <SubscriptionExpiryGuard>
+                <MemoizedNotifications />
+              </SubscriptionExpiryGuard>
+            </PermissionGuard>
+          }
+        />
+        <Route
+          path="/staff"
+          element={
+            <PermissionGuard requiredPermission="clinic">
+              <MemoizedStaff />
+            </PermissionGuard>
+          }
+        />
+        <Route
+          path="/subscriptions"
+          element={
+            <PermissionGuard requiredPermission="clinic">
+              <MemoizedSubscriptions />
+            </PermissionGuard>
+          }
+        />
+        <Route
+          path="/work-mode"
+          element={
+            <PermissionGuard requiredPermission="appointments">
+              <SubscriptionExpiryGuard>
+                <MemoizedWorkMode />
+              </SubscriptionExpiryGuard>
+            </PermissionGuard>
+          }
+        />
+      </Route>
+      <Route path="/booking/:clinicId" element={<MemoizedBooking />} />
+    </Routes>
+  );
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -64,187 +251,7 @@ function App() {
         <OfflineProvider>
           <AutoPaymentRecorder />
           <OfflineIndicator />
-          <Routes>
-            <Route path="/" element={<MemoizedLanding />} />
-            <Route
-              path="/login"
-              element={
-                <PublicRoute>
-                  <MemoizedLogin />
-                </PublicRoute>
-              }
-            />
-            <Route path="/plan/:planId" element={<MemoizedPlanConfirmation />} />
-            <Route path="/payment/callback" element={<MemoizedPaymentCallback />} />
-            <Route
-              path="/signup"
-              element={
-                <PublicRoute>
-                  <MemoizedSignup />
-                </PublicRoute>
-              }
-            />
-            <Route
-              element={
-                <ProtectedRoute>
-                  <NoSubscriptionGuard>
-                    <DoctorLayout />
-                  </NoSubscriptionGuard>
-                </ProtectedRoute>
-              }>
-              <Route
-                path="/dashboard"
-                element={
-                  <PermissionGuard requiredPermission="dashboard">
-                    <MemoizedDashboard />
-                  </PermissionGuard>
-                }
-              />
-              <Route
-                path="/appointments"
-                element={
-                  <PermissionGuard requiredPermission="appointments">
-                    <SubscriptionExpiryGuard>
-                      <MemoizedCalendar />
-                    </SubscriptionExpiryGuard>
-                  </PermissionGuard>
-                }
-              />
-              <Route
-                path="/patients"
-                element={
-                  <PermissionGuard requiredPermission="patients">
-                    <SubscriptionExpiryGuard>
-                      <MemoizedPatients />
-                    </SubscriptionExpiryGuard>
-                  </PermissionGuard>
-                }
-              />
-              <Route
-                path="/patients/:id"
-                element={
-                  <PermissionGuard requiredPermission="patients">
-                    <SubscriptionExpiryGuard>
-                      <MemoizedPatientDetailPage />
-                    </SubscriptionExpiryGuard>
-                  </PermissionGuard>
-                }
-              />
-              <Route
-                path="/patients/:patientId/visits/:visitId"
-                element={
-                  <PermissionGuard requiredPermission="patients">
-                    <SubscriptionExpiryGuard>
-                      <MemoizedVisitDetailPage />
-                    </SubscriptionExpiryGuard>
-                  </PermissionGuard>
-                }
-              />
-              <Route
-                path="/patients/:patientId/plans/:planId"
-                element={
-                  <PermissionGuard requiredPermission="patients">
-                    <SubscriptionExpiryGuard>
-                      <MemoizedPatientPlanDetailPage />
-                    </SubscriptionExpiryGuard>
-                  </PermissionGuard>
-                }
-              />
-              <Route
-                path="/clinic"
-                element={
-                  <PermissionGuard requiredPermission="clinic">
-                    <MemoizedClinic />
-                  </PermissionGuard>
-                }
-              />
-              <Route
-                path="/online-booking"
-                element={
-                  <PermissionGuard requiredPermission="clinic">
-                    <SubscriptionExpiryGuard>
-                      <MemoizedOnlineBooking />
-                    </SubscriptionExpiryGuard>
-                  </PermissionGuard>
-                }
-              />
-              <Route
-                path="/treatments"
-                element={
-                  <PermissionGuard requiredPermission="patients">
-                    <SubscriptionExpiryGuard>
-                      <MemoizedTreatmentPlans />
-                    </SubscriptionExpiryGuard>
-                  </PermissionGuard>
-                }
-              />
-              <Route
-                path="/settings"
-                element={
-                  <PermissionGuard requiredPermission="settings">
-                    <MemoizedSettings />
-                  </PermissionGuard>
-                }
-              />
-              <Route
-                path="/appointments/:appointmentId"
-                element={
-                  <PermissionGuard requiredPermission="appointments">
-                    <SubscriptionExpiryGuard>
-                      <MemoizedAppointmentDetailPage />
-                    </SubscriptionExpiryGuard>
-                  </PermissionGuard>
-                }
-              />
-              <Route
-                path="/finance"
-                element={
-                  <PermissionGuard requiredPermission="finance">
-                    <SubscriptionExpiryGuard>
-                      <MemoizedFinance />
-                    </SubscriptionExpiryGuard>
-                  </PermissionGuard>
-                }
-              />
-              <Route
-                path="/notifications"
-                element={
-                  <PermissionGuard requiredPermission="notifications">
-                    <SubscriptionExpiryGuard>
-                      <MemoizedNotifications />
-                    </SubscriptionExpiryGuard>
-                  </PermissionGuard>
-                }
-              />
-              <Route
-                path="/staff"
-                element={
-                  <PermissionGuard requiredPermission="clinic">
-                    <MemoizedStaff />
-                  </PermissionGuard>
-                }
-              />
-              <Route
-                path="/subscriptions"
-                element={
-                  <PermissionGuard requiredPermission="clinic">
-                    <MemoizedSubscriptions />
-                  </PermissionGuard>
-                }
-              />
-              <Route
-                path="/work-mode"
-                element={
-                  <PermissionGuard requiredPermission="appointments">
-                    <SubscriptionExpiryGuard>
-                      <MemoizedWorkMode />
-                    </SubscriptionExpiryGuard>
-                  </PermissionGuard>
-                }
-              />
-            </Route>
-            <Route path="/booking/:clinicId" element={<MemoizedBooking />} />
-          </Routes>
+          <AppRoutes />
           <Toaster position="top-center" />
         </OfflineProvider>
       </AuthProviderWrapper>

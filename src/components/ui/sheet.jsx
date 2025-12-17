@@ -44,4 +44,20 @@ const SheetContent = ({ side = 'right', children, className }) => {
   );
 };
 
-export { Sheet, SheetTrigger, SheetContent };
+const SheetHeader = ({ children, className }) => {
+  return (
+    <div className={cn("border-b border-border p-4", className)}>
+      {children}
+    </div>
+  );
+};
+
+const SheetTitle = ({ children, className }) => {
+  return (
+    <h2 className={cn("text-lg font-semibold", className)}>
+      {children}
+    </h2>
+  );
+};
+
+export { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle };

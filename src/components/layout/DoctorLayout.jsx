@@ -14,7 +14,7 @@ import {
   Bell,
   Clock,
 } from "lucide-react";
-import { NavLink, Outlet, Link } from "react-router-dom";
+import { NavLink, Outlet, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../features/auth/AuthContext";
 import ClinicInfo from "../../features/auth/ClinicInfo";
 import LogoutButton from "../../features/auth/LogoutButton";
@@ -50,6 +50,12 @@ export default function DoctorLayout() {
   const { user } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { unreadCount = 0, loading } = useUnreadNotifications();
+  const location = useLocation();
+
+  // Apply scroll to top on route changes
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
 
   // For doctors, show all navigation items
   const isDoctor = user?.role === "doctor";
@@ -118,11 +124,11 @@ export default function DoctorLayout() {
 
   return (
     <div dir="rtl" className="flex h-screen">
-      {/* Mobile menu button */}
+      {/* Floating Mobile menu button - Always visible and floating on small screens at the top */}
       <button
-        className="md:hidden fixed top-4 left-4 z-50 p-2 rounded-md bg-card border border-border menu-button"
+        className="md:hidden fixed top-6 left-6 z-50 p-3 rounded-full bg-primary text-white shadow-lg menu-button"
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
-        <Menu className="size-5" />
+        <Menu className="size-6" />
       </button>
 
       {/* Sidebar overlay for mobile */}
@@ -238,7 +244,7 @@ export default function DoctorLayout() {
         </div>
       </aside>
       <div className="flex-1 md:mr-0 lg:mr-0 xl:mr-0 flex flex-col min-h-0">
-        <main className="flex-1 overflow-y-auto py-6 mt-16 md:mt-0">
+        <main className="flex-1 overflow-y-auto py-6 mt-0 md:mt-0">
           <div className="container">
             <Outlet />
           </div>

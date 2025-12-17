@@ -91,7 +91,7 @@ export default function AppointmentFormCard({
           {/* Date and Time */}
           <div className="space-y-2">
             <Label className="text-sm">
-              التاريخ والوقت *
+              اختار اليوم والساعة اللي تناسبك *
             </Label>
             <AppointmentTimePicker
               selectedDate={selectedDate}

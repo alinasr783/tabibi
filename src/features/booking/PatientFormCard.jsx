@@ -21,7 +21,7 @@ export default function PatientFormCard({
       <CardHeader className="pb-4">
         <CardTitle className="text-lg sm:text-xl">بيانات المريض</CardTitle>
         <CardDescription className="text-sm">
-          أدخل بيانات المريض لإكمال الحجز
+          دخل بيانات المريض عشان نكمل الحجز
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -34,7 +34,7 @@ export default function PatientFormCard({
             <Input
               id="name"
               {...register("name", {required: "الاسم مطلوب"})}
-              placeholder="اكتب الاسم"
+              placeholder="اكتب الاسم هنا"
               className="text-sm"
             />
             {errors.name && (
@@ -60,7 +60,7 @@ export default function PatientFormCard({
                   message: "رقم الهاتف يجب أن يحتوي على أرقام فقط",
                 },
               })}
-              placeholder="أدخل رقم الهاتف"
+              placeholder="دخل رقم موبايلك هنا"
               className="text-sm"
             />
             {errors.phone && (
@@ -93,7 +93,7 @@ export default function PatientFormCard({
           {/* Age Field */}
           <div>
             <Label htmlFor="age" className="text-sm">
-              العمر *
+              السن *
             </Label>
             <Input
               id="age"
@@ -103,7 +103,7 @@ export default function PatientFormCard({
                 min: { value: 1, message: "العمر يجب أن يكون أكبر من 0" },
                 max: { value: 120, message: "العمر يجب أن يكون أقل من 120" }
               })}
-              placeholder="أدخل العمر"
+              placeholder="دخل السن هنا"
               className="text-sm"
             />
             {errors.age && (
@@ -116,7 +116,7 @@ export default function PatientFormCard({
           {/* Submit Button */}
           <div className="pt-2">
             <Button type="submit" disabled={isLoading} className="w-full">
-              {isLoading ? "جاري المعالجة..." : "متابعة"}
+              {isLoading ? "بنبعت للعيادة دلوقتي ..." : "كمل"}
               <ArrowRight className="mr-2 h-4 w-4" />
             </Button>
           </div>

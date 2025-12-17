@@ -53,7 +53,7 @@ export default function Hero() {
             }}
           >
             <Sparkles className="size-4 text-primary" />
-            منصة الكترونية لإدارة العيادات
+            ميرضناش تعبك - دير عيادتك بذكاء 
           </motion.div>
           
           <motion.h1 
@@ -67,7 +67,7 @@ export default function Hero() {
             variants={item}
             className="text-muted-foreground text-lg leading-relaxed"
           >
-            دير كل اجزاء عيادتك من مكان واحد 
+            المواعيد , الماليات , حجز الكتروني , ادارة السكرتارية - كل ده من مكان واحد
           </motion.p>
           
           <motion.div variants={item} className="flex flex-wrap gap-4">
@@ -87,7 +87,7 @@ export default function Hero() {
                     whileTap={{ scale: 0.95 }}
                   >
                     <Stethoscope className="size-5" />
-                    الدخول
+                    عارفينك - ادخل لوحة التحكم 
                   </motion.button>
                 </Link>
                 <motion.button
@@ -96,7 +96,7 @@ export default function Hero() {
                   whileTap={{ scale: 0.95 }}
                 >
                   <Smartphone className="size-5" />
-                  مشاهدة العرض الترويجى
+                  شوف المنصة بتعمل ايه في دقيقة
                 </motion.button>
               </>
             ) : (
@@ -109,7 +109,7 @@ export default function Hero() {
                     whileTap={{ scale: 0.95 }}
                   >
                     <Stethoscope className="size-5" />
-                    ابدأ التجربة المجانية
+                    ابدا دلوقتي ببلاش 
                   </motion.button>
                 </Link>
                 <motion.button
@@ -118,7 +118,7 @@ export default function Hero() {
                   whileTap={{ scale: 0.95 }}
                 >
                   <Smartphone className="size-5" />
-                  مشاهدة العرض الترويجى
+                  شوف المنصة بتعمل ايه في دقيقة
                 </motion.button>
               </>
             )}
@@ -128,25 +128,25 @@ export default function Hero() {
             <Card className="text-center">
               <CardContent className="py-4">
                 <div className="text-2xl font-bold">+120</div>
-                <div className="text-xs text-muted-foreground">عيادة نشطة</div>
+                <div className="text-xs text-muted-foreground">عيادة بتستخدم Tabibi يوميا</div>
               </CardContent>
             </Card>
             <Card className="text-center">
               <CardContent className="py-4">
                 <div className="text-2xl font-bold">+15K</div>
-                <div className="text-xs text-muted-foreground">ملف طبي مُدار</div>
+                <div className="text-xs text-muted-foreground">ملف طبي متسجل بأمان</div>
               </CardContent>
             </Card>
             <Card className="text-center">
               <CardContent className="py-4">
                 <div className="text-2xl font-bold">99.9%</div>
-                <div className="text-xs text-muted-foreground">جاهزية النظام</div>
+                <div className="text-xs text-muted-foreground">استقرار النظام بدون توقف</div>
               </CardContent>
             </Card>
             <Card className="text-center">
               <CardContent className="py-4">
                 <div className="text-2xl font-bold">24/7</div>
-                <div className="text-xs text-muted-foreground">دعم فني</div>
+                <div className="text-xs text-muted-foreground">دعم فني حقيقي مش روبوت</div>
               </CardContent>
             </Card>
           </motion.div>

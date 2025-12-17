@@ -1,4 +1,4 @@
-import { CalendarDays } from "lucide-react";
+import { CalendarDays, User, Stethoscope } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "../../components/ui/badge";
 import { Card, CardContent, CardHeader } from "../../components/ui/card";
@@ -6,8 +6,9 @@ import Pagination from "../../components/ui/pagination";
 import { SkeletonLine } from "../../components/ui/skeleton";
 import { ACTIVITY_PAGE_SIZE } from "../../constants/pagination";
 import useRecentActivity from "./useRecentActivity";
+import { useNavigate } from "react-router-dom";
 
-function Item({icon: Icon, title, time, tag, isLoading}) {
+function Item({icon: Icon, title, time, tag, isLoading, onClick}) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-between gap-3 py-2">
@@ -24,7 +25,10 @@ function Item({icon: Icon, title, time, tag, isLoading}) {
   }
 
   return (
-    <div className="flex items-center justify-between gap-3 py-2">
+    <div 
+      className="flex items-center justify-between gap-3 py-2 cursor-pointer hover:bg-accent/50 rounded-[var(--radius)] p-2 transition-colors"
+      onClick={onClick}
+    >
       <div className="flex items-center gap-3">
         <div className="size-8 rounded-[calc(var(--radius)-6px)] bg-muted text-foreground grid place-items-center">
           <Icon className="size-4" />
@@ -45,6 +49,7 @@ export default function Activity() {
     page,
     ACTIVITY_PAGE_SIZE
   );
+  const navigate = useNavigate();
 
   // Calculate total pages
   const totalPages =
@@ -61,7 +66,7 @@ export default function Activity() {
   return (
     <Card>
       <CardHeader>
-        <h3 className="text-lg font-semibold">نشاط سريع</h3>
+        <h3 className="text-lg font-semibold">نشاطك السريع</h3>
       </CardHeader>
       <CardContent>
         <div className="divide-y divide-border">
@@ -77,16 +82,23 @@ export default function Activity() {
                   title={activity.title}
                   time={activity.time}
                   tag={activity.tag}
+                  onClick={() => {
+                    // Navigate to specific appointment if it's an appointment activity
+                    if (activity.type === 'appointment' && activity.appointmentId) {
+                      navigate(`/appointments/${activity.appointmentId}`);
+                    } else {
+                      navigate('/appointments');
+                    }
+                  }}
                 />
               ))
-            : Array.from({length: 3}).map((_, i) => (
+            : (
                 <Item
-                  key={i}
                   icon={CalendarDays}
-                  title="لا توجد أنشطة حديثة"
+                  title="مفيش أنشطة حديثة"
                   time="الآن"
                 />
-              ))}
+              )}
         </div>
 
         {/* Pagination */}
