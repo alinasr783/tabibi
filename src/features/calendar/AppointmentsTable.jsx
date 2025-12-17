@@ -812,7 +812,7 @@ export default function AppointmentsTable({
               ترقية الخطة
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </DialogContent>  
       </Dialog>
     </>
   );
