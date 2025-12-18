@@ -1,200 +1,302 @@
-import { useState } from "react";
-import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { Badge } from "../../components/ui/badge";
-import { Check, X, RefreshCw, Calendar, Clock, User, AlertCircle } from "lucide-react";
-import useAppointments from "./useAppointments";
-import TableSkeleton from "../../components/ui/table-skeleton";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { updateAppointment } from "../../services/apiAppointments";
-import toast from "react-hot-toast";
-import { ONLINE_BOOKINGS_PAGE_SIZE } from "../../constants/pagination";
+import { CheckCircle, XCircle, Clock, Smartphone, Eye, MoreHorizontal } from "lucide-react";
+import { Button } from "../../components/ui/button";
+import { Badge } from "../../components/ui/badge";
+import { Card, CardContent } from "../../components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../../components/ui/dropdown-menu";
+import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
 
-const statusMap = {
-  pending: { label: "جديد", variant: "warning" },
-  confirmed: { label: "مؤكد", variant: "success" },
-  rejected: { label: "مرفوض", variant: "destructive" },
-  completed: { label: "مكتمل", variant: "default" },
-  cancelled: { label: "ملغي", variant: "destructive" },
-};
-
-const sourceMap = {
-  booking: { label: "من الموقع", variant: "default" },
-  clinic: { label: "من العيادة", variant: "secondary" },
-};
-
-export default function OnlineBookingsSection() {
-  const [page, setPage] = useState(1);
-  const queryClient = useQueryClient();
-  
-  // Fetch only online bookings (from: booking) with pending/confirmed/rejected status
-  const filters = { from: "booking" };
-  const { 
-    data: onlineBookingsData, 
-    isLoading, 
-    refetch 
-  } = useAppointments("", page, ONLINE_BOOKINGS_PAGE_SIZE, filters);
-
-  const { mutate: updateStatus } = useMutation({
-    mutationFn: ({ id, status }) => updateAppointment(id, { status }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["appointments"] });
-      toast.success("تم تحديث حالة الحجز بنجاح");
-    },
-    onError: (error) => {
-      toast.error(error.message || "فشل في تحديث حالة الحجز");
-    },
-  });
-
-  const handleAccept = (appointmentId) => {
-    updateStatus({ id: appointmentId, status: "confirmed" });
+// Mobile Card View Component for Bookings
+const BookingCard = ({ booking, onStatusChange, onViewDetails }) => {
+  const statusConfig = {
+    pending: { label: "قيد الانتظار", variant: "secondary", icon: Clock, color: "text-amber-600" },
+    confirmed: { label: "مؤكد", variant: "default", icon: CheckCircle, color: "text-green-600" },
+    cancelled: { label: "ملغي", variant: "destructive", icon: XCircle, color: "text-red-600" }
   };
 
-  const handleReject = (appointmentId) => {
-    updateStatus({ id: appointmentId, status: "rejected" });
-  };
-
-  // Format date for display
-  const formatDate = (dateString) => {
-    if (!dateString) return "-";
-    try {
-      return format(new Date(dateString), "dd MMMM yyyy - hh:mm a", { locale: ar });
-    } catch {
-      return dateString;
-    }
-  };
+  const StatusIcon = statusConfig[booking.status]?.icon || Clock;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-green-100 rounded-lg">
-            <Calendar className="w-5 h-5 text-green-600" />
+    <div className="bg-white border border-gray-200 rounded-lg p-4 mb-3 shadow-sm hover:shadow transition-shadow">
+      <div className="flex justify-between items-start mb-3">
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-1">
+            <Smartphone className="w-4 h-4 text-blue-500" />
+            <h4 className="font-bold text-gray-900 truncate">{booking.patient_name || "زائر"}</h4>
           </div>
-          <div>
-            <h2 className="text-lg font-semibold text-gray-800">المواعيد الأونلاين</h2>
-            <p className="text-sm text-gray-500">المواعيد القادمة من الموقع</p>
-          </div>
+          <p className="text-sm text-gray-500 truncate">{booking.patient_phone || "لا يوجد"}</p>
         </div>
+        <Badge variant={statusConfig[booking.status]?.variant || "secondary"} className="text-xs">
+          <StatusIcon className="w-3 h-3 ml-1" />
+          {statusConfig[booking.status]?.label || booking.status}
+        </Badge>
+      </div>
+      
+      <div className="space-y-2 mb-4">
+        <div className="flex items-center gap-2 text-sm text-gray-600">
+          <Clock className="w-4 h-4 text-gray-400" />
+          <span>
+            {booking.requested_date
+              ? format(new Date(booking.requested_date), "dd MMM yyyy - hh:mm a", { locale: ar })
+              : "غير محدد"}
+          </span>
+        </div>
+        
+        <div className="text-sm text-gray-600">
+          <span className="text-gray-500">ملاحظات: </span>
+          <span className="truncate">{booking.notes || "لا توجد"}</span>
+        </div>
+        
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-gray-500">تم الطلب: </span>
+          <span className="font-medium">
+            {booking.created_at
+              ? format(new Date(booking.created_at), "dd MMM yyyy", { locale: ar })
+              : "غير معروف"}
+          </span>
+        </div>
+      </div>
+      
+      <div className="flex gap-2 pt-3 border-t border-gray-100">
         <Button
           variant="outline"
-          onClick={refetch}
-          className="h-9 gap-2 border-gray-300 text-gray-700 hover:bg-gray-50"
+          size="sm"
+          className="flex-1 h-9"
+          onClick={() => onViewDetails(booking.id)}
         >
-          <RefreshCw className="w-4 h-4" />
-          تحديث
+          <Eye className="w-4 h-4 ml-1" />
+          التفاصيل
         </Button>
+        
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-9 px-3">
+              <MoreHorizontal className="w-4 h-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" sideOffset={5} className="w-48">
+            <DropdownMenuItem onClick={() => onStatusChange(booking.id, "pending")}>
+              قيد الانتظار
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onStatusChange(booking.id, "confirmed")}>
+              تأكيد
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onStatusChange(booking.id, "cancelled")}>
+              إلغاء
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
+    </div>
+  );
+};
 
-      {/* Info box for pending appointments */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">
-        <AlertCircle className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
-        <p className="text-sm text-blue-700">
-          الحجوزات الجديدة (الحالة: جديد) تظهر في أعلى القائمة تلقائيًا لتسهيل الإجراءات السريعة
-        </p>
-      </div>
+export default function OnlineBookingsTable({
+  bookings,
+  total,
+  page,
+  pageSize,
+  onPageChange,
+  isLoading,
+}) {
+  const navigate = useNavigate();
+  const [isMobileView, setIsMobileView] = useState(false);
 
-      <Card className="border border-gray-200 shadow-sm">
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div className="p-6">
-              <TableSkeleton columns={4} rows={3} />
-            </div>
-          ) : onlineBookingsData?.items?.length > 0 ? (
-            <div className="divide-y divide-gray-100">
-              {onlineBookingsData.items.map((appointment) => (
-                <div key={appointment.id} className="p-4 hover:bg-gray-50 transition-colors">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2">
-                        <User className="w-4 h-4 text-gray-500" />
-                        <span className="font-medium truncate">{appointment.patient?.name || "غير محدد"}</span>
-                        <Badge variant={sourceMap[appointment.from]?.variant || "secondary"}>
-                          {sourceMap[appointment.from]?.label || appointment.from}
-                        </Badge>
-                        {appointment.status === "pending" && (
-                          <Badge variant="warning">جديد</Badge>
-                        )}
-                      </div>
-                      
-                      <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
-                        <div className="flex items-center gap-1">
-                          <Clock className="w-4 h-4" />
-                          <span>{formatDate(appointment.date)}</span>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm">الحالة:</span>
-                        <Badge variant={statusMap[appointment.status]?.variant || "secondary"}>
-                          {statusMap[appointment.status]?.label || appointment.status}
-                        </Badge>
-                      </div>
-                    </div>
-                    
-                    {appointment.status === "pending" && (
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-8 gap-1 border-green-300 text-green-700 hover:bg-green-50"
-                          onClick={() => handleAccept(appointment.id)}
-                        >
-                          <Check className="w-4 h-4" />
-                          قبول
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-8 gap-1 border-red-300 text-red-700 hover:bg-red-50"
-                          onClick={() => handleReject(appointment.id)}
-                        >
-                          <X className="w-4 h-4" />
-                          رفض
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {/* Pagination */}
-              <div className="flex items-center justify-between border-t border-gray-100 px-3 py-2">
-                <div className="text-xs text-gray-500">
-                  {Math.min((page - 1) * ONLINE_BOOKINGS_PAGE_SIZE + 1, onlineBookingsData.total)}–
-                  {Math.min(page * ONLINE_BOOKINGS_PAGE_SIZE, onlineBookingsData.total)} من {onlineBookingsData.total}
-                </div>
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={page <= 1}
-                    onClick={() => setPage(page - 1)}>
-                    السابق
-                  </Button>
-                  <span className="px-3 py-1 rounded bg-gray-100 text-xs">
-                    الصفحة {page}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={page >= Math.ceil((onlineBookingsData.total || 0) / ONLINE_BOOKINGS_PAGE_SIZE)}
-                    onClick={() => setPage(page + 1)}>
-                    التالي
-                  </Button>
-                </div>
+  useEffect(() => {
+    const checkMobile = () => setIsMobileView(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  const handleStatusChange = (bookingId, newStatus) => {
+    // Implementation for status change
+    console.log(`Change booking ${bookingId} to ${newStatus}`);
+  };
+
+  const handleViewDetails = (bookingId) => {
+    navigate(`/online-bookings/${bookingId}`);
+  };
+
+  // Desktop columns
+  const columns = [
+    {
+      header: "اسم المريض",
+      accessor: "patient_name",
+      cellClassName: "font-medium",
+      render: (booking) => booking.patient_name || "زائر",
+    },
+    {
+      header: "رقم الهاتف",
+      accessor: "patient_phone",
+      cellClassName: "text-muted-foreground",
+      render: (booking) => booking.patient_phone || "-",
+    },
+    {
+      header: "التاريخ المطلوب",
+      accessor: "requested_date",
+      cellClassName: "text-muted-foreground",
+      render: (booking) =>
+        booking.requested_date
+          ? format(new Date(booking.requested_date), "dd MMM yyyy - hh:mm a", { locale: ar })
+          : "غير محدد",
+    },
+    {
+      header: "ملاحظات",
+      accessor: "notes",
+      cellClassName: "text-muted-foreground truncate max-w-[200px]",
+    },
+    {
+      header: "تاريخ الطلب",
+      accessor: "created_at",
+      cellClassName: "text-muted-foreground",
+      render: (booking) =>
+        booking.created_at
+          ? format(new Date(booking.created_at), "dd MMM yyyy", { locale: ar })
+          : "غير معروف",
+    },
+    {
+      header: "الحالة",
+      accessor: "status",
+      render: (booking) => {
+        const config = {
+          pending: { label: "قيد الانتظار", variant: "secondary" },
+          confirmed: { label: "مؤكد", variant: "default" },
+          cancelled: { label: "ملغي", variant: "destructive" }
+        };
+        const cfg = config[booking.status] || config.pending;
+        return (
+          <Badge variant={cfg.variant} className="text-xs">
+            {cfg.label}
+          </Badge>
+        );
+      },
+    },
+    {
+      header: "",
+      accessor: "actions",
+      cellClassName: "text-right",
+      render: (booking) => (
+        <div className="flex items-center gap-1 justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={() => handleViewDetails(booking.id)}
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" sideOffset={5}>
+              <DropdownMenuItem onClick={() => handleStatusChange(booking.id, "pending")}>
+                قيد الانتظار
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleStatusChange(booking.id, "confirmed")}>
+                تأكيد
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleStatusChange(booking.id, "cancelled")}>
+                إلغاء
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      ),
+    },
+  ];
+
+  if (isLoading) {
+    return (
+      <Card className="max-h-[calc(100vh-200px)]">
+        <CardContent className="p-4">
+          <div className="space-y-3">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="animate-pulse">
+                <div className="h-20 bg-gray-200 rounded-lg"></div>
               </div>
-            </div>
-          ) : (
-            <div className="p-8 text-center">
-              <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-600 mb-2">لا توجد مواعيد أونلاين</p>
-              <p className="text-sm text-gray-400">سيتم عرض المواعيد القادمة من الموقع هنا</p>
-            </div>
-          )}
+            ))}
+          </div>
         </CardContent>
       </Card>
-    </div>
+    );
+  }
+
+  if (!bookings || bookings.length === 0) {
+    return (
+      <Card className="max-h-[calc(100vh-200px)]">
+        <CardContent className="p-8 text-center">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+            <Smartphone className="w-8 h-8 text-gray-400" />
+          </div>
+          <h3 className="text-lg font-bold text-gray-700 mb-2">لا توجد حجوزات إلكترونية</h3>
+          <p className="text-gray-500 text-sm">الحجوزات القادمة من موقعك الإلكتروني ستظهر هنا</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <>
+      {isMobileView ? (
+        // Mobile View: Cards
+        <div className="space-y-3 pb-4">
+          {bookings.map((booking) => (
+            <BookingCard
+              key={booking.id}
+              booking={booking}
+              onStatusChange={handleStatusChange}
+              onViewDetails={handleViewDetails}
+            />
+          ))}
+        </div>
+      ) : (
+        // Desktop View: Table with horizontal scroll
+        <Card className="max-h-[calc(100vh-200px)]">
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    {columns.map((column, index) => (
+                      <th
+                        key={index}
+                        className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        {column.header}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {bookings.map((booking) => (
+                    <tr key={booking.id} className="hover:bg-gray-50">
+                      {columns.map((column, index) => (
+                        <td
+                          key={index}
+                          className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap"
+                        >
+                          {column.render ? column.render(booking) : booking[column.accessor]}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </>
   );
 }

@@ -1,27 +1,51 @@
-import { SkeletonLine } from './skeleton'
+import { Card, CardContent } from "../../components/ui/card";
 
-export default function TableSkeleton({ columns = 4, rows = 5 }) {
+export default function TableSkeleton() {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="bg-muted/50">
-            {Array.from({ length: columns }).map((_, i) => (
-              <th key={i} className="p-3 text-start"><SkeletonLine width={80} height={14} /></th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {Array.from({ length: rows }).map((_, r) => (
-            <tr key={r} className="border-t border-border">
-              {Array.from({ length: columns }).map((_, c) => (
-                <td key={c} className="p-3"><SkeletonLine height={16} /></td>
-              ))}
-            </tr>
+    <Card className="max-h-[calc(100vh-200px)]">
+      <CardContent className="p-4 md:p-6">
+        {/* Mobile Skeleton */}
+        <div className="md:hidden space-y-3">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="animate-pulse">
+              <div className="h-32 bg-gray-200 rounded-lg mb-3"></div>
+            </div>
           ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
+        </div>
 
+        {/* Desktop Skeleton */}
+        <div className="hidden md:block">
+          <div className="animate-pulse">
+            {/* Table Header */}
+            <div className="grid grid-cols-7 gap-4 mb-4">
+              {[...Array(7)].map((_, i) => (
+                <div key={i} className="h-8 bg-gray-200 rounded"></div>
+              ))}
+            </div>
+            
+            {/* Table Rows */}
+            {[...Array(5)].map((_, rowIndex) => (
+              <div key={rowIndex} className="grid grid-cols-7 gap-4 mb-3">
+                {[...Array(7)].map((_, colIndex) => (
+                  <div key={colIndex} className="h-12 bg-gray-200 rounded"></div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Pagination Skeleton */}
+        <div className="animate-pulse mt-6">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="h-6 bg-gray-200 rounded w-48"></div>
+            <div className="flex gap-2">
+              <div className="h-9 bg-gray-200 rounded w-24"></div>
+              <div className="h-9 bg-gray-200 rounded w-32"></div>
+              <div className="h-9 bg-gray-200 rounded w-24"></div>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
