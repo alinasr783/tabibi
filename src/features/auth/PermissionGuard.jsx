@@ -5,6 +5,9 @@ export default function PermissionGuard({ children, requiredPermission }) {
   const { data: user, isLoading } = useUser()
   const location = useLocation()
 
+  // Debugging: log user data to see what's being received
+  console.log("PermissionGuard - User data:", user)
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -21,6 +24,49 @@ export default function PermissionGuard({ children, requiredPermission }) {
     return <Navigate to="/login" replace />
   }
 
+  // Check if this is a user with missing custom data
+  if (user.userDataMissing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">بيانات المستخدم غير مكتملة</h2>
+          <p className="text-gray-600">
+            لم يتم العثور على بيانات المستخدم في قاعدة البيانات. يرجى تسجيل الخروج وإعادة تسجيل الدخول.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  // Check if user has the default "authenticated" role (meaning custom data wasn't fetched)
+  if (user.role === "authenticated") {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">خطأ في تحميل بيانات المستخدم</h2>
+          <p className="text-gray-600">
+            لم يتم تحميل بيانات المستخدم بشكل صحيح. يرجى تسجيل الخروج وإعادة تسجيل الدخول.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  // Check if user has a role property
+  if (!user.hasOwnProperty('role')) {
+    console.error("User object missing role property:", user)
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">خطأ في بيانات المستخدم</h2>
+          <p className="text-gray-600">
+            بيانات المستخدم غير مكتملة. يرجى تسجيل الخروج وإعادة تسجيل الدخول.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   // Doctors have full access
   if (user.role === "doctor") {
     return children
@@ -33,8 +79,8 @@ export default function PermissionGuard({ children, requiredPermission }) {
       return children
     }
 
-    // If permissions array is empty or null, deny access
-    if (!user.permissions || user.permissions.length === 0) {
+    // If permissions is null/undefined or empty array, deny access
+    if (!user.permissions || (Array.isArray(user.permissions) && user.permissions.length === 0)) {
       return (
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center p-8 max-w-md">
@@ -57,9 +103,20 @@ export default function PermissionGuard({ children, requiredPermission }) {
       )
     }
 
+    // Handle case where permissions is a string (JSON) instead of array
+    let permissionsArray = user.permissions;
+    if (typeof user.permissions === 'string') {
+      try {
+        permissionsArray = JSON.parse(user.permissions);
+      } catch (e) {
+        console.error("Error parsing permissions string:", e);
+        permissionsArray = [];
+      }
+    }
+
     // If a specific permission is required, check if user has it
     if (requiredPermission) {
-      if (!user.permissions.includes(requiredPermission)) {
+      if (!permissionsArray || !Array.isArray(permissionsArray) || !permissionsArray.includes(requiredPermission)) {
         return (
           <div className="min-h-screen flex items-center justify-center">
             <div className="text-center p-8 max-w-md">
@@ -88,12 +145,13 @@ export default function PermissionGuard({ children, requiredPermission }) {
   }
 
   // For any other role, deny access
+  console.error("Unknown user role:", user.role)
   return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
         <h2 className="text-2xl font-bold text-gray-800 mb-2">الوصول مرفوض</h2>
         <p className="text-gray-600">
-          دور المستخدم غير معتمد
+          دور المستخدم غير معتمد: {user.role || 'غير محدد'}
         </p>
       </div>
     </div>

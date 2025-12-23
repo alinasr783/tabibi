@@ -6,12 +6,27 @@ import toast from "react-hot-toast";
 
 export default function useCreatePatientOffline() {
   const qc = useQueryClient();
-  const { isOfflineMode, enqueueOperation } = useOffline();
+  
+  // Add a try-catch block to handle cases where the hook is used outside the provider
+  let isOfflineMode = false;
+  let enqueueOperation = null;
+  let hasOfflineContext = false;
+  
+  try {
+    const offlineContext = useOffline();
+    isOfflineMode = offlineContext.isOfflineMode;
+    enqueueOperation = offlineContext.enqueueOperation;
+    hasOfflineContext = true;
+  } catch (error) {
+    // If we're outside the OfflineProvider, we'll default to online mode
+    console.warn("useCreatePatientOffline used outside OfflineProvider, defaulting to online mode");
+  }
+  
   const { createPatientOffline } = useOfflineData();
 
   return useMutation({
     mutationFn: async (patientData) => {
-      if (isOfflineMode) {
+      if (hasOfflineContext && isOfflineMode) {
         // Create patient locally when offline
         const localPatient = await createPatientOffline(patientData);
         toast.success("تم حفظ المريض محليًا وسيتم مزامنته تلقائيًا عند عودة الاتصال");
@@ -28,8 +43,8 @@ export default function useCreatePatientOffline() {
       qc.invalidateQueries({ queryKey: ["dashboardStats"] });
       qc.invalidateQueries({ queryKey: ["filteredPatientStats"] });
       
-      // If we're offline, enqueue the operation for sync when online
-      if (isOfflineMode) {
+      // If we're offline and have the context, enqueue the operation for sync when online
+      if (hasOfflineContext && isOfflineMode && enqueueOperation) {
         enqueueOperation('patient', 'create', variables);
       }
       

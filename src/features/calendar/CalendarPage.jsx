@@ -1,4 +1,4 @@
-import { CalendarPlus, Search, Clock, CalendarDays, Filter, RefreshCw, Plus, User, Zap, TrendingUp, Star, X } from "lucide-react"
+import { CalendarPlus, Search, Clock, CalendarDays, Filter, RefreshCw, Plus, Users, Calendar, CheckCircle, X, AlertCircle } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Button } from "../../components/ui/button"
 import { Card, CardContent } from "../../components/ui/card"
@@ -10,34 +10,49 @@ import AppointmentsFilter from "./AppointmentsFilter"
 import AppointmentsTable from "./AppointmentsTable"
 import useAppointments from "./useAppointments"
 import OnlineBookingsSection from "./OnlineBookingsSection"
+import OnlineBookingsTable from "../online-booking/OnlineBookingsTable"
+import { useNavigate } from "react-router-dom"
+import useScrollToTop from "../../hooks/useScrollToTop"
 
 export default function CalendarPage() {
+  useScrollToTop(); // Auto scroll to top on page load
+  const navigate = useNavigate();
   const [query, setQuery] = useState("")
   const [page, setPage] = useState(1)
   const [allAppointmentsPage, setAllAppointmentsPage] = useState(1)
   const [filters, setFilters] = useState({})
   const [open, setOpen] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
-  const [isRefreshing, setIsRefreshing] = useState(false)
   const [activeTab, setActiveTab] = useState("upcoming")
+  const [isRefreshing, setIsRefreshing] = useState(false) // Add missing state
   
-  // Fetch appointments
+  // Fetch upcoming appointments
   const { 
     data: upcomingData, 
-    isLoading: isUpcomingLoading, 
+    isLoading: isUpcomingLoading,
     refetch: refetchUpcoming 
-  } = useAppointments(query, page, APPOINTMENTS_PAGE_SIZE, { status: "upcoming" })
+  } = useAppointments(query, page, APPOINTMENTS_PAGE_SIZE, { time: "upcoming" })
   
+  // Fetch all appointments
   const { 
     data: allData, 
-    isLoading: isAllLoading, 
+    isLoading: isAllLoading,
     refetch: refetchAll 
   } = useAppointments(query, allAppointmentsPage, APPOINTMENTS_PAGE_SIZE, filters)
+  
+  // Fetch online bookings (similar to OnlineBookingsSection)
+  const { 
+    data: onlineBookingsData, 
+    isLoading: isOnlineBookingsLoading,
+    refetch: refetchOnlineBookings 
+  } = useAppointments("", 1, 100, { source: "booking" })
 
   const handleFilterChange = (newFilters) => {
     setFilters(newFilters)
     setPage(1)
     setAllAppointmentsPage(1)
+    // Switch to "all" tab when filter is applied
+    setActiveTab("all")
   }
   
   const handleRefresh = async () => {
@@ -55,283 +70,349 @@ export default function CalendarPage() {
     return () => clearInterval(interval)
   }, [refetchUpcoming, refetchAll])
 
+  // Stats calculations
+  const today = new Date().toISOString().split('T')[0]
+  const todayAppointments = upcomingData?.items?.filter(a => a.date === today) || []
+  const completedToday = todayAppointments.filter(a => a.status === 'completed').length
+  const pendingToday = todayAppointments.filter(a => a.status === 'pending' || a.status === 'confirmed').length
+  
   const stats = {
-    today: upcomingData?.items?.filter(a => a.date === new Date().toISOString().split('T')[0])?.length || 0,
+    today: todayAppointments.length,
+    completedToday,
+    pendingToday,
     upcoming: upcomingData?.total || 0,
     total: allData?.total || 0
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50/20 p-3 md:p-5" dir="rtl">
-      {/* Main Content */}
+    <div className="min-h-screen bg-background p-4 md:p-6" dir="rtl">
       <div className="max-w-[1920px] mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2.5 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg">
-                  <CalendarPlus className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-3xl font-bold text-gray-900">إدارة المواعيد</h1>
-                  <p className="text-gray-500">سهولة التحكم في كل حجز</p>
-                </div>
-              </div>
-            </div>
-            
+        {/* Header Section - Dashboard Style */}
+        <div className="mb-6">
+          <div className="flex flex-col gap-4">
+            {/* Title Section */}
             <div className="flex items-center gap-3">
-              <Button
-                onClick={() => setOpen(true)}
-                className="h-12 gap-3 bg-gradient-to-l from-blue-500 via-blue-600 to-blue-500 bg-[length:200%] hover:bg-[length:100%] transition-all duration-500 text-white shadow-lg hover:shadow-xl rounded-xl px-6"
-              >
-                <Plus className="w-5 h-5" />
-                <span className="font-semibold">موعد جديد</span>
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Stats Grid - Modern */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4">
-          <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm hover:shadow transition-shadow">
-            <div className="flex items-center justify-between mb-2">
-              <div className="p-1.5 rounded-md bg-blue-50">
-                <Zap className="w-4 h-4 text-blue-600" />
+              <div className="p-2 rounded-lg bg-primary/10 text-primary flex-shrink-0">
+                <CalendarPlus className="w-6 h-6" />
               </div>
-              <span className="text-[10px] font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">اليوم</span>
-            </div>
-            <div className="text-2xl font-bold text-gray-900 mb-1">{stats.today}</div>
-            <p className="text-gray-500 text-[10px]">موعد لهذا اليوم</p>
-          </div>
-
-          <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm hover:shadow transition-shadow">
-            <div className="flex items-center justify-between mb-2">
-              <div className="p-1.5 rounded-md bg-green-50">
-                <TrendingUp className="w-4 h-4 text-green-600" />
+              <div className="flex-1">
+                <h1 className="text-2xl font-bold text-foreground">إدارة المواعيد</h1>
+                <p className="text-sm text-muted-foreground">
+                  {new Date().toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                </p>
               </div>
-              <span className="text-[10px] font-medium text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full">قادمة</span>
             </div>
-            <div className="text-2xl font-bold text-gray-900 mb-1">{stats.upcoming}</div>
-            <p className="text-gray-500 text-[10px]">موعد في المستقبل</p>
-          </div>
 
-          <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm hover:shadow transition-shadow">
-            <div className="flex items-center justify-between mb-2">
-              <div className="p-1.5 rounded-md bg-purple-50">
-                <Star className="w-4 h-4 text-purple-600" />
-              </div>
-              <span className="text-[10px] font-medium text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded-full">المجموع</span>
-            </div>
-            <div className="text-2xl font-bold text-gray-900 mb-1">{stats.total}</div>
-            <p className="text-gray-500 text-[10px]">موعد إجمالي</p>
-          </div>
-        </div>
-
-        {/* Search & Quick Actions */}
-        <div className="flex flex-col lg:flex-row gap-6 mb-8">
-          {/* Search Bar */}
-          <div className="lg:w-2/5">
-            <div className="relative group">
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl blur opacity-0 group-hover:opacity-20 transition-opacity duration-500"></div>
-              <div className="relative bg-white rounded-2xl border border-gray-200 shadow-sm hover:border-blue-300 transition-colors">
-                <div className="p-1">
-                  <div className="relative">
-                    <Search className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                    <Input
-                      className="w-full pr-12 h-14 text-lg border-0 focus:ring-0 placeholder:text-gray-400 bg-transparent"
-                      placeholder="اكتب اسم المريض أو رقم الهاتف أو التاريخ..."
-                      value={query}
-                      onChange={(e) => {
-                        setQuery(e.target.value)
-                        setPage(1)
-                        setAllAppointmentsPage(1)
-                      }}
-                    />
+            {/* Stats Overview - Dashboard Style Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <Card className="bg-card/70">
+                <CardContent className="flex items-center gap-3 py-3">
+                  <div className="size-8 rounded-[calc(var(--radius)-4px)] bg-primary/10 text-primary grid place-items-center">
+                    <Calendar className="size-4" />
                   </div>
-                </div>
-              </div>
-            </div>
-            
-            {/* Quick Actions Row */}
-            <div className="flex flex-wrap gap-3 mt-4">
-              <Button
-                variant="outline"
-                onClick={() => setShowFilters(!showFilters)}
-                className="h-11 gap-2 border-gray-200 hover:border-blue-300 hover:bg-blue-50 rounded-xl"
-              >
-                <Filter className="w-4 h-4" />
-                {showFilters ? 'إغلاق الفلتر' : 'فتح الفلتر'}
-              </Button>
+                  <div>
+                    <div className="text-xs text-muted-foreground">اليوم</div>
+                    <div className="text-lg font-semibold">{stats.today}</div>
+                  </div>
+                </CardContent>
+              </Card>
               
-              <Button
-                variant="outline"
-                onClick={handleRefresh}
-                disabled={isRefreshing}
-                className="h-11 gap-2 border-gray-200 hover:border-green-300 hover:bg-green-50 rounded-xl"
-              >
-                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                تحديث
-              </Button>
-            </div>
-          </div>
-
-          {/* Filters Panel */}
-          {showFilters && (
-            <div className="lg:w-3/5">
-              <Card className="border-0 shadow-lg rounded-2xl animate-in slide-in-from-bottom-4">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-blue-100">
-                        <Filter className="w-5 h-5 text-blue-600" />
-                      </div>
-                      <h3 className="text-lg font-bold text-gray-900">تصفية المواعيد</h3>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowFilters(false)}
-                      className="h-8 w-8 p-0 rounded-lg"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
+              <Card className="bg-card/70">
+                <CardContent className="flex items-center gap-3 py-3">
+                  <div className="size-8 rounded-[calc(var(--radius)-4px)] bg-green-500/10 text-green-600 grid place-items-center">
+                    <CheckCircle className="size-4" />
                   </div>
-                  <AppointmentsFilter onFilterChange={handleFilterChange} />
+                  <div>
+                    <div className="text-xs text-muted-foreground">مكتمل</div>
+                    <div className="text-lg font-semibold text-green-600">{stats.completedToday}</div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-card/70">
+                <CardContent className="flex items-center gap-3 py-3">
+                  <div className="size-8 rounded-[calc(var(--radius)-4px)] bg-amber-500/10 text-amber-600 grid place-items-center">
+                    <Clock className="size-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">منتظر</div>
+                    <div className="text-lg font-semibold text-amber-600">{stats.pendingToday}</div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-card/70">
+                <CardContent className="flex items-center gap-3 py-3">
+                  <div className="size-8 rounded-[calc(var(--radius)-4px)] bg-blue-500/10 text-blue-600 grid place-items-center">
+                    <CalendarDays className="size-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">قادمة</div>
+                    <div className="text-lg font-semibold text-blue-600">{stats.upcoming}</div>
+                  </div>
                 </CardContent>
               </Card>
             </div>
-          )}
+          </div>
         </div>
 
-        {/* Online Bookings - Slim Version */}
-        <div className="mb-8">
-          <OnlineBookingsSection />
-        </div>
-
-        {/* Main Appointments Area - Full Width */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-          {/* Tabs */}
-          <div className="flex border-b border-gray-100">
-            <button
-              onClick={() => setActiveTab("upcoming")}
-              className={`flex-1 py-5 px-6 text-center transition-all ${
-                activeTab === "upcoming"
-                  ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50/50"
-                  : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-              }`}
+        {/* Quick Actions Bar - Mobile Optimized */}
+        <div className="mb-4">
+          {/* Search */}
+          <div className="relative mb-3">
+            <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 md:w-5 md:h-5" />
+            <Input
+              className="w-full pr-10 h-10 md:h-11 bg-background border-border focus:border-primary text-sm md:text-base"
+              placeholder="ابحث عن موعد..."
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value)
+                setPage(1)
+                setAllAppointmentsPage(1)
+              }}
+            />
+          </div>
+          
+          {/* Action Buttons - Mobile Grid */}
+          <div className="grid grid-cols-2 md:flex gap-2">
+            <Button
+              onClick={() => setOpen(true)}
+              className="h-10 md:h-11 bg-primary hover:bg-primary/90 text-primary-foreground text-sm md:text-base col-span-2 md:col-span-1"
             >
-              <div className="flex items-center justify-center gap-3">
-                <Clock className="w-5 h-5" />
-                <span className="font-semibold text-lg">القادمة</span>
-                {stats.upcoming > 0 && (
-                  <span className="bg-blue-100 text-blue-600 text-sm px-3 py-1 rounded-full">
-                    {stats.upcoming}
-                  </span>
-                )}
-              </div>
-            </button>
+              <Plus className="w-4 h-4 md:w-5 md:h-5 ml-2" />
+              موعد جديد
+            </Button>
             
-            <button
-              onClick={() => setActiveTab("all")}
-              className={`flex-1 py-5 px-6 text-center transition-all ${
-                activeTab === "all"
-                  ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50/50"
-                  : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-              }`}
+            <Button
+              variant="outline"
+              onClick={() => navigate("/work-mode")}
+              className="h-10 md:h-11 text-sm md:text-base"
             >
-              <div className="flex items-center justify-center gap-3">
-                <CalendarDays className="w-5 h-5" />
-                <span className="font-semibold text-lg">كل المواعيد</span>
-                {stats.total > 0 && (
-                  <span className="bg-gray-100 text-gray-600 text-sm px-3 py-1 rounded-full">
-                    {stats.total}
-                  </span>
-                )}
-              </div>
-            </button>
+              <Calendar className="w-3.5 h-3.5 md:w-4 md:h-4 ml-1 md:ml-2" />
+              <span className="hidden sm:inline">وضع العمل</span>
+              <span className="sm:hidden">العمل</span>
+            </Button>
+            
+            <Button
+              variant="outline"
+              onClick={() => setShowFilters(!showFilters)}
+              className="h-10 md:h-11 text-sm md:text-base"
+            >
+              <Filter className="w-3.5 h-3.5 md:w-4 md:h-4 ml-1 md:ml-2" />
+              <span className="hidden sm:inline">{showFilters ? 'إخفاء' : 'فلاتر'}</span>
+              <span className="sm:hidden">فلتر</span>
+            </Button>
+            
+            <Button
+              variant="outline"
+              onClick={handleRefresh}
+              className="h-10 md:h-11"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 md:w-4 md:h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
+        </div>
+
+        {/* Filters Panel */}
+        {showFilters && (
+          <div className="mb-6 animate-in fade-in duration-200">
+            <Card className="bg-card/70">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="size-8 rounded-[calc(var(--radius)-4px)] bg-primary/10 text-primary grid place-items-center">
+                      <Filter className="size-4" />
+                    </div>
+                    <h3 className="font-semibold text-foreground">تصفية المواعيد</h3>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowFilters(false)}
+                    className="h-8 w-8 p-0"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+                <AppointmentsFilter onFilterChange={handleFilterChange} />
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Main Content Area - Mobile Optimized */}
+        <Card className="bg-card/70 mb-4 md:mb-6">
+          {/* Tabs - Mobile Friendly */}
+          <div className="border-b border-border overflow-x-auto">
+            <div className="flex min-w-max">
+              <button
+                onClick={() => setActiveTab("upcoming")}
+                className={`px-4 md:px-6 py-3 md:py-4 border-b-2 font-medium text-xs md:text-sm transition-colors whitespace-nowrap ${
+                  activeTab === "upcoming"
+                    ? "border-primary text-primary bg-primary/5"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                }`}
+              >
+                <div className="flex items-center gap-1.5 md:gap-2">
+                  <Clock className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                  <span className="hidden sm:inline">المواعيد القادمة</span>
+                  <span className="sm:hidden">قادمة</span>
+                  {stats.upcoming > 0 && (
+                    <span className="bg-primary/10 text-primary text-xs px-1.5 md:px-2 py-0.5 rounded-full">
+                      {stats.upcoming}
+                    </span>
+                  )}
+                </div>
+              </button>
+              
+              <button
+                onClick={() => setActiveTab("all")}
+                className={`px-4 md:px-6 py-3 md:py-4 border-b-2 font-medium text-xs md:text-sm transition-colors whitespace-nowrap ${
+                  activeTab === "all"
+                    ? "border-primary text-primary bg-primary/5"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                }`}
+              >
+                <div className="flex items-center gap-1.5 md:gap-2">
+                  <CalendarDays className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                  <span className="hidden sm:inline">جميع المواعيد</span>
+                  <span className="sm:hidden">الكل</span>
+                  {stats.total > 0 && (
+                    <span className="bg-accent text-foreground text-xs px-1.5 md:px-2 py-0.5 rounded-full">
+                      {stats.total}
+                    </span>
+                  )}
+                </div>
+              </button>
+            </div>
           </div>
 
-          {/* Content Area - Full Width */}
-          <div className="w-full">
+          {/* Content */}
+          <div className="p-0 md:p-4">
             {activeTab === "upcoming" ? (
               isUpcomingLoading ? (
-                <div className="p-8">
-                  <TableSkeleton columns={6} rows={8} />
+                <div className="p-4">
+                  <TableSkeleton columns={6} rows={6} />
                 </div>
               ) : upcomingData?.items?.length > 0 ? (
-                <div className="w-full overflow-x-auto">
-                  <div className="min-w-full">
-                    <AppointmentsTable
-                      appointments={upcomingData.items}
-                      total={upcomingData.total}
-                      page={page}
-                      pageSize={APPOINTMENTS_PAGE_SIZE}
-                      onPageChange={setPage}
-                      fullWidth={true}
-                    />
-                  </div>
-                </div>
+                <AppointmentsTable
+                  appointments={upcomingData.items}
+                  total={upcomingData.total}
+                  page={page}
+                  pageSize={APPOINTMENTS_PAGE_SIZE}
+                  onPageChange={setPage}
+                  fullWidth={true}
+                />
               ) : (
-                <div className="p-12 text-center">
-                  <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-blue-100 to-blue-50 flex items-center justify-center">
-                    <Clock className="w-12 h-12 text-blue-400" />
+                <div className="text-center py-8 md:py-12 px-4">
+                  <div className="w-12 h-12 md:w-16 md:h-16 mx-auto mb-3 md:mb-4 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Clock className="w-6 h-6 md:w-8 md:h-8 text-primary" />
                   </div>
-                  <h3 className="text-2xl font-bold text-gray-700 mb-3">مافيش مواعيد قادمة</h3>
-                  <p className="text-gray-500 mb-8 max-w-md mx-auto">ماحصلش حجوزات قادمة دلوقتي. ممكن تضيف مواعيد جديدة</p>
+                  <h3 className="text-base md:text-lg font-semibold text-foreground mb-2">مفيش مواعيد قادمة</h3>
+                  <p className="text-muted-foreground mb-4 md:mb-6 text-sm md:text-base">مفيش مواعيد مجدولة دلوقتي</p>
                   <Button
                     onClick={() => setOpen(true)}
-                    className="h-14 px-8 text-lg bg-gradient-to-l from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl"
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                    size="sm"
                   >
-                    <Plus className="w-6 h-6 ml-2" />
-                    ابدأ بحجز جديد
+                    <Plus className="w-4 h-4 ml-2" />
+                    ضيف أول موعد
                   </Button>
                 </div>
               )
             ) : (
               isAllLoading ? (
-                <div className="p-8">
-                  <TableSkeleton columns={6} rows={8} />
+                <div className="p-4">
+                  <TableSkeleton columns={6} rows={6} />
                 </div>
               ) : allData?.items?.length > 0 ? (
-                <div className="w-full overflow-x-auto">
-                  <div className="min-w-full">
-                    <AppointmentsTable
-                      appointments={allData.items}
-                      total={allData.total}
-                      page={allAppointmentsPage}
-                      pageSize={APPOINTMENTS_PAGE_SIZE}
-                      onPageChange={setAllAppointmentsPage}
-                      fullWidth={true}
-                    />
-                  </div>
-                </div>
+                <AppointmentsTable
+                  appointments={allData.items}
+                  total={allData.total}
+                  page={allAppointmentsPage}
+                  pageSize={APPOINTMENTS_PAGE_SIZE}
+                  onPageChange={setAllAppointmentsPage}
+                  fullWidth={true}
+                />
               ) : (
-                <div className="p-12 text-center">
-                  <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center">
-                    <CalendarDays className="w-12 h-12 text-gray-400" />
+                <div className="text-center py-8 md:py-12 px-4">
+                  <div className="w-12 h-12 md:w-16 md:h-16 mx-auto mb-3 md:mb-4 rounded-lg bg-accent flex items-center justify-center">
+                    <CalendarDays className="w-6 h-6 md:w-8 md:h-8 text-muted-foreground" />
                   </div>
-                  <h3 className="text-2xl font-bold text-gray-700 mb-3">مافيش مواعيد</h3>
-                  <p className="text-gray-500 mb-8">لما تحجز مواعيد، هتظهر هنا. ابدأ دلوقتي</p>
+                  <h3 className="text-base md:text-lg font-semibold text-foreground mb-2">مفيش مواعيد</h3>
+                  <p className="text-muted-foreground mb-4 md:mb-6 text-sm md:text-base">ابدأ بإضافة مواعيد جديدة</p>
                   <Button
                     onClick={() => setOpen(true)}
-                    className="h-14 px-8 text-lg bg-gradient-to-l from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl"
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                    size="sm"
                   >
-                    <Plus className="w-6 h-6 ml-2" />
-                    احجز أول موعد
+                    <Plus className="w-4 h-4 ml-2" />
+                    ضيف موعد
                   </Button>
                 </div>
               )
             )}
           </div>
+        </Card>
+
+        {/* Online Bookings - Moved below main tables */}
+        <div className="mt-4 md:mt-6">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-green-500/10 text-green-600">
+                  <Calendar className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-base md:text-lg font-semibold text-foreground">مواعيد أونلاين</h2>
+                  <p className="text-xs md:text-sm text-muted-foreground hidden sm:block">الحجوزات من الموقع</p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                onClick={refetchOnlineBookings}
+                className="h-8 md:h-9 gap-1 md:gap-2 text-xs md:text-sm"
+                size="sm"
+              >
+                <RefreshCw className="w-3 h-3 md:w-4 md:h-4" />
+                <span className="hidden sm:inline">تحديث</span>
+              </Button>
+            </div>
+
+            {/* Info box */}
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-2.5 md:p-3 flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 md:h-5 md:w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+              <p className="text-xs md:text-sm text-blue-700">
+                الحجوزات الجديدة من النت بتظهر هنا
+              </p>
+            </div>
+
+            <Card className="bg-card/70">
+              <CardContent className="p-0">
+                {isOnlineBookingsLoading ? (
+                  <div className="p-4 md:p-6">
+                    <TableSkeleton columns={4} rows={3} />
+                  </div>
+                ) : onlineBookingsData?.items?.length > 0 ? (
+                  <OnlineBookingsTable
+                    appointments={onlineBookingsData.items}
+                  />
+                ) : (
+                  <div className="p-6 md:p-8 text-center">
+                    <Calendar className="w-10 h-10 md:w-12 md:h-12 text-muted-foreground/50 mx-auto mb-2 md:mb-3" />
+                    <p className="text-muted-foreground mb-1 md:mb-2 text-sm md:text-base">مفيش حجوزات</p>
+                    <p className="text-xs md:text-sm text-muted-foreground/70">هتظهر هنا لما تيجي</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
-        {/* Floating Help Button */}
-        
-        {/* Quick Add Button for Mobile */}
+        {/* Mobile Floating Button */}
         <Button
           onClick={() => setOpen(true)}
-          className="fixed bottom-6 right-6 md:hidden h-14 w-14 rounded-full shadow-xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 z-40"
+          className="fixed bottom-6 left-6 md:hidden h-14 w-14 rounded-full bg-primary hover:bg-primary/90 shadow-lg z-40"
           size="icon"
         >
           <Plus className="w-6 h-6" />

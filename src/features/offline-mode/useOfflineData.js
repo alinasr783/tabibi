@@ -12,11 +12,22 @@ import {
 } from './offlineDB';
 
 export function useOfflineData() {
-  const { isOfflineMode, enqueueOperation } = useOffline();
+  // Add a try-catch block to handle cases where the hook is used outside the provider
+  let isOfflineMode = false;
+  let hasOfflineContext = false;
+  
+  try {
+    const offlineContext = useOffline();
+    isOfflineMode = offlineContext.isOfflineMode;
+    hasOfflineContext = true;
+  } catch (error) {
+    // If we're outside the OfflineProvider, we'll default to online mode
+    console.warn("useOfflineData used outside OfflineProvider, defaulting to online mode");
+  }
 
   // Patient operations
   const createPatientOffline = useCallback(async (patientData) => {
-    if (!isOfflineMode) return null;
+    if (!hasOfflineContext || !isOfflineMode) return null;
 
     try {
       // Generate a temporary local ID
@@ -43,10 +54,10 @@ export function useOfflineData() {
       console.error('Error creating patient offline:', error);
       throw error;
     }
-  }, [isOfflineMode]);
+  }, [hasOfflineContext, isOfflineMode]);
 
   const updatePatientOffline = useCallback(async (id, patientData) => {
-    if (!isOfflineMode) return null;
+    if (!hasOfflineContext || !isOfflineMode) return null;
 
     try {
       const updatedPatient = {
@@ -71,10 +82,10 @@ export function useOfflineData() {
       console.error('Error updating patient offline:', error);
       throw error;
     }
-  }, [isOfflineMode]);
+  }, [hasOfflineContext, isOfflineMode]);
 
   const deletePatientOffline = useCallback(async (id) => {
-    if (!isOfflineMode) return null;
+    if (!hasOfflineContext || !isOfflineMode) return null;
 
     try {
       // Delete from local database
@@ -90,11 +101,11 @@ export function useOfflineData() {
       console.error('Error deleting patient offline:', error);
       throw error;
     }
-  }, [isOfflineMode]);
+  }, [hasOfflineContext, isOfflineMode]);
 
   // Appointment operations
   const createAppointmentOffline = useCallback(async (appointmentData) => {
-    if (!isOfflineMode) return null;
+    if (!hasOfflineContext || !isOfflineMode) return null;
 
     try {
       // Generate a temporary local ID
@@ -121,10 +132,10 @@ export function useOfflineData() {
       console.error('Error creating appointment offline:', error);
       throw error;
     }
-  }, [isOfflineMode]);
+  }, [hasOfflineContext, isOfflineMode]);
 
   const updateAppointmentOffline = useCallback(async (id, appointmentData) => {
-    if (!isOfflineMode) return null;
+    if (!hasOfflineContext || !isOfflineMode) return null;
 
     try {
       const updatedAppointment = {
@@ -149,10 +160,10 @@ export function useOfflineData() {
       console.error('Error updating appointment offline:', error);
       throw error;
     }
-  }, [isOfflineMode]);
+  }, [hasOfflineContext, isOfflineMode]);
 
   const deleteAppointmentOffline = useCallback(async (id) => {
-    if (!isOfflineMode) return null;
+    if (!hasOfflineContext || !isOfflineMode) return null;
 
     try {
       // Delete from local database
@@ -168,11 +179,11 @@ export function useOfflineData() {
       console.error('Error deleting appointment offline:', error);
       throw error;
     }
-  }, [isOfflineMode]);
+  }, [hasOfflineContext, isOfflineMode]);
 
   // Treatment Plan operations
   const createTreatmentPlanOffline = useCallback(async (treatmentPlanData) => {
-    if (!isOfflineMode) return null;
+    if (!hasOfflineContext || !isOfflineMode) return null;
 
     try {
       // Generate a temporary local ID
@@ -199,10 +210,10 @@ export function useOfflineData() {
       console.error('Error creating treatment plan offline:', error);
       throw error;
     }
-  }, [isOfflineMode]);
+  }, [hasOfflineContext, isOfflineMode]);
 
   const updateTreatmentPlanOffline = useCallback(async (id, treatmentPlanData) => {
-    if (!isOfflineMode) return null;
+    if (!hasOfflineContext || !isOfflineMode) return null;
 
     try {
       const updatedTreatmentPlan = {
@@ -227,10 +238,10 @@ export function useOfflineData() {
       console.error('Error updating treatment plan offline:', error);
       throw error;
     }
-  }, [isOfflineMode]);
+  }, [hasOfflineContext, isOfflineMode]);
 
   const deleteTreatmentPlanOffline = useCallback(async (id) => {
-    if (!isOfflineMode) return null;
+    if (!hasOfflineContext || !isOfflineMode) return null;
 
     try {
       // Delete from local database
@@ -246,29 +257,29 @@ export function useOfflineData() {
       console.error('Error deleting treatment plan offline:', error);
       throw error;
     }
-  }, [isOfflineMode]);
+  }, [hasOfflineContext, isOfflineMode]);
 
   // Search functions
   const searchOfflinePatients = useCallback(async (searchTerm) => {
-    if (!isOfflineMode) return [];
+    if (!hasOfflineContext || !isOfflineMode) return [];
     return searchPatientsOffline(searchTerm);
-  }, [isOfflineMode]);
+  }, [hasOfflineContext, isOfflineMode]);
 
   // Get data functions
   const getOfflinePatients = useCallback(async () => {
-    if (!isOfflineMode) return [];
+    if (!hasOfflineContext || !isOfflineMode) return [];
     return getAllItems(STORE_NAMES.PATIENTS);
-  }, [isOfflineMode]);
+  }, [hasOfflineContext, isOfflineMode]);
 
   const getOfflineAppointments = useCallback(async () => {
-    if (!isOfflineMode) return [];
+    if (!hasOfflineContext || !isOfflineMode) return [];
     return getAllItems(STORE_NAMES.APPOINTMENTS);
-  }, [isOfflineMode]);
+  }, [hasOfflineContext, isOfflineMode]);
 
   const getOfflineTreatmentPlans = useCallback(async () => {
-    if (!isOfflineMode) return [];
+    if (!hasOfflineContext || !isOfflineMode) return [];
     return getAllItems(STORE_NAMES.TREATMENT_PLANS);
-  }, [isOfflineMode]);
+  }, [hasOfflineContext, isOfflineMode]);
 
   return {
     // Patient operations

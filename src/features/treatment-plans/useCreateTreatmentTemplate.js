@@ -8,7 +8,7 @@ export default function useCreateTreatmentTemplate() {
     const { mutateAsync, isPending } = useMutation({
         mutationFn: createTreatmentTemplate,
         onSuccess: () => {
-            toast.success("تم إضافة خطة العلاج بنجاح");
+            toast.success("تم إضافة الخطة العلاجية بنجاح");
             // Invalidate and refetch treatment templates
             queryClient.invalidateQueries({
                 queryKey: ["treatmentTemplates"],

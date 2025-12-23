@@ -16,19 +16,22 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
-  Link,
+  Link as LinkIcon,
   AlertTriangle,
   Check,
-  X
+  X,
+  Globe
 } from "lucide-react";
 import useClinic from "../auth/useClinic";
 import useUpdateClinic from "../clinic/useUpdateClinic";
 import toast from "react-hot-toast";
 import QRCode from "react-qr-code";
 import { useOnlineBookings } from "./useOnlineBookings";
-import OnlineBookingsTable from "./OnlineBookingsTable"; // Import the new table component
+import OnlineBookingsTable from "./OnlineBookingsTable";
+import useScrollToTop from "../../hooks/useScrollToTop";
 
 export default function OnlineBookingControlPanel() {
+  useScrollToTop(); // Auto scroll to top on page load
   const { data: clinic, isLoading: isClinicLoading, isError, error } = useClinic();
   const { mutate: updateClinic, isPending: isUpdating } = useUpdateClinic();
   
@@ -39,11 +42,8 @@ export default function OnlineBookingControlPanel() {
   
   const [showQRCode, setShowQRCode] = useState(false);
   
-  // Use the real-time hook for online bookings
-  // Use clinic_uuid instead of id since appointments table references clinic_uuid
   const { bookings, loading: bookingsLoading, error: bookingsError } = useOnlineBookings(clinic?.clinic_uuid);
   
-  // Initialize form data when clinic loads
   useEffect(() => {
     if (!clinic) return;
     
@@ -205,19 +205,22 @@ export default function OnlineBookingControlPanel() {
   }
   
   return (
-    <div className="space-y-8" dir="rtl">
-      <div className="space-y-3">
-        <h1 className="text-2xl font-bold">إدارة الحجز الإلكتروني</h1>
-        <p className="text-sm text-muted-foreground">
-          إدارة إعدادات الحجز الإلكتروني وعرض الطلبات الواردة
-        </p>
+    <div className="space-y-6 p-3 md:p-6 bg-background min-h-screen pb-20 md:pb-6" dir="rtl">
+      <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
+        <div className="p-1.5 md:p-2 rounded-lg bg-primary/10 text-primary">
+          <Globe className="w-5 h-5 md:w-6 md:h-6" />
+        </div>
+        <div>
+          <h1 className="text-xl md:text-2xl font-bold text-foreground">الحجز ع النت</h1>
+          <p className="text-xs md:text-sm text-muted-foreground">تحكم في إعدادات الحجز من النت</p>
+        </div>
       </div>
       
       {/* Online Booking Status Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>حالة الحجز الإلكتروني</span>
+      <Card className="bg-card/70">
+        <CardHeader className="p-3 md:p-6">
+          <CardTitle className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-base md:text-lg">
+            <span>حالة الحجز من النت</span>
             <div className="flex items-center gap-2">
               <Switch
                 checked={clinicFormData.online_booking_enabled}
@@ -225,79 +228,79 @@ export default function OnlineBookingControlPanel() {
               />
               <Badge 
                 variant={clinicFormData.online_booking_enabled ? "default" : "secondary"}
-                className="gap-1"
+                className="gap-1 text-xs"
               >
                 {clinicFormData.online_booking_enabled ? (
                   <>
-                    <CheckCircle className="h-4 w-4" />
+                    <CheckCircle className="h-3 w-3 md:h-4 md:w-4" />
                     مفعل
                   </>
                 ) : (
                   <>
-                    <XCircle className="h-4 w-4" />
-                    معطل
+                    <XCircle className="h-3 w-3 md:h-4 md:w-4" />
+                    متقفل
                   </>
                 )}
               </Badge>
             </div>
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
+        <CardContent className="p-3 md:p-6 pt-0">
+          <p className="text-xs md:text-sm text-muted-foreground">
             {clinicFormData.online_booking_enabled
-              ? "الحجز الإلكتروني مفعل حالياً وسيظهر لمرضاك"
-              : "الحجز الإلكتروني معطل ولن يظهر لمرضاك"}
+              ? "الحجز من النت شغال دلوقتي"
+              : "الحجز من النت متقفل دلوقتي"}
           </p>
         </CardContent>
       </Card>
       
       {/* Booking Link Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Link className="h-5 w-5" />
-            رابط الحجز الإلكتروني
+      <Card className="bg-card/70">
+        <CardHeader className="p-3 md:p-6">
+          <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+            <LinkIcon className="h-4 w-4 md:h-5 md:w-5" />
+            رابط الحجز
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-col sm:flex-row gap-2">
+        <CardContent className="space-y-3 md:space-y-4 p-3 md:p-6 pt-0">
+          <div className="flex flex-col gap-2">
             <Input
               value={getBookingLink() || "جارٍ تحميل الرابط..."}
               readOnly
-              className="flex-1"
+              className="flex-1 text-xs md:text-sm w-full"
             />
-            <div className="flex gap-2">
+            <div className="flex gap-2 w-full">
               <Button
                 onClick={() => copyToClipboard(getBookingLink())}
-                className="gap-2"
+                className="gap-1 md:gap-2 flex-1"
                 size="sm"
                 disabled={!getBookingLink()}
               >
-                <Copy className="h-4 w-4" />
-                نسخ
+                <Copy className="h-3 w-3 md:h-4 md:w-4" />
+                <span className="text-xs md:text-sm">نسخ</span>
               </Button>
               <Button
                 onClick={() => window.open(getBookingLink(), "_blank")}
                 variant="outline"
-                className="gap-2"
+                className="gap-1 md:gap-2 flex-1"
                 size="sm"
                 disabled={!getBookingLink()}
               >
-                <ExternalLink className="h-4 w-4" />
-                فتح
+                <ExternalLink className="h-3 w-3 md:h-4 md:w-4" />
+                <span className="text-xs md:text-sm">فتح</span>
               </Button>
             </div>
           </div>
           
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col sm:flex-row flex-wrap gap-2">
             <Button
               onClick={() => setShowQRCode(!showQRCode)}
               variant="outline"
               size="sm"
-              className="gap-2"
+              className="gap-1 md:gap-2 w-full sm:w-auto text-xs md:text-sm"
               disabled={!getBookingLink()}
             >
-              <QrCode className="h-4 w-4" />
+              <QrCode className="h-3 w-3 md:h-4 md:w-4" />
               {showQRCode ? "إخفاء" : "عرض"} رمز QR
             </Button>
             
@@ -305,21 +308,21 @@ export default function OnlineBookingControlPanel() {
               onClick={() => copyToClipboard(getEmbedCode())}
               variant="outline"
               size="sm"
-              className="gap-2"
+              className="gap-1 md:gap-2 w-full sm:w-auto text-xs md:text-sm"
               disabled={!getBookingLink()}
             >
-              <Copy className="h-4 w-4" />
+              <Copy className="h-3 w-3 md:h-4 md:w-4" />
               نسخ كود التضمين
             </Button>
           </div>
           
           {showQRCode && getBookingLink() && (
-            <div className="mt-4 p-4 bg-white rounded-lg inline-block">
-              <QRCode value={getBookingLink()} size={128} />
+            <div className="mt-3 md:mt-4 p-3 md:p-4 bg-white rounded-lg inline-block">
+              <QRCode value={getBookingLink()} size={120} className="w-full max-w-[120px] h-auto" />
             </div>
           )}
           
-          <p className="text-xs text-muted-foreground">
+          <p className="text-[10px] md:text-xs text-muted-foreground">
             شارك هذا الرابط مع مرضاك لحجز المواعيد، أو استخدم رمز QR في العيادة
           </p>
         </CardContent>
@@ -327,16 +330,16 @@ export default function OnlineBookingControlPanel() {
       
       {/* Booking Price Card */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
+        <CardHeader className="p-3 md:p-6">
+          <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+            <Calendar className="h-4 w-4 md:h-5 md:w-5" />
             سعر الحجز الإلكتروني
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleUpdateClinic} className="space-y-4">
+        <CardContent className="p-3 md:p-6 pt-0">
+          <form onSubmit={handleUpdateClinic} className="space-y-3 md:space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="bookingPrice">سعر الحجز</Label>
+              <Label htmlFor="bookingPrice" className="text-xs md:text-sm">سعر الحجز</Label>
               <Input
                 id="bookingPrice"
                 name="booking_price"
@@ -346,13 +349,14 @@ export default function OnlineBookingControlPanel() {
                 value={clinicFormData.booking_price}
                 onChange={handleClinicChange}
                 placeholder="أدخل سعر الحجز"
+                className="text-sm"
               />
-              <p className="text-xs text-muted-foreground">
+              <p className="text-[10px] md:text-xs text-muted-foreground">
                 سعر الحجز الذي سيظهر لمرضى العيادة عند الحجز الإلكتروني
               </p>
             </div>
             
-            <Button type="submit" disabled={isUpdating}>
+            <Button type="submit" disabled={isUpdating} size="sm" className="w-full sm:w-auto">
               {isUpdating ? "جاري الحفظ..." : "حفظ السعر"}
             </Button>
           </form>
@@ -363,24 +367,24 @@ export default function OnlineBookingControlPanel() {
       
       {/* Incoming Bookings Card */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
+        <CardHeader className="p-3 md:p-6">
+          <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+            <Users className="h-4 w-4 md:h-5 md:w-5" />
             طلبات الحجز القادمة
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0 md:p-6 md:pt-0">
           {bookingsLoading ? (
-            <div className="space-y-3">
+            <div className="space-y-3 p-3 md:p-0">
               {[1, 2, 3].map((i) => (
                 <div key={i} className="h-16 bg-gray-100 rounded animate-pulse"></div>
               ))}
             </div>
           ) : bookingsError ? (
-            <div className="text-center py-8 text-red-500">
-              <AlertTriangle className="h-12 w-12 mx-auto mb-4" />
-              <h3 className="text-lg font-medium mb-2">خطأ في تحميل الحجوزات</h3>
-              <p>{bookingsError}</p>
+            <div className="text-center py-8 text-red-500 px-3">
+              <AlertTriangle className="h-10 w-10 md:h-12 md:w-12 mx-auto mb-4" />
+              <h3 className="text-base md:text-lg font-medium mb-2">خطأ في تحميل الحجوزات</h3>
+              <p className="text-xs md:text-sm">{bookingsError}</p>
             </div>
           ) : (
             <OnlineBookingsTable

@@ -1,5 +1,5 @@
 import { Check, Loader, Tag, X } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 
@@ -12,9 +12,23 @@ export default function DiscountCodeInput({
   discountAmount = 0,
   discountValue = 0,
   isPercentage = false,
+  customMessage = null,
+  showMessage = false,
 }) {
   const [inputValue, setInputValue] = useState("");
   const [isExpanded, setIsExpanded] = useState(false);
+  const [displayMessage, setDisplayMessage] = useState(false);
+
+  // Show custom message for 3 seconds when discount is applied
+  useEffect(() => {
+    if (showMessage && customMessage) {
+      setDisplayMessage(true);
+      const timer = setTimeout(() => {
+        setDisplayMessage(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [showMessage, customMessage]);
 
   const handleApply = () => {
     if (inputValue.trim()) {
@@ -31,8 +45,27 @@ export default function DiscountCodeInput({
   const handleClear = () => {
     setInputValue("");
     setIsExpanded(false);
+    setDisplayMessage(false);
     onClear();
   };
+
+  // Show custom message popup for 3 seconds
+  if (displayMessage && customMessage && !error) {
+    return (
+      <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-4 animate-in fade-in duration-300">
+        <div className="flex items-center gap-3">
+          <div className="flex-shrink-0 w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+            <Check className="size-5 text-white" />
+          </div>
+          <div className="flex-1">
+            <p className="font-semibold text-blue-700 dark:text-blue-400">
+              {customMessage}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // If discount is applied, always show the success message
   if (isApplied) {

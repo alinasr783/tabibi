@@ -36,7 +36,8 @@ export default function Hero() {
   };
 
   return (
-    <section className="container py-24">
+    // Further reduced padding from py-16 to py-12 to make content appear even higher
+    <section className="container py-12">
       <motion.div
         initial="hidden"
         animate="visible"

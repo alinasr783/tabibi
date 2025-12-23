@@ -3,7 +3,7 @@ import { Input } from "../../components/ui/input"
 import { Label } from "../../components/ui/label"
 import { Skeleton } from "../../components/ui/skeleton"
 import WorkingHours from "./WorkingHours"
-import { Copy, Building, MapPin, CreditCard, Link, Hash } from "lucide-react"
+import { Copy, Building, MapPin, CreditCard, Link, Hash, Clock, AlertCircle, Save, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { getDayName } from "./clinicUtils"
 
@@ -20,28 +20,28 @@ export default function ClinicInfoForm({
 }) {
   if (isClinicLoading) {
     return (
-      <div className="p-6 space-y-6">
-        <div className="space-y-3">
-          <Skeleton className="h-8 w-40" />
-          <Skeleton className="h-10 w-full" />
+      <div className="p-3 sm:p-4 space-y-4 sm:space-y-6 w-full max-w-full overflow-hidden">
+        <div className="space-y-2 sm:space-y-3">
+          <Skeleton className="h-6 sm:h-7 w-28 sm:w-32" />
+          <Skeleton className="h-9 sm:h-10 w-full" />
         </div>
-        <div className="space-y-3">
-          <Skeleton className="h-8 w-40" />
-          <Skeleton className="h-10 w-full" />
+        <div className="space-y-2 sm:space-y-3">
+          <Skeleton className="h-6 sm:h-7 w-28 sm:w-32" />
+          <Skeleton className="h-9 sm:h-10 w-full" />
         </div>
-        <Skeleton className="h-32 w-full" />
+        <Skeleton className="h-24 sm:h-28 w-full" />
       </div>
     )
   }
 
   if (isClinicError) {
     return (
-      <div className="p-8 text-center">
-        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
-          <span className="text-red-600 text-2xl">!</span>
+      <div className="p-3 sm:p-4 md:p-6 text-center w-full max-w-full overflow-hidden">
+        <div className="w-12 h-12 sm:w-14 sm:h-14 mx-auto mb-3 sm:mb-4 rounded-full bg-red-500/10 flex items-center justify-center">
+          <AlertCircle className="w-6 h-6 sm:w-7 sm:h-7 text-red-600" />
         </div>
-        <h3 className="text-lg font-medium text-gray-900 mb-2">مشكلة في التحميل</h3>
-        <p className="text-gray-500">تعذر تحميل معلومات العيادة. حاول مرة أخرى</p>
+        <h3 className="text-sm sm:text-base font-medium text-foreground mb-1 sm:mb-2">مشكلة في التحميل</h3>
+        <p className="text-xs sm:text-sm text-muted-foreground px-2">تعذر تحميل معلومات العيادة. حاول مرة أخرى</p>
       </div>
     )
   }
@@ -53,19 +53,13 @@ export default function ClinicInfoForm({
   }
 
   return (
-    <form onSubmit={onSubmit} className="p-4 md:p-6">
-      <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h2 className="text-xl font-bold text-gray-900 mb-1">إعدادات العيادة</h2>
-          <p className="text-gray-500 text-sm">عدل معلومات عيادتك وأوقات العمل</p>
-        </div>
-
-        {/* Clinic Name */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Building className="w-4 h-4 text-gray-500" />
-            <Label htmlFor="clinicName" className="text-gray-700 font-medium">
+    <form onSubmit={onSubmit} className="p-2 sm:p-3 md:p-4 w-full max-w-full overflow-x-hidden">
+      <div className="space-y-3 sm:space-y-4 md:space-y-6 w-full" style={{ direction: 'rtl' }}>
+        {/* اسم العيادة */}
+        <div className="space-y-1.5 sm:space-y-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <Building className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
+            <Label htmlFor="clinicName" className="text-foreground font-medium text-xs sm:text-sm md:text-base truncate">
               اسم العيادة
             </Label>
           </div>
@@ -74,16 +68,16 @@ export default function ClinicInfoForm({
             name="name"
             value={clinicFormData.name}
             onChange={onClinicChange}
-            placeholder="أدخل اسم عيادتك"
-            className="h-11 border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            placeholder="اسم عيادتك"
+            className="h-9 sm:h-10 md:h-11 w-full text-xs sm:text-sm md:text-base min-h-[40px] sm:min-h-[44px] px-2.5 sm:px-3"
           />
         </div>
 
-        {/* Address */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-gray-500" />
-            <Label htmlFor="clinicAddress" className="text-gray-700 font-medium">
+        {/* العنوان */}
+        <div className="space-y-1.5 sm:space-y-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
+            <Label htmlFor="clinicAddress" className="text-foreground font-medium text-xs sm:text-sm md:text-base truncate">
               العنوان
             </Label>
           </div>
@@ -93,15 +87,15 @@ export default function ClinicInfoForm({
             value={clinicFormData.address}
             onChange={onClinicChange}
             placeholder="عنوان العيادة بالتفصيل"
-            className="h-11 border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            className="h-9 sm:h-10 md:h-11 w-full text-xs sm:text-sm md:text-base min-h-[40px] sm:min-h-[44px] px-2.5 sm:px-3"
           />
         </div>
 
-        {/* Booking Price */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <CreditCard className="w-4 h-4 text-gray-500" />
-            <Label htmlFor="bookingPrice" className="text-gray-700 font-medium">
+        {/* سعر الحجز */}
+        <div className="space-y-1.5 sm:space-y-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <CreditCard className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
+            <Label htmlFor="bookingPrice" className="text-foreground font-medium text-xs sm:text-sm md:text-base truncate">
               سعر الحجز
             </Label>
           </div>
@@ -114,18 +108,18 @@ export default function ClinicInfoForm({
             value={clinicFormData.booking_price}
             onChange={onClinicChange}
             placeholder="0.00"
-            className="h-11 border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            className="h-9 sm:h-10 md:h-11 w-full text-xs sm:text-sm md:text-base min-h-[40px] sm:min-h-[44px] px-2.5 sm:px-3"
           />
-          <p className="text-xs text-gray-400">
+          <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground px-0.5">
             السعر اللي هيظهر للمريض وقت الحجز
           </p>
         </div>
 
-        {/* Working Hours */}
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <span className="w-4 h-4">⏰</span>
-            <Label className="text-gray-700 font-medium">
+        {/* أوقات العمل */}
+        <div className="space-y-2 sm:space-y-3">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
+            <Label className="text-foreground font-medium text-xs sm:text-sm md:text-base truncate">
               أوقات العمل
             </Label>
           </div>
@@ -137,64 +131,71 @@ export default function ClinicInfoForm({
           />
         </div>
 
-        {/* Booking Link */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Link className="w-4 h-4 text-gray-500" />
-            <Label className="text-gray-700 font-medium">
+        {/* رابط الحجز */}
+        <div className="space-y-1.5 sm:space-y-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <Link className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
+            <Label className="text-foreground font-medium text-xs sm:text-sm md:text-base truncate">
               رابط الحجز
             </Label>
           </div>
-          <div className="flex gap-2">
-            <div className="flex-1 bg-gray-50 border border-gray-300 rounded-lg px-4 py-3 text-sm truncate">
-              {`${window.location.origin}/booking/${clinicId}`}
+          <div className="flex flex-col xs:flex-row gap-1.5 sm:gap-2 w-full">
+            <div className="flex-1 min-w-0 bg-muted/50 border border-border rounded-lg px-2.5 sm:px-3 py-2 text-[10px] sm:text-xs md:text-sm overflow-hidden">
+              <span className="block truncate break-all">
+                {`${window.location.origin}/booking/${clinicId}`}
+              </span>
             </div>
             <Button
               type="button"
               variant="outline"
               onClick={copyBookingLink}
-              className="h-11 px-4 border-gray-300 hover:bg-gray-50"
+              className="h-9 sm:h-10 md:h-11 px-3 sm:px-4 w-full xs:w-auto flex-shrink-0 min-h-[40px] sm:min-h-[44px] text-xs sm:text-sm"
             >
-              <Copy className="w-4 h-4" />
-              <span className="mr-2">نسخ</span>
+              <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+              <span className="mr-1 sm:mr-2">نسخ</span>
             </Button>
           </div>
-          <p className="text-xs text-gray-400">
+          <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground px-0.5">
             شارك الرابط مع مرضاك عشان يحجزوا أونلاين
           </p>
         </div>
 
-        {/* Clinic ID */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Hash className="w-4 h-4 text-gray-500" />
-            <Label className="text-gray-700 font-medium">
+        {/* رقم العيادة */}
+        <div className="space-y-1.5 sm:space-y-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <Hash className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
+            <Label className="text-foreground font-medium text-xs sm:text-sm md:text-base truncate">
               رقم العيادة
             </Label>
           </div>
           <Input 
             value={clinicId || ""} 
             disabled 
-            className="h-11 bg-gray-50 text-gray-500"
+            className="h-9 sm:h-10 md:h-11 w-full bg-muted/50 text-muted-foreground text-xs sm:text-sm md:text-base min-h-[40px] sm:min-h-[44px] px-2.5 sm:px-3"
           />
-          <p className="text-xs text-gray-400">
-            ده الرقم التعريفي بتاع عيادتك
+          <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground px-0.5">
+            دا الرقم التعريفي بتاع عيادتك
           </p>
         </div>
 
-        {/* Submit Button */}
-        <div className="pt-4">
+        {/* زر الحفظ */}
+        <div className="pt-2 sm:pt-3 md:pt-4">
           <Button 
             type="submit" 
             disabled={isUpdating}
-            className="h-11 w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white px-8 rounded-lg"
+            className="h-9 sm:h-10 md:h-11 w-full bg-primary hover:bg-primary/90 text-primary-foreground px-3 sm:px-6 md:px-8 rounded-lg text-xs sm:text-sm md:text-base min-h-[40px] sm:min-h-[44px] gap-1.5 sm:gap-2"
           >
             {isUpdating ? (
               <>
-                <span className="mr-2">جاري الحفظ...</span>
-                <span className="animate-spin">⟳</span>
+                <Loader2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 animate-spin" />
+                <span>جاري الحفظ...</span>
               </>
-            ) : "حفظ التغييرات"}
+            ) : (
+              <>
+                <Save className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4" />
+                <span>حفظ التغييرات</span>
+              </>
+            )}
           </Button>
         </div>
       </div>

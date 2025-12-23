@@ -1,4 +1,4 @@
-import { Key, User } from "lucide-react";
+import { Key, User, Settings } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader } from "../../components/ui/card";
 import ChangePasswordTab from "./ChangePasswordTab";
@@ -6,8 +6,8 @@ import PersonalInfoTab from "./PersonalInfoTab";
 import { useLocation } from "react-router-dom";
 
 const tabs = [
-  { id: "personal", label: "البيانات الشخصية", icon: User },
-  { id: "password", label: "تغيير كلمة المرور", icon: Key },
+  { id: "personal", label: "بياناتك الشخصية", icon: User },
+  { id: "password", label: "غير الباسوورد", icon: Key },
 ];
 
 export default function SettingsPage() {
@@ -20,19 +20,18 @@ export default function SettingsPage() {
   }, [location.pathname]);
   
   return (
-    <div className="space-y-6 pb-20 md:pb-0">
-      <div className="space-y-3">
-        <div className="flex items-center gap-3">
-          <div>
-            <h1 className="text-2xl font-bold">الإعدادات</h1>
-            <p className="text-sm text-muted-foreground">
-              إدارة حسابك وإعدادات العيادة
-            </p>
-          </div>
+    <div className="space-y-6 p-4 md:p-6 bg-background min-h-screen pb-20 md:pb-0" dir="rtl">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="p-2 rounded-lg bg-primary/10 text-primary">
+          <Settings className="w-6 h-6" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">الإعدادات</h1>
+          <p className="text-sm text-muted-foreground">تحكم في حسابك وإعداداتك</p>
         </div>
       </div>
 
-      <Card>
+      <Card className="bg-card/70">
         <CardHeader className="p-0">
           <div className="flex border-b border-border">
             {tabs.map((tab) => {

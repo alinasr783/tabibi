@@ -10,7 +10,19 @@ import { useOffline } from "../offline-mode/OfflineContext"
 export default function AutoPaymentRecorder() {
     const { user } = useAuth()
     const queryClient = useQueryClient()
-    const { isOnline } = useOffline()
+    
+    // Add a try-catch block to handle cases where the hook is used outside the provider
+    let isOnline = true;
+    let hasOfflineContext = false;
+    
+    try {
+        const offlineContext = useOffline();
+        isOnline = offlineContext.isOnline;
+        hasOfflineContext = true;
+    } catch (error) {
+        // If we're outside the OfflineProvider, we'll default to online mode
+        console.warn("AutoPaymentRecorder used outside OfflineProvider, defaulting to online mode");
+    }
 
     useEffect(() => {
         // Only run if user is authenticated and has a clinic
@@ -20,7 +32,7 @@ export default function AutoPaymentRecorder() {
         }
 
         // Only set up real-time subscriptions when online
-        if (!isOnline) {
+        if (hasOfflineContext && !isOnline) {
             console.log("AutoPaymentRecorder: Skipping real-time subscriptions while offline")
             return
         }
@@ -38,20 +50,25 @@ export default function AutoPaymentRecorder() {
                 {
                     event: 'INSERT',
                     schema: 'public',
-                    table: 'visits',
-                    filter: `clinic_id=eq.${clinicId}`
+                    table: 'visits'
                 },
                 async (payload) => {
                     try {
                         console.log("=== AUTO PAYMENT RECORDER DEBUG ===")
                         console.log("1. New visit detected:", payload.new.id)
                         
+                        // Check if this visit belongs to the current user's clinic
+                        if (payload.new.clinic_id !== clinicId) {
+                            console.log("2. Visit not for current clinic - skipping")
+                            return
+                        }
+                        
                         // A new visit was created, check if it's linked to a patient plan
                         const visit = payload.new
                         
                         // If the visit is linked to a patient plan, update the plan
                         if (visit.patient_plan_id) {
-                            console.log("2. Visit linked to patient plan:", visit.patient_plan_id)
+                            console.log("3. Visit linked to patient plan:", visit.patient_plan_id)
                             
                             // Get the patient plan details with treatment template
                             const { data: planData, error: planError } = await supabase
@@ -69,28 +86,28 @@ export default function AutoPaymentRecorder() {
                                 .single()
 
                             if (planError) {
-                                console.log("3. Error fetching patient plan:", planError.message)
+                                console.log("4. Error fetching patient plan:", planError.message)
                                 return
                             }
 
-                            console.log("4. Patient plan fetched:", planData)
+                            console.log("5. Patient plan fetched:", planData)
 
                             // Calculate session price
                             const sessionPrice = planData.treatment_templates?.session_price || 0
-                            console.log("5. Session price calculated:", sessionPrice)
+                            console.log("6. Session price calculated:", sessionPrice)
 
                             // Update the patient plan with incremented completed sessions
                             const updatedCompletedSessions = (planData.completed_sessions || 0) + 1
                             const isPlanCompleted = updatedCompletedSessions >= planData.total_sessions
 
-                            console.log("6. Updating patient plan with completed sessions:", updatedCompletedSessions)
+                            console.log("7. Updating patient plan with completed sessions:", updatedCompletedSessions)
 
                             await updatePatientPlan(planData.id, {
                                 completed_sessions: updatedCompletedSessions,
                                 status: isPlanCompleted ? 'completed' : 'active'
                             })
 
-                            console.log("7. Patient plan updated successfully")
+                            console.log("8. Patient plan updated successfully")
 
                             // Create a financial record for the completed session
                             await createFinancialRecord({
@@ -101,19 +118,19 @@ export default function AutoPaymentRecorder() {
                                 description: `دفع مقابل جلسة علاجية - ${planData.treatment_templates?.name || 'خطة علاجية'}`
                             })
                             
-                            console.log("8. Financial record created successfully")
+                            console.log("9. Financial record created successfully")
                             
                             // Invalidate relevant queries to refresh the UI
                             queryClient.invalidateQueries({ queryKey: ['patientPlans'] })
                             queryClient.invalidateQueries({ queryKey: ['financialRecords'] })
                             queryClient.invalidateQueries({ queryKey: ['financialSummary'] })
                             
-                            console.log("9. Queries invalidated - payment recording complete")
+                            console.log("10. Queries invalidated - payment recording complete")
                             
                             // Show success notification
                             toast.success('تم تسجيل الجلسة والدفع تلقائيًا')
                         } else {
-                            console.log("2. Visit not linked to patient plan - skipping auto payment")
+                            console.log("3. Visit not linked to patient plan - skipping auto payment")
                         }
                     } catch (error) {
                         console.log("ERROR in AutoPaymentRecorder:", error.message)
@@ -137,20 +154,35 @@ export default function AutoPaymentRecorder() {
                 {
                     event: 'UPDATE',
                     schema: 'public',
-                    table: 'appointments',
-                    filter: `clinic_id=eq.${clinicId}`
+                    table: 'appointments'
                 },
                 async (payload) => {
+                    // Check if this appointment belongs to the current user's clinic
+                    if (payload.new.clinic_id !== clinicId) {
+                        console.log("Appointment not for current clinic - skipping")
+                        return
+                    }
+                    
                     // Check if the appointment status changed to "completed"
                     if (payload.new.status === 'completed' && payload.old.status !== 'completed') {
                         try {
+                            // Get patient details first
+                            const { data: patientData } = await supabase
+                                .from('patients')
+                                .select('name')
+                                .eq('id', payload.new.patient_id)
+                                .single()
+                            
+                            const patientName = patientData?.name || 'مريض'
+                            
                             // Create a financial record for the completed appointment
+                            // Note: We don't include appointment_id because appointments table uses UUID
+                            // but financial_records.appointment_id is still bigint (legacy schema)
                             await createFinancialRecord({
-                                appointment_id: payload.new.id,
                                 patient_id: payload.new.patient_id,
                                 amount: payload.new.price || 0,
                                 type: 'income',
-                                description: `دفع مقابل الجلسة الطبية - ${payload.new.patient?.name || 'مريض'}`
+                                description: `دفع مقابل الجلسة الطبية - ${patientName}`
                             })
 
                             // Invalidate relevant queries to refresh the UI
@@ -162,6 +194,7 @@ export default function AutoPaymentRecorder() {
                             toast.success('تم تسجيل الدفع تلقائيًا عند إكمال الجلسة')
                         } catch (error) {
                             console.log("ERROR in appointment payment recorder:", error.message)
+                            console.error("Full error:", error)
                             toast.error('حدث خطأ أثناء تسجيل الدفع التلقائي')
                         }
                     }

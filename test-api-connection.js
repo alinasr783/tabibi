@@ -1,57 +1,47 @@
 // Test API Connection Script
 // This script tests if the Supabase connection and queries are working
 
-const { createClient } = supabase;
+// Import the Supabase client
+import { createClient } from '@supabase/supabase-js';
 
 // Initialize Supabase client
 const supabaseUrl = 'https://hvbjysojjrdkszuvczbc.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2Ymp5c29qanJka3N6dXZjemJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzI3OTQzMzgsImV4cCI6MjA0ODM3MDMzOH0.WXo6W1fY7hF6Z5x7p6x7p6x7p6x7p6x7p6x7p6x7p6x7';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2Ymp5c29qanJka3N6dXZjemJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM5MzE2NjYsImV4cCI6MjA3OTUwNzY2Nn0.mv-Lrl1fvXbwFSlgeNSex_HcGiEriOmcjthtrXRZpFA';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-async function testClinicQuery() {
-  console.log("Testing clinic query...");
+async function testUserQuery() {
+  console.log("Testing user query...");
   
   try {
-    // Test 1: Query by clinic_id (UUID)
-    console.log("Test 1: Querying by clinic_id (UUID)");
-    const { data: data1, error: error1 } = await supabase
-      .from("clinics")
-      .select("*")
-      .eq("clinic_id", "7cf3a2a3-ee02-4a21-934f-be27f0e20d8f")
+    // Test: Query user by user_id
+    console.log("Test: Querying user by user_id");
+    const userId = '295dc901-f614-41a4-96c2-664dca756b1b'; // The user ID from the error
+    console.log("Looking for user with ID:", userId);
+    
+    const { data: userData, error: userError } = await supabase
+      .from("users")
+      .select("user_id, email, name, phone, role, clinic_id, permissions")
+      .eq("user_id", userId)
       .single();
       
-    if (error1) {
-      console.log("Error querying by clinic_id:", error1);
+    if (userError) {
+      console.log("Error querying user:", userError);
     } else {
-      console.log("Success querying by clinic_id:", data1);
+      console.log("Success querying user:", userData);
     }
     
-    // Test 2: Query by clinic_id_bigint (numeric)
-    console.log("\nTest 2: Querying by clinic_id_bigint (numeric)");
-    const { data: data2, error: error2 } = await supabase
-      .from("clinics")
-      .select("*")
-      .eq("clinic_id_bigint", 659031876)
+    // Test: Check if user exists with different column name
+    console.log("\nTest: Querying user by id column");
+    const { data: userData2, error: userError2 } = await supabase
+      .from("users")
+      .select("id, user_id, email, name, phone, role, clinic_id, permissions")
+      .eq("id", userId)
       .single();
       
-    if (error2) {
-      console.log("Error querying by clinic_id_bigint:", error2);
+    if (userError2) {
+      console.log("Error querying user by id:", userError2);
     } else {
-      console.log("Success querying by clinic_id_bigint:", data2);
-    }
-    
-    // Test 3: Check if online_booking_enabled column exists
-    console.log("\nTest 3: Checking online_booking_enabled column");
-    const { data: data3, error: error3 } = await supabase
-      .from("clinics")
-      .select("online_booking_enabled")
-      .eq("clinic_id", "7cf3a2a3-ee02-4a21-934f-be27f0e20d8f")
-      .single();
-      
-    if (error3) {
-      console.log("Error checking online_booking_enabled:", error3);
-    } else {
-      console.log("online_booking_enabled column exists:", data3);
+      console.log("Success querying user by id:", userData2);
     }
     
     console.log("\n=== Test Complete ===");
@@ -62,4 +52,4 @@ async function testClinicQuery() {
 }
 
 // Run the test
-testClinicQuery();
+testUserQuery();

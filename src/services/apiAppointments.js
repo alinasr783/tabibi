@@ -54,9 +54,20 @@ export async function getAppointments(search, page, pageSize, filters = {}) {
     // Apply range for pagination
     query = query.range(from, to)
 
-    // Apply date filter if provided
-    if (filters.date) {
-        // Filter appointments for the specific date
+    // Apply date range filter if provided
+    if (filters.dateFrom || filters.dateTo) {
+        if (filters.dateFrom) {
+            const startDate = new Date(filters.dateFrom)
+            startDate.setHours(0, 0, 0, 0)
+            query = query.gte('date', startDate.toISOString())
+        }
+        if (filters.dateTo) {
+            const endDate = new Date(filters.dateTo)
+            endDate.setHours(23, 59, 59, 999)
+            query = query.lte('date', endDate.toISOString())
+        }
+    } else if (filters.date) {
+        // Single date filter (for backwards compatibility)
         const startDate = new Date(filters.date)
         startDate.setHours(0, 0, 0, 0)
         const endDate = new Date(startDate)
@@ -67,14 +78,20 @@ export async function getAppointments(search, page, pageSize, filters = {}) {
             .lte('date', endDate.toISOString())
     }
 
-    // Apply status filter if provided
-    if (filters.status) {
+    // Apply status filter if provided (skip if "all")
+    if (filters.status && filters.status !== "all") {
         query = query.eq('status', filters.status)
     }
 
-    // Apply source filter if provided
-    if (filters.source) {
+    // Apply source filter if provided (skip if "all")
+    if (filters.source && filters.source !== "all") {
         query = query.eq('from', filters.source)
+    }
+    
+    // Apply notes filter if provided
+    if (filters.hasNotes) {
+        query = query.not('notes', 'is', null)
+        query = query.neq('notes', '')
     }
 
     // Apply search term if provided
@@ -165,16 +182,63 @@ export async function createAppointment(payload) {
         .single()
 
     if (!userData?.clinic_id) throw new Error("User has no clinic assigned")
+    
+    // The clinic_id in users table is a UUID that matches clinic_uuid in clinics table
+    const clinicUuid = userData.clinic_id;
 
-    // get clinic subscription plan
-    const { data: subscription } = await supabase
-        .from('subscriptions')
-        .select('*, plans(limits)')
-        .eq('clinic_id', userData.clinic_id)
-        .eq('status', 'active')
-        .single()
-
-    if (!subscription) throw new Error("لا يوجد اشتراك مفعل")
+    // For subscriptions, we need to check if the clinic_id is stored as UUID or BIGINT
+    // Let's try both approaches to handle the inconsistency
+    let subscription = null;
+    let subscriptionError = null;
+    
+    // First, try querying subscriptions by UUID (as in the actual database)
+    try {
+        const { data, error } = await supabase
+            .from('subscriptions')
+            .select('*, plans(limits)')
+            .eq('clinic_id', clinicUuid)  // Try with UUID first
+            .eq('status', 'active')
+            .single()
+        
+        if (error) throw error
+        subscription = data
+    } catch (err) {
+        subscriptionError = err
+        console.log("Failed to find subscription by UUID, will try by BIGINT")
+    }
+    
+    // If that fails, try querying by BIGINT (as in the project schema)
+    if (!subscription) {
+        try {
+            // Get the BIGINT clinic_id from clinics table
+            const { data: clinicData } = await supabase
+                .from('clinics')
+                .select('clinic_id_bigint')
+                .eq('clinic_uuid', clinicUuid)
+                .single()
+            
+            if (clinicData?.clinic_id_bigint) {
+                const { data, error } = await supabase
+                    .from('subscriptions')
+                    .select('*, plans(limits)')
+                    .eq('clinic_id', clinicData.clinic_id_bigint)  // Try with BIGINT
+                    .eq('status', 'active')
+                    .single()
+                
+                if (!error) {
+                    subscription = data
+                }
+            }
+        } catch (err) {
+            console.log("Failed to find subscription by BIGINT as well")
+        }
+    }
+    
+    // If we still don't have a subscription, show a more helpful error
+    if (!subscription) {
+        console.error("Subscription not found with either method:", subscriptionError)
+        throw new Error("لا يوجد اشتراك مفعل. يرجى التحقق من صفحة الاشتراكات.")
+    }
 
     const maxAppointments = subscription.plans.limits.max_appointments
     const periodStart = subscription.current_period_start
@@ -185,7 +249,7 @@ export async function createAppointment(payload) {
         const { count } = await supabase
             .from('appointments')
             .select('*', { count: 'exact', head: true })
-            .eq('clinic_id', userData.clinic_id)
+            .eq('clinic_id', clinicUuid) // Appointments use clinic_id (UUID)
             .gte('created_at', periodStart) // أهم شرط: أكبر من أو يساوي تاريخ بداية الباقة
 
         // 4. المقارنة الحاسمة
@@ -194,11 +258,11 @@ export async function createAppointment(payload) {
         }
     }
 
-    // Add clinic_id to the appointment data
+    // Add clinic_id to the appointment data (UUID type for appointments table)
     const appointmentData = {
         ...payload,
-        clinic_id: userData.clinic_id,
-        status: payload.status || "pending", // Use provided status or default to "pending"
+        clinic_id: clinicUuid, // Use the UUID for appointments table
+        status: payload.status || "confirmed", // Use provided status or default to "confirmed" (clinic bookings are pre-verified)
         from: payload.from || "clinic" // Use provided source or default to "clinic"
     }
 
@@ -397,4 +461,3 @@ export function subscribeToAppointments(callback, clinicId, sourceFilter = null)
         supabase.removeChannel(subscription);
     };
 }
-

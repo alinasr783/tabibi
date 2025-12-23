@@ -20,7 +20,7 @@ import {
 import { Badge } from "../components/ui/badge";
 import { Separator } from "../components/ui/separator";
 import { SkeletonLine } from "../components/ui/skeleton";
-import { Plus, Edit, Trash2, UserPlus, User } from "lucide-react";
+import { Plus, Edit, Trash2, UserPlus, User, Phone } from "lucide-react";
 import useClinicSecretaries from "../features/clinic/useClinicSecretaries";
 import useClinic from "../features/auth/useClinic";
 import { useAuth } from "../features/auth/AuthContext";
@@ -136,23 +136,26 @@ export default function Staff() {
   };
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className="space-y-6 p-4 md:p-6 bg-background min-h-screen pb-20 md:pb-0" dir="rtl">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">إدارة الموظفين</h1>
-          <p className="text-muted-foreground">
-            إدارة السكرتير وتحديد صلاحياتهم
-          </p>
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-primary/10 text-primary">
+            <User className="w-6 h-6" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">الموظفين</h1>
+            <p className="text-sm text-muted-foreground">تحكم في السكرتاريه وصلاحياتهم</p>
+          </div>
         </div>
-        <Button onClick={() => setIsAddDialogOpen(true)}>
+        <Button onClick={() => setIsAddDialogOpen(true)} className="bg-primary hover:bg-primary/90 h-9">
           <UserPlus className="ml-2 h-4 w-4" />
-          إضافة سكرتير
+          سكرتير جديد
         </Button>
       </div>
 
-      <Card>
+      <Card className="bg-card/70">
         <CardHeader>
-          <CardTitle>قائمة السكرتير</CardTitle>
+          <CardTitle>قايمة السكرتاريه</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -175,7 +178,102 @@ export default function Staff() {
               حدث خطأ أثناء تحميل قائمة السكرتير
             </div>
           ) : secretaries && secretaries.length > 0 ? (
-            <div className="space-y-4">
+            <>
+              {/* Mobile Cards */}
+              <div className="block md:hidden space-y-3">
+                {secretaries.map((secretary) => (
+                  <Card key={secretary.user_id} className="bg-card/70 hover:shadow-md transition-shadow">
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3 mb-3">
+                        <div className="w-12 h-12 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                          <User className="w-6 h-6" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-foreground text-lg truncate">{secretary.name}</h3>
+                          <p className="text-sm text-muted-foreground truncate">{secretary.email}</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 mb-4 bg-accent/50 rounded-lg p-3">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Phone className="w-4 h-4 text-primary" />
+                          <span className="text-foreground">{secretary.phone || "-"}</span>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-2">الصلاحيات:</p>
+                          <div className="flex flex-wrap gap-1">
+                            {Array.isArray(secretary.permissions) && secretary.permissions.length > 0 ? (
+                              secretary.permissions.map((perm) => {
+                                const permId = typeof perm === 'object' && perm !== null ? perm.id : perm;
+                                const permString = String(permId).trim();
+                                const permission = SECRETARY_PERMISSIONS.find((p) => p.id === permString);
+                                return (
+                                  <Badge key={permString} variant="secondary">
+                                    {permission?.label || permString}
+                                  </Badge>
+                                );
+                              })
+                            ) : (
+                              (() => {
+                                try {
+                                  if (typeof secretary.permissions === 'string') {
+                                    const parsedPermissions = JSON.parse(secretary.permissions);
+                                    if (Array.isArray(parsedPermissions) && parsedPermissions.length > 0) {
+                                      return parsedPermissions.map((perm) => {
+                                        const permId = typeof perm === 'object' && perm !== null ? perm.id : perm;
+                                        const permString = String(permId).trim();
+                                        const permission = SECRETARY_PERMISSIONS.find((p) => p.id === permString);
+                                        return (
+                                          <Badge key={permString} variant="secondary">
+                                            {permission?.label || permString}
+                                          </Badge>
+                                        );
+                                      });
+                                    }
+                                  }
+                                } catch (e) {
+                                  console.warn("Failed to parse permissions:", e);
+                                }
+                                return <Badge variant="outline">مفيش صلاحيات</Badge>;
+                              })()
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => handleOpenPermissions(secretary)}
+                        >
+                          <Edit className="ml-1 h-4 w-4" />
+                          الصلاحيات
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditSecretary(secretary)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteSecretary(secretary.user_id)}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Desktop Table */}
+              <div className="hidden md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -286,19 +384,19 @@ export default function Staff() {
                   ))}
                 </TableBody>
               </Table>
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <div className="mx-auto w-24 h-24 bg-muted rounded-full flex items-center justify-center mb-4">
+              </div>
+            </>
+          ) : ( <div className="text-center py-12">
+              <div className="mx-auto w-24 h-24 bg-muted/50 rounded-full flex items-center justify-center mb-4">
                 <UserPlus className="h-12 w-12 text-muted-foreground" />
               </div>
-              <h3 className="text-lg font-medium mb-1">لا توجد سكرتير</h3>
+              <h3 className="text-lg font-medium text-foreground mb-1">مفيش سكرتاريه</h3>
               <p className="text-muted-foreground mb-4">
-                ابدأ بإضافة سكرتير جديد للعيادة
+                ضيف سكرتير جديد للعيادة
               </p>
-              <Button onClick={() => setIsAddDialogOpen(true)}>
+              <Button onClick={() => setIsAddDialogOpen(true)} className="bg-primary hover:bg-primary/90">
                 <Plus className="ml-2 h-4 w-4" />
-                إضافة سكرتير أول
+                ضيف سكرتير
               </Button>
             </div>
           )}

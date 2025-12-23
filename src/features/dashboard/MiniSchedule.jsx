@@ -11,7 +11,7 @@ import { useState } from "react";
 import AppointmentCreateDialog from "../calendar/AppointmentCreateDialog";
 
 const statusMap = {
-  pending: { label: "مستني", variant: "secondary" },
+  pending: { label: "لسه متأكدش", variant: "secondary" },
   confirmed: { label: "مؤكد", variant: "default" },
   completed: { label: "مكتمل", variant: "outline" },
   cancelled: { label: "اتلغى", variant: "destructive" },
@@ -47,17 +47,17 @@ export default function MiniSchedule() {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Clock className="size-5 text-primary" />
+              <Clock className="size-5 text-primary " />
               <h3 className="text-lg font-semibold">مواعيدك انهاردة</h3>
             </div>
           </CardHeader>
           <CardContent>
             <div className="text-center py-8 text-muted-foreground">
-              <Clock className="size-12 mx-auto mb-2 opacity-30" />
-              <p className="mb-4">مفيش مواعيد انهاردة</p>
+              <Clock className="size-12 mx-auto mb-2 opacity-30 text-primary" />
+              <p className="mb-4">معندكش مواعيد انهاردة</p>
               <Button 
                 onClick={() => setShowAppointmentModal(true)} 
-                className="bg-blue-600 hover:bg-blue-700 text-white"
+                className="text-white bg-primary"
               >
                 <Plus className="w-4 h-4 ml-2" />
                 ضيف معاد جديد
@@ -75,7 +75,7 @@ export default function MiniSchedule() {
 
   return (
     <>
-      <Card>
+      <Card id="today-appointments">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">

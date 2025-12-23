@@ -326,52 +326,48 @@ ${medicationsList}
           {/* Medical Notes */}
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <Stethoscope className="h-5 w-5 text-purple-600" />
-                  الملاحظات الطبية
-                </h3>
-                {/* WhatsApp Share Button - Only show if there are visits with medications */}
-                {visits && visits.some(visit => 
-                  visit.medications && Array.isArray(visit.medications) && visit.medications.length > 0
-                ) && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={shareLatestPrescription}
-                    className="gap-2"
-                  >
-                    <MessageCircle className="h-4 w-4" />
-                    مشاركة آخر وصفة عبر واتساب
-                  </Button>
-                )}
-              </div>
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <Stethoscope className="h-5 w-5 text-purple-600" />
+                الملاحظات الطبية
+              </h3>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="font-medium">ملاحظة طبية</div>
-                    <div className="text-sm text-muted-foreground">10 يونيو 2024</div>
-                  </div>
-                  <p className="text-gray-700">المريض يشكو من آلام في السن العلوي الأيسر. تم إجراء فحص شامل وتم تشخيص التهاب لثة.</p>
+              {/* Display visits with diagnosis/notes */}
+              {visits && visits.length > 0 ? (
+                <div className="space-y-4">
+                  {visits.map((visit, index) => (
+                    <div key={visit.id || index} className="p-4 bg-blue-50 rounded-lg border border-blue-100">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="font-medium">
+                          {visit.diagnosis || "ملاحظة طبية"}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {visit.created_at ? new Date(visit.created_at).toLocaleDateString('ar-EG') : "-"}
+                        </div>
+                      </div>
+                      {visit.notes && (
+                        <p className="text-gray-700 mt-2">{visit.notes}</p>
+                      )}
+                      {visit.medications && Array.isArray(visit.medications) && visit.medications.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-blue-200">
+                          <div className="text-sm font-medium mb-2">الأدوية الموصوفة:</div>
+                          <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
+                            {visit.medications.map((med, medIndex) => (
+                              <li key={medIndex}>
+                                {med.name} {med.using && `- ${med.using}`}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
-                
-                <div className="p-4 bg-green-50 rounded-lg border border-green-100">
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="font-medium">ملاحظة سريرية</div>
-                    <div className="text-sm text-muted-foreground">5 يونيو 2024</div>
-                  </div>
-                  <p className="text-gray-700">تم إعطاء المريض مضاد حيوي ومسكن للألم. يجب مراجعة العيادة بعد أسبوع.</p>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  لا توجد ملاحظات طبية مسجلة
                 </div>
-              </div>
-              
-              <div className="mt-4">
-                <Button variant="outline" className="gap-2">
-                  <FileText className="h-4 w-4" />
-                  إضافة ملاحظة جديدة
-                </Button>
-              </div>
+              )}
             </CardContent>
           </Card>
 

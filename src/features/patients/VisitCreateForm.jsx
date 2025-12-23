@@ -14,7 +14,7 @@ import {
 } from "../../components/ui/select"
 import { usePatientPlans } from "./usePatientPlans"
 
-export default function VisitCreateForm({ patientId, patientPlanId: externalPatientPlanId, onVisitCreated }) {
+export default function VisitCreateForm({ patientId, patientPlanId: externalPatientPlanId, onVisitCreated, onCancel }) {
     const [diagnosis, setDiagnosis] = useState("")
     const [notes, setNotes] = useState("")
     const [medications, setMedications] = useState([])
@@ -150,7 +150,7 @@ export default function VisitCreateForm({ patientId, patientPlanId: externalPati
                                 </SelectItem>
                             ) : patientPlans && patientPlans.length > 0 ? (
                                 <>
-                                    <SelectItem value="">بدون خطة علاج</SelectItem>
+                                    <SelectItem value="none">بدون خطة علاج</SelectItem>
                                     {patientPlans.map((plan) => (
                                         <SelectItem key={plan.id} value={plan.id}>
                                             {plan.treatment_templates?.name || 'خطة علاجية'} - {plan.completed_sessions || 0}/{plan.total_sessions} جلسات مكتملة
@@ -158,8 +158,8 @@ export default function VisitCreateForm({ patientId, patientPlanId: externalPati
                                     ))}
                                 </>
                             ) : (
-                                <SelectItem value="" disabled>
-                                    لا توجد خطط علاجية متاحة
+                                <SelectItem value="no-plans" disabled>
+                                    مفيش خطط علاجية
                                 </SelectItem>
                             )}
                         </SelectContent>
@@ -269,15 +269,12 @@ export default function VisitCreateForm({ patientId, patientPlanId: externalPati
                     type="button"
                     variant="outline"
                     onClick={() => {
-                        // Reset form when closing
-                        setDiagnosis("")
-                        setNotes("")
-                        setMedications([])
-                        setNewMedication({ name: "", using: "" })
-                        setSelectedPlanId("")
-                        
-                        // Notify parent component to close the form
-                        if (onVisitCreated) onVisitCreated()
+                        // Call onCancel if provided, otherwise onVisitCreated (for backwards compatibility)
+                        if (onCancel) {
+                            onCancel()
+                        } else if (onVisitCreated) {
+                            onVisitCreated()
+                        }
                     }}
                 >
                     إلغاء

@@ -37,7 +37,7 @@ export default function PlanConfirmation() {
   const { mutate: createSubscription, isPending: isCreating } = useCreateSubscription()
   
   const [billingPeriod, setBillingPeriod] = useState('monthly')
-  const discount = useDiscountCode(plan?.price || 0)
+  const discount = useDiscountCode(plan?.price || 0, planId)
   
   const isLoading = isPlanLoading
   const isSubmitting = isCreating
@@ -67,7 +67,7 @@ export default function PlanConfirmation() {
   const finalPrice = pricing.finalPrice
 
   // Handle subscription confirmation
-  const handleConfirmSubscription = (paymentMethod = 'card') => {
+  const handleConfirmSubscription = async (paymentMethod = 'card') => {
     if (!user) {
       navigate("/login")
       return
@@ -78,12 +78,20 @@ export default function PlanConfirmation() {
       return
     }
 
+    // Create subscription
     createSubscription({
       clinicId: user.clinic_id,
       planId: plan.id,
       billingPeriod,
       amount: finalPrice,
       paymentMethod
+    }, {
+      onSuccess: () => {
+        // Increment discount usage after successful subscription
+        if (discount.appliedDiscount) {
+          discount.confirmDiscountUsage();
+        }
+      }
     })
   }
 
@@ -389,6 +397,8 @@ export default function PlanConfirmation() {
                     isPercentage={
                       discount.appliedDiscount?.is_percentage || false
                     }
+                    customMessage={discount.message}
+                    showMessage={discount.showMessage}
                   />
                 </div>
 

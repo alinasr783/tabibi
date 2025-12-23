@@ -1,0 +1,193 @@
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.appointments (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  patient_id bigint,
+  date text,
+  notes text,
+  status text,
+  price bigint,
+  from text,
+  clinic_id uuid,
+  age bigint,
+  CONSTRAINT appointments_pkey PRIMARY KEY (id),
+  CONSTRAINT appointment_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(id)
+);
+CREATE TABLE public.clinics (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  name text,
+  address text,
+  booking_price integer,
+  available_time jsonb,
+  current_plan text,
+  clinic_uuid uuid DEFAULT gen_random_uuid(),
+  online_booking_enabled boolean DEFAULT true,
+  clinic_id_bigint bigint,
+  CONSTRAINT clinics_pkey PRIMARY KEY (id),
+  CONSTRAINT clinics_current_plan_fkey FOREIGN KEY (current_plan) REFERENCES public.plans(id)
+);
+CREATE TABLE public.discount_redemptions (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  discount_id bigint NOT NULL,
+  clinic_id uuid,
+  appointment_id bigint,
+  patient_plan_id bigint,
+  subscription_id bigint,
+  redeemed_by bigint,
+  amount_discounted numeric,
+  CONSTRAINT discount_redemptions_pkey PRIMARY KEY (id),
+  CONSTRAINT discount_redemptions_discount_id_fkey FOREIGN KEY (discount_id) REFERENCES public.discounts(id),
+  CONSTRAINT discount_redemptions_appointment_id_fkey FOREIGN KEY (appointment_id) REFERENCES public.appointments(id),
+  CONSTRAINT discount_redemptions_patient_plan_id_fkey FOREIGN KEY (patient_plan_id) REFERENCES public.patient_plans(id),
+  CONSTRAINT discount_redemptions_subscription_id_fkey FOREIGN KEY (subscription_id) REFERENCES public.subscriptions(id),
+  CONSTRAINT discount_redemptions_redeemed_by_fkey FOREIGN KEY (redeemed_by) REFERENCES public.users(id)
+);
+CREATE TABLE public.discounts (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  code text,
+  is_percentage boolean,
+  value real,
+  is_active boolean,
+  plan_id text,
+  max_uses integer,
+  used_count integer DEFAULT 0,
+  expiration_date timestamp with time zone,
+  message text,
+  clinic_id uuid,
+  min_amount numeric DEFAULT 0,
+  CONSTRAINT discounts_pkey PRIMARY KEY (id),
+  CONSTRAINT discounts_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES public.plans(id)
+);
+CREATE TABLE public.financial_records (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  clinic_id bigint NOT NULL,
+  appointment_id bigint,
+  patient_id bigint,
+  patient_plan_id bigint,
+  amount numeric NOT NULL,
+  type text NOT NULL CHECK (type = ANY (ARRAY['income'::text, 'expense'::text])),
+  description text NOT NULL,
+  recorded_at timestamp with time zone DEFAULT now(),
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT financial_records_pkey PRIMARY KEY (id),
+  CONSTRAINT financial_records_appointment_id_fkey FOREIGN KEY (appointment_id) REFERENCES public.appointments(id),
+  CONSTRAINT financial_records_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(id),
+  CONSTRAINT financial_records_patient_plan_id_fkey FOREIGN KEY (patient_plan_id) REFERENCES public.patient_plans(id)
+);
+CREATE TABLE public.notifications (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  type character varying NOT NULL,
+  title character varying NOT NULL,
+  message text,
+  clinic_id uuid NOT NULL,
+  patient_id uuid,
+  appointment_id uuid,
+  is_read boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  related_id character varying,
+  CONSTRAINT notifications_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.patient_plans (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  template_id bigint,
+  total_sessions integer,
+  completed_sessions integer,
+  status text,
+  patient_id bigint,
+  total_price bigint,
+  clinic_id uuid,
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT patient_plans_pkey PRIMARY KEY (id),
+  CONSTRAINT patient_plans_template_id_fkey FOREIGN KEY (template_id) REFERENCES public.treatment_templates(id),
+  CONSTRAINT patient_plans_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(id)
+);
+CREATE TABLE public.patients (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  name text,
+  phone text,
+  address text,
+  date_of_birth text,
+  blood_type text,
+  gender text,
+  clinic_id uuid,
+  age integer,
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT patients_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.plan_pricing (
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  price real,
+  id text NOT NULL,
+  features jsonb,
+  popular boolean,
+  name text,
+  description text,
+  CONSTRAINT plan_pricing_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.plans (
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  id text NOT NULL,
+  name text,
+  limits jsonb,
+  price numeric,
+  CONSTRAINT plans_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.subscriptions (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  plan_id text,
+  status text DEFAULT 'active'::text,
+  current_period_start timestamp with time zone,
+  current_period_end timestamp with time zone,
+  payment_method text,
+  billing_period text DEFAULT 'monthly'::text CHECK (billing_period = ANY (ARRAY['monthly'::text, 'annual'::text])),
+  amount numeric,
+  clinic_id uuid,
+  CONSTRAINT subscriptions_pkey PRIMARY KEY (id),
+  CONSTRAINT subscriptions_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES public.plans(id)
+);
+CREATE TABLE public.treatment_templates (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  name text,
+  session_count integer,
+  session_price integer,
+  description text,
+  clinic_id uuid,
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT treatment_templates_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.users (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  name text,
+  phone text,
+  role text,
+  permissions text,
+  email text,
+  user_id text,
+  clinic_id uuid,
+  auth_uid uuid,
+  clinic_id_bigint bigint,
+  CONSTRAINT users_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.visits (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  patient_id bigint,
+  diagnosis text,
+  notes text,
+  medications jsonb,
+  clinic_id uuid,
+  patient_plan_id bigint,
+  CONSTRAINT visits_pkey PRIMARY KEY (id),
+  CONSTRAINT visits_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(id)
+);

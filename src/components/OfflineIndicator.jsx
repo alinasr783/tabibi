@@ -3,21 +3,51 @@ import { useOffline } from '../features/offline-mode/OfflineContext';
 import { Wifi, WifiOff, RefreshCw } from 'lucide-react';
 
 export default function OfflineIndicator() {
-  const { isOnline, isSyncing, syncProgress, syncMessage } = useOffline();
+  // Add a try-catch block to handle cases where the hook is used outside the provider
+  let isOnline = true;
+  let isSyncing = false;
+  let syncProgress = 0;
+  let syncMessage = '';
+  let hasOfflineContext = false;
+  
+  try {
+    const offlineContext = useOffline();
+    isOnline = offlineContext.isOnline;
+    isSyncing = offlineContext.isSyncing;
+    syncProgress = offlineContext.syncProgress;
+    syncMessage = offlineContext.syncMessage;
+    hasOfflineContext = true;
+  } catch (error) {
+    // If we're outside the OfflineProvider, we'll default to online mode
+    console.warn("OfflineIndicator used outside OfflineProvider, defaulting to online mode");
+  }
+  
   const [isVisible, setIsVisible] = useState(false);
+  const [showOnlineMessage, setShowOnlineMessage] = useState(false);
 
   useEffect(() => {
     // Show indicator when offline or syncing
+    if (!hasOfflineContext) {
+      setIsVisible(false);
+      return;
+    }
+    
     if (!isOnline || isSyncing) {
       setIsVisible(true);
+      setShowOnlineMessage(false);
     } else {
-      // Hide after a delay when back online
+      // When back online, show success message for 3 seconds then hide
+      setShowOnlineMessage(true);
+      setIsVisible(true);
+      
       const timer = setTimeout(() => {
         setIsVisible(false);
+        setShowOnlineMessage(false);
       }, 3000);
+      
       return () => clearTimeout(timer);
     }
-  }, [isOnline, isSyncing]);
+  }, [isOnline, isSyncing, hasOfflineContext]);
 
   if (!isVisible) return null;
 

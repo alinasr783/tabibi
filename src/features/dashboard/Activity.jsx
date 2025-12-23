@@ -111,5 +111,4 @@ export default function Activity() {
         </div>
       </CardContent>
     </Card>
-  );
-}
+  );}

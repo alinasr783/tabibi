@@ -9,12 +9,12 @@ export default function TreatmentTemplateForm({ register, errors }) {
       <div className="space-y-2">
         <Label htmlFor="name" className="text-sm font-medium text-gray-700 flex items-center gap-2">
           <Stethoscope className="h-4 w-4 text-blue-600" />
-          اسم العلاج
+          اسم الخطة العلاجية
         </Label>
         <Input
           id="name"
-          {...register("name", { required: "اسم العلاج مطلوب" })}
-          placeholder="أدخل اسم العلاج"
+          {...register("name", { required: "اسم الخطة العلاجية مطلوب" })}
+          placeholder="أدخل اسم الخطة العلاجية"
           className="h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg"
         />
         {errors.name && (
@@ -30,7 +30,7 @@ export default function TreatmentTemplateForm({ register, errors }) {
       <div className="space-y-2">
         <Label htmlFor="session_price" className="text-sm font-medium text-gray-700 flex items-center gap-2">
           <DollarSign className="h-4 w-4 text-green-600" />
-          سعر الجلسة الواحدة
+          سعر الجلسة (جنية مصري)
         </Label>
         <div className="relative">
           <Input
@@ -40,12 +40,12 @@ export default function TreatmentTemplateForm({ register, errors }) {
             min="0"
             {...register("session_price", { 
               required: "سعر الجلسة مطلوب",
-              min: { value: 0, message: "يجب أن يكون السعر أكبر من أو يساوي 0" }
+              min: { value: 0, message: "سعر الجلسة يجب أن يكون أكبر من أو يساوي صفر" }
             })}
-            placeholder="أدخل سعر الجلسة"
-            className="h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg pl-10"
+            placeholder="0.00"
+            className="h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg pr-10"
           />
-          <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">ريال</span>
+          <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">ج.م</span>
         </div>
         {errors.session_price && (
           <p className="text-sm text-red-500 mt-1 flex items-center gap-1">
@@ -60,15 +60,15 @@ export default function TreatmentTemplateForm({ register, errors }) {
       <div className="space-y-2">
         <Label htmlFor="description" className="text-sm font-medium text-gray-700 flex items-center gap-2">
           <FileText className="h-4 w-4 text-gray-600" />
-          وصف العلاج (اختياري)
+          وصف الخطة العلاجية (اختياري)
         </Label>
         <Textarea
           id="description"
           {...register("description")}
-          placeholder="أدخل وصف العلاج"
+          placeholder="أدخل وصف الخطة العلاجية"
           className="min-h-[120px] border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg"
         />
-        <p className="text-xs text-gray-500">يمكنك إضافة تفاصيل إضافية حول هذا العلاج</p>
+        <p className="text-xs text-gray-500">يمكنك إضافة تفاصيل إضافية حول هذه الخطة العلاجية</p>
       </div>
     </div>
   );

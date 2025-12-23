@@ -13,7 +13,7 @@ function Calendar({
   ...props
 }) {
   const defaultClassNames = {
-    months: "relative flex flex-col sm:flex-row gap-4",
+    months: "relative flex flex-col sm:flex-row gap-4 w-full",
     month: "w-full",
     month_caption: "relative mx-10 mb-1 flex h-9 items-center justify-center z-20",
     caption_label: "text-sm font-medium",
@@ -26,10 +26,13 @@ function Calendar({
       buttonVariants({ variant: "ghost" }),
       "size-9 text-muted-foreground/80 hover:text-foreground p-0",
     ),
-    weekday: "size-9 p-0 text-xs font-medium text-muted-foreground/80",
+    month_grid: "w-full border-collapse",
+    weekdays: "flex w-full",
+    weekday: "flex-1 p-0 text-xs font-medium text-muted-foreground/80 text-center",
+    week: "flex w-full mt-2",
     day_button:
       "relative flex size-9 items-center justify-center whitespace-nowrap rounded-lg p-0 text-foreground outline-offset-2 group-[[data-selected]:not(.range-middle)]:[transition-property:color,background-color,border-radius,box-shadow] group-[[data-selected]:not(.range-middle)]:duration-150 focus:outline-none group-data-[disabled]:pointer-events-none focus-visible:z-10 hover:bg-accent group-data-[selected]:bg-primary hover:text-foreground group-data-[selected]:text-primary-foreground group-data-[disabled]:text-foreground/30 group-data-[disabled]:line-through group-data-[outside]:text-foreground/30 group-data-[outside]:group-data-[selected]:text-primary-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70 group-[.range-start:not(.range-end)]:rounded-e-none group-[.range-end:not(.range-start)]:rounded-s-none group-[.range-middle]:rounded-none group-data-[selected]:group-[.range-middle]:bg-accent group-data-[selected]:group-[.range-middle]:text-foreground",
-    day: "group size-9 px-0 text-sm",
+    day: "group flex-1 px-0 text-sm flex items-center justify-center",
     range_start: "range-start",
     range_end: "range-end",
     range_middle: "range-middle",
@@ -67,7 +70,7 @@ function Calendar({
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
-      className={cn("w-fit", className)}
+      className={cn("", className)}
       classNames={mergedClassNames}
       components={mergedComponents}
       {...props}

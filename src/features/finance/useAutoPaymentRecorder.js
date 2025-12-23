@@ -28,13 +28,23 @@ export default function useAutoPaymentRecorder() {
                     // Check if the appointment status changed to "completed"
                     if (payload.new.status === 'completed' && payload.old.status !== 'completed') {
                         try {
+                            // Get patient details first
+                            const { data: patientData } = await supabase
+                                .from('patients')
+                                .select('name')
+                                .eq('id', payload.new.patient_id)
+                                .single()
+                            
+                            const patientName = patientData?.name || 'مريض'
+                            
                             // Create a financial record for the completed appointment
+                            // Note: We don't include appointment_id because appointments table uses UUID
+                            // but financial_records.appointment_id is still bigint (legacy schema)
                             await createFinancialRecord({
-                                appointment_id: payload.new.id,
                                 patient_id: payload.new.patient_id,
                                 amount: payload.new.price || 0,
                                 type: 'income',
-                                description: `دفع مقابل الجلسة الطبية - ${payload.new.patient?.name || 'مريض'}`
+                                description: `دفع مقابل الجلسة الطبية - ${patientName}`
                             })
 
                             // Invalidate relevant queries to refresh the UI

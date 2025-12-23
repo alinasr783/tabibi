@@ -50,11 +50,11 @@ export default function TreatmentTemplateEditDialog({ open, onClose, template })
       };
       
       await mutateAsync({ id: template.id, payload });
-      toast.success("تم تحديث العلاج بنجاح");
+      toast.success("تم تحديث الخطة العلاجية بنجاح");
       handleClose();
     } catch (e) {
       console.error("Error updating treatment template:", e);
-      toast.error("حدث خطأ أثناء تحديث العلاج");
+      toast.error("حدث خطأ أثناء تحديث الخطة العلاجية");
     }
   }
 
@@ -65,7 +65,7 @@ export default function TreatmentTemplateEditDialog({ open, onClose, template })
           <div className="flex justify-between items-center">
             <h3 className="text-xl font-bold flex items-center gap-2">
               <Edit className="h-6 w-6" />
-              تعديل العلاج
+              تعديل خطة العلاجية
             </h3>
             <Button 
               variant="ghost" 
@@ -76,7 +76,7 @@ export default function TreatmentTemplateEditDialog({ open, onClose, template })
               <X className="h-5 w-5" />
             </Button>
           </div>
-          <p className="text-blue-100 text-sm mt-1">قم بتحديث تفاصيل العلاج</p>
+          <p className="text-blue-100 text-sm mt-1">قم بتحديث تفاصيل خطة العلاجية</p>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="p-6">
           <TreatmentTemplateForm register={register} errors={errors} />
@@ -100,7 +100,7 @@ export default function TreatmentTemplateEditDialog({ open, onClose, template })
                   جاري التحديث...
                 </div>
               ) : (
-                "تحديث العلاج"
+                "تحديث الخطة العلاجية"
               )}
             </Button>
           </DialogFooter>

@@ -88,11 +88,25 @@ export default function SubscriptionBanner() {
 
   // Calculate days remaining
   let daysRemaining = null;
+  let daysRemainingText = "";
   if (endDate) {
     const today = new Date();
     const end = new Date(endDate);
     const diffTime = end - today;
     daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    // Generate dynamic text based on days remaining
+    if (daysRemaining <= 0) {
+      daysRemainingText = "انتهت صلاحية الباقة";
+    } else if (daysRemaining === 1) {
+      daysRemainingText = "متبقية يوم واحد";
+    } else if (daysRemaining === 2) {
+      daysRemainingText = "متبقية يومين";
+    } else if (daysRemaining <= 10) {
+      daysRemainingText = `متبقية ${daysRemaining} أيام - تجديد مطلوب`;
+    } else {
+      daysRemainingText = `متبقية ${daysRemaining} يوم`;
+    }
   }
 
   // Progress bar component for usage statistics
@@ -135,24 +149,29 @@ export default function SubscriptionBanner() {
                 <div className="flex items-center gap-2">
                   <h3 className="font-semibold text-base">{planName}</h3>
                   {!isFree && (
-                    <Badge variant="default" className="text-xs">
+                    <span className="text-xs text-muted-foreground">
                       نشط
-                    </Badge>
+                    </span>
                   )}
                 </div>
                 {endDate ? (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Calendar className="size-3.5" />
-                    <span>
-                      ينتهي في {format(new Date(endDate), "dd MMMM yyyy", { locale: ar })}
-                    </span>
-                    {daysRemaining !== null && daysRemaining <= 30 && (
+                    {daysRemaining !== null && daysRemaining <= 30 ? (
                       <Badge
-                        variant={daysRemaining <= 7 ? "destructive" : "secondary"}
+                        variant="default"
                         className="text-xs"
                       >
-                        {daysRemaining} {daysRemaining === 1 ? "يوم" : "أيام"} متبقية
+                        {daysRemaining <= 2 ? (
+                          daysRemaining === 1 ? "يوم" : "يومين"
+                        ) : (
+                          `${daysRemaining} ${daysRemaining === 1 ? "يوم" : "أيام"} متبقية`
+                        )}
                       </Badge>
+                    ) : (
+                      <span>
+                        {daysRemainingText}
+                      </span>
                     )}
                   </div>
                 ) : (

@@ -72,33 +72,134 @@ export async function logout() {
 }
 
 export async function getCurrentUser() {
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-
-    if (sessionError) {
-        console.error("Session error:", sessionError)
-        return null
-    }
-
-    if (!session) return null
-
-    // Fetch user data from users table including permissions
-    // Use clinic_id as it's the correct column for UUID values
-    const { data: userData, error: userError } = await supabase
-        .from("users")
-        .select("user_id, email, name, phone, role, clinic_id, permissions")
-        .eq("user_id", session.user.id)
-        .single()
-
-    if (userError) {
-        console.error("User data fetch error:", userError)
-        return null
-    }
-
-    // Merge session user data with our user data
-    return {
-        ...session.user,
-        ...userData,
-        clinic_id: userData.clinic_id // Use clinic_id directly
+    console.log("getCurrentUser: Starting user data fetch");
+    
+    try {
+        // First, get the session
+        console.log("getCurrentUser: Attempting to fetch session");
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+            console.error("Session error:", sessionError);
+            return null;
+        }
+        
+        if (!sessionData || !sessionData.session) {
+            console.log("getCurrentUser: No session found");
+            return null;
+        }
+        
+        const session = sessionData.session;
+        console.log("getCurrentUser: Session found, fetching user data for user_id:", session.user.id);
+        
+        // Try to fetch user data with a timeout wrapper
+        const fetchUserData = async () => {
+            console.log("getCurrentUser: Creating user data promise");
+            const { data: userData, error: userError } = await supabase
+                .from("users")
+                .select("user_id, email, name, phone, role, clinic_id, permissions")
+                .eq("user_id", session.user.id)
+                .single();
+            
+            if (userError) {
+                throw userError;
+            }
+            
+            return { data: userData, error: userError };
+        };
+        
+        // Simple timeout wrapper
+        const withTimeout = (promise, ms) => {
+            return Promise.race([
+                promise,
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), ms))
+            ]);
+        };
+        
+        try {
+            console.log("getCurrentUser: Attempting to fetch user data with timeout");
+            const result = await withTimeout(fetchUserData(), 20000); // 20 second timeout
+            console.log("getCurrentUser: User data fetched successfully:", result.data);
+            
+            const userData = result.data;
+            
+            // Check if user has a valid role
+            if (!userData || !userData.role) {
+                console.error("User data missing role:", userData);
+                // Return session data with indication that user data is missing
+                return {
+                    ...session.user,
+                    role: session.user.role, // This will be "authenticated"
+                    userDataMissing: true
+                };
+            }
+            
+            // Handle permissions - parse if it's a string
+            let permissions = userData.permissions;
+            if (typeof userData.permissions === 'string') {
+                try {
+                    permissions = JSON.parse(userData.permissions);
+                } catch (e) {
+                    console.error("Error parsing permissions string:", e);
+                    permissions = [];
+                }
+            }
+            
+            // Merge session user data with our user data
+            const mergedUser = {
+                ...session.user,
+                ...userData,
+                permissions: permissions
+            };
+            
+            console.log("getCurrentUser: Merged user data:", mergedUser);
+            return mergedUser;
+            
+        } catch (timeoutError) {
+            console.error("getCurrentUser: User data fetch timeout:", timeoutError);
+            
+            // Try a simpler fallback query
+            console.log("getCurrentUser: Trying fallback query with minimal data");
+            try {
+                const { data: fallbackData, error: fallbackError } = await withTimeout(
+                    supabase
+                        .from("users")
+                        .select("user_id, role, clinic_id")
+                        .eq("user_id", session.user.id)
+                        .single(),
+                    10000 // 10 second timeout for fallback
+                );
+                
+                if (fallbackError) {
+                    throw fallbackError;
+                }
+                
+                console.log("getCurrentUser: Fallback user data fetched successfully:", fallbackData);
+                
+                // Merge session user data with fallback user data
+                const mergedUser = {
+                    ...session.user,
+                    ...fallbackData,
+                    permissions: []
+                };
+                
+                console.log("getCurrentUser: Merged user data with fallback:", mergedUser);
+                return mergedUser;
+                
+            } catch (fallbackError) {
+                console.error("getCurrentUser: Fallback query also failed:", fallbackError);
+                // Even if we can't fetch user data, return the session data
+                // This will allow users to see the "role not verified" error
+                return {
+                    ...session.user,
+                    role: session.user.role // This will be "authenticated"
+                };
+            }
+        }
+        
+    } catch (error) {
+        console.error("getCurrentUser: General error:", error);
+        return null;
     }
 }
 

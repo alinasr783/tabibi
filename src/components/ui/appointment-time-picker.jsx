@@ -179,12 +179,12 @@ export default function AppointmentTimePicker({
           mode="single"
           selected={date}
           onSelect={handleDateSelect}
-          className="p-2 sm:pe-5 bg-background"
+          className="p-2 sm:pe-5 bg-background w-full"
           disabled={[{ before: new Date() }, (date) => !isDateAvailable(date)]}
         />
-        <div className="relative w-full max-sm:h-48 sm:w-40">
-          <div className="absolute inset-0 border-border py-4 max-sm:border-t">
-            <ScrollArea className="h-full border-border sm:border-s [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div className="relative w-full max-sm:h-auto sm:w-40">
+          <div className="border-border py-4 max-sm:border-t">
+            <ScrollArea className="max-sm:h-auto sm:h-[300px] border-border sm:border-s [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
               <div className="space-y-3">
                 <div className="flex h-5 shrink-0 items-center px-5">
                   <p className="text-sm font-medium">
@@ -192,7 +192,7 @@ export default function AppointmentTimePicker({
                   </p>
                 </div>
                 {timeSlots.length > 0 ? (
-                  <div className="grid gap-1.5 px-5 max-sm:grid-cols-2">
+                  <div className="grid gap-1.5 px-5 max-sm:grid-cols-3 sm:grid-cols-1 pb-4">
                     {timeSlots.map(({ time: timeSlot, available }) => (
                       <Button
                         key={timeSlot}

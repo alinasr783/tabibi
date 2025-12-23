@@ -6,9 +6,9 @@ export default function useUpdateTreatmentTemplate() {
     const queryClient = useQueryClient();
 
     const { mutateAsync, isPending } = useMutation({
-        mutationFn: ({ id, payload }) => updateTreatmentTemplate(id, payload),
+        mutationFn: updateTreatmentTemplate,
         onSuccess: () => {
-            toast.success("تم تحديث خطة العلاج بنجاح");
+            toast.success("تم تحديث الخطة العلاجية بنجاح");
             // Invalidate and refetch treatment templates
             queryClient.invalidateQueries({
                 queryKey: ["treatmentTemplates"],
@@ -16,7 +16,7 @@ export default function useUpdateTreatmentTemplate() {
         },
         onError: (error) => {
             console.error("Error updating treatment template:", error);
-            toast.error("حدث خطأ أثناء تحديث خطة العلاج");
+            toast.error(error.message);
         },
     });
 

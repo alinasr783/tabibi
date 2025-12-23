@@ -33,6 +33,7 @@ import Subscriptions from "./pages/Subscriptions";
 import WorkMode from "./pages/WorkMode";
 import OfflineIndicator from "./components/OfflineIndicator";
 import { OfflineProvider } from "./features/offline-mode/OfflineContext";
+import useScrollToTop from "./hooks/useScrollToTop";
 
 // Memoize route components to prevent unnecessary re-renders
 const MemoizedLanding = memo(Landing);
@@ -59,6 +60,9 @@ const MemoizedSubscriptions = memo(Subscriptions);
 const MemoizedWorkMode = memo(WorkMode);
 
 function AppRoutes() {
+  // Auto scroll to top when route changes
+  useScrollToTop();
+  
   return (
     <Routes>
       <Route path="/" element={<MemoizedLanding />} />

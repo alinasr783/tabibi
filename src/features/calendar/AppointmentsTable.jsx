@@ -12,9 +12,18 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../../components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog";
 import DataTable from "../../components/ui/table";
 import { updateAppointment } from "../../services/apiAppointments";
 import usePlan from "../auth/usePlan";
+import { useNavigate } from "react-router-dom";
+import { cn } from "../../lib/utils";
+import { useState } from "react";
 
 const statusMap = {
   pending: { label: "قيد الانتظار", variant: "secondary", icon: Clock },
@@ -33,6 +42,10 @@ export default function AppointmentsTable({
 }) {
   const queryClient = useQueryClient();
   const { data: planData } = usePlan();
+  const navigate = useNavigate();
+  const [showContactDialog, setShowContactDialog] = useState(false);
+  const [selectedPhone, setSelectedPhone] = useState("");
+  const [selectedPatientName, setSelectedPatientName] = useState("");
 
   const { mutate: updateStatus } = useMutation({
     mutationFn: ({ id, status }) => updateAppointment(id, { status }),
@@ -49,6 +62,24 @@ export default function AppointmentsTable({
 
   const handleStatusChange = (appointmentId, newStatus) => {
     updateStatus({ id: appointmentId, status: newStatus });
+  };
+
+  const handlePhoneClick = (phone, patientName) => {
+    if (!phone) return;
+    setSelectedPhone(phone);
+    setSelectedPatientName(patientName || "مريض");
+    setShowContactDialog(true);
+  };
+
+  const handleCall = () => {
+    window.location.href = `tel:${selectedPhone}`;
+    setShowContactDialog(false);
+  };
+
+  const handleWhatsApp = () => {
+    const cleanPhone = selectedPhone.replace(/\D/g, '');
+    window.open(`https://wa.me/${cleanPhone}`, '_blank');
+    setShowContactDialog(false);
   };
 
   // Check if WhatsApp feature is enabled in the plan
@@ -100,6 +131,10 @@ export default function AppointmentsTable({
     window.open(whatsappUrl, "_blank");
   };
 
+  const handleViewDetails = (appointmentId) => {
+    navigate(`/appointments/${appointmentId}`);
+  };
+
   const columns = [
     {
       header: "المريض",
@@ -111,8 +146,18 @@ export default function AppointmentsTable({
             <User className="w-4 h-4 text-blue-600" />
           </div>
           <div>
-            <div className="font-medium">{appointment.patient?.name || "غير محدد"}</div>
-            <div className="text-xs text-gray-500">{appointment.patient?.phone || "-"}</div>
+            <Button 
+              variant="link" 
+              className="font-medium p-0 h-auto text-left hover:text-primary"
+              onClick={() => navigate(`/patients/${appointment.patient?.id}`)}>
+              {appointment.patient?.name || "غير محدد"}
+            </Button>
+            <Button 
+              variant="link" 
+              className="flex items-center gap-1 text-xs text-gray-500 p-0 h-auto hover:text-primary"
+              onClick={() => handlePhoneClick(appointment.patient?.phone, appointment.patient?.name)}>
+              {appointment.patient?.phone || "-"}
+            </Button>
           </div>
         </div>
       ),
@@ -182,7 +227,7 @@ export default function AppointmentsTable({
             variant="ghost"
             size="sm"
             className="h-8 w-8 p-0 rounded-full"
-            onClick={() => window.location.hash = `/appointments/${appointment.id}`}
+            onClick={() => handleViewDetails(appointment.id)}
             title="عرض تفاصيل الحجز"
           >
             <Eye className="h-4 w-4" />
@@ -232,24 +277,231 @@ export default function AppointmentsTable({
   if (!appointments || appointments.length === 0) {
     return (
       <div className="text-center py-12">
-        <Calendar className="w-12 h-12 mx-auto text-gray-300 mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-1">لا توجد مواعيد</h3>
-        <p className="text-gray-500">لم يتم العثور على أي مواعيد تطابق البحث</p>
+        <Calendar className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
+        <h3 className="text-lg font-medium text-foreground mb-1">مفيش مواعيد</h3>
+        <p className="text-muted-foreground">ملقيناش أي مواعيد تطابق البحث</p>
       </div>
     );
   }
 
+  // Mobile Card Component
+  const AppointmentCard = ({ appointment }) => {
+    const statusInfo = statusMap[appointment.status] || statusMap.pending;
+    const StatusIcon = statusInfo.icon;
+
+    return (
+      <Card className="mb-3 bg-card/70 hover:shadow-md transition-shadow">
+        <CardContent className="p-4">
+          {/* Header - اسم المريض والحالة */}
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex items-center gap-3 flex-1">
+              <div className="w-12 h-12 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+                <User className="w-6 h-6" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <Button 
+                  variant="link" 
+                  className="font-bold text-lg p-0 h-auto text-right hover:text-primary"
+                  onClick={() => navigate(`/patients/${appointment.patient?.id}`)}>
+                  {appointment.patient?.name || "مش محدد"}
+                </Button>
+                <Button 
+                  variant="link" 
+                  className="flex items-center gap-1.5 text-muted-foreground text-sm p-0 h-auto hover:text-primary"
+                  onClick={() => handlePhoneClick(appointment.patient?.phone, appointment.patient?.name)}>
+                  <Phone className="w-3.5 h-3.5" />
+                  <span className="truncate">{appointment.patient?.phone || "-"}</span>
+                </Button>
+              </div>
+            </div>
+            <Badge variant={statusInfo.variant} className="gap-1.5 flex-shrink-0">
+              <StatusIcon className="w-3.5 h-3.5" />
+              {statusInfo.label}
+            </Badge>
+          </div>
+
+          {/* معلومات الموعد */}
+          <div className="space-y-2.5 mb-4 bg-accent/50 rounded-lg p-3">
+            <div className="flex items-center gap-2 text-sm">
+              <Calendar className="w-4 h-4 text-primary flex-shrink-0" />
+              <span className="font-medium text-foreground">
+                {appointment.date ? format(new Date(appointment.date), "dd/MM/yyyy", { locale: ar }) : "مش محدد"}
+              </span>
+              <span className="text-muted-foreground">•</span>
+              <Clock className="w-4 h-4 text-primary flex-shrink-0" />
+              <span className="font-medium text-foreground">
+                {appointment.date ? format(new Date(appointment.date), "hh:mm a", { locale: ar }) : "مش محدد"}
+              </span>
+            </div>
+            
+            {appointment.notes && (
+              <div className="flex items-start gap-2 text-sm">
+                <Tag className="w-4 h-4 text-purple-600 flex-shrink-0 mt-0.5" />
+                <span className="text-muted-foreground flex-1">{appointment.notes}</span>
+              </div>
+            )}
+            
+            <div className="flex items-center gap-2 text-sm">
+              <Receipt className="w-4 h-4 text-green-600 flex-shrink-0" />
+              <span className="font-bold text-foreground">
+                {appointment.price ? appointment.price.toFixed(2) : "0.00"} جنيه
+              </span>
+            </div>
+          </div>
+
+          {/* الأزرار */}
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => handleViewDetails(appointment.id)}
+              className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground h-10"
+              size="sm"
+            >
+              <Eye className="w-4 h-4 ml-2" />
+              شوف التفاصيل
+            </Button>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-10 px-3"
+              onClick={() => handleSendReminder(appointment)}
+              disabled={!isWhatsAppEnabled}
+              title="ابعت تذكير واتساب"
+            >
+              <MessageSquare className="w-4 h-4" />
+            </Button>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-10 px-3">
+                  <MoreHorizontal className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => handleStatusChange(appointment.id, "pending")}>
+                  <Clock className="h-4 w-4 ml-2" />
+                  قيد الانتظار
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleStatusChange(appointment.id, "confirmed")}>
+                  <CheckCircle className="h-4 w-4 ml-2" />
+                  مؤكد
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleStatusChange(appointment.id, "completed")}>
+                  <CheckCircle className="h-4 w-4 ml-2" />
+                  مكتمل
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleStatusChange(appointment.id, "cancelled")}>
+                  <XCircle className="h-4 w-4 ml-2" />
+                  ملغي
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  // Pagination Component
+  const MobilePagination = () => {
+    if (!total || total <= pageSize) return null;
+    
+    const totalPages = Math.ceil(total / pageSize);
+    const canGoBack = page > 1;
+    const canGoForward = page < totalPages;
+
+    return (
+      <div className="flex items-center justify-between mt-4 px-2 bg-card/50 rounded-lg p-3">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onPageChange(page - 1)}
+          disabled={!canGoBack}
+          className="h-9 px-3"
+        >
+          <ChevronRight className="w-4 h-4 ml-1" />
+          السابق
+        </Button>
+        
+        <div className="text-sm text-muted-foreground">
+          صفحة <span className="font-bold text-foreground">{page}</span> من <span className="font-bold text-foreground">{totalPages}</span>
+        </div>
+        
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onPageChange(page + 1)}
+          disabled={!canGoForward}
+          className="h-9 px-3"
+        >
+          التالي
+          <ChevronLeft className="w-4 h-4 mr-1" />
+        </Button>
+      </div>
+    );
+  };
+
   return (
-    <div className={fullWidth ? "w-full" : ""}>
-      <DataTable
-        columns={columns}
-        data={appointments}
-        total={total}
-        page={page}
-        pageSize={pageSize}
-        onPageChange={onPageChange}
-        emptyLabel="لا توجد مواعيد"
-      />
-    </div>
+    <>
+      {/* Mobile View - Cards */}
+      <div className="block md:hidden">
+        {appointments.map((appointment) => (
+          <AppointmentCard key={appointment.id} appointment={appointment} />
+        ))}
+        <MobilePagination />
+      </div>
+
+      {/* Desktop View - Table */}
+      <div className={cn("hidden md:block", fullWidth ? "w-full" : "")}>
+        <DataTable
+          columns={columns}
+          data={appointments}
+          total={total}
+          page={page}
+          pageSize={pageSize}
+          onPageChange={onPageChange}
+          emptyLabel="مفيش مواعيد"
+        />
+      </div>
+
+      {/* Contact Method Dialog */}
+      <Dialog open={showContactDialog} onOpenChange={setShowContactDialog}>
+        <DialogContent className="sm:max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-center text-xl font-bold">
+              اتصل بـ {selectedPatientName}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-3 py-4">
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-3">
+                <Phone className="w-8 h-8 text-primary" />
+              </div>
+              <p className="text-lg font-bold text-foreground">{selectedPhone}</p>
+              <p className="text-sm text-muted-foreground mt-1">اختار طريقة الاتصال</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                onClick={handleCall}
+                className="h-20 flex-col gap-2 bg-blue-500 hover:bg-blue-600 text-white"
+              >
+                <Phone className="w-6 h-6" />
+                <span className="font-bold">مكالمة</span>
+              </Button>
+              
+              <Button
+                onClick={handleWhatsApp}
+                className="h-20 flex-col gap-2 bg-green-500 hover:bg-green-600 text-white"
+              >
+                <MessageSquare className="w-6 h-6" />
+                <span className="font-bold">واتساب</span>
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

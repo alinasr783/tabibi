@@ -169,34 +169,37 @@ export default function NotificationsPage() {
   }, [markAllAsRead]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 md:p-6 bg-background min-h-screen pb-20 md:pb-0" dir="rtl">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">الإشعارات</h1>
-          <p className="text-gray-600 mt-1">إدارة جميع إشعارات النظام والمستخدمين</p>
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-primary/10 text-primary">
+            <Bell className="w-6 h-6" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">الإشعارات</h1>
+            <p className="text-sm text-muted-foreground">شوف كل التنبيهات</p>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button 
-            variant="outline" 
-            onClick={handleMarkAllAsRead}
-            className="gap-2"
-          >
-            <Check className="h-4 w-4" />
-            تحديد الكل كمقروء
-          </Button>
-        </div>
+        <Button 
+          variant="outline" 
+          onClick={handleMarkAllAsRead}
+          className="gap-2 h-9"
+        >
+          <Check className="h-4 w-4" />
+          خلاص كله مقروء
+        </Button>
       </div>
 
       {/* Controls */}
-      <Card>
+      <Card className="bg-card/70">
         <CardContent className="p-4">
           <div className="flex flex-col md:flex-row gap-4">
             {/* Search */}
             <div className="flex-1 relative">
-              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
-                placeholder="البحث في الإشعارات..."
+                placeholder="دور في الإشعارات..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pr-10"
@@ -256,7 +259,7 @@ export default function NotificationsPage() {
                 onClick={() => setSelectedTypes([])}
                 className="h-6 px-2 text-xs"
               >
-                مسح الكل
+                امسح كله
               </Button>
             </div>
           )}
@@ -265,11 +268,11 @@ export default function NotificationsPage() {
 
       {/* Bulk Actions */}
       {selectedNotifications.length > 0 && (
-        <Card className="border-blue-200 bg-blue-50">
+        <Card className="bg-blue-500/10 border-blue-500/20">
           <CardContent className="p-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div className="text-sm text-blue-800">
-                تم تحديد {selectedNotifications.length} إشعار
+              <div className="text-sm text-blue-700">
+                في {selectedNotifications.length} إشعار مختار
               </div>
               <div className="flex items-center gap-2">
                 <Button 
@@ -279,7 +282,7 @@ export default function NotificationsPage() {
                   className="gap-1 h-8"
                 >
                   <Check className="h-4 w-4" />
-                  تحديد كمقروء
+                  مقروء
                 </Button>
                 <Button 
                   variant="outline" 
@@ -288,7 +291,7 @@ export default function NotificationsPage() {
                   className="gap-1 h-8"
                 >
                   <Bell className="h-4 w-4" />
-                  تحديد كغير مقروء
+                  مش مقروء
                 </Button>
                 <Button 
                   variant="outline" 
@@ -311,14 +314,14 @@ export default function NotificationsPage() {
           // Loading skeleton
           <div className="space-y-4">
             {[1, 2, 3].map(i => (
-              <Card key={i} className="animate-pulse">
+              <Card key={i} className="animate-pulse bg-card/70">
                 <CardContent className="p-4">
                   <div className="flex items-start gap-3">
-                    <div className="rounded-full bg-gray-200 h-10 w-10" />
+                    <div className="rounded-full bg-muted h-10 w-10" />
                     <div className="flex-1 space-y-2">
-                      <div className="h-4 bg-gray-200 rounded w-3/4" />
-                      <div className="h-3 bg-gray-200 rounded w-1/2" />
-                      <div className="h-3 bg-gray-200 rounded w-1/4" />
+                      <div className="h-4 bg-muted rounded w-3/4" />
+                      <div className="h-3 bg-muted rounded w-1/2" />
+                      <div className="h-3 bg-muted rounded w-1/4" />
                     </div>
                   </div>
                 </CardContent>
@@ -327,26 +330,26 @@ export default function NotificationsPage() {
           </div>
         ) : Object.keys(groupedNotifications).length === 0 ? (
           // Empty state
-          <Card>
+          <Card className="bg-card/70">
             <CardContent className="p-12 text-center">
-              <Bell className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-1">لا توجد إشعارات</h3>
-              <p className="text-gray-500">ستظهر الإشعارات هنا عندما تتلقى تنبيهات جديدة</p>
+              <Bell className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-1">مفيش إشعارات</h3>
+              <p className="text-muted-foreground">هتظهر الإشعارات هنا لما تيجي</p>
             </CardContent>
           </Card>
         ) : (
           // Notifications grouped by date
           Object.entries(groupedNotifications).map(([date, dateNotifications]) => (
             <div key={date} className="space-y-3">
-              <div className="text-sm font-medium text-gray-500 px-2">{date}</div>
+              <div className="text-sm font-medium text-muted-foreground px-2">{date}</div>
               <div className="space-y-2">
                 {dateNotifications.map((notification) => (
                   <Card 
                     key={notification.id} 
-                    className={`transition-all duration-200 ${
+                    className={`transition-all duration-200 bg-card/70 ${
                       !notification.is_read 
-                        ? "border-blue-200 bg-blue-50 hover:bg-blue-100" 
-                        : "hover:bg-gray-50"
+                        ? "border-blue-500/30 bg-blue-500/5 hover:bg-blue-500/10" 
+                        : "hover:bg-accent/50"
                     }`}
                   >
                     <CardContent className="p-4">
@@ -362,8 +365,8 @@ export default function NotificationsPage() {
                         {/* Icon */}
                         <div className={`p-2 rounded-full ${
                           !notification.is_read 
-                            ? "bg-blue-100 text-blue-600" 
-                            : "bg-gray-100 text-gray-600"
+                            ? "bg-blue-500/10 text-blue-600" 
+                            : "bg-muted text-muted-foreground"
                         }`}>
                           {notificationIcons[notification.type]}
                         </div>
@@ -374,7 +377,7 @@ export default function NotificationsPage() {
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2 mb-1">
                                 <h3 className={`text-sm font-medium ${
-                                  !notification.is_read ? "text-blue-800" : "text-gray-900"
+                                  !notification.is_read ? "text-blue-700" : "text-foreground"
                                 }`}>
                                   {notification.title}
                                 </h3>
@@ -383,7 +386,7 @@ export default function NotificationsPage() {
                                 </Badge>
                               </div>
                               <p className={`text-sm ${
-                                !notification.is_read ? "text-blue-700" : "text-gray-600"
+                                !notification.is_read ? "text-blue-600" : "text-muted-foreground"
                               }`}>
                                 {notification.message}
                               </p>
@@ -392,7 +395,7 @@ export default function NotificationsPage() {
                               {!notification.is_read && (
                                 <div className="h-2 w-2 rounded-full bg-blue-500"></div>
                               )}
-                              <span className="text-xs text-gray-500 whitespace-nowrap">
+                              <span className="text-xs text-muted-foreground whitespace-nowrap">
                                 {format(new Date(notification.created_at), "h:mm a", { locale: ar })}
                               </span>
                             </div>

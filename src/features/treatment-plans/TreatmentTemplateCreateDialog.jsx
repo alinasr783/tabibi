@@ -50,7 +50,7 @@ export default function TreatmentTemplateCreateDialog({ open, onClose, onTemplat
           <div className="flex justify-between items-center">
             <h3 className="text-xl font-bold flex items-center gap-2">
               <Stethoscope className="h-6 w-6" />
-              إضافة علاج جديد
+              إضافة خطة علاجية جديدة
             </h3>
             <Button 
               variant="ghost" 
@@ -61,7 +61,7 @@ export default function TreatmentTemplateCreateDialog({ open, onClose, onTemplat
               <X className="h-5 w-5" />
             </Button>
           </div>
-          <p className="text-blue-100 text-sm mt-1">قم بإدخال تفاصيل العلاج الجديد</p>
+          <p className="text-blue-100 text-sm mt-1">قم بإدخال تفاصيل خطة العلاجية الجديدة</p>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="p-6">
           <TreatmentTemplateForm register={register} errors={errors} />
@@ -85,7 +85,7 @@ export default function TreatmentTemplateCreateDialog({ open, onClose, onTemplat
                   جاري الإضافة...
                 </div>
               ) : (
-                "إضافة العلاج"
+                "إضافة الخطة العلاجية"
               )}
             </Button>
           </DialogFooter>

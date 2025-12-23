@@ -133,7 +133,7 @@ export default function TreatmentTemplatesList() {
         <div className="relative max-w-md">
           <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="بحث في العلاجات..."
+            placeholder="بحث في الخطط العلاجية..."
             className="pr-10 h-12 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500"
             disabled
           />
@@ -153,7 +153,7 @@ export default function TreatmentTemplatesList() {
         <div className="relative max-w-md">
           <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="بحث في العلاجات..."
+            placeholder="بحث في الخطط العلاجية..."
             className="pr-10 h-12 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -161,12 +161,9 @@ export default function TreatmentTemplatesList() {
         </div>
         <div className="text-center py-12">
           <div className="mx-auto h-16 w-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
+            <AlertCircle className="h-8 w-8 text-red-600" />
           </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-1">حدث خطأ</h3>
-          <p className="text-red-500">حدث خطأ أثناء تحميل العلاجات</p>
+          <h3 className="text-lg font-medium text-gray-900 mb-1">حدث خطأ أثناء تحميل الخطط العلاجية</h3>
           <p className="text-sm text-muted-foreground mt-1">{error.message}</p>
         </div>
       </div>
@@ -179,7 +176,7 @@ export default function TreatmentTemplatesList() {
         <div className="relative max-w-md">
           <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="بحث في العلاجات..."
+            placeholder="بحث في الخطط العلاجية..."
             className="pr-10 h-12 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -189,9 +186,9 @@ export default function TreatmentTemplatesList() {
           <div className="mx-auto h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center mb-4">
             <Stethoscope className="h-8 w-8 text-blue-600" />
           </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-1">لا توجد علاجات</h3>
-          <p className="text-muted-foreground">لا توجد علاجات متوفرة حالياً</p>
-          <p className="text-sm text-muted-foreground mt-1">اضغط على "إضافة علاج" لإنشاء علاج جديد</p>
+          <h3 className="text-lg font-medium text-gray-900 mb-1">لا توجد خطط علاجية</h3>
+          <p className="text-muted-foreground">لا توجد خطط علاجية متوفرة حالياً</p>
+          <p className="text-sm text-muted-foreground mt-1">اضغط على "إضافة خطة علاجية" لإنشاء خطة علاجية جديدة</p>
         </div>
       </div>
     );
@@ -202,7 +199,7 @@ export default function TreatmentTemplatesList() {
       <div className="relative max-w-md">
         <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
-          placeholder="بحث في العلاجات..."
+          placeholder="بحث في الخطط العلاجية..."
           className="pr-10 h-12 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -214,7 +211,7 @@ export default function TreatmentTemplatesList() {
             <Search className="h-8 w-8 text-yellow-600" />
           </div>
           <h3 className="text-lg font-medium text-gray-900 mb-1">لا توجد نتائج</h3>
-          <p className="text-muted-foreground">لا توجد علاجات مطابقة للبحث</p>
+          <p className="text-muted-foreground">لا توجد خطط علاجية مطابقة للبحث</p>
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

@@ -231,43 +231,48 @@ export default function Subscriptions() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/30" dir="rtl" lang="ar">
-      <div className="container mx-auto px-4 py-8">
+    <main className="min-h-screen bg-background p-4 md:p-6" dir="rtl" lang="ar">
+      <div className="container mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">إدارة الاشتراك</h1>
-          <p className="text-gray-600">عرض تفاصيل باقة الاشتراك الحالية واستكشاف الخطط الأخرى</p>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 rounded-lg bg-primary/10 text-primary">
+              <CreditCard className="w-6 h-6" />
+            </div>
+            <h1 className="text-3xl font-bold text-foreground">إدارة الاشتراك</h1>
+          </div>
+          <p className="text-muted-foreground">شوف تفاصيل باقتك واستكشف الخطط التانية</p>
         </div>
 
         {isLoading ? (
           <div className="space-y-6">
-            <Card className="rounded-2xl border-0 shadow-lg">
-              <CardHeader className="pb-4 border-b border-gray-200">
+            <Card className="rounded-2xl bg-card/70">
+              <CardHeader className="pb-4 border-b border-border">
                 <div className="animate-pulse">
-                  <div className="h-6 bg-gray-200 rounded w-1/3 mb-2"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                  <div className="h-6 bg-muted rounded w-1/3 mb-2"></div>
+                  <div className="h-4 bg-muted rounded w-1/2"></div>
                 </div>
               </CardHeader>
               <CardContent className="p-6">
                 <div className="animate-pulse space-y-4">
-                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                  <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+                  <div className="h-4 bg-muted rounded w-3/4"></div>
+                  <div className="h-4 bg-muted rounded w-1/2"></div>
+                  <div className="h-4 bg-muted rounded w-2/3"></div>
                 </div>
               </CardContent>
             </Card>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[...Array(3)].map((_, index) => (
-                <Card key={index} className="rounded-2xl border-0 shadow-lg animate-pulse">
-                  <CardHeader className="pb-4 border-b border-gray-200">
-                    <div className="h-6 bg-gray-200 rounded w-1/2 mb-2"></div>
-                    <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+                <Card key={index} className="rounded-2xl bg-card/70 animate-pulse">
+                  <CardHeader className="pb-4 border-b border-border">
+                    <div className="h-6 bg-muted rounded w-1/2 mb-2"></div>
+                    <div className="h-4 bg-muted rounded w-1/3"></div>
                   </CardHeader>
                   <CardContent className="p-6 space-y-4">
                     <div className="space-y-3">
                       {[...Array(4)].map((_, i) => (
-                        <div key={i} className="h-4 bg-gray-200 rounded"></div>
+                        <div key={i} className="h-4 bg-muted rounded"></div>
                       ))}
                     </div>
                   </CardContent>
@@ -279,19 +284,19 @@ export default function Subscriptions() {
           <>
             {/* Current Plan Section */}
             <section className="mb-12">
-              <Card className="rounded-2xl border-0 shadow-lg bg-gradient-to-br from-primary/5 to-primary/10">
-                <CardHeader className="pb-4 border-b border-primary/20">
+              <Card className="rounded-2xl bg-card/70">
+                <CardHeader className="pb-4 border-b border-border">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                      <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-3">
+                      <CardTitle className="text-xl font-bold text-foreground flex items-center gap-3">
                         <div className="bg-primary/10 p-2 rounded-lg">
                           <CreditCard className="w-5 h-5 text-primary" />
                         </div>
-                        {hasNoSubscription ? "لا يوجد اشتراك فعال" : "باقة الاشتراك الحالية"}
+                        {hasNoSubscription ? "مفيش اشتراك فعال" : "باقتك دلوقتي"}
                       </CardTitle>
-                      <p className="text-gray-600 mt-1">
+                      <p className="text-muted-foreground mt-1">
                         {hasNoSubscription 
-                          ? "يجب الاشتراك في إحدى الباقات للوصول إلى جميع الميزات" 
+                          ? "لازم تشترك عشان تستخدم كل المميزات" 
                           : (isFreePlan ? "باقة مجانية" : currentPlan?.name || "غير محدد")}
                       </p>
                     </div>

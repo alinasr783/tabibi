@@ -1,6 +1,8 @@
 import supabase from "./supabase"
 
 export async function getCurrentClinic() {
+  console.log("getCurrentClinic: Starting clinic data fetch");
+  
   // Get current user's clinic_id
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) throw new Error("Not authenticated")
@@ -28,7 +30,7 @@ export async function getCurrentClinic() {
     const { data, error } = await supabase
       .from("clinics")
       .select("id, clinic_uuid, name, address, booking_price, available_time, online_booking_enabled")
-      .eq("clinic_uuid", clinicUuid)  // Query by clinic_uuid as per project memory
+      .eq("clinic_uuid", clinicUuid)  // Query by clinic_uuid as per actual database schema
       .single()
 
     if (error) throw error
@@ -42,7 +44,7 @@ export async function getCurrentClinic() {
       const { data, error: fallbackError } = await supabase
         .from("clinics")
         .select("id, clinic_uuid, name, address, booking_price, available_time")
-        .eq("clinic_uuid", clinicUuid)  // Query by clinic_uuid as per project memory
+        .eq("clinic_uuid", clinicUuid)  // Query by clinic_uuid as per actual database schema
         .single()
       
       if (fallbackError) throw fallbackError

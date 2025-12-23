@@ -31,11 +31,8 @@ export default function useUpdateAppointmentHandler() {
                 return "تاريخ ووقت الموعد غير صحيح"
             }
             
-            // Check if date is not in the past
-            const now = new Date();
-            if (date < now) {
-                return "لا يمكن اختيار تاريخ ووقت سابق"
-            }
+            // Allow editing past appointments - removed past date validation
+            // This is useful for correcting historical records
         }
 
         // Only validate price if it's being updated

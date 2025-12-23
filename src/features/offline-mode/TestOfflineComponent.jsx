@@ -5,7 +5,22 @@ import { useOffline } from './OfflineContext';
 export default function TestOfflineComponent() {
   const [testData, setTestData] = useState('');
   const { createPatientOffline, getOfflinePatients } = useOfflineData();
-  const { isOnline, isOfflineMode } = useOffline();
+  
+  // Add a try-catch block to handle cases where the hook is used outside the provider
+  let isOnline = true;
+  let isOfflineMode = false;
+  let hasOfflineContext = false;
+  
+  try {
+    const offlineContext = useOffline();
+    isOnline = offlineContext.isOnline;
+    isOfflineMode = offlineContext.isOfflineMode;
+    hasOfflineContext = true;
+  } catch (error) {
+    // If we're outside the OfflineProvider, we'll default to online mode
+    console.warn("TestOfflineComponent used outside OfflineProvider, defaulting to online mode");
+  }
+  
   const [patients, setPatients] = useState([]);
 
   const handleCreatePatient = async () => {
@@ -42,8 +57,8 @@ export default function TestOfflineComponent() {
       <h2 className="text-xl font-bold mb-4">Offline Mode Test Component</h2>
       
       <div className="mb-4">
-        <p className="mb-2"><strong>Connection Status:</strong> {isOnline ? 'Online' : 'Offline'}</p>
-        <p className="mb-2"><strong>Offline Mode:</strong> {isOfflineMode ? 'Active' : 'Inactive'}</p>
+        <p className="mb-2"><strong>Connection Status:</strong> {hasOfflineContext ? (isOnline ? 'Online' : 'Offline') : 'Unknown (outside provider)'}</p>
+        <p className="mb-2"><strong>Offline Mode:</strong> {hasOfflineContext ? (isOfflineMode ? 'Active' : 'Inactive') : 'Unknown (outside provider)'}</p>
       </div>
       
       <div className="mb-4">
@@ -57,6 +72,7 @@ export default function TestOfflineComponent() {
         <button 
           onClick={handleCreatePatient}
           className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          disabled={!hasOfflineContext || !isOfflineMode}
         >
           Create Patient Offline
         </button>
@@ -66,6 +82,7 @@ export default function TestOfflineComponent() {
         <button 
           onClick={handleGetPatients}
           className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+          disabled={!hasOfflineContext || !isOfflineMode}
         >
           Get Offline Patients
         </button>

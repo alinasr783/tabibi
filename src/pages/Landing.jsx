@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { motion, useAnimation, useInView } from "framer-motion";
 import Footer from "../components/layout/Footer";
@@ -79,6 +79,68 @@ function AnimatedSection({ children, id, className = "" }) {
 
 export default function Landing() {
   const location = useLocation();
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const lastScrollY = useRef(0);
+  const scrollVelocity = useRef(0);
+
+  // Handle scroll progress indicator with physics-based animation
+  useEffect(() => {
+    let ticking = false;
+    
+    const handleScroll = () => {
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          const scrollTop = window.scrollY;
+          const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+          const scrolled = (scrollTop / docHeight) * 100;
+          
+          // Calculate scroll velocity for physics-based animation
+          scrollVelocity.current = scrollTop - lastScrollY.current;
+          lastScrollY.current = scrollTop;
+          
+          // Apply easing based on scroll velocity for more natural feel
+          const easedProgress = calculateEasedProgress(scrolled, scrollVelocity.current);
+          setScrollProgress(easedProgress);
+          
+          // Update the progress bar
+          const progressBar = document.getElementById('scroll-progress');
+          if (progressBar) {
+            progressBar.style.width = `${easedProgress}%`;
+            
+            // Add physics-based easing for smoother animation
+            progressBar.style.transitionTimingFunction = getPhysicsEasing(scrollVelocity.current);
+          }
+          
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    // Physics-based easing function
+    const getPhysicsEasing = (velocity) => {
+      // Slower scroll = more elastic feel, faster scroll = more momentum
+      const speed = Math.abs(velocity);
+      if (speed < 2) return 'cubic-bezier(0.34, 1.56, 0.64, 1)'; // Elastic start/end
+      if (speed < 5) return 'cubic-bezier(0.25, 0.46, 0.45, 0.94)'; // Smooth
+      return 'cubic-bezier(0.4, 0, 0.2, 1)'; // Momentum-based
+    };
+
+    // Easing function for progress based on velocity
+    const calculateEasedProgress = (progress, velocity) => {
+      const speed = Math.abs(velocity);
+      // Add slight anticipation at start and overshoot at end for natural feel
+      if (progress < 10) {
+        return progress * (1 + (speed / 100)); // Anticipation at start
+      } else if (progress > 90) {
+        return progress * (1 - (speed / 500)); // Ease out at end
+      }
+      return progress;
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   useEffect(() => {
     if (!location.hash) return;
@@ -89,6 +151,7 @@ export default function Landing() {
     const tryScroll = () => {
       const el = document.getElementById(id);
       if (el) {
+        // Scroll to the beginning of the section (no offset needed since header is not sticky)
         el.scrollIntoView({ behavior: "smooth", block: "start" });
       } else if (attempts < 6) {
         attempts += 1;
@@ -125,25 +188,18 @@ export default function Landing() {
   };
 
   return (
-    <div dir="rtl" className="min-h-svh bg-background">
+    // Make sure the main container allows normal scrolling and accounts for fixed header
+    <div dir="rtl" className="min-h-svh bg-background relative">
       <div className="pointer-events-none fixed inset-0 -z-10 opacity-70">
         <div className="absolute -top-24 start-1/2 -translate-x-1/2 size-[40rem] rounded-full bg-primary/20 blur-3xl" />
         <div className="absolute top-1/3 end-0 size-[24rem] rounded-full bg-secondary/20 blur-3xl" />
       </div>
       
-      <motion.div
-        initial="hidden"
-        animate="visible"
-        variants={staggerContainer}
-      >
-        <motion.div variants={fadeInUp}>
-          <Header />
-        </motion.div>
-        
-        <motion.div variants={fadeInUp}>
-          <Hero />
-        </motion.div>
-      </motion.div>
+      {/* Header is now fixed and dynamically moves with scroll */}
+      <Header />
+      <div className="pt-16">
+        <Hero />
+      </div>
       
       {/* Lazy load sections with fallback UI and animations */}
       <motion.div
