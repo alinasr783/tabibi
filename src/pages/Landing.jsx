@@ -4,7 +4,6 @@ import { motion, useAnimation, useInView } from "framer-motion";
 import Footer from "../components/layout/Footer";
 import Header from "../components/layout/Header";
 import Hero from "../components/sections/Hero";
-import AKMediaPartnership from "../components/sections/AKMediaPartnership";
 import usePageMeta from "../hooks/usePageMeta";
 
 // Lazy load all sections
@@ -201,9 +200,6 @@ export default function Landing() {
       <div className="pt-16">
         <Hero />
       </div>
-      
-      {/* AK MEDIA Partnership Section - Added right after Hero */}
-      <AKMediaPartnership />
       
       {/* Lazy load sections with fallback UI and animations */}
       <motion.div
