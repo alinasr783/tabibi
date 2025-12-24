@@ -61,14 +61,14 @@ export default function Hero() {
             variants={item}
             className="text-4xl md:text-6xl font-bold leading-tight tracking-tight"
           >
-            إدارة حديثة وسلسة لعيادتك
+            نظام إدارة عيادات متكامل مقدم لعملاء AK MEDIA
           </motion.h1>
           
           <motion.p 
             variants={item}
             className="text-muted-foreground text-lg leading-relaxed"
           >
-            المواعيد , الماليات , حجز الكتروني , ادارة السكرتارية - كل ده من مكان واحد
+            إدارة عيادتك وحجز مواعيدك مع AK MEDIA
           </motion.p>
           
           <motion.div variants={item} className="flex flex-wrap gap-4">

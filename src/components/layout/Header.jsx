@@ -84,9 +84,17 @@ export default function Header() {
       </div>
       
       <div className="container flex h-16 items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Stethoscope className="size-6 text-primary" />
-          <span className="text-xl font-bold">Tabibi</span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Stethoscope className="size-6 text-primary" />
+            <span className="text-xl font-bold">Tabibi</span>
+          </div>
+          <span className="text-muted-foreground">×</span>
+          <img 
+            src="/ak-media.png" 
+            alt="AK MEDIA" 
+            className="h-20"
+          />
         </div>
         
         {/* Desktop Navigation */}
