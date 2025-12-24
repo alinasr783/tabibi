@@ -67,7 +67,7 @@ export default function PatientsTable({ patients, total, page, pageSize, onPageC
   return (
     <>
       {/* Mobile Cards */}
-      <div className="block md:hidden p-4 space-y-3">
+      <div className="block md:hidden p-4 space-y-3" style={{ direction: 'rtl' }}>
         {patients.length === 0 ? (
           <div className="text-center py-12">
             <User className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />

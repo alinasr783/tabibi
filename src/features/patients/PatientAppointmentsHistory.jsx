@@ -1,110 +1,114 @@
 import { format } from "date-fns"
 import { ar } from "date-fns/locale"
-import { Card, CardContent, CardHeader } from "../../components/ui/card"
-import { Badge } from "../../components/ui/badge"
-import { SkeletonBlock } from "../../components/ui/skeleton"
-import { PATIENT_DETAIL_PAGE_SIZE } from "../../constants/pagination"
+import { Card, CardContent } from "../../components/ui/card"
+import { Button } from "../../components/ui/button"
+import { Eye, Calendar, Clock, DollarSign, Plus } from "lucide-react"
+import { useNavigate } from "react-router-dom"
 import { useState } from "react"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog"
+import AppointmentCreateDialog from "../calendar/AppointmentCreateDialog"
 
-const statusMap = {
-  pending: { label: "قيد الانتظار", variant: "secondary" },
-  confirmed: { label: "مؤكد", variant: "default" },
-  completed: { label: "مكتمل", variant: "outline" },
-  cancelled: { label: "ملغي", variant: "destructive" },
+const statusConfig = {
+  pending: { label: "منتظر", className: "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200" },
+  confirmed: { label: "مؤكد", className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200" },
+  completed: { label: "مكتمل", className: "bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-200" },
+  cancelled: { label: "ملغي", className: "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200" },
 }
 
-export default function PatientAppointmentsHistory({ appointments, isLoading }) {
-  const [currentPage, setCurrentPage] = useState(1)
+export default function PatientAppointmentsHistory({ appointments, isLoading, patientId }) {
+  const navigate = useNavigate()
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   
   if (isLoading) {
     return (
-      <Card>
-        <CardHeader>
-          <div className="h-6 w-32 bg-gray-200 rounded animate-pulse"></div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <SkeletonBlock key={i} className="h-16" />
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <div className="space-y-3">
+        <div className="h-5 w-24 bg-muted rounded animate-pulse"></div>
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-20 bg-muted rounded-lg animate-pulse"></div>
+        ))}
+      </div>
     )
   }
 
-  // Pagination logic
-  const startIndex = (currentPage - 1) * PATIENT_DETAIL_PAGE_SIZE
-  const endIndex = startIndex + PATIENT_DETAIL_PAGE_SIZE
-  const paginatedAppointments = appointments?.slice(startIndex, endIndex) || []
-  const totalPages = Math.ceil((appointments?.length || 0) / PATIENT_DETAIL_PAGE_SIZE)
-
   return (
-    <Card>
-      <CardHeader>
-        <h3 className="text-lg font-semibold">سجل الحجوزات</h3>
-      </CardHeader>
-      <CardContent>
-        {appointments && appointments.length > 0 ? (
-          <>
-            <div className="space-y-3">
-              {paginatedAppointments.map((appointment) => (
-                <div key={appointment.id} className="flex items-center justify-between p-3 rounded-[var(--radius)] border border-border">
-                  <div className="flex-1">
-                    <div className="flex justify-between">
-                      <div className="text-sm text-muted-foreground">
-                        {appointment.date ? format(new Date(appointment.date), "dd MMMM yyyy - hh:mm a", { locale: ar }) : "غير محدد"}
+    <div className="space-y-3">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-medium text-muted-foreground">المواعيد</h3>
+        <Button size="sm" onClick={() => setIsCreateDialogOpen(true)} className="gap-1.5">
+          <Plus className="w-4 h-4" />
+          موعد جديد
+        </Button>
+      </div>
+
+      {appointments && appointments.length > 0 ? (
+        <div className="space-y-2">
+          {appointments.map((appointment) => (
+            <div
+              key={appointment.id}
+              onClick={() => navigate(`/appointments/${appointment.id}`)}
+              className="cursor-pointer"
+            >
+              <Card className="hover:bg-muted/50 transition-colors group">
+                <CardContent className="p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                          statusConfig[appointment.status]?.className || statusConfig.pending.className
+                        }`}>
+                          {statusConfig[appointment.status]?.label || appointment.status}
+                        </span>
+                        {appointment.price > 0 && (
+                          <span className="flex items-center gap-1 text-xs font-medium">
+                            <DollarSign className="w-3.5 h-3.5" />
+                            {appointment.price} جنيه
+                          </span>
+                        )}
                       </div>
-                      <div className="text-sm font-medium">
-                        {appointment.price ? `${appointment.price.toFixed(2)} جنيه` : "0.00 جنيه"}
+                      <div className="flex items-center gap-4 mt-1.5 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-3.5 h-3.5" />
+                          {appointment.date 
+                            ? format(new Date(appointment.date), "d MMM yyyy", { locale: ar })
+                            : "غير محدد"
+                          }
+                        </span>
+                        {appointment.date && (
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3.5 h-3.5" />
+                            {format(new Date(appointment.date), "h:mm a", { locale: ar })}
+                          </span>
+                        )}
                       </div>
+                      {appointment.notes && (
+                        <p className="text-xs text-muted-foreground mt-1 truncate">{appointment.notes}</p>
+                      )}
                     </div>
-                    <div className="font-medium">{appointment.notes}</div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      تم الإنشاء: {appointment.created_at ? format(new Date(appointment.created_at), "dd/MM/yyyy - hh:mm a", { locale: ar }) : "غير محدد"}
-                    </div>
-                </div>
-                <Badge variant={statusMap[appointment.status]?.variant || "secondary"}>
-                  {statusMap[appointment.status]?.label || appointment.status}
-                </Badge>
-              </div>
-            ))}
-          </div>
-          
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between border-t border-border px-3 py-2 mt-4">
-              <div className="text-xs text-muted-foreground">
-                {startIndex + 1}-{Math.min(endIndex, appointments.length)} من {appointments.length}
-              </div>
-              <div className="flex items-center gap-1">
-                <button
-                  className="px-2 py-1 rounded-[var(--radius)] bg-muted text-xs disabled:opacity-50"
-                  disabled={currentPage <= 1}
-                  onClick={() => setCurrentPage(prev => prev - 1)}
-                >
-                  السابق
-                </button>
-                <span className="px-2 py-1 rounded-[var(--radius)] bg-muted text-xs">
-                  الصفحة {currentPage} من {totalPages}
-                </span>
-                <button
-                  className="px-2 py-1 rounded-[var(--radius)] bg-muted text-xs disabled:opacity-50"
-                  disabled={currentPage >= totalPages}
-                  onClick={() => setCurrentPage(prev => prev + 1)}
-                >
-                  التالي
-                </button>
-              </div>
+                    <Eye className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                  </div>
+                </CardContent>
+              </Card>
             </div>
-          )}
-        </>
+          ))}
+        </div>
       ) : (
-        <div className="text-center py-8 text-muted-foreground">
-          لا توجد حجوزات سابقة لهذا المريض
+        <div className="text-center py-8 text-muted-foreground text-sm">
+          مفيش مواعيد للمريض ده
         </div>
       )}
-    </CardContent>
-  </Card>
-)
+
+      {/* Create Appointment Dialog */}
+      <AppointmentCreateDialog
+        open={isCreateDialogOpen}
+        onClose={() => setIsCreateDialogOpen(false)}
+        preSelectedPatientId={patientId}
+      />
+    </div>
+  )
 }

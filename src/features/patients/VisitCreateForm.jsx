@@ -3,6 +3,7 @@ import { Button } from "../../components/ui/button"
 import { Textarea } from "../../components/ui/textarea"
 import { Input } from "../../components/ui/input"
 import { Label } from "../../components/ui/label"
+import { Plus, X } from "lucide-react"
 import useCreateVisit from "./useCreateVisit"
 import SpeechButton from "../../components/ui/SpeechButton"
 import {
@@ -205,57 +206,56 @@ export default function VisitCreateForm({ patientId, patientPlanId: externalPati
                             size="sm"
                             onClick={handleAddMedicationField}
                             disabled={!newMedication.name.trim() || !newMedication.using.trim()}
+                            className="gap-1.5"
                         >
-                            إضافة دواء
+                            <Plus className="w-4 h-4" />
+                            إضافة
                         </Button>
                     </div>
 
                     {/* New medication input fields */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-3 border border-border rounded-lg">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 rounded-lg bg-muted/30 border">
                         <div className="space-y-2">
-                            <Label htmlFor="medicationName">اسم الدواء</Label>
+                            <Label htmlFor="medicationName" className="text-xs">اسم الدواء</Label>
                             <Input
                                 id="medicationName"
                                 value={newMedication.name}
                                 onChange={(e) => setNewMedication({ ...newMedication, name: e.target.value })}
-                                placeholder="أدخل اسم الدواء"
+                                placeholder="مثل: باراسيتامول"
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="medicationUsing">استخدام الدواء</Label>
+                            <Label htmlFor="medicationUsing" className="text-xs">طريقة الاستخدام</Label>
                             <Input
                                 id="medicationUsing"
                                 value={newMedication.using}
                                 onChange={(e) => setNewMedication({ ...newMedication, using: e.target.value })}
-                                placeholder="أدخل طريقة الاستخدام"
+                                placeholder="مثل: 3 مرات يومياً"
                             />
                         </div>
                     </div>
 
                     {/* Added medications list */}
                     {medications.length > 0 && (
-                        <div className="space-y-3">
-                            <h4 className="text-sm font-medium">الأدوية المضافة:</h4>
+                        <div className="space-y-2">
+                            <h4 className="text-xs font-medium text-muted-foreground">الأدوية المضافة</h4>
                             {medications.map((med, index) => (
-                                <div key={index} className="flex items-center justify-between p-3 border border-border rounded-lg">
-                                    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <Label className="text-xs text-muted-foreground">اسم الدواء</Label>
-                                            <div className="font-medium">{med.name}</div>
-                                        </div>
-                                        <div>
-                                            <Label className="text-xs text-muted-foreground">استخدام الدواء</Label>
-                                            <div className="text-muted-foreground">{med.using}</div>
-                                        </div>
+                                <div key={index} className="flex items-start gap-2 p-3 rounded-lg bg-muted/50 border">
+                                    <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                                        <span className="text-xs font-medium text-primary">{index + 1}</span>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium">{med.name}</p>
+                                        <p className="text-xs text-muted-foreground mt-0.5">{med.using}</p>
                                     </div>
                                     <Button
                                         type="button"
                                         variant="ghost"
-                                        size="sm"
+                                        size="icon"
+                                        className="shrink-0 h-6 w-6 text-destructive hover:text-destructive"
                                         onClick={() => handleRemoveMedication(index)}
-                                        className="mr-2"
                                     >
-                                        إزالة
+                                        <X className="w-4 h-4" />
                                     </Button>
                                 </div>
                             ))}
@@ -264,12 +264,11 @@ export default function VisitCreateForm({ patientId, patientPlanId: externalPati
                 </div>
             </div>
 
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-2 pt-2">
                 <Button
                     type="button"
                     variant="outline"
                     onClick={() => {
-                        // Call onCancel if provided, otherwise onVisitCreated (for backwards compatibility)
                         if (onCancel) {
                             onCancel()
                         } else if (onVisitCreated) {
@@ -280,7 +279,7 @@ export default function VisitCreateForm({ patientId, patientPlanId: externalPati
                     إلغاء
                 </Button>
                 <Button type="submit" disabled={isCreating}>
-                    {isCreating ? "جاري الإضافة..." : "إضافة الكشف"}
+                    {isCreating ? "جاري الحفظ..." : "حفظ الكشف"}
                 </Button>
             </div>
         </form>
