@@ -142,3 +142,47 @@ body,
 .animate-slideDown {
   animation: slideDown 0.3s ease-out;
 }
+
+/* Safe area padding for devices with notch */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0);
+}
+
+/* Chat scrollbar styling */
+.chat-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.chat-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--muted-foreground);
+  border-radius: 2px;
+  opacity: 0.3;
+}
+
+.chat-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: var(--foreground);
+  opacity: 0.5;
+}
+
+/* Mobile input focus fix */
+@media (max-width: 767px) {
+  input:focus,
+  textarea:focus {
+    font-size: 16px; /* Prevents iOS zoom on focus */
+  }
+}
+
+/* Full height for mobile with address bar consideration */
+@supports (height: 100dvh) {
+  .h-dvh {
+    height: 100dvh;
+  }
+}

@@ -235,6 +235,14 @@ export default function AppointmentDetailPage() {
     alert("تم كتابة الروشتة بنجاح!");
   };
 
+  const handlePrescriptionDialogOpen = () => {
+    // Initialize with one empty medication when opening the dialog
+    if (medications.length === 0) {
+      setMedications([{ name: '', using: '' }]);
+    }
+    setShowPrescriptionDialog(true);
+  };
+
   const handleSharePrescriptionWhatsApp = () => {
     const phoneNumber = appointment?.patient?.phone?.replace(/\D/g, '');
     if (!phoneNumber) {
@@ -463,17 +471,9 @@ export default function AppointmentDetailPage() {
                 variant="outline" 
                 size="sm"
                 className="justify-start gap-2 text-sm h-9" 
-                onClick={() => setShowPrescriptionDialog(true)}>
+                onClick={handlePrescriptionDialogOpen}>
                 <Pill className="size-3.5" />
                 اكتب روشتة
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm"
-                className="justify-start gap-2 text-sm h-9" 
-                onClick={handleSharePrescriptionWhatsApp}>
-                <MessageSquare className="size-3.5" />
-                ابعت الروشتة واتساب
               </Button>
               <Button 
                 variant="outline" 
@@ -760,80 +760,105 @@ export default function AppointmentDetailPage() {
 
       {/* Prescription Dialog */}
       <Dialog open={showPrescriptionDialog} onOpenChange={setShowPrescriptionDialog}>
-        <DialogContent className="sm:max-w-[550px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-lg">
-              <Pill className="size-5" />
+        <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
+
+
+          <DialogHeader className="pb-3">
+            <DialogTitle className="flex items-center gap-2 text-lg font-bold">
+              {/* <Pill className="size-5 text-primary" /> */}
               اكتب روشتة
             </DialogTitle>
           </DialogHeader>
-          <div className="py-4 max-h-[60vh] overflow-y-auto">
-            <div className="space-y-4">
-              <div className="bg-blue-50 dark:bg-blue-950/20 rounded-lg p-3 border border-blue-200 dark:border-blue-900">
-                <div className="flex items-center gap-2">
-                  <Info className="size-4 text-blue-600" />
-                  <p className="text-sm text-blue-900 dark:text-blue-200">
-                    اكتب الأدوية والجرعات بتاعة المريض
-                  </p>
-                </div>
+          
+          <div className="py-2 space-y-4">
+            <div className="bg-blue-500 dark:bg-blue-600 rounded-lg p-3.5 border border-blue-200 dark:border-blue-800">
+              <div className="flex items-center gap-2">
+                <Info className="size-4 text-white" />
+                <p className="text-sm font-medium text-white">
+                  اكتب الأدوية والجرعات بتاعة المريض
+                </p>
               </div>
-              
+            </div>
+            
+            <div className="space-y-3">
               {medications.map((med, index) => (
-                <div key={index} className="border rounded-lg p-3 space-y-3 bg-card">
+                <div key={index} className="border rounded-lg p-4 space-y-3 bg-card/50">
                   <div className="flex justify-between items-center">
-                    <h4 className="font-medium text-sm">دواء #{index + 1}</h4>
+                    <h4 className="font-semibold text-sm text-foreground flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+                        {index + 1}
+                      </span>
+                      دواء #{index + 1}
+                    </h4>
                     {medications.length > 1 && (
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => removeMedication(index)}
-                        className="text-red-600 hover:text-red-700 h-7 w-7 p-0"
+                        className="text-destructive hover:text-destructive h-8 w-8 p-0"
                       >
                         <X className="size-4" />
                       </Button>
                     )}
                   </div>
-                  <div>
-                    <Label htmlFor={`med-${index}`} className="text-xs">اسم الدواء</Label>
-                    <Input 
-                      id={`med-${index}`}
-                      placeholder="مثال: أوجمنتين 1 جم"
-                      value={med.name}
-                      onChange={(e) => updateMedication(index, 'name', e.target.value)}
-                      className="mt-1.5"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor={`usage-${index}`} className="text-xs">طريقة الاستخدام</Label>
-                    <Input 
-                      id={`usage-${index}`}
-                      placeholder="مثال: قرص كل 12 ساعة بعد الأكل"
-                      value={med.using}
-                      onChange={(e) => updateMedication(index, 'using', e.target.value)}
-                      className="mt-1.5"
-                    />
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <Label htmlFor={`med-${index}`} className="text-xs font-medium text-muted-foreground mb-1 block">
+                        اسم الدواء
+                      </Label>
+                      <Input 
+                        id={`med-${index}`}
+                        placeholder="مثال: أوجمنتين 1 جم"
+                        value={med.name}
+                        onChange={(e) => updateMedication(index, 'name', e.target.value)}
+                        className="text-sm"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor={`usage-${index}`} className="text-xs font-medium text-muted-foreground mb-1 block">
+                        طريقة الاستخدام
+                      </Label>
+                      <Input 
+                        id={`usage-${index}`}
+                        placeholder="مثال: قرص كل 12 ساعة بعد الأكل"
+                        value={med.using}
+                        onChange={(e) => updateMedication(index, 'using', e.target.value)}
+                        className="text-sm"
+                      />
+                    </div>
                   </div>
                 </div>
               ))}
-              
-              <Button 
-                variant="outline" 
-                onClick={addMedication}
-                className="w-full gap-2"
-                size="sm"
-              >
-                <Plus className="size-4" />
-                ضيف دواء تاني
-              </Button>
             </div>
+            
+            <Button 
+              variant="outline" 
+              onClick={addMedication}
+              className="w-full gap-2 text-sm h-10 hidden"
+              size="sm"
+            >
+              <Plus className="size-4" />
+              <span>ضيف دواء تاني</span>
+            </Button>
           </div>
-          <DialogFooter className="flex gap-2">
-            <Button variant="outline" onClick={() => setShowPrescriptionDialog(false)}>
+          
+          <DialogFooter className="flex gap-2 pt-4 border-t w-full justify-between">
+
+            <Button 
+              variant="outline" 
+              onClick={() => setShowPrescriptionDialog(false)}
+              className="flex-1"
+            >
               إلغاء
             </Button>
-            <Button onClick={handleCreatePrescription} className="gap-2">
+            <Button 
+              onClick={handleCreatePrescription} 
+              className="flex-2 bg-primary hover:bg-primary/90 text-white flex items-center justify-center gap-2"
+            >
               <Save className="size-4" />
-              احفظ الروشتة
+              <span>احفظ الروشتة</span>
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -13,6 +13,7 @@ import {
   CreditCard,
   Bell,
   Clock,
+  MessageCircleQuestion,
 } from "lucide-react";
 import { NavLink, Outlet, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../features/auth/AuthContext";
@@ -236,6 +237,13 @@ export default function DoctorLayout() {
             icon={Settings}
             label="الإعدادات"
             isVisible={hasSettingsAccess}
+            onClick={handleNavItemClick}
+          />
+          <NavItem
+            to="/ask-tabibi"
+            icon={MessageCircleQuestion}
+            label="اسأل Tabibi"
+            isVisible={hasDashboardAccess}
             onClick={handleNavItemClick}
           />
         </nav>

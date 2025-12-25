@@ -385,18 +385,17 @@ export async function deleteSecretary(userId) {
     throw new Error("معرف المستخدم مطلوب");
   }
 
-  // Delete from users table
+  // Only delete from users table - we can't use admin.deleteUser without service_role
+  // The auth user will remain but won't be able to access the system without a users record
   const { error: deleteError } = await supabase
     .from("users")
     .delete()
     .eq("user_id", userId);
 
-  if (deleteError) throw deleteError;
-
-  // Delete auth user
-  const { error: authError } = await supabase.auth.admin.deleteUser(userId);
-
-  if (authError) throw authError;
+  if (deleteError) {
+    console.error("Error deleting secretary:", deleteError);
+    throw new Error("حدث خطأ أثناء حذف السكرتير: " + deleteError.message);
+  }
 
   return { success: true };
 }

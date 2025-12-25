@@ -211,15 +211,18 @@ export default function PatientPlanAssignmentForm({
           </div>
           
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
-              إلغاء
-            </Button>
-            <Button 
-              type="submit" 
-              disabled={isCreating || !!sessionError}
-            >
-              {isCreating ? "جارٍ الإنشاء..." : "إنشاء خطة"}
-            </Button>
+            <div className="flex gap-2 w-full justify-end">
+              <Button 
+                className="flex-[3]"
+                type="submit" 
+                disabled={isCreating || !!sessionError}
+              >
+                {isCreating ? "جارٍ الإنشاء..." : "إنشاء خطة"}
+              </Button>
+              <Button className="flex-1" type="button" variant="outline" onClick={onClose}>
+                إلغاء
+              </Button>
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>

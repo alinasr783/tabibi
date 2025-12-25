@@ -31,6 +31,7 @@ import TreatmentPlans from "./pages/TreatmentPlans";
 import Staff from "./pages/Staff";
 import Subscriptions from "./pages/Subscriptions";
 import WorkMode from "./pages/WorkMode";
+import { AskTabibiPage } from "./features/ask-tabibi";
 import OfflineIndicator from "./components/OfflineIndicator";
 import { OfflineProvider } from "./features/offline-mode/OfflineContext";
 import useScrollToTop from "./hooks/useScrollToTop";
@@ -58,6 +59,7 @@ const MemoizedNotifications = memo(Notifications);
 const MemoizedStaff = memo(Staff);
 const MemoizedSubscriptions = memo(Subscriptions);
 const MemoizedWorkMode = memo(WorkMode);
+const MemoizedAskTabibi = memo(AskTabibiPage);
 
 function AppRoutes() {
   // Auto scroll to top when route changes
@@ -239,6 +241,14 @@ function AppRoutes() {
               <SubscriptionExpiryGuard>
                 <MemoizedWorkMode />
               </SubscriptionExpiryGuard>
+            </PermissionGuard>
+          }
+        />
+        <Route
+          path="/ask-tabibi"
+          element={
+            <PermissionGuard requiredPermission="dashboard">
+              <MemoizedAskTabibi />
             </PermissionGuard>
           }
         />

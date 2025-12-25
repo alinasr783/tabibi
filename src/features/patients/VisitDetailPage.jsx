@@ -578,7 +578,10 @@ ${medicationsList}
       <Dialog open={isMedicationsEditModalOpen} onOpenChange={setIsMedicationsEditModalOpen}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>تعديل الأدوية</DialogTitle>
+            <div className="flex items-center gap-2">
+              <Pill className="w-5 h-5 text-primary" />
+              <DialogTitle>تعديل الأدوية</DialogTitle>
+            </div>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-3">
@@ -625,12 +628,14 @@ ${medicationsList}
             </div>
           </div>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setIsMedicationsEditModalOpen(false)}>
-              إلغاء
-            </Button>
-            <Button onClick={handleSaveMedications} disabled={isUpdating}>
-              {isUpdating ? "جاري الحفظ..." : "حفظ"}
-            </Button>
+            <div className="flex gap-2 w-full">
+              <Button className="flex-[3]" onClick={handleSaveMedications} disabled={isUpdating}>
+                {isUpdating ? "جاري الحفظ..." : "حفظ"}
+              </Button>
+              <Button className="flex-1" variant="outline" onClick={() => setIsMedicationsEditModalOpen(false)}>
+                إلغاء
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
