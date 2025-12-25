@@ -167,7 +167,7 @@ function ChatInput({ onSend, disabled }) {
   
   return (
     <div className="bg-background border-t border-border/50 px-2 sm:px-4 py-2 sm:py-3 safe-area-bottom">
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-3xl mx-auto flex flex-col items-center">
         {/* Deep Reasoning Indicator */}
         {deepReasoning && (
           <div className="flex items-center justify-center gap-1.5 mb-2 py-1 px-2 rounded-full bg-purple-500/10 border border-purple-500/20 w-fit mx-auto">
@@ -176,7 +176,8 @@ function ChatInput({ onSend, disabled }) {
           </div>
         )}
         
-        <div className="flex items-end gap-1.5 sm:gap-2 bg-card rounded-2xl border border-border/60 shadow-sm p-1.5 sm:p-2">
+
+        <div className="flex items-end gap-1.5 sm:gap-2 bg-card rounded-2xl border border-border/60 shadow-sm p-1.5 sm:p-2 px-2 sm:px-3 py-1.5 sm:py-2.5 w-[95%]">
           <textarea
             ref={textareaRef}
             value={message}
@@ -189,6 +190,7 @@ function ChatInput({ onSend, disabled }) {
               "focus:outline-none",
               "placeholder:text-muted-foreground/70 min-h-[36px] sm:min-h-[40px] max-h-[100px]",
               "disabled:opacity-50 disabled:cursor-not-allowed"
+              
             )}
             rows={1}
           />
