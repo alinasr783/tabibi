@@ -7,9 +7,13 @@ export function Badge({ className, children, variant = "default", ...props }) {
       : variant === "secondary"
       ? "bg-secondary text-secondary-foreground"
       : variant === "destructive"
-      ? "bg-red-500 text-white"
+      ? "bg-destructive text-destructive-foreground"
       : variant === "outline"
-      ? "border border-border"
+      ? "border border-border text-foreground"
+      : variant === "success"
+      ? "bg-success text-success-foreground"
+      : variant === "warning"
+      ? "bg-warning text-warning-foreground"
       : "bg-muted text-foreground"
 
   return (

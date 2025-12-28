@@ -88,14 +88,16 @@ export default function SecretsSection({
           <p className="text-sm text-muted-foreground mb-6">
             ضيف موظفين لمساعدتك في إدارة العيادة
           </p>
-          <Button
-            variant="outline"
-            onClick={() => navigate('/staff')}
-            className="flex items-center justify-center gap-2"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            روح لصفحة الموظفين
-          </Button>
+          <div className="flex justify-center">
+            <Button
+              variant="outline"
+              onClick={() => navigate('/staff')}
+              className="flex items-center justify-center gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              روح لصفحة الموظفين
+            </Button>
+          </div>
         </div>
       )}
     </div>

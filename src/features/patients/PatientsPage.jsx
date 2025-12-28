@@ -1,5 +1,6 @@
 import { Search, Plus, X, Users, UserPlus, UserCheck, UserX, Calendar } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
@@ -9,6 +10,7 @@ import PatientCreateDialog from "./PatientCreateDialog";
 import PatientsTable from "./PatientsTable";
 import usePatients from "./usePatients";
 import useScrollToTop from "../../hooks/useScrollToTop";
+import supabase from "../../services/supabase";
 
 export default function PatientsPage() {
   useScrollToTop(); // Auto scroll to top on page load
@@ -16,8 +18,28 @@ export default function PatientsPage() {
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [clinicId, setClinicId] = useState(null);
+  const navigate = useNavigate();
 
   const { data, isLoading, refetch } = usePatients(query, page);
+
+  // Get current user's clinic_id for patient creation
+  useEffect(() => {
+    const fetchClinicId = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { data: userData } = await supabase
+          .from("users")
+          .select("clinic_id")
+          .eq("user_id", session.user.id)
+          .single();
+        if (userData?.clinic_id) {
+          setClinicId(userData.clinic_id);
+        }
+      }
+    };
+    fetchClinicId();
+  }, []);
 
   // Calculate statistics
   const allPatients = data?.items || [];
@@ -30,15 +52,6 @@ export default function PatientsPage() {
     return p.createdAt && p.createdAt.split('T')[0] === today;
   }).length;
 
-  // Filter patients based on status
-  const filteredPatients = allPatients.filter(patient => {
-    if (statusFilter === "all") return true;
-    if (statusFilter === "active") return patient.status === "active";
-    if (statusFilter === "new") return patient.status === "new";
-    if (statusFilter === "inactive") return patient.status === "inactive";
-    return true;
-  });
-
   // Auto-refresh every 5 minutes
   useEffect(() => {
     const interval = setInterval(() => {
@@ -47,6 +60,25 @@ export default function PatientsPage() {
 
     return () => clearInterval(interval);
   }, [refetch]);
+
+  const handlePatientCreated = (newPatient) => {
+    // Navigate to the newly created patient's profile
+    if (newPatient?.id) {
+      console.log("Navigating to patient with ID:", newPatient.id, "Full patient object:", newPatient);
+      navigate(`/patients/${newPatient.id}`);
+    } else {
+      console.error("No patient ID available for navigation", newPatient);
+    }
+  };
+
+  // Filter patients based on status
+  const filteredPatients = allPatients.filter(patient => {
+    if (statusFilter === "all") return true;
+    if (statusFilter === "active") return patient.status === "active";
+    if (statusFilter === "new") return patient.status === "new";
+    if (statusFilter === "inactive") return patient.status === "inactive";
+    return true;
+  });
 
   const handleResetFilters = () => {
     setQuery("");
@@ -218,7 +250,12 @@ export default function PatientsPage() {
       </Card>
 
       {/* Patient Create Dialog */}
-      <PatientCreateDialog open={open} onClose={() => setOpen(false)} />
+      <PatientCreateDialog 
+        open={open} 
+        onClose={() => setOpen(false)} 
+        onPatientCreated={handlePatientCreated}
+        clinicId={clinicId}
+      />
     </div>
   );
 }

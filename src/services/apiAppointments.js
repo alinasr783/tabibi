@@ -292,12 +292,16 @@ export async function updateAppointment(id, payload) {
     const { data, error } = await supabase
         .from("appointments")
         .update(payload)
-        .eq("id", id)
+        .eq("id", id.toString())  // Convert to string for compatibility
         .eq("clinic_id", userData.clinic_id)
         .select()
         .single()
 
-    if (error) throw error
+    if (error) {
+        console.error("Error updating appointment:", error);
+        console.error("Attempted to update appointment ID:", id, "at clinic:", userData.clinic_id);
+        throw error;
+    }
     return data
 }
 
@@ -317,10 +321,14 @@ export async function deleteAppointment(id) {
     const { error } = await supabase
         .from("appointments")
         .delete()
-        .eq("id", id)
+        .eq("id", id.toString())  // Convert to string for compatibility
         .eq("clinic_id", userData.clinic_id)
 
-    if (error) throw error
+    if (error) {
+        console.error("Error deleting appointment:", error);
+        console.error("Attempted to delete appointment ID:", id, "at clinic:", userData.clinic_id);
+        throw error;
+    }
 }
 
 export async function searchPatients(searchTerm) {
@@ -344,7 +352,11 @@ export async function searchPatients(searchTerm) {
         .or(`name.ilike.${s},phone.ilike.${s}`)
         .limit(5)
 
-    if (error) throw error
+    if (error) {
+        console.error("Error searching patients:", error);
+        console.error("Attempted to search patients at clinic:", userData.clinic_id);
+        throw error;
+    }
     return data ?? []
 }
 
@@ -361,7 +373,8 @@ export async function searchPatientsPublic(searchTerm, clinicId) {
 
     if (error) {
         console.error("Error searching patients:", error);
-        throw error
+        console.error("Attempted to search patients at clinic:", clinicId);
+        throw error;
     }
     return data ?? []
 }
@@ -391,11 +404,22 @@ export async function getAppointmentsByPatientId(patientId) {
       created_at
     `)
         .eq("clinic_id", userData.clinic_id)
-        .eq("patient_id", patientId)
+        .eq("patient_id", patientId.toString())  // Convert to string for compatibility
         // Show all appointments for the patient, sorted by date descending (newest first)
         .order("date", { ascending: false })
 
-    if (error) throw error
+    if (error) {
+        console.error("Error fetching appointments by patient ID:", error);
+        console.error("Attempted to fetch appointments for patient ID:", patientId, "at clinic:", userData.clinic_id);
+        
+        // Check if the error is because there are no appointments for this patient
+        if (error.code === 'PGRST116' && error.details === 'The result contains 0 rows') {
+            console.warn(`No appointments found for patient with ID ${patientId} in clinic ${userData.clinic_id}`);
+            return [];
+        }
+        
+        throw error;
+    }
     return data ?? []
 }
 
@@ -425,11 +449,15 @@ export async function getAppointmentById(id) {
       created_at,
       patient:patients(id, name, phone)
     `)
-        .eq("id", id)
+        .eq("id", id.toString())  // Convert to string for compatibility
         .eq("clinic_id", userData.clinic_id)
         .single()
 
-    if (error) throw error
+    if (error) {
+        console.error("Error fetching appointment by ID:", error);
+        console.error("Attempted to fetch appointment ID:", id, "at clinic:", userData.clinic_id);
+        throw error;
+    }
     return data
 }
 

@@ -76,19 +76,19 @@ export default function ChangePasswordTab() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
-        <h2 className="text-lg font-semibold">تغيير كلمة المرور</h2>
-        <p className="text-sm text-muted-foreground">
+        <h2 className="text-base sm:text-lg font-semibold">تغيير كلمة المرور</h2>
+        <p className="text-xs sm:text-sm text-muted-foreground">
           قم بتغيير كلمة مرور حسابك
         </p>
       </div>
 
       <Card>
-        <CardContent className="p-6">
+        <CardContent className="p-4 sm:p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="currentPassword">كلمة المرور الحالية</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="currentPassword" className="text-sm">كلمة المرور الحالية</Label>
               <Input
                 id="currentPassword"
                 name="currentPassword"
@@ -96,14 +96,15 @@ export default function ChangePasswordTab() {
                 value={formData.currentPassword}
                 onChange={handleChange}
                 placeholder="أدخل كلمة المرور الحالية"
+                className="text-sm"
               />
               {errors.currentPassword && (
-                <p className="text-sm text-destructive">{errors.currentPassword}</p>
+                <p className="text-xs text-destructive">{errors.currentPassword}</p>
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="newPassword">كلمة المرور الجديدة</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="newPassword" className="text-sm">كلمة المرور الجديدة</Label>
               <Input
                 id="newPassword"
                 name="newPassword"
@@ -111,14 +112,15 @@ export default function ChangePasswordTab() {
                 value={formData.newPassword}
                 onChange={handleChange}
                 placeholder="أدخل كلمة المرور الجديدة"
+                className="text-sm"
               />
               {errors.newPassword && (
-                <p className="text-sm text-destructive">{errors.newPassword}</p>
+                <p className="text-xs text-destructive">{errors.newPassword}</p>
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">تأكيد كلمة المرور</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="confirmPassword" className="text-sm">تأكيد كلمة المرور</Label>
               <Input
                 id="confirmPassword"
                 name="confirmPassword"
@@ -126,14 +128,15 @@ export default function ChangePasswordTab() {
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 placeholder="أدخل كلمة المرور الجديدة مرة أخرى"
+                className="text-sm"
               />
               {errors.confirmPassword && (
-                <p className="text-sm text-destructive">{errors.confirmPassword}</p>
+                <p className="text-xs text-destructive">{errors.confirmPassword}</p>
               )}
             </div>
 
-            <div className="pt-4">
-              <Button type="submit" disabled={isPending}>
+            <div className="pt-2 sm:pt-4">
+              <Button type="submit" disabled={isPending} className="w-full sm:w-auto">
                 {isPending ? "جاري التغيير..." : "تغيير كلمة المرور"}
               </Button>
             </div>

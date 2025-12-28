@@ -7,12 +7,15 @@ import {
     FileText,
     MessageCircle,
     Pill,
-    Printer
+    Printer,
+    Stethoscope,
+    X,
+    Plus
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardHeader } from "../../components/ui/card";
+import { Card, CardContent } from "../../components/ui/card";
 import {
     Dialog,
     DialogContent,
@@ -44,6 +47,9 @@ export default function VisitDetailPage() {
   const [isFeatureRestrictedModalOpen, setIsFeatureRestrictedModalOpen] =
     useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDiagnosisEditModalOpen, setIsDiagnosisEditModalOpen] = useState(false);
+  const [isNotesEditModalOpen, setIsNotesEditModalOpen] = useState(false);
+  const [isMedicationsEditModalOpen, setIsMedicationsEditModalOpen] = useState(false);
   const [editData, setEditData] = useState({
     diagnosis: "",
     notes: "",
@@ -55,7 +61,7 @@ export default function VisitDetailPage() {
     planData?.plans?.limits?.features?.whatsapp === true;
 
   // Initialize edit data when visit loads
-  useState(() => {
+  useEffect(() => {
     if (visit && !editData.diagnosis) {
       setEditData({
         diagnosis: visit.diagnosis || "",
@@ -64,6 +70,143 @@ export default function VisitDetailPage() {
       });
     }
   }, [visit]);
+
+  const openEditModal = () => {
+    // Initialize edit data with current visit data
+    setEditData({
+      diagnosis: visit?.diagnosis || "",
+      notes: visit?.notes || "",
+      medications: visit?.medications ? [...visit.medications] : [],
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditChange = (field, value) => {
+    setEditData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleMedicationChange = (index, field, value) => {
+    setEditData((prev) => {
+      const newMedications = [...prev.medications];
+      newMedications[index] = {
+        ...newMedications[index],
+        [field]: value,
+      };
+      return {
+        ...prev,
+        medications: newMedications,
+      };
+    });
+  };
+
+  const addMedication = () => {
+    setEditData((prev) => ({
+      ...prev,
+      medications: [...prev.medications, {name: "", using: ""}],
+    }));
+  };
+
+  const removeMedication = (index) => {
+    setEditData((prev) => {
+      const newMedications = [...prev.medications];
+      newMedications.splice(index, 1);
+      return {
+        ...prev,
+        medications: newMedications,
+      };
+    });
+  };
+
+  const handleSaveEdit = () => {
+    updateVisit(
+      {id: visitId, ...editData},
+      {
+        onSuccess: () => {
+          setIsEditModalOpen(false);
+          // Refresh the visit data
+          window.location.reload();
+        },
+        onError: (error) => {
+          alert("حدث خطأ أثناء تحديث بيانات الكشف: " + error.message);
+        },
+      }
+    );
+  };
+
+  const openDiagnosisEditModal = () => {
+    setEditData({
+      diagnosis: visit?.diagnosis || "",
+      notes: visit?.notes || "",
+      medications: visit?.medications ? [...visit.medications] : [],
+    });
+    setIsDiagnosisEditModalOpen(true);
+  };
+
+  const openNotesEditModal = () => {
+    setEditData({
+      diagnosis: visit?.diagnosis || "",
+      notes: visit?.notes || "",
+      medications: visit?.medications ? [...visit.medications] : [],
+    });
+    setIsNotesEditModalOpen(true);
+  };
+
+  const openMedicationsEditModal = () => {
+    setEditData({
+      diagnosis: visit?.diagnosis || "",
+      notes: visit?.notes || "",
+      medications: visit?.medications ? [...visit.medications] : [],
+    });
+    setIsMedicationsEditModalOpen(true);
+  };
+
+  const handleSaveDiagnosis = () => {
+    updateVisit(
+      {id: visitId, diagnosis: editData.diagnosis},
+      {
+        onSuccess: () => {
+          setIsDiagnosisEditModalOpen(false);
+          window.location.reload();
+        },
+        onError: (error) => {
+          alert("حدث خطأ أثناء تحديث التشخيص: " + error.message);
+        },
+      }
+    );
+  };
+
+  const handleSaveNotes = () => {
+    updateVisit(
+      {id: visitId, notes: editData.notes},
+      {
+        onSuccess: () => {
+          setIsNotesEditModalOpen(false);
+          window.location.reload();
+        },
+        onError: (error) => {
+          alert("حدث خطأ أثناء تحديث الملاحظات: " + error.message);
+        },
+      }
+    );
+  };
+
+  const handleSaveMedications = () => {
+    updateVisit(
+      {id: visitId, medications: editData.medications},
+      {
+        onSuccess: () => {
+          setIsMedicationsEditModalOpen(false);
+          window.location.reload();
+        },
+        onError: (error) => {
+          alert("حدث خطأ أثناء تحديث الأدوية: " + error.message);
+        },
+      }
+    );
+  };
 
   const handleGeneratePdf = async () => {
     if (visit && clinic && user) {
@@ -161,129 +304,42 @@ ${medicationsList}
     window.open(whatsappUrl, "_blank");
   };
 
-  const openEditModal = () => {
-    // Initialize edit data with current visit data
-    setEditData({
-      diagnosis: visit?.diagnosis || "",
-      notes: visit?.notes || "",
-      medications: visit?.medications ? [...visit.medications] : [],
-    });
-    setIsEditModalOpen(true);
-  };
-
-  const handleEditChange = (field, value) => {
-    setEditData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
-
-  const handleMedicationChange = (index, field, value) => {
-    setEditData((prev) => {
-      const newMedications = [...prev.medications];
-      newMedications[index] = {
-        ...newMedications[index],
-        [field]: value,
-      };
-      return {
-        ...prev,
-        medications: newMedications,
-      };
-    });
-  };
-
-  const addMedication = () => {
-    setEditData((prev) => ({
-      ...prev,
-      medications: [...prev.medications, {name: "", using: ""}],
-    }));
-  };
-
-  const removeMedication = (index) => {
-    setEditData((prev) => {
-      const newMedications = [...prev.medications];
-      newMedications.splice(index, 1);
-      return {
-        ...prev,
-        medications: newMedications,
-      };
-    });
-  };
-
-  const handleSaveEdit = () => {
-    updateVisit(
-      {id: visitId, ...editData},
-      {
-        onSuccess: () => {
-          setIsEditModalOpen(false);
-          // Refresh the visit data
-          window.location.reload();
-        },
-        onError: (error) => {
-          alert("حدث خطأ أثناء تحديث بيانات الكشف: " + error.message);
-        },
-      }
-    );
-  };
-
   if (isLoading) {
     return (
-      <div className="space-y-8" dir="rtl">
-        <div className="space-y-2">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <h1 className="text-2xl sm:text-3xl font-bold">تفاصيل الكشف</h1>
-            <Button
-              variant="ghost"
-              className="gap-2 w-full sm:w-auto"
-              onClick={() => navigate(-1)}>
-              رجوع <ArrowLeft className="size-4" />
-            </Button>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            عرض تفاصيل الكشف الطبي.
-          </p>
-        </div>
-
-        <Card>
-          <CardHeader>
-            <SkeletonLine width={180} height={20} />
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {Array.from({length: 4}).map((_, i) => (
-                <div
-                  key={i}
-                  className="rounded-[var(--radius)] border border-border p-3">
-                  <SkeletonLine width={100} height={12} />
-                  <div className="mt-2">
-                    <SkeletonLine height={16} />
-                  </div>
-                </div>
-              ))}
+      <div className="space-y-6" dir="rtl">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-muted animate-pulse"></div>
+            <div className="space-y-2">
+              <SkeletonLine width={150} height={20} />
+              <SkeletonLine width={100} height={14} />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+          <SkeletonLine width={80} height={36} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          {[1, 2].map((i) => (
+            <div key={i} className="h-20 bg-muted rounded-lg animate-pulse"></div>
+          ))}
+        </div>
+        <div className="h-32 bg-muted rounded-lg animate-pulse"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="space-y-8" dir="rtl">
-        <div className="space-y-2">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <h1 className="text-2xl sm:text-3xl font-bold">تفاصيل الكشف</h1>
-            <Button
-              variant="ghost"
-              className="gap-2 w-full sm:w-auto"
-              onClick={() => navigate(-1)}>
-              رجوع <ArrowLeft className="size-4" />
-            </Button>
-          </div>
+      <div className="space-y-6" dir="rtl">
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-bold">تفاصيل الكشف</h1>
+          <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1.5">
+            <ArrowLeft className="w-4 h-4" />
+            رجوع
+          </Button>
         </div>
-        <Card>
+        <Card className="border-destructive">
           <CardContent className="py-8 text-center text-destructive">
-            حدث خطأ أثناء تحميل تفاصيل الكشف: {error.message}
+            حصل مشكلة: {error.message}
           </CardContent>
         </Card>
       </div>
@@ -291,302 +347,296 @@ ${medicationsList}
   }
 
   return (
-    <div className="space-y-8" dir="rtl">
-      <div className="space-y-2">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <h1 className="text-2xl sm:text-3xl font-bold">تفاصيل الكشف</h1>
-          <Button
-            variant="ghost"
-            className="gap-2 w-full sm:w-auto"
-            onClick={() => navigate(-1)}>
-            رجوع <ArrowLeft className="size-4" />
+    <div className="space-y-6" dir="rtl">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+            <Stethoscope className="w-6 h-6 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-lg font-bold">تفاصيل الكشف</h1>
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground mt-0.5">
+              <Calendar className="w-3.5 h-3.5" />
+              {visit?.created_at
+                ? format(new Date(visit.created_at), "d MMMM yyyy - h:mm a", { locale: ar })
+                : "غير محدد"
+              }
+            </div>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button variant="outline" size="sm" onClick={openDiagnosisEditModal} className="gap-1.5">
+            <Edit className="w-4 h-4" />
+            عدل التشخيص
+          </Button>
+          <Button variant="outline" size="sm" onClick={openNotesEditModal} className="gap-1.5">
+            <Edit className="w-4 h-4" />
+            عدل الملاحظات
+          </Button>
+          <Button variant="outline" size="sm" onClick={openMedicationsEditModal} className="gap-1.5">
+            <Edit className="w-4 h-4" />
+            عدل الأدوية
+          </Button>
+          {visit?.medications && visit.medications.length > 0 && (
+            <>
+              <Button variant="outline" size="sm" onClick={openWhatsAppModal} className="gap-1.5">
+                <MessageCircle className="w-4 h-4" />
+                واتساب
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleGeneratePdf} className="gap-1.5">
+                <Printer className="w-4 h-4" />
+                طباعة
+              </Button>
+            </>
+          )}
+          <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1.5">
+            <ArrowLeft className="w-4 h-4" />
+            رجوع
           </Button>
         </div>
-        <p className="text-sm text-muted-foreground">عرض تفاصيل الكشف الطبي.</p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <h3 className="text-lg font-semibold">معلومات الكشف</h3>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                onClick={openEditModal}
-                variant="outline"
-                size="sm"
-                className="w-full sm:w-auto">
-                <Edit className="size-4 ml-1" />
-                تعديل
+      {/* Info Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {/* Diagnosis */}
+        <Card className="bg-card/50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between gap-2 text-muted-foreground mb-2">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                <span className="text-xs font-medium">التشخيص</span>
+              </div>
+              <Button variant="ghost" size="sm" onClick={openDiagnosisEditModal} className="h-6 w-6 p-1">
+                <Edit className="w-3 h-3" />
               </Button>
-              {visit?.medications && visit.medications.length > 0 && (
-                <>
-                  <Button
-                    onClick={openWhatsAppModal}
-                    variant="outline"
-                    size="sm"
-                    className="w-full sm:w-auto"
-                    // Disable button and show tooltip if WhatsApp is not enabled
-                    title={
-                      !isWhatsAppEnabled
-                        ? "خطتك الحالية لا تدعم إرسال رسائل WhatsApp"
-                        : ""
-                    }>
-                    <MessageCircle className="size-4 ml-1" />
-                    مشاركة واتساب
-                  </Button>
-                  <Button
-                    onClick={handleGeneratePdf}
-                    variant="outline"
-                    size="sm"
-                    className="w-full sm:w-auto">
-                    <Printer className="size-4 ml-1" />
-                    طباعة الروشتة
-                  </Button>
-                </>
-              )}
             </div>
+            <p className="text-sm">{visit?.diagnosis || "لا يوجد"}</p>
+          </CardContent>
+        </Card>
+
+        {/* Notes */}
+        <Card className="bg-card/50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between gap-2 text-muted-foreground mb-2">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                <span className="text-xs font-medium">ملاحظات</span>
+              </div>
+              <Button variant="ghost" size="sm" onClick={openNotesEditModal} className="h-6 w-6 p-1">
+                <Edit className="w-3 h-3" />
+              </Button>
+            </div>
+            <p className="text-sm whitespace-pre-wrap">{visit?.notes || "لا يوجد"}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Medications */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between gap-2 text-muted-foreground mb-3">
+            <div className="flex items-center gap-2">
+              <Pill className="w-4 h-4" />
+              <span className="text-sm font-medium">الأدوية</span>
+            </div>
+            <Button variant="ghost" size="sm" onClick={openMedicationsEditModal} className="h-8 w-8 p-1">
+              <Edit className="w-4 h-4" />
+            </Button>
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="rounded-[var(--radius)] border border-border p-3">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Calendar className="size-4" />
-                تاريخ الكشف
-              </div>
-              <div className="text-base mt-1">
-                {visit?.created_at
-                  ? format(
-                      new Date(visit.created_at),
-                      "dd MMMM yyyy - hh:mm a",
-                      {locale: ar}
-                    )
-                  : "-"}
-              </div>
-            </div>
-
-            <div className="rounded-[var(--radius)] border border-border p-3">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <FileText className="size-4" />
-                التشخيص المبدئي
-              </div>
-              <div className="text-base mt-1">{visit?.diagnosis || "-"}</div>
-            </div>
-
-            <div className="sm:col-span-2 rounded-[var(--radius)] border border-border p-3">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <FileText className="size-4" />
-                الملاحظات
-              </div>
-              <div className="text-base mt-1 whitespace-pre-wrap">
-                {visit?.notes || "-"}
-              </div>
-            </div>
-
-            <div className="sm:col-span-2 rounded-[var(--radius)] border border-border p-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-sm text-muted-foreground mb-2">
-                <div className="flex items-center gap-2">
-                  <Pill className="size-4" />
-                  الأدوية
+          {visit?.medications && visit.medications.length > 0 ? (
+            <div className="space-y-2">
+              {visit.medications.map((medication, index) => (
+                <div
+                  key={index}
+                  className="flex items-start gap-3 p-3 rounded-lg bg-muted/50"
+                >
+                  <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                    <span className="text-xs font-medium text-primary">{index + 1}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm">{medication.name}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{medication.using}</p>
+                  </div>
                 </div>
-              </div>
-              {visit?.medications && visit.medications.length > 0 ? (
-                <div className="space-y-3">
-                  {visit.medications.map((medication, index) => (
-                    <div
-                      key={index}
-                      className="border-b border-border pb-3 last:border-0 last:pb-0">
-                      <div className="font-medium">{medication.name}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {medication.using}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-muted-foreground">لا توجد أدوية محددة</div>
-              )}
+              ))}
             </div>
-          </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">لا توجد أدوية</p>
+          )}
         </CardContent>
       </Card>
 
-      {/* WhatsApp Number Selection Modal */}
+      {/* WhatsApp Modal */}
       <Dialog open={isWhatsAppModalOpen} onOpenChange={setIsWhatsAppModalOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>إرسال الروشتة عبر WhatsApp</DialogTitle>
+            <DialogTitle>إرسال عبر واتساب</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
-              <Label htmlFor="phone" className="text-right sm:text-left">
-                رقم الهاتف
-              </Label>
-              <div className="sm:col-span-3">
-                <Input
-                  id="phone"
-                  value={whatsappNumber}
-                  onChange={(e) => setWhatsappNumber(e.target.value)}
-                  placeholder="أدخل رقم الهاتف"
-                  className="w-full"
-                />
-                {visit?.patient?.phone && (
-                  <p className="text-sm text-muted-foreground mt-2">
-                    رقم المريض: {visit.patient.phone}
-                  </p>
-                )}
-              </div>
-            </div>
-            <div className="flex flex-col sm:flex-row justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setIsWhatsAppModalOpen(false)}
-                className="w-full sm:w-auto">
-                إلغاء
-              </Button>
-              <Button
-                onClick={handleWhatsAppShare}
-                disabled={!whatsappNumber.trim()}
-                className="w-full sm:w-auto">
-                إرسال
-              </Button>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="phone">رقم الهاتف</Label>
+              <Input
+                id="phone"
+                value={whatsappNumber}
+                onChange={(e) => setWhatsappNumber(e.target.value)}
+                placeholder="01xxxxxxxxx"
+                className="text-left"
+                dir="ltr"
+              />
+              {visit?.patient?.phone && (
+                <p className="text-xs text-muted-foreground">
+                  رقم المريض: {visit.patient.phone}
+                </p>
+              )}
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* WhatsApp Feature Not Available Modal */}
-      <Dialog
-        open={isFeatureRestrictedModalOpen}
-        onOpenChange={setIsFeatureRestrictedModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>ميزة غير متوفرة</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <p className="text-muted-foreground">
-              خطتك الحالية لا تدعم إرسال رسائل WhatsApp للمرضى
-            </p>
-            <p className="text-muted-foreground mt-2">
-              يرجى ترقية خطتك لتفعيل ميزة إرسال رسائل WhatsApp تلقائياً للمرضى.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setIsFeatureRestrictedModalOpen(false)}>
-              إغلاق
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setIsWhatsAppModalOpen(false)}>
+              إلغاء
+            </Button>
+            <Button onClick={handleWhatsAppShare} disabled={!whatsappNumber.trim()}>
+              إرسال
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Edit Visit Modal */}
-      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+      {/* Feature Restricted Modal */}
+      <Dialog open={isFeatureRestrictedModalOpen} onOpenChange={setIsFeatureRestrictedModalOpen}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>تعديل بيانات الكشف</DialogTitle>
+            <DialogTitle>ميزة غير متاحة</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-6 py-4">
-            <div className="grid grid-cols-1 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="diagnosis">التشخيص المبدئي</Label>
-                <Input
-                  id="diagnosis"
-                  value={editData.diagnosis}
-                  onChange={(e) =>
-                    handleEditChange("diagnosis", e.target.value)
-                  }
-                  placeholder="أدخل التشخيص المبدئي"
-                  className="w-full"
-                />
+          <p className="text-sm text-muted-foreground py-4">
+            خطتك الحالية مش بتدعم الواتساب. لو عايز الميزة دي، رقي خطتك.
+          </p>
+          <DialogFooter>
+            <Button onClick={() => setIsFeatureRestrictedModalOpen(false)}>
+              تمام
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diagnosis Edit Modal */}
+      <Dialog open={isDiagnosisEditModalOpen} onOpenChange={setIsDiagnosisEditModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>تعديل التشخيص</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="diagnosis" className="mb-2 block">التشخيص</Label>
+            <Textarea
+              id="diagnosis"
+              value={editData.diagnosis}
+              onChange={(e) => handleEditChange("diagnosis", e.target.value)}
+              placeholder="التشخيص المبدئي"
+              rows={4}
+            />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setIsDiagnosisEditModalOpen(false)}>
+              إلغاء
+            </Button>
+            <Button onClick={handleSaveDiagnosis} disabled={isUpdating}>
+              {isUpdating ? "جاري الحفظ..." : "حفظ"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Notes Edit Modal */}
+      <Dialog open={isNotesEditModalOpen} onOpenChange={setIsNotesEditModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>تعديل الملاحظات</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="notes" className="mb-2 block">ملاحظات</Label>
+            <Textarea
+              id="notes"
+              value={editData.notes}
+              onChange={(e) => handleEditChange("notes", e.target.value)}
+              placeholder="ملاحظات إضافية"
+              rows={4}
+            />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setIsNotesEditModalOpen(false)}>
+              إلغاء
+            </Button>
+            <Button onClick={handleSaveNotes} disabled={isUpdating}>
+              {isUpdating ? "جاري الحفظ..." : "حفظ"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Medications Edit Modal */}
+      <Dialog open={isMedicationsEditModalOpen} onOpenChange={setIsMedicationsEditModalOpen}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <Pill className="w-5 h-5 text-primary" />
+              <DialogTitle>تعديل الأدوية</DialogTitle>
+            </div>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>الأدوية</Label>
+                <Button variant="outline" size="sm" onClick={addMedication} className="gap-1.5">
+                  <Plus className="w-4 h-4" />
+                  إضافة
+                </Button>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="notes">الملاحظات</Label>
-                <Textarea
-                  id="notes"
-                  value={editData.notes}
-                  onChange={(e) => handleEditChange("notes", e.target.value)}
-                  placeholder="أدخل الملاحظات"
-                  className="w-full"
-                  rows={4}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <Label>الأدوية</Label>
-                  <Button variant="outline" onClick={addMedication} size="sm">
-                    إضافة دواء
-                  </Button>
-                </div>
-
-                <div className="space-y-3">
+              {editData.medications.length > 0 ? (
+                <div className="space-y-2">
                   {editData.medications.map((med, index) => (
-                    <div
-                      key={index}
-                      className="grid grid-cols-1 md:grid-cols-5 gap-2 p-3 border border-border rounded-md">
-                      <div className="md:col-span-2">
+                    <div key={index} className="flex items-start gap-2 p-3 rounded-lg border bg-muted/30">
+                      <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-2">
                         <Input
                           value={med.name}
-                          onChange={(e) =>
-                            handleMedicationChange(
-                              index,
-                              "name",
-                              e.target.value
-                            )
-                          }
+                          onChange={(e) => handleMedicationChange(index, "name", e.target.value)}
                           placeholder="اسم الدواء"
                         />
-                      </div>
-                      <div className="md:col-span-2">
                         <Input
                           value={med.using}
-                          onChange={(e) =>
-                            handleMedicationChange(
-                              index,
-                              "using",
-                              e.target.value
-                            )
-                          }
+                          onChange={(e) => handleMedicationChange(index, "using", e.target.value)}
                           placeholder="طريقة الاستخدام"
                         />
                       </div>
-                      <div className="md:col-span-1">
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => removeMedication(index)}
-                          className="w-full">
-                          حذف
-                        </Button>
-                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="shrink-0 text-destructive hover:text-destructive"
+                        onClick={() => removeMedication(index)}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
                     </div>
                   ))}
-
-                  {editData.medications.length === 0 && (
-                    <div className="text-center py-4 text-muted-foreground">
-                      لا توجد أدوية مضافة حالياً
-                    </div>
-                  )}
                 </div>
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4">
-              <Button
-                variant="outline"
-                onClick={() => setIsEditModalOpen(false)}
-                className="w-full sm:w-auto">
-                إلغاء
-              </Button>
-              <Button
-                onClick={handleSaveEdit}
-                disabled={isUpdating}
-                className="w-full sm:w-auto">
-                {isUpdating ? "جاري الحفظ..." : "حفظ التغييرات"}
-              </Button>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  مفيش أدوية
+                </p>
+              )}
             </div>
           </div>
+          <DialogFooter className="gap-2">
+            <div className="flex gap-2 w-full">
+              <Button className="flex-[3]" onClick={handleSaveMedications} disabled={isUpdating}>
+                {isUpdating ? "جاري الحفظ..." : "حفظ"}
+              </Button>
+              <Button className="flex-1" variant="outline" onClick={() => setIsMedicationsEditModalOpen(false)}>
+                إلغاء
+              </Button>
+            </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

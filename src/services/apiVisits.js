@@ -24,10 +24,21 @@ export async function getVisitsByPatientId(patientId) {
       created_at
     `)
         .eq("clinic_id", userData.clinic_id)
-        .eq("patient_id", patientId)
+        .eq("patient_id", patientId.toString())  // Convert to string for compatibility
         .order("created_at", { ascending: false })
 
-    if (error) throw error
+    if (error) {
+        console.error("Error fetching visits by patient ID:", error);
+        console.error("Attempted to fetch visits for patient ID:", patientId, "at clinic:", userData.clinic_id);
+        
+        // Check if the error is because there are no visits for this patient
+        if (error.code === 'PGRST116' && error.details === 'The result contains 0 rows') {
+            console.warn(`No visits found for patient with ID ${patientId} in clinic ${userData.clinic_id}`);
+            return [];
+        }
+        
+        throw error;
+    }
     return data ?? []
 }
 
@@ -55,11 +66,15 @@ export async function getVisitById(visitId) {
       created_at,
       patient:patients(phone, name)
     `)
-        .eq("id", visitId)
+        .eq("id", visitId.toString())  // Convert to string for compatibility
         .eq("clinic_id", userData.clinic_id)
         .single()
 
-    if (error) throw error
+    if (error) {
+        console.error("Error fetching visit by ID:", error);
+        console.error("Attempted to fetch visit ID:", visitId, "at clinic:", userData.clinic_id);
+        throw error;
+    }
     return data
 }
 
@@ -117,12 +132,16 @@ export async function updateVisit(id, payload) {
     const { data, error } = await supabase
         .from("visits")
         .update(payload)
-        .eq("id", id)
+        .eq("id", id.toString())  // Convert to string for compatibility
         .eq("clinic_id", userData.clinic_id)
         .select()
         .single()
 
-    if (error) throw error
+    if (error) {
+        console.error("Error updating visit:", error);
+        console.error("Attempted to update visit ID:", id, "at clinic:", userData.clinic_id);
+        throw error;
+    }
     return data
 }
 
@@ -142,8 +161,12 @@ export async function deleteVisit(id) {
     const { error } = await supabase
         .from("visits")
         .delete()
-        .eq("id", id)
+        .eq("id", id.toString())  // Convert to string for compatibility
         .eq("clinic_id", userData.clinic_id)
 
-    if (error) throw error
+    if (error) {
+        console.error("Error deleting visit:", error);
+        console.error("Attempted to delete visit ID:", id, "at clinic:", userData.clinic_id);
+        throw error;
+    }
 }

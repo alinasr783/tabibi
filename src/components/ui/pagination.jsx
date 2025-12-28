@@ -15,7 +15,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }) {
         السابق
       </Button>
       
-      <div className="text-sm font-medium">
+      <div className="text-sm font-medium text-foreground">
         صفحة {currentPage} من {totalPages}
       </div>
       

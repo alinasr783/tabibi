@@ -28,10 +28,12 @@ if (isDevelopment) {
   });
 } else {
   // Production mode - implement caching logic
-  const CACHE_NAME = 'tabibi-offline-v2'; // Updated cache version
+  const CACHE_NAME = 'tabibi-offline-v3'; // Updated cache version
   const urlsToCache = [
     '/',
     '/index.html',
+    '/logo.jpeg',
+    '/manifest.json',
     // Add other critical assets here
   ];
 

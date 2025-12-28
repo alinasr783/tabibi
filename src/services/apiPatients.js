@@ -86,6 +86,9 @@ export async function createPatient(payload) {
     console.error("Error creating patient:", error)
     throw error
   }
+  
+  // Debug: Log the created patient data
+  console.log("createPatient returning data:", data);
   return data
 }
 
@@ -114,10 +117,16 @@ export async function createPatientPublic(payload) {
     console.error("Error creating patient:", error)
     throw error
   }
+  
+  // Debug: Log the created patient data
+  console.log("createPatientPublic returning data:", data);
   return data
 }
 
 export async function getPatientById(id) {
+  // Debug: Log the ID being used for fetching
+  console.log("getPatientById called with ID:", id);
+  
   // Get current user's clinic_id for security
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) throw new Error("Not authenticated")
@@ -130,13 +139,27 @@ export async function getPatientById(id) {
 
   if (!userData?.clinic_id) throw new Error("User has no clinic assigned")
 
+  // Query patients table - using id and clinic_id
+  // Note: The id might be a number or UUID, and clinic_id might be a number or UUID
+  // depending on the actual database schema
   const { data, error } = await supabase
     .from("patients")
     .select("id,name,phone,gender,address,date_of_birth,age,blood_type")
-    .eq("id", id)
+    .eq("id", id.toString())  // Convert to string to handle both number and UUID IDs
     .eq("clinic_id", userData.clinic_id)
     .single()
-  if (error) throw error
+  if (error) {
+    console.error("Error fetching patient by ID:", error);
+    console.error("Attempted to fetch patient ID:", id, "for clinic:", userData.clinic_id);
+    
+    // Check if the error is because the patient doesn't exist
+    if (error.code === 'PGRST116' && error.details === 'The result contains 0 rows') {
+      console.warn(`Patient with ID ${id} not found in clinic ${userData.clinic_id}`);
+      return null; // Return null instead of throwing for missing patient
+    }
+    
+    throw error;
+  }
   return data
 }
 
@@ -153,14 +176,19 @@ export async function updatePatient(id, payload) {
 
   if (!userData?.clinic_id) throw new Error("User has no clinic assigned")
 
+  // Update patient - convert id to string to handle both number and UUID IDs
   const { data, error } = await supabase
     .from("patients")
     .update(payload)
-    .eq("id", id)
+    .eq("id", id.toString())  // Convert to string to handle both number and UUID IDs
     .eq("clinic_id", userData.clinic_id)
     .select()
     .single()
-  if (error) throw error
+  if (error) {
+    console.error("Error updating patient:", error);
+    console.error("Attempted to update patient ID:", id, "for clinic:", userData.clinic_id);
+    throw error
+  }
   return data
 }
 
@@ -177,7 +205,7 @@ export async function getPatientFinancialData(patientId) {
 
   if (!userData?.clinic_id) throw new Error("User has no clinic assigned");
 
-  // Get all appointments for this patient
+  // Get all appointments for this patient - convert patientId to string for compatibility
   const { data: appointments, error: appointmentsError } = await supabase
     .from("appointments")
     .select(`
@@ -189,10 +217,26 @@ export async function getPatientFinancialData(patientId) {
       notes
     `)
     .eq("clinic_id", userData.clinic_id)
-    .eq("patient_id", patientId)
+    .eq("patient_id", patientId.toString())  // Convert to string for compatibility
     .order("date", { ascending: false });
 
-  if (appointmentsError) throw appointmentsError;
+  if (appointmentsError) {
+    console.error("Error fetching patient appointments for financial data:", appointmentsError);
+    
+    // Check if the error is because there are no appointments for this patient
+    if (appointmentsError.code === 'PGRST116' && appointmentsError.details === 'The result contains 0 rows') {
+      console.warn(`No appointments found for patient with ID ${patientId} in clinic ${userData.clinic_id}`);
+      // Return empty financial data if no appointments exist
+      return {
+        totalAmount: 0,
+        paidAmount: 0,
+        remainingAmount: 0,
+        paymentHistory: []
+      };
+    }
+    
+    throw appointmentsError;
+  }
 
   // Calculate financial summary
   const completedAppointments = appointments.filter(app => app.status === 'completed');

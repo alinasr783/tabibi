@@ -4,6 +4,7 @@ import {
   DialogHeader,
   DialogContent,
   DialogFooter,
+  DialogTitle,
 } from "../../components/ui/dialog";
 import { Button } from "../../components/ui/button";
 import { useForm } from "react-hook-form";
@@ -60,13 +61,20 @@ export default function TreatmentTemplateEditDialog({ open, onClose, template })
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg p-0 overflow-hidden rounded-xl">
-        <DialogHeader className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-6">
+      <DialogContent className="max-w-lg p-0 overflow-hidden">
+        <DialogHeader className="bg-primary text-white p-6 rounded-t-xl">
           <div className="flex justify-between items-center">
-            <h3 className="text-xl font-bold flex items-center gap-2">
-              <Edit className="h-6 w-6" />
-              تعديل خطة العلاجية
-            </h3>
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-white/20">
+                <Edit className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold flex items-center gap-2">
+                  تعديل خطة العلاجية
+                </h3>
+                <p className="text-primary-foreground/80 text-sm mt-1">قم بتحديث تفاصيل خطة العلاجية</p>
+              </div>
+            </div>
             <Button 
               variant="ghost" 
               size="icon" 
@@ -76,23 +84,22 @@ export default function TreatmentTemplateEditDialog({ open, onClose, template })
               <X className="h-5 w-5" />
             </Button>
           </div>
-          <p className="text-blue-100 text-sm mt-1">قم بتحديث تفاصيل خطة العلاجية</p>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="p-6">
           <TreatmentTemplateForm register={register} errors={errors} />
-          <DialogFooter className="mt-8 gap-3">
+          <DialogFooter className="mt-6 gap-3">
             <Button 
               variant="outline" 
               onClick={handleClose} 
               type="button"
-              className="border-gray-300 hover:bg-gray-50"
+              className="w-[25%] border-border hover:bg-muted"
             >
               إلغاء
             </Button>
             <Button 
               type="submit" 
               disabled={isPending}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="w-[75%] bg-primary hover:bg-primary/90 text-white flex items-center justify-center gap-2"
             >
               {isPending ? (
                 <div className="flex items-center gap-2">

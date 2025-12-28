@@ -26,14 +26,20 @@ export default function useCreatePatientOffline() {
 
   return useMutation({
     mutationFn: async (patientData) => {
+      console.log("useCreatePatientOffline: Offline context exists:", hasOfflineContext, "Is offline mode:", isOfflineMode);
+      
       if (hasOfflineContext && isOfflineMode) {
         // Create patient locally when offline
+        console.log("useCreatePatientOffline: Creating patient in offline mode");
         const localPatient = await createPatientOffline(patientData);
         toast.success("تم حفظ المريض محليًا وسيتم مزامنته تلقائيًا عند عودة الاتصال");
         return localPatient;
       } else {
         // Create patient on server when online
-        return await createPatient(patientData);
+        console.log("useCreatePatientOffline: Creating patient in online mode");
+        const serverPatient = await createPatient(patientData);
+        console.log("useCreatePatientOffline: Server patient data:", serverPatient);
+        return serverPatient;
       }
     },
     onSuccess: (data, variables) => {

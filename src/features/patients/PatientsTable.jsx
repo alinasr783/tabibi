@@ -54,7 +54,7 @@ export default function PatientsTable({ patients, total, page, pageSize, onPageC
     {
       header: "الإجراء",
       render: (patient) => (
-        <Link to={`/patients/${patient.id}`}>
+        <Link to={`/patients/${patient.id}`} onClick={() => console.log("Navigating to patient with ID:", patient.id, "Full patient object:", patient)}>
           <Button variant="outline" className="gap-2" size="sm">
             <Eye className="h-4 w-4" />
             عرض التفاصيل
@@ -67,7 +67,7 @@ export default function PatientsTable({ patients, total, page, pageSize, onPageC
   return (
     <>
       {/* Mobile Cards */}
-      <div className="block md:hidden p-4 space-y-3">
+      <div className="block md:hidden p-4 space-y-3" style={{ direction: 'rtl' }}>
         {patients.length === 0 ? (
           <div className="text-center py-12">
             <User className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
@@ -109,7 +109,7 @@ export default function PatientsTable({ patients, total, page, pageSize, onPageC
                     )}
                   </div>
 
-                  <Link to={`/patients/${patient.id}`}>
+                  <Link to={`/patients/${patient.id}`} onClick={() => console.log("Mobile: Navigating to patient with ID:", patient.id, "Full patient object:", patient)}>
                     <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
                       <Eye className="w-4 h-4 ml-2" />
                       شوف التفاصيل

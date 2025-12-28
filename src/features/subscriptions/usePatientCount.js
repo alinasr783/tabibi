@@ -15,7 +15,7 @@ export default function usePatientCount(clinicId) {
                 const { count, error } = await supabase
                     .from("patients")
                     .select("*", { count: "exact", head: true })
-                    .eq("clinic_id", clinicId);
+                    .eq("clinic_id", clinicId.toString());  // Convert to string for compatibility
 
                 console.log("Patient count result:", { count, error });
 
@@ -64,7 +64,7 @@ export default function usePatientCount(clinicId) {
             const { count, error } = await supabase
                 .from("patients")
                 .select("*", { count: "exact", head: true })
-                .eq("clinic_id", effectiveClinicId);
+                .eq("clinic_id", effectiveClinicId.toString());  // Convert to string for compatibility
 
             console.log("Patient count result:", { count, error });
 

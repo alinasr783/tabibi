@@ -13,6 +13,7 @@ import {
   CreditCard,
   Bell,
   Clock,
+  MessageCircleQuestion,
 } from "lucide-react";
 import { NavLink, Outlet, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../features/auth/AuthContext";
@@ -126,7 +127,7 @@ export default function DoctorLayout() {
     <div dir="rtl" className="flex h-screen">
       {/* Floating Mobile menu button - Always visible and floating on small screens at the top */}
       <button
-        className="md:hidden fixed top-6 left-6 z-50 p-3 rounded-full bg-primary text-white shadow-lg menu-button"
+        className="md:hidden fixed top-6 left-6 z-50 p-3 rounded-full bg-primary text-primary-foreground shadow-lg menu-button"
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
         <Menu className="size-6" />
       </button>
@@ -236,6 +237,13 @@ export default function DoctorLayout() {
             icon={Settings}
             label="الإعدادات"
             isVisible={hasSettingsAccess}
+            onClick={handleNavItemClick}
+          />
+          <NavItem
+            to="/ask-tabibi"
+            icon={MessageCircleQuestion}
+            label="اسأل Tabibi"
+            isVisible={hasDashboardAccess}
             onClick={handleNavItemClick}
           />
         </nav>

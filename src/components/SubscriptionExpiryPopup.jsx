@@ -23,7 +23,7 @@ export default function SubscriptionExpiryPopup({ daysRemaining, expiryDate }) {
     return (
         <div className="fixed inset-0 flex items-center justify-center p-4 z-50" style={{ zIndex: 9999 }}>
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
-            <Card className="relative w-full max-w-md bg-white rounded-xl shadow-xl z-10">
+            <Card className="relative w-full max-w-md bg-card rounded-xl shadow-xl z-10">
                 <CardHeader className="text-center pb-2">
                     <div className="mx-auto bg-red-100 rounded-full w-16 h-16 flex items-center justify-center mb-4">
                         <AlertTriangle className="w-8 h-8 text-red-600" />

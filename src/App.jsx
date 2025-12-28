@@ -3,6 +3,7 @@ import { Toaster } from "react-hot-toast";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import DoctorLayout from "./components/layout/DoctorLayout";
 import { AuthProviderWrapper } from "./features/auth/AuthProviderWrapper";
+import { UserPreferencesProvider } from "./features/user-preferences/UserPreferencesProvider";
 import AutoPaymentRecorder from "./features/finance/AutoPaymentRecorder";
 import PermissionGuard from "./features/auth/PermissionGuard";
 import ProtectedRoute from "./features/auth/ProtectedRoute";
@@ -31,9 +32,11 @@ import TreatmentPlans from "./pages/TreatmentPlans";
 import Staff from "./pages/Staff";
 import Subscriptions from "./pages/Subscriptions";
 import WorkMode from "./pages/WorkMode";
+import { AskTabibiPage } from "./ai/ui";
 import OfflineIndicator from "./components/OfflineIndicator";
 import { OfflineProvider } from "./features/offline-mode/OfflineContext";
 import useScrollToTop from "./hooks/useScrollToTop";
+import { PWAInstallPrompt } from "./components/ui/pwa-install";
 
 // Memoize route components to prevent unnecessary re-renders
 const MemoizedLanding = memo(Landing);
@@ -58,6 +61,7 @@ const MemoizedNotifications = memo(Notifications);
 const MemoizedStaff = memo(Staff);
 const MemoizedSubscriptions = memo(Subscriptions);
 const MemoizedWorkMode = memo(WorkMode);
+const MemoizedAskTabibi = memo(AskTabibiPage);
 
 function AppRoutes() {
   // Auto scroll to top when route changes
@@ -242,6 +246,14 @@ function AppRoutes() {
             </PermissionGuard>
           }
         />
+        <Route
+          path="/ask-tabibi"
+          element={
+            <PermissionGuard requiredPermission="dashboard">
+              <MemoizedAskTabibi />
+            </PermissionGuard>
+          }
+        />
       </Route>
       <Route path="/booking/:clinicId" element={<MemoizedBooking />} />
     </Routes>
@@ -252,12 +264,15 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProviderWrapper>
-        <OfflineProvider>
-          <AutoPaymentRecorder />
-          <OfflineIndicator />
-          <AppRoutes />
-          <Toaster position="top-center" />
-        </OfflineProvider>
+        <UserPreferencesProvider>
+          <OfflineProvider>
+            <AutoPaymentRecorder />
+            <OfflineIndicator />
+            <PWAInstallPrompt />
+            <AppRoutes />
+            <Toaster position="top-center" />
+          </OfflineProvider>
+        </UserPreferencesProvider>
       </AuthProviderWrapper>
     </BrowserRouter>
   );

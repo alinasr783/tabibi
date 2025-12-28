@@ -6,6 +6,8 @@ export function usePatientPlans(patientId) {
         queryKey: ["patientPlans", patientId],
         queryFn: () => getPatientPlans(patientId),
         enabled: !!patientId,
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        retry: 1,
     });
 }
 

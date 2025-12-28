@@ -40,30 +40,31 @@ export default function PersonalInfoTab() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
-        <h2 className="text-lg font-semibold">البيانات الشخصية</h2>
-        <p className="text-sm text-muted-foreground">
+        <h2 className="text-base sm:text-lg font-semibold">البيانات الشخصية</h2>
+        <p className="text-xs sm:text-sm text-muted-foreground">
           قم بتحديث معلومات حسابك الشخصية
         </p>
       </div>
 
       <Card>
-        <CardContent className="p-6">
+        <CardContent className="p-4 sm:p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">الاسم</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="name" className="text-sm">الاسم</Label>
               <Input
                 id="name"
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
                 placeholder="أدخل اسمك"
+                className="text-sm"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="email">البريد الإلكتروني</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="email" className="text-sm">البريد الإلكتروني</Label>
               <Input
                 id="email"
                 name="email"
@@ -72,14 +73,15 @@ export default function PersonalInfoTab() {
                 onChange={handleChange}
                 placeholder="أدخل بريدك الإلكتروني"
                 disabled
+                className="text-sm bg-muted/50"
               />
-              <p className="text-xs text-muted-foreground">
+              <p className="text-[10px] sm:text-xs text-muted-foreground">
                 لا يمكن تغيير البريد الإلكتروني
               </p>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="phone">رقم الهاتف</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="phone" className="text-sm">رقم الهاتف</Label>
               <Input
                 id="phone"
                 name="phone"
@@ -87,11 +89,12 @@ export default function PersonalInfoTab() {
                 value={formData.phone}
                 onChange={handleChange}
                 placeholder="أدخل رقم هاتفك"
+                className="text-sm"
               />
             </div>
 
-            <div className="pt-4">
-              <Button type="submit" disabled={isPending}>
+            <div className="pt-2 sm:pt-4">
+              <Button type="submit" disabled={isPending} className="w-full sm:w-auto">
                 {isPending ? "جاري الحفظ..." : "حفظ التغييرات"}
               </Button>
             </div>
