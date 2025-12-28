@@ -1,8 +1,9 @@
-import { Key, User, Settings, Palette } from "lucide-react";
+import { Key, User, Settings, Palette, Bell } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader } from "../../components/ui/card";
 import ChangePasswordTab from "./ChangePasswordTab";
 import PersonalInfoTab from "./PersonalInfoTab";
+import NotificationsTab from "./NotificationsTab";
 import { PersonalizationSettings } from "../user-preferences/PersonalizationSettings";
 import { useLocation } from "react-router-dom";
 import { cn } from "../../lib/utils";
@@ -11,6 +12,7 @@ const tabs = [
   { id: "personal", label: "بياناتك", fullLabel: "بياناتك الشخصية", icon: User },
   { id: "password", label: "الباسوورد", fullLabel: "غير الباسوورد", icon: Key },
   { id: "personalization", label: "المظهر", fullLabel: "المظهر والألوان", icon: Palette },
+  { id: "notifications", label: "الإشعارات", fullLabel: "الإشعارات والإيميل", icon: Bell },
 ];
 
 export default function SettingsPage() {
@@ -66,6 +68,7 @@ export default function SettingsPage() {
             {activeTab === "personal" && <PersonalInfoTab />}
             {activeTab === "password" && <ChangePasswordTab />}
             {activeTab === "personalization" && <PersonalizationSettings />}
+            {activeTab === "notifications" && <NotificationsTab />}
           </div>
         </CardContent>
       </Card>

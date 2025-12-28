@@ -54,18 +54,22 @@ function applyColors(primary, secondary, accent) {
   const secondaryHSL = secondary ? hexToHSL(secondary) : primaryHSL;
   const accentHSL = accent ? hexToHSL(accent) : primaryHSL;
   
-  // Apply primary color
-  root.style.setProperty('--primary', `hsl(${primaryHSL.h} ${primaryHSL.s}% ${primaryHSL.l}%)`);
+  // Apply primary color (HSL format without hsl())
+  root.style.setProperty('--primary', `${primaryHSL.h} ${primaryHSL.s}% ${primaryHSL.l}%`);
   
   // Apply secondary color
-  root.style.setProperty('--secondary', `hsl(${secondaryHSL.h} ${secondaryHSL.s}% ${secondaryHSL.l}%)`);
+  root.style.setProperty('--secondary', `${secondaryHSL.h} ${secondaryHSL.s}% ${secondaryHSL.l}%`);
   
-  // Store accent for potential use
-  root.style.setProperty('--accent', `hsl(${accentHSL.h} ${accentHSL.s}% ${accentHSL.l}%)`);
+  // Apply accent color (important for focus states and highlights)
+  root.style.setProperty('--accent', `${accentHSL.h} ${accentHSL.s}% ${Math.min(accentHSL.l + 10, 96)}%`);
+  root.style.setProperty('--accent-foreground', `${accentHSL.h} ${accentHSL.s}% ${Math.max(accentHSL.l - 40, 11)}%`);
   
-  // Also create lighter/darker variants
-  root.style.setProperty('--primary-light', `hsl(${primaryHSL.h} ${primaryHSL.s}% ${Math.min(primaryHSL.l + 15, 95)}%)`);
-  root.style.setProperty('--primary-dark', `hsl(${primaryHSL.h} ${primaryHSL.s}% ${Math.max(primaryHSL.l - 15, 5)}%)`);
+  // Apply ring color for focus states
+  root.style.setProperty('--ring', `${primaryHSL.h} ${primaryHSL.s}% ${primaryHSL.l}%`);
+  
+  // Store variants for convenience
+  root.style.setProperty('--primary-light', `${primaryHSL.h} ${primaryHSL.s}% ${Math.min(primaryHSL.l + 15, 95)}%`);
+  root.style.setProperty('--primary-dark', `${primaryHSL.h} ${primaryHSL.s}% ${Math.max(primaryHSL.l - 15, 5)}%`);
 }
 
 // Apply theme mode

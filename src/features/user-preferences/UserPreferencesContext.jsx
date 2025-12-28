@@ -18,7 +18,7 @@ export function UserPreferencesProvider({ children }) {
     accentColor: preferences?.accent_color || '#FF6B6B',
     
     // Layout
-    themeMode: preferences?.theme_mode || 'system',
+    themeMode: preferences?.theme_mode || 'light',
     sidebarStyle: preferences?.sidebar_style || 'default',
     sidebarCollapsed: preferences?.sidebar_collapsed || false,
     

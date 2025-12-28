@@ -127,7 +127,7 @@ export default function DoctorLayout() {
     <div dir="rtl" className="flex h-screen">
       {/* Floating Mobile menu button - Always visible and floating on small screens at the top */}
       <button
-        className="md:hidden fixed top-6 left-6 z-50 p-3 rounded-full bg-primary text-white shadow-lg menu-button"
+        className="md:hidden fixed top-6 left-6 z-50 p-3 rounded-full bg-primary text-primary-foreground shadow-lg menu-button"
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
         <Menu className="size-6" />
       </button>

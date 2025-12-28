@@ -6,7 +6,7 @@ import supabase from './supabase';
 
 // Default preferences
 const DEFAULT_PREFERENCES = {
-  theme_mode: 'system',
+  theme_mode: 'light',
   primary_color: '#1AA19C',
   secondary_color: '#224FB5',
   accent_color: '#FF6B6B',
@@ -16,7 +16,11 @@ const DEFAULT_PREFERENCES = {
   notifications_enabled: true,
   sound_notifications: true,
   menu_items: [],
-  dashboard_widgets: []
+  dashboard_widgets: [],
+  // Daily email settings
+  daily_appointments_email_enabled: false,
+  daily_appointments_email_time: '07:00',
+  timezone: 'Africa/Cairo'
 };
 
 // Get user preferences (creates default if not exists)
@@ -144,4 +148,78 @@ export async function updateBranding(companyName, logoUrl) {
 // Toggle sidebar collapse
 export async function toggleSidebarCollapsed(collapsed) {
   return updateUserPreferences({ sidebar_collapsed: collapsed });
+}
+
+// ========================
+// Daily Email Settings
+// ========================
+
+// Get daily email settings
+export async function getDailyEmailSettings() {
+  const prefs = await getUserPreferences();
+  return {
+    enabled: prefs?.daily_appointments_email_enabled ?? false,
+    time: prefs?.daily_appointments_email_time ?? '07:00',
+    timezone: prefs?.timezone ?? 'Africa/Cairo'
+  };
+}
+
+// Enable daily appointments email
+export async function enableDailyAppointmentsEmail() {
+  return updateUserPreferences({ daily_appointments_email_enabled: true });
+}
+
+// Disable daily appointments email
+export async function disableDailyAppointmentsEmail() {
+  return updateUserPreferences({ daily_appointments_email_enabled: false });
+}
+
+// Update daily email time
+export async function updateDailyAppointmentsEmailTime(time) {
+  // Validate time format (HH:MM)
+  const timeRegex = /^([01]?\d|2[0-3]):([0-5]\d)$/;
+  if (!timeRegex.test(time)) {
+    throw new Error('صيغة الوقت غير صحيحة. استخدم HH:MM');
+  }
+  return updateUserPreferences({ daily_appointments_email_time: time });
+}
+
+// Update timezone
+export async function updateTimezone(timezone) {
+  const validTimezones = [
+    'Africa/Cairo',
+    'Asia/Riyadh',
+    'Asia/Dubai',
+    'Europe/London',
+    'UTC'
+  ];
+  
+  if (!validTimezones.includes(timezone)) {
+    throw new Error('المنطقة الزمنية غير مدعومة');
+  }
+  
+  return updateUserPreferences({ timezone });
+}
+
+// Update all daily email settings at once
+export async function updateDailyEmailSettings(settings) {
+  const updates = {};
+  
+  if (typeof settings.enabled === 'boolean') {
+    updates.daily_appointments_email_enabled = settings.enabled;
+  }
+  
+  if (settings.time) {
+    const timeRegex = /^([01]?\d|2[0-3]):([0-5]\d)$/;
+    if (!timeRegex.test(settings.time)) {
+      throw new Error('صيغة الوقت غير صحيحة');
+    }
+    updates.daily_appointments_email_time = settings.time;
+  }
+  
+  if (settings.timezone) {
+    updates.timezone = settings.timezone;
+  }
+  
+  return updateUserPreferences(updates);
 }

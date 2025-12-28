@@ -12,7 +12,7 @@ import {
   ai,
   getCurrentDateTime,
   isComplexQuery
-} from "./ai/aiService";
+} from "../ai/services/aiService";
 
 // ========================
 // Tabibi Actions - CRUD Operations for AI
@@ -32,6 +32,33 @@ async function getClinicContext() {
   if (!userData?.clinic_id) throw new Error("مفيش عيادة");
   
   return { userId: session.user.id, clinicId: userData.clinic_id, role: userData.role };
+}
+
+// Helper to find next available time slot
+async function findNextAvailableSlot(date, startHour, clinicId) {
+  // Check next 8 hours for availability
+  for (let hour = startHour + 1; hour < startHour + 9 && hour < 22; hour++) {
+    const timeStr = `${hour.toString().padStart(2, '0')}:00`;
+    const startTime = `${date}T${timeStr}:00`;
+    const endTime = `${date}T${hour}:59:59`;
+    
+    const { count } = await supabase
+      .from('appointments')
+      .select('*', { count: 'exact', head: true })
+      .eq('clinic_id', clinicId)
+      .gte('date', startTime)
+      .lte('date', endTime)
+      .in('status', ['pending', 'confirmed', 'in_progress']);
+    
+    if (count < 3) {
+      return {
+        time: timeStr,
+        appointmentCount: count || 0
+      };
+    }
+  }
+  
+  return null;
 }
 
 // Guess gender from Arabic name
@@ -98,23 +125,93 @@ export const AI_ACTIONS = {
     return { success: true, patients: patients || [] };
   },
   
+  // Disambiguation - resolve ambiguous patient selection
+  async resolvePatientAction(data) {
+    const { name } = data;
+    if (!name) throw new Error("لازم تديني اسم المريض");
+    
+    const { clinicId } = await getClinicContext();
+    
+    // Search for patients with similar name
+    const { data: patients } = await supabase
+      .from('patients')
+      .select('id, name, phone, age, address')
+      .eq('clinic_id', clinicId)
+      .ilike('name', `%${name}%`)
+      .limit(10);
+    
+    if (!patients || patients.length === 0) {
+      return { 
+        success: false, 
+        message: `مفيش مريض باسم "${name}"`,
+        patients: [] 
+      };
+    }
+    
+    if (patients.length === 1) {
+      return { 
+        success: true, 
+        message: `تم العثور على المريض "${patients[0].name}"`,
+        patients: patients,
+        patientId: patients[0].id,
+        needsDisambiguation: false
+      };
+    }
+    
+    // Multiple patients found - needs disambiguation
+    return { 
+      success: true, 
+      message: `لقيت ${patients.length} مريض باسم "${name}"`,
+      patients: patients,
+      needsDisambiguation: true
+    };
+  },
+  
   // Appointment Actions
   async createAppointmentAction(data) {
     const { patientId, patientName, patientPhone, date, time, notes, price } = data;
     
     let finalPatientId = patientId;
+    let finalPatientPhone = patientPhone;
     
-    // If no patient ID but have name/phone, create or find patient
+    const { clinicId } = await getClinicContext();
+    
+    // If no patientId provided, search by name first
     if (!finalPatientId && patientName) {
-      if (!patientPhone) throw new Error("لازم تديني رقم موبايل المريض عشان أقدر أضيفه");
+      const { data: patients } = await supabase
+        .from('patients')
+        .select('id, name, phone')
+        .eq('clinic_id', clinicId)
+        .ilike('name', `%${patientName}%`)
+        .limit(5);
       
-      // Try to find existing patient
-      const { clinicId } = await getClinicContext();
+      if (patients && patients.length > 0) {
+        // If exact match found, use it
+        const exactMatch = patients.find(p => p.name.toLowerCase() === patientName.toLowerCase());
+        if (exactMatch) {
+          finalPatientId = exactMatch.id;
+          finalPatientPhone = exactMatch.phone;
+        } else if (patients.length === 1) {
+          // Only one patient found, use it
+          finalPatientId = patients[0].id;
+          finalPatientPhone = patients[0].phone;
+        }
+      }
+    }
+    
+    // If still no patient found and no phone provided, ask for phone
+    if (!finalPatientId && !finalPatientPhone) {
+      throw new Error(`مفيش مريض باسم "${patientName}" في قاعدة البيانات. محتاج رقم الموبايل عشان أضيفه.`);
+    }
+    
+    // If have phone but no ID, try to find or create patient
+    if (!finalPatientId && finalPatientPhone) {
+      // Try to find existing patient by phone
       const { data: existingPatient } = await supabase
         .from('patients')
         .select('id')
         .eq('clinic_id', clinicId)
-        .eq('phone', patientPhone)
+        .eq('phone', finalPatientPhone)
         .single();
       
       if (existingPatient) {
@@ -123,7 +220,7 @@ export const AI_ACTIONS = {
         // Create new patient
         const newPatient = await createPatient({
           name: patientName,
-          phone: patientPhone,
+          phone: finalPatientPhone,
           gender: guessGenderFromName(patientName)
         });
         finalPatientId = newPatient.id;
@@ -132,6 +229,18 @@ export const AI_ACTIONS = {
     
     if (!finalPatientId) throw new Error("لازم تديني بيانات المريض (اسمه ورقم موبايله)");
     if (!date) throw new Error("لازم تديني تاريخ الموعد");
+    
+    // Get booking price from clinic settings if not provided
+    let finalPrice = price;
+    if (!finalPrice) {
+      const { data: clinic } = await supabase
+        .from('clinics')
+        .select('booking_price')
+        .eq('clinic_uuid', clinicId)
+        .single();
+      
+      finalPrice = clinic?.booking_price || 0;
+    }
     
     // Combine date and time
     let appointmentDate = date;
@@ -143,16 +252,65 @@ export const AI_ACTIONS = {
       patient_id: finalPatientId,
       date: appointmentDate,
       notes: notes || null,
-      price: price || null,
+      price: finalPrice,
       status: 'confirmed'
     };
     
     const result = await createAppointment(appointmentData);
     return { 
       success: true, 
-      message: `تم إضافة الموعد بنجاح`,
+      message: `تم إضافة الموعد بنجاح لـ "${patientName}" يوم ${date} ${time ? `الساعة ${time}` : ''}`,
       data: result,
       appointmentId: result.id
+    };
+  },
+  
+  // Check availability at specific time slot
+  async checkAvailabilityAction(data) {
+    const { date, time } = data;
+    if (!date || !time) throw new Error("لازم تديني التاريخ والوقت");
+    
+    const { clinicId } = await getClinicContext();
+    
+    // Create time range for the hour (e.g., 15:00-16:00)
+    const [hour] = time.split(':');
+    const startTime = `${date}T${hour}:00:00`;
+    const endTime = `${date}T${hour}:59:59`;
+    
+    // Get appointments in this time slot
+    const { data: appointments, count } = await supabase
+      .from('appointments')
+      .select('id, patient:patients(name), date, status', { count: 'exact' })
+      .eq('clinic_id', clinicId)
+      .gte('date', startTime)
+      .lte('date', endTime)
+      .in('status', ['pending', 'confirmed', 'in_progress']);
+    
+    const isBusy = count >= 3;
+    
+    if (!isBusy) {
+      return {
+        success: true,
+        available: true,
+        message: `الساعة ${time} فاضية`,
+        appointmentCount: count || 0,
+        appointments: appointments || []
+      };
+    }
+    
+    // Find next available slot
+    const nextSlot = await findNextAvailableSlot(date, parseInt(hour), clinicId);
+    
+    return {
+      success: true,
+      available: false,
+      message: `الساعة ${time} فيها زحمة وفيها ${count} موعد`,
+      appointmentCount: count,
+      appointments: (appointments || []).map(a => ({
+        patientName: a.patient?.name || 'غير معروف',
+        time: a.date
+      })),
+      nextAvailableSlot: nextSlot
     };
   },
   
@@ -164,12 +322,152 @@ export const AI_ACTIONS = {
     return { success: true, message: "تم تعديل الموعد بنجاح", data: result };
   },
   
+  // Reschedule appointment (change date/time)
+  async rescheduleAppointmentAction(data) {
+    const { appointmentId, date, time } = data;
+    if (!appointmentId) throw new Error("لازم تديني ID الموعد");
+    if (!date) throw new Error("لازم تديني التاريخ الجديد");
+    
+    let appointmentDate = date;
+    if (time) {
+      appointmentDate = `${date}T${time}:00`;
+    }
+    
+    const result = await updateAppointment(appointmentId, { date: appointmentDate });
+    return { 
+      success: true, 
+      message: `تم إعادة جدولة الموعد لـ ${date} ${time ? `الساعة ${time}` : ''}`,
+      data: result,
+      appointmentId: result.id
+    };
+  },
+  
   async cancelAppointmentAction(data) {
     const { appointmentId } = data;
     if (!appointmentId) throw new Error("لازم تديني ID الموعد");
     
     const result = await updateAppointment(appointmentId, { status: 'cancelled' });
     return { success: true, message: "تم إلغاء الموعد بنجاح", data: result };
+  },
+  
+  // Get appointment details by ID
+  async getAppointmentDetailsAction(data) {
+    const { appointmentId } = data;
+    if (!appointmentId) throw new Error("لازم تديني ID الموعد");
+    
+    const { clinicId } = await getClinicContext();
+    
+    const { data: appointment, error } = await supabase
+      .from('appointments')
+      .select(`
+        id,
+        date,
+        notes,
+        price,
+        status,
+        from,
+        created_at,
+        patient:patients(id, name, phone, age, gender, address)
+      `)
+      .eq('id', appointmentId)
+      .eq('clinic_id', clinicId)
+      .single();
+    
+    if (error) throw new Error(`مش لاقي الموعد ده: ${error.message}`);
+    
+    return {
+      success: true,
+      appointment: {
+        id: appointment.id,
+        patientName: appointment.patient?.name || 'غير معروف',
+        patientPhone: appointment.patient?.phone || '',
+        patientAge: appointment.patient?.age,
+        patientGender: appointment.patient?.gender,
+        date: appointment.date,
+        time: appointment.date ? new Date(appointment.date).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : '',
+        price: appointment.price,
+        status: appointment.status,
+        source: appointment.from === 'booking' ? 'إلكتروني' : 'العيادة',
+        notes: appointment.notes,
+        createdAt: appointment.created_at
+      }
+    };
+  },
+  
+  // Filter appointments by criteria
+  async filterAppointmentsAction(data) {
+    const { status, date, source, limit = 50 } = data;
+    const { clinicId } = await getClinicContext();
+    
+    let query = supabase
+      .from('appointments')
+      .select(`
+        id,
+        date,
+        notes,
+        price,
+        status,
+        from,
+        created_at,
+        patient:patients(id, name, phone, age)
+      `, { count: 'exact' })
+      .eq('clinic_id', clinicId);
+    
+    // Apply filters
+    if (status && status !== 'all') {
+      query = query.eq('status', status);
+    }
+    
+    if (source && source !== 'all') {
+      query = query.eq('from', source);
+    }
+    
+    if (date) {
+      const startDate = `${date}T00:00:00`;
+      const endDate = `${date}T23:59:59`;
+      query = query.gte('date', startDate).lte('date', endDate);
+    }
+    
+    query = query.order('date', { ascending: false }).limit(limit);
+    
+    const { data: appointments, count, error } = await query;
+    
+    if (error) throw new Error(`فشل جلب المواعيد: ${error.message}`);
+    
+    const formattedAppointments = (appointments || []).map(a => ({
+      id: a.id,
+      patientName: a.patient?.name || 'غير معروف',
+      patientPhone: a.patient?.phone || '',
+      patientAge: a.patient?.age,
+      date: a.date,
+      time: a.date ? new Date(a.date).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : '',
+      price: a.price,
+      status: a.status,
+      source: a.from === 'booking' ? 'إلكتروني' : 'العيادة',
+      notes: a.notes,
+      createdAt: a.created_at
+    }));
+    
+    // Status labels in Arabic
+    const statusLabels = {
+      pending: 'معلق',
+      confirmed: 'مؤكد',
+      completed: 'مكتمل',
+      cancelled: 'ملغي',
+      rejected: 'مرفوض',
+      in_progress: 'جاري الكشف'
+    };
+    
+    return {
+      success: true,
+      total: count || 0,
+      appointments: formattedAppointments,
+      filters: {
+        status: status ? statusLabels[status] || status : 'الكل',
+        date: date || 'الكل',
+        source: source === 'booking' ? 'إلكتروني' : source === 'clinic' ? 'العيادة' : 'الكل'
+      }
+    };
   },
   
   // Visit/Examination Actions
@@ -298,6 +596,396 @@ export const AI_ACTIONS = {
       .eq('clinic_uuid', clinicId);
     
     return { success: true, message: `تم تعديل سعر الكشف إلى ${price} جنيه` };
+  },
+  
+  // Theme & Appearance Actions
+  async changeThemeAction(data) {
+    const { mode } = data;
+    
+    if (!['light', 'dark', 'system'].includes(mode)) {
+      throw new Error("اختار light أو dark أو system");
+    }
+    
+    const root = document.documentElement;
+    
+    if (mode === 'light') {
+      root.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    } else if (mode === 'dark') {
+      root.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (isDark) {
+        root.classList.add('dark');
+      } else {
+        root.classList.remove('dark');
+      }
+      localStorage.setItem('theme', 'system');
+    }
+    
+    return { 
+      success: true, 
+      message: mode === 'light' ? 'تم التغيير للوضع النهاري' : 
+               mode === 'dark' ? 'تم التغيير للوضع الليلي' : 
+               'تم التغيير لوضع النظام'
+    };
+  },
+  
+  async changeColorsAction(data) {
+    const { primary, secondary, accent, preset } = data;
+    
+    // Preset color themes - HSL values WITHOUT wrapper (Tailwind format)
+    const presets = {
+      brown: { primary: '25 59% 30%', secondary: '19 57% 41%', accent: '25 75% 47%' },
+      red: { primary: '0 84% 60%', secondary: '0 72% 51%', accent: '0 91% 71%' },
+      blue: { primary: '217 91% 60%', secondary: '221 83% 53%', accent: '213 94% 68%' },
+      green: { primary: '142 71% 45%', secondary: '142 76% 36%', accent: '142 69% 58%' },
+      purple: { primary: '271 81% 56%', secondary: '271 91% 46%', accent: '271 91% 65%' },
+      orange: { primary: '21 90% 48%', secondary: '21 90% 41%', accent: '25 95% 53%' },
+      pink: { primary: '330 81% 60%', secondary: '330 81% 45%', accent: '330 81% 75%' },
+      teal: { primary: '174 72% 40%', secondary: '174 84% 32%', accent: '174 58% 50%' },
+      default: { primary: '187 85% 35%', secondary: '224 76% 45%', accent: '210 40% 96.1%' }
+    };
+    
+    const root = document.documentElement;
+    
+    // Use preset if specified
+    if (preset && presets[preset]) {
+      const colors = presets[preset];
+      root.style.setProperty('--primary', colors.primary);
+      root.style.setProperty('--secondary', colors.secondary);
+      root.style.setProperty('--accent', colors.accent);
+      
+      // Also update foreground colors for visibility
+      root.style.setProperty('--primary-foreground', '0 0% 100%');
+      root.style.setProperty('--secondary-foreground', '0 0% 100%');
+      
+      return { 
+        success: true, 
+        message: `تم تطبيق ألوان ${preset} بنجاح`,
+        preset
+      };
+    }
+    
+    // Custom hex colors
+    if (!primary && !secondary && !accent) {
+      throw new Error("لازم تديني لون واحد على الأقل أو اختار preset");
+    }
+    
+    function hexToHSL(hex) {
+      hex = hex.replace('#', '');
+      let r = parseInt(hex.substring(0, 2), 16) / 255;
+      let g = parseInt(hex.substring(2, 4), 16) / 255;
+      let b = parseInt(hex.substring(4, 6), 16) / 255;
+      
+      let max = Math.max(r, g, b);
+      let min = Math.min(r, g, b);
+      let h, s, l = (max + min) / 2;
+      
+      if (max === min) {
+        h = s = 0;
+      } else {
+        let d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+          case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+          case g: h = ((b - r) / d + 2) / 6; break;
+          case b: h = ((r - g) / d + 4) / 6; break;
+        }
+      }
+      
+      // Return WITHOUT hsl() wrapper for Tailwind
+      return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
+    }
+    
+    if (primary) {
+      root.style.setProperty('--primary', hexToHSL(primary));
+      root.style.setProperty('--primary-foreground', '0 0% 100%');
+    }
+    
+    if (secondary) {
+      root.style.setProperty('--secondary', hexToHSL(secondary));
+      root.style.setProperty('--secondary-foreground', '0 0% 100%');
+    }
+    
+    if (accent) {
+      root.style.setProperty('--accent', hexToHSL(accent));
+    }
+    
+    return { 
+      success: true, 
+      message: 'تم تغيير الألوان بنجاح'
+    };
+  },
+  
+  async setBrownThemeAction(data) {
+    const root = document.documentElement;
+    
+    // Set light mode first
+    root.classList.remove('dark');
+    localStorage.setItem('theme', 'light');
+    
+    // Apply brown colors WITHOUT hsl() wrapper
+    root.style.setProperty('--primary', '25 59% 30%');
+    root.style.setProperty('--primary-foreground', '0 0% 100%');
+    root.style.setProperty('--secondary', '19 57% 41%');
+    root.style.setProperty('--secondary-foreground', '0 0% 100%');
+    root.style.setProperty('--accent', '25 75% 47%');
+    
+    return { 
+      success: true, 
+      message: 'تم تطبيق الوضع النهاري باللون البني'
+    };
+  },
+  
+  async resetThemeAction(data) {
+    const root = document.documentElement;
+    
+    // Remove all custom color properties
+    root.style.removeProperty('--primary');
+    root.style.removeProperty('--primary-foreground');
+    root.style.removeProperty('--secondary');
+    root.style.removeProperty('--secondary-foreground');
+    root.style.removeProperty('--accent');
+    root.style.removeProperty('--accent-foreground');
+    
+    // Set light mode
+    root.classList.remove('dark');
+    localStorage.setItem('theme', 'light');
+    
+    return { 
+      success: true, 
+      message: 'تم إرجاع الألوان الأصلية'
+    };
+  },
+  
+  // Reschedule all appointments from one day to another
+  async rescheduleAppointments(data) {
+    const { date, fromDate } = data;
+    if (!date) throw new Error("لازم تديني التاريخ الجديد");
+    
+    const { clinicId } = await getClinicContext();
+    
+    // Get source date (default to today)
+    const sourceDate = fromDate || new Date().toISOString().split('T')[0];
+    const startTime = `${sourceDate}T00:00:00`;
+    const endTime = `${sourceDate}T23:59:59`;
+    
+    // Get all appointments for the source date (active statuses only)
+    const { data: appointments } = await supabase
+      .from('appointments')
+      .select('id, patient_id, date, notes, price, patient:patients(name, phone)')
+      .eq('clinic_id', clinicId)
+      .gte('date', startTime)
+      .lte('date', endTime)
+      .in('status', ['pending', 'confirmed', 'in_progress'])
+      .order('date', { ascending: true });
+    
+    if (!appointments || appointments.length === 0) {
+      return { 
+        success: false, 
+        message: `مفيش مواعيد في يوم ${sourceDate} عشان توزعها`,
+        rescheduled: 0
+      };
+    }
+    
+    // Define time slots (distributed throughout the day)
+    const timeSlots = [
+      '10:00', '11:00', '12:00', '13:00', '14:00',
+      '15:00', '16:00', '17:00', '18:00', '19:00',
+      '20:00', '21:00'
+    ];
+    
+    // Check availability for each slot and distribute appointments
+    const rescheduledAppointments = [];
+    let slotIndex = 0;
+    
+    for (const appointment of appointments) {
+      let scheduled = false;
+      let attempts = 0;
+      
+      // Try to find available slot (max 12 attempts = all slots)
+      while (!scheduled && attempts < timeSlots.length) {
+        const timeSlot = timeSlots[slotIndex % timeSlots.length];
+        const [hour, minute] = timeSlot.split(':');
+        const newDateTime = `${date}T${hour}:${minute}:00`;
+        
+        // Check if this slot is available (less than 3 appointments)
+        const slotStart = `${date}T${hour}:00:00`;
+        const slotEnd = `${date}T${hour}:59:59`;
+        
+        const { count } = await supabase
+          .from('appointments')
+          .select('*', { count: 'exact', head: true })
+          .eq('clinic_id', clinicId)
+          .gte('date', slotStart)
+          .lte('date', slotEnd)
+          .in('status', ['pending', 'confirmed', 'in_progress']);
+        
+        if (count < 3) {
+          // Slot is available - reschedule appointment
+          await updateAppointment(appointment.id, {
+            date: newDateTime,
+            notes: appointment.notes 
+              ? `${appointment.notes}\n[تم التأجيل من ${sourceDate}]`
+              : `تم التأجيل من ${sourceDate}`
+          });
+          
+          rescheduledAppointments.push({
+            patientName: appointment.patient?.name || 'غير معروف',
+            oldTime: appointment.date,
+            newTime: newDateTime
+          });
+          
+          scheduled = true;
+        }
+        
+        slotIndex++;
+        attempts++;
+      }
+      
+      if (!scheduled) {
+        // Could not find slot for this appointment
+        console.warn(`Could not reschedule appointment ${appointment.id} - no available slots`);
+      }
+    }
+    
+    return {
+      success: true,
+      message: `تم توزيع ${rescheduledAppointments.length} موعد على يوم ${date}`,
+      rescheduled: rescheduledAppointments.length,
+      total: appointments.length,
+      appointments: rescheduledAppointments
+    };
+  },
+  
+  // Database Query Action
+  async databaseQueryAction(data) {
+    const { table, operation, where, select, limit } = data;
+    const { clinicId } = await getClinicContext();
+    
+    if (!table) throw new Error("لازم تحدد الجدول");
+    if (!operation) throw new Error("لازم تحدد نوع العملية");
+    
+    let query = supabase.from(table);
+    
+    if (operation === 'select') {
+      const selectFields = select || '*';
+      query = query.select(selectFields);
+      query = query.eq('clinic_id', clinicId);
+      
+      if (where) {
+        Object.entries(where).forEach(([key, value]) => {
+          query = query.eq(key, value);
+        });
+      }
+      
+      if (limit) {
+        query = query.limit(limit);
+      }
+      
+      const { data: results, error } = await query;
+      if (error) throw new Error(error.message);
+      
+      return {
+        success: true,
+        data: results,
+        count: results?.length || 0
+      };
+    }
+    
+    throw new Error("عملية غير مدعومة");
+  },
+  
+  // Create Notification
+  async createNotificationAction(data) {
+    const { type, title, message, patientId, appointmentId } = data;
+    const { clinicId } = await getClinicContext();
+    
+    if (!type || !title) throw new Error("لازم تديني نوع وعنوان الإشعار");
+    
+    const { data: notification, error } = await supabase
+      .from('notifications')
+      .insert({
+        clinic_id: clinicId,
+        type,
+        title,
+        message: message || '',
+        patient_id: patientId || null,
+        appointment_id: appointmentId || null,
+        is_read: false
+      })
+      .select()
+      .single();
+    
+    if (error) throw new Error(error.message);
+    
+    return {
+      success: true,
+      message: 'تم إرسال الإشعار بنجاح',
+      data: notification
+    };
+  },
+  
+  // Analyze Performance
+  async analyzeUserPerformanceAction(data) {
+    const { period = 'month', metrics = [] } = data;
+    const { clinicId } = await getClinicContext();
+    
+    const now = new Date();
+    let startDate;
+    
+    switch (period) {
+      case 'week':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case 'month':
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        break;
+      case 'year':
+        startDate = new Date(now.getFullYear(), 0, 1);
+        break;
+      default:
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    }
+    
+    const results = {};
+    
+    if (metrics.includes('appointments_count') || metrics.length === 0) {
+      const { count } = await supabase
+        .from('appointments')
+        .select('*', { count: 'exact', head: true })
+        .eq('clinic_id', clinicId)
+        .gte('created_at', startDate.toISOString());
+      results.appointments_count = count || 0;
+    }
+    
+    if (metrics.includes('revenue') || metrics.length === 0) {
+      const { data: appointments } = await supabase
+        .from('appointments')
+        .select('price')
+        .eq('clinic_id', clinicId)
+        .gte('created_at', startDate.toISOString());
+      results.revenue = appointments?.reduce((sum, a) => sum + (a.price || 0), 0) || 0;
+    }
+    
+    if (metrics.includes('new_patients') || metrics.length === 0) {
+      const { count } = await supabase
+        .from('patients')
+        .select('*', { count: 'exact', head: true })
+        .eq('clinic_id', clinicId)
+        .gte('created_at', startDate.toISOString());
+      results.new_patients = count || 0;
+    }
+    
+    return {
+      success: true,
+      period,
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: now.toISOString().split('T')[0],
+      metrics: results
+    };
   }
 };
 
@@ -433,7 +1121,7 @@ async function getVisitsData() {
 }
 
 // ========================
-// جلب بيانات المواعيد (شاملة - كل المواعيد)
+// جلب بيانات المواعيد (شاملة - كل المواعيد بالتفاصيل الكاملة)
 // ========================
 async function getAppointmentsData() {
   try {
@@ -452,134 +1140,184 @@ async function getAppointmentsData() {
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
     
-    // Get ALL appointments (total count)
-    const { count: totalCount } = await supabase
+    // Get ALL appointments with FULL details
+    const { data: allAppointments, count: totalCount } = await supabase
       .from('appointments')
-      .select('*', { count: 'exact', head: true })
-      .eq('clinic_id', clinicId);
-    
-    // Get today's appointments
-    const { data: todayAppts, count: todayCount } = await supabase
-      .from('appointments')
-      .select('id, status, date, from, patient:patients(name, phone)', { count: 'exact' })
+      .select(`
+        id,
+        date,
+        notes,
+        price,
+        status,
+        from,
+        created_at,
+        patient:patients(id, name, phone, age, gender)
+      `, { count: 'exact' })
       .eq('clinic_id', clinicId)
-      .gte('date', todayStr + 'T00:00:00')
-      .lte('date', todayStr + 'T23:59:59')
-      .order('date', { ascending: true });
-
+      .order('date', { ascending: false });
+    
+    if (!allAppointments) return null;
+    
+    // Get today's appointments with full details
+    const todayAppts = allAppointments.filter(a => {
+      const apptDate = a.date ? new Date(a.date).toISOString().split('T')[0] : null;
+      return apptDate === todayStr;
+    });
+    
     // Get this week's appointments
     const weekStart = new Date(today);
     weekStart.setDate(today.getDate() - today.getDay());
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 6);
     
-    const { count: weekCount } = await supabase
-      .from('appointments')
-      .select('*', { count: 'exact', head: true })
-      .eq('clinic_id', clinicId)
-      .gte('date', weekStart.toISOString())
-      .lte('date', weekEnd.toISOString());
+    const weekAppts = allAppointments.filter(a => {
+      if (!a.date) return false;
+      const apptDate = new Date(a.date);
+      return apptDate >= weekStart && apptDate <= weekEnd;
+    });
 
     // Get this month's appointments
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
     
-    const { count: monthCount } = await supabase
-      .from('appointments')
-      .select('*', { count: 'exact', head: true })
-      .eq('clinic_id', clinicId)
-      .gte('date', startOfMonth.toISOString())
-      .lte('date', endOfMonth.toISOString());
+    const monthAppts = allAppointments.filter(a => {
+      if (!a.date) return false;
+      const apptDate = new Date(a.date);
+      return apptDate >= startOfMonth && apptDate <= endOfMonth;
+    });
 
     // Get previous month's appointments for comparison
     const prevMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
     const prevMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
     
-    const { count: prevMonthCount } = await supabase
-      .from('appointments')
-      .select('*', { count: 'exact', head: true })
-      .eq('clinic_id', clinicId)
-      .gte('date', prevMonthStart.toISOString())
-      .lte('date', prevMonthEnd.toISOString());
+    const prevMonthAppts = allAppointments.filter(a => {
+      if (!a.date) return false;
+      const apptDate = new Date(a.date);
+      return apptDate >= prevMonthStart && apptDate <= prevMonthEnd;
+    });
 
     // Get past appointments (last 30 days)
     const thirtyDaysAgo = new Date(today);
     thirtyDaysAgo.setDate(today.getDate() - 30);
     
-    const { data: pastAppts, count: pastCount } = await supabase
-      .from('appointments')
-      .select('id, status, date, from, patient:patients(name, phone)', { count: 'exact' })
-      .eq('clinic_id', clinicId)
-      .lt('date', todayStr + 'T00:00:00')
-      .gte('date', thirtyDaysAgo.toISOString())
-      .order('date', { ascending: false })
-      .limit(20);
+    const pastAppts = allAppointments.filter(a => {
+      if (!a.date) return false;
+      const apptDate = new Date(a.date);
+      return apptDate < today && apptDate >= thirtyDaysAgo;
+    });
 
     // Get future appointments (next 30 days)
     const thirtyDaysLater = new Date(today);
     thirtyDaysLater.setDate(today.getDate() + 30);
     
-    const { data: futureAppts, count: futureCount } = await supabase
-      .from('appointments')
-      .select('id, status, date, from, patient:patients(name, phone)', { count: 'exact' })
-      .eq('clinic_id', clinicId)
-      .gt('date', todayStr + 'T23:59:59')
-      .lte('date', thirtyDaysLater.toISOString())
-      .order('date', { ascending: true })
-      .limit(20);
+    const futureAppts = allAppointments.filter(a => {
+      if (!a.date) return false;
+      const apptDate = new Date(a.date);
+      return apptDate > today && apptDate <= thirtyDaysLater;
+    });
 
     // Status breakdown for today
-    const pending = (todayAppts || []).filter(a => a.status === 'pending').length;
-    const confirmed = (todayAppts || []).filter(a => a.status === 'confirmed').length;
-    const completed = (todayAppts || []).filter(a => a.status === 'completed').length;
-    const cancelled = (todayAppts || []).filter(a => a.status === 'cancelled' || a.status === 'rejected').length;
+    const pending = todayAppts.filter(a => a.status === 'pending');
+    const confirmed = todayAppts.filter(a => a.status === 'confirmed');
+    const completed = todayAppts.filter(a => a.status === 'completed');
+    const cancelled = todayAppts.filter(a => a.status === 'cancelled' || a.status === 'rejected');
 
     // Source breakdown
-    const fromOnline = (todayAppts || []).filter(a => a.from === 'booking').length;
-    const fromClinic = (todayAppts || []).filter(a => a.from !== 'booking').length;
+    const fromOnline = todayAppts.filter(a => a.from === 'booking');
+    const fromClinic = todayAppts.filter(a => a.from !== 'booking');
+    
+    // Financial data
+    const totalRevenue = allAppointments
+      .filter(a => a.status === 'completed')
+      .reduce((sum, a) => sum + (a.price || 0), 0);
+    
+    const todayRevenue = todayAppts
+      .filter(a => a.status === 'completed')
+      .reduce((sum, a) => sum + (a.price || 0), 0);
+    
+    const monthRevenue = monthAppts
+      .filter(a => a.status === 'completed')
+      .reduce((sum, a) => sum + (a.price || 0), 0);
+    
+    // Format appointments for AI
+    const formatAppointment = (a) => ({
+      id: a.id,
+      patientName: a.patient?.name || 'غير معروف',
+      patientPhone: a.patient?.phone || '',
+      patientAge: a.patient?.age,
+      patientGender: a.patient?.gender,
+      date: a.date,
+      time: a.date ? new Date(a.date).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', hour12: true }) : '',
+      dayName: a.date ? new Date(a.date).toLocaleDateString('ar-EG', { weekday: 'long' }) : '',
+      price: a.price,
+      status: a.status,
+      statusArabic: {
+        pending: 'معلق',
+        confirmed: 'مؤكد',
+        completed: 'مكتمل',
+        cancelled: 'ملغي',
+        rejected: 'مرفوض',
+        in_progress: 'جاري الكشف'
+      }[a.status] || a.status,
+      source: a.from === 'booking' ? 'إلكتروني' : 'العيادة',
+      notes: a.notes || '',
+      createdAt: a.created_at
+    });
 
     return {
       total: totalCount || 0,
+      allAppointments: allAppointments.slice(0, 100).map(formatAppointment), // Include ALL appointments (limited to 100 for performance)
       today: {
-        total: todayCount || 0,
-        pending,
-        confirmed,
-        completed,
-        cancelled,
-        fromOnline,
-        fromClinic
+        total: todayAppts.length,
+        pending: pending.length,
+        confirmed: confirmed.length,
+        completed: completed.length,
+        cancelled: cancelled.length,
+        fromOnline: fromOnline.length,
+        fromClinic: fromClinic.length,
+        revenue: todayRevenue,
+        appointments: todayAppts.map(formatAppointment)
       },
-      thisWeek: weekCount || 0,
-      thisMonth: monthCount || 0,
-      previousMonth: prevMonthCount || 0,
-      monthOverMonthChange: prevMonthCount > 0 ? Math.round(((monthCount - prevMonthCount) / prevMonthCount) * 100) : 0,
+      thisWeek: {
+        total: weekAppts.length,
+        appointments: weekAppts.slice(0, 20).map(formatAppointment)
+      },
+      thisMonth: {
+        total: monthAppts.length,
+        revenue: monthRevenue,
+        appointments: monthAppts.slice(0, 30).map(formatAppointment)
+      },
+      previousMonth: {
+        total: prevMonthAppts.length
+      },
+      monthOverMonthChange: prevMonthAppts.length > 0 
+        ? Math.round(((monthAppts.length - prevMonthAppts.length) / prevMonthAppts.length) * 100) 
+        : 0,
       past: {
-        total: pastCount || 0,
-        appointments: (pastAppts || []).map(a => ({
-          patientName: a.patient?.name || 'غير معروف',
-          phone: a.patient?.phone || '',
-          time: a.date,
-          status: a.status,
-          source: a.from === 'booking' ? 'إلكتروني' : 'العيادة'
-        }))
+        total: pastAppts.length,
+        appointments: pastAppts.slice(0, 20).map(formatAppointment)
       },
       future: {
-        total: futureCount || 0,
-        appointments: (futureAppts || []).map(a => ({
-          patientName: a.patient?.name || 'غير معروف',
-          phone: a.patient?.phone || '',
-          time: a.date,
-          status: a.status,
-          source: a.from === 'booking' ? 'إلكتروني' : 'العيادة'
-        }))
+        total: futureAppts.length,
+        appointments: futureAppts.slice(0, 20).map(formatAppointment)
       },
-      todayAppointments: (todayAppts || []).map(a => ({
-        patientName: a.patient?.name || 'غير معروف',
-        phone: a.patient?.phone || '',
-        time: a.date,
-        status: a.status,
-        source: a.from === 'booking' ? 'إلكتروني' : 'العيادة'
-      }))
+      financial: {
+        totalRevenue,
+        todayRevenue,
+        monthRevenue,
+        averageAppointmentPrice: totalCount > 0 ? Math.round(totalRevenue / totalCount) : 0
+      },
+      byStatus: {
+        pending: allAppointments.filter(a => a.status === 'pending').length,
+        confirmed: allAppointments.filter(a => a.status === 'confirmed').length,
+        completed: allAppointments.filter(a => a.status === 'completed').length,
+        cancelled: allAppointments.filter(a => a.status === 'cancelled' || a.status === 'rejected').length,
+        inProgress: allAppointments.filter(a => a.status === 'in_progress').length
+      },
+      bySource: {
+        online: allAppointments.filter(a => a.from === 'booking').length,
+        clinic: allAppointments.filter(a => a.from !== 'booking').length
+      }
     };
   } catch (error) {
     console.error('Error fetching appointments data:', error);

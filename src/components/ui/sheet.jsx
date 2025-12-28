@@ -54,7 +54,7 @@ const SheetHeader = ({ children, className }) => {
 
 const SheetTitle = ({ children, className }) => {
   return (
-    <h2 className={cn("text-lg font-semibold", className)}>
+    <h2 className={cn("text-lg font-semibold text-foreground", className)}>
       {children}
     </h2>
   );

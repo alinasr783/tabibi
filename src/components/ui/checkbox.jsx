@@ -9,7 +9,11 @@ export const Checkbox = forwardRef(({ className, checked, onCheckedChange, ...pr
       checked={checked}
       onChange={(e) => onCheckedChange && onCheckedChange(e.target.checked)}
       className={cn(
-        "h-4 w-4 rounded border-border text-primary focus:ring-primary focus:ring-offset-0 focus:ring-2 focus:ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:pointer-events-none disabled:opacity-50",
+        "h-4 w-4 rounded border-2 border-input bg-background text-primary accent-primary cursor-pointer",
+        "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background",
+        "hover:border-primary/50 transition-colors",
+        "disabled:cursor-not-allowed disabled:opacity-50",
+        "checked:bg-primary checked:border-primary",
         className
       )}
       {...props}

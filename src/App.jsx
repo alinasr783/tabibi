@@ -32,7 +32,7 @@ import TreatmentPlans from "./pages/TreatmentPlans";
 import Staff from "./pages/Staff";
 import Subscriptions from "./pages/Subscriptions";
 import WorkMode from "./pages/WorkMode";
-import { AskTabibiPage } from "./features/ask-tabibi";
+import { AskTabibiPage } from "./ai/ui";
 import OfflineIndicator from "./components/OfflineIndicator";
 import { OfflineProvider } from "./features/offline-mode/OfflineContext";
 import useScrollToTop from "./hooks/useScrollToTop";
