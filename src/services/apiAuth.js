@@ -73,6 +73,7 @@ export async function signup({ email, password, userData }) {
         email,
         password,
         options: {
+            emailRedirectTo: `${window.location.origin}/dashboard`,
             data: {
                 name: userData.name,
                 phone: userData.phone,
