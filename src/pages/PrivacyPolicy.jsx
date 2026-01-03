@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Shield, Lock, Eye, Calendar, Server, FileText, CheckCircle } from "lucide-react";
+import { Shield, Lock, Eye, Calendar, Server, FileText, CheckCircle, Users, CheckSquare } from "lucide-react";
 import Header from "../components/layout/Header";
 import Footer from "../components/layout/Footer";
 
