@@ -68,6 +68,7 @@ export default function IntegrationsPage() {
     const handleCallback = async () => {
         const pendingId = localStorage.getItem("pending_integration");
         const isGoogleCallback = searchParams.get("google_auth_callback") === "true";
+        console.log("OAuth callback detected:", { pendingId, isGoogleCallback });
         
         // Supabase puts the tokens in the URL hash, but the client library handles it automatically
         // We need to wait for the session to be established
@@ -76,29 +77,43 @@ export default function IntegrationsPage() {
             try {
                 // Wait a bit for Supabase to process the hash
                 const { data: { session } } = await supabase.auth.getSession();
+                console.log("Session after OAuth:", { hasSession: !!session, provider: session?.user?.app_metadata?.provider, hasProviderToken: !!session?.provider_token });
                 
                 if (session?.provider_token) {
                     // We have the provider token!
-                    await saveIntegrationTokens({
+                    console.log("Saving integration tokens...");
+                    const saved = await saveIntegrationTokens({
                         access_token: session.provider_token,
                         refresh_token: session.provider_refresh_token, // might be null if not offline
                         scope: session.user.app_metadata.provider === 'google' ? integrations.find(i => i.id === pendingId)?.scope : '',
                         expires_in: session.expires_in,
-                        token_type: session.token_type,
                     });
-                    
-                    toast.success("تم الربط وحفظ الصلاحيات بنجاح!");
-                    
-                    setIntegrations(prev => prev.map(i => {
-                        if (i.id === pendingId) return { ...i, connected: true };
-                        return i;
-                    }));
+                    console.log("Integration tokens saved:", saved?.id);
+
+                    let type = 'other';
+                    if (pendingId === "google-calendar") type = 'calendar';
+                    else if (pendingId === "google-tasks") type = 'tasks';
+                    else if (pendingId === "google-contacts") type = 'contacts';
+
+                    const confirmed = await getIntegration(type);
+                    console.log("Integration confirmation:", { type, hasAccess: !!confirmed?.access_token });
+                    if (confirmed?.access_token) {
+                        toast.success("تم الربط وحفظ الصلاحيات بنجاح!");
+                        setIntegrations(prev => prev.map(i => {
+                            if (i.id === pendingId) return { ...i, connected: true };
+                            return i;
+                        }));
+                    } else {
+                        console.error("Integration not confirmed after save");
+                        toast.error("حدث خطأ أثناء تأكيد الربط");
+                    }
 
                     // Initial Sync for Calendar
                     if (pendingId === "google-calendar") {
                         toast.loading("جاري مزامنة المواعيد المستقبلية...", { id: "sync-toast" });
                         try {
                             const syncResult = await syncInitialAppointments();
+                            console.log("Sync result:", syncResult);
                             if (syncResult.success) {
                                 toast.success(`تمت المزامنة: ${syncResult.count} موعد`, { id: "sync-toast" });
                             } else {
@@ -110,9 +125,7 @@ export default function IntegrationsPage() {
                         }
                     }
                 } else {
-                   // Fallback: Just mark as connected locally if we can't get the token immediately (rare)
-                   // Ideally we should fail here, but for UX we might be lenient or retry
-                   console.log("Session established but no provider_token found immediately.");
+                   console.log("Session established but no provider_token found.");
                 }
 
                 // Clean up URL
@@ -137,6 +150,7 @@ export default function IntegrationsPage() {
   const handleConnect = async (integration) => {
     try {
       localStorage.setItem("pending_integration", integration.id);
+      console.log("Starting link for integration:", integration.id, integration.scope);
       await linkGoogleAccount(integration.scope);
     } catch (error) {
       console.error(error);

@@ -175,6 +175,7 @@ export async function addToGoogleCalendar(appointment, existingIntegration = nul
     };
 
     try {
+        console.log('Adding event to Google Calendar', { start: event.start, end: event.end, summary: event.summary });
         const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
             method: 'POST',
             headers: {
@@ -185,10 +186,13 @@ export async function addToGoogleCalendar(appointment, existingIntegration = nul
         });
 
         if (!response.ok) {
-            throw new Error(`Google Calendar API error: ${response.statusText}`);
+            const text = await response.text();
+            console.error('Google Calendar API error', { status: response.status, body: text });
+            throw new Error(`Google Calendar API error: ${response.status}`);
         }
 
         const data = await response.json();
+        console.log('Google Calendar event created', { id: data.id });
         return data;
     } catch (error) {
         console.error("Error adding to Google Calendar:", error);
@@ -248,6 +252,7 @@ export async function syncInitialAppointments() {
 
     // Process sequentially to avoid rate limits
     for (const appointment of appointments) {
+        console.log('Syncing appointment to calendar', { id: appointment.id, date: appointment.date });
         const result = await addToGoogleCalendar({
             ...appointment,
             patient_name: "مريض"
@@ -257,5 +262,6 @@ export async function syncInitialAppointments() {
         else failCount++;
     }
 
+    console.log('Sync summary', { successCount, failCount });
     return { success: true, count: successCount, failed: failCount };
 }
