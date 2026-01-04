@@ -23,28 +23,54 @@ export async function saveIntegrationTokens(tokens, provider = 'google') {
     expiresAt.setSeconds(expiresAt.getSeconds() + (tokens.expires_in || 3600));
 
     // Upsert integration record
-    const { data, error } = await supabase
+    // Safe upsert: try update then insert
+    const { data: existing } = await supabase
         .from('integrations')
-        .upsert({
-            user_id: userId,
-            provider,
-            integration_type: integrationType,
-            access_token: tokens.access_token,
-            refresh_token: tokens.refresh_token, // Only provided on first consent or if access_type=offline
-            expires_at: expiresAt.toISOString(),
-            scope: tokens.scope,
-            token_type: tokens.token_type,
-            id_token: tokens.id_token,
-            is_active: true,
-            updated_at: new Date().toISOString()
-        }, {
-            onConflict: 'user_id, provider, integration_type'
-        })
-        .select()
-        .single();
+        .select('id')
+        .eq('user_id', userId)
+        .eq('provider', provider)
+        .eq('integration_type', integrationType)
+        .maybeSingle();
 
-    if (error) throw error;
-    return data;
+    if (existing?.id) {
+        const { data, error } = await supabase
+            .from('integrations')
+            .update({
+                access_token: tokens.access_token,
+                refresh_token: tokens.refresh_token,
+                expires_at: expiresAt.toISOString(),
+                scope: tokens.scope,
+                token_type: tokens.token_type,
+                id_token: tokens.id_token,
+                is_active: true,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', existing.id)
+            .select()
+            .single();
+        if (error) throw error;
+        return data;
+    } else {
+        const { data, error } = await supabase
+            .from('integrations')
+            .insert({
+                user_id: userId,
+                provider,
+                integration_type: integrationType,
+                access_token: tokens.access_token,
+                refresh_token: tokens.refresh_token,
+                expires_at: expiresAt.toISOString(),
+                scope: tokens.scope,
+                token_type: tokens.token_type,
+                id_token: tokens.id_token,
+                is_active: true,
+                updated_at: new Date().toISOString()
+            })
+            .select()
+            .single();
+        if (error) throw error;
+        return data;
+    }
 }
 
 /**
@@ -57,16 +83,16 @@ export async function getIntegration(type) {
 
     const { data, error } = await supabase
         .from('integrations')
-        .select('*')
+        .select('id, access_token, refresh_token, expires_at, scope, token_type')
         .eq('user_id', session.user.id)
         .eq('integration_type', type)
         .eq('is_active', true)
-        .single();
+        .maybeSingle();
 
     if (error && error.code !== 'PGRST116') console.error(`Error fetching ${type} integration:`, error);
     
     // Check if token needs refresh (if expired or expiring in < 5 mins)
-    if (data && new Date(data.expires_at) < new Date(Date.now() + 5 * 60 * 1000)) {
+    if (data && data.expires_at && new Date(data.expires_at) < new Date(Date.now() + 5 * 60 * 1000)) {
         return await refreshIntegrationToken(data);
     }
 
