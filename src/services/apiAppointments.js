@@ -228,10 +228,12 @@ export async function createAppointment(payload) {
     try {
         if (data) {
             const patientName = data.patient?.name || "مريض";
+            // Use deterministic ID to prevent duplicates if bulk sync runs later
+            const googleEventId = `tabibiapp${data.id}`;
             await addToGoogleCalendar({
                 ...data,
                 patient_name: patientName
-            });
+            }, null, googleEventId);
         }
     } catch (integrationError) {
         console.error("Calendar sync failed:", integrationError);

@@ -56,6 +56,11 @@ export async function getIntegration(type) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return null;
 
+    // Check if current session has a fresh provider token (only on initial login usually)
+    // But if we have it, we should prioritize it or update our DB with it.
+    // However, since we can't easily validate scopes here without decoding, 
+    // we stick to DB but allow a force-refresh if needed.
+
     const { data, error } = await supabase
         .from('integrations')
         .select('id, access_token, refresh_token, expires_at, scope')
@@ -69,6 +74,7 @@ export async function getIntegration(type) {
     
     // Check if token needs refresh (if expired or expiring in < 5 mins)
     if (data && data.expires_at && new Date(data.expires_at) < new Date(Date.now() + 5 * 60 * 1000)) {
+        console.log("Token expiring or expired, attempting refresh...", { expires_at: data.expires_at });
         return await refreshIntegrationToken(data);
     }
 
@@ -85,36 +91,66 @@ async function refreshIntegrationToken(integration) {
         return integration; // Can't refresh
     }
 
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    const clientSecret = import.meta.env.VITE_GOOGLE_CLIENT_SECRET;
+
+    if (!clientId || !clientSecret) {
+        console.error("Missing Google OAuth credentials in environment variables. Cannot refresh token.");
+        // We return the expired integration, which will likely cause 401.
+        // The UI should ideally prompt the user to reconnect.
+        return integration;
+    }
+
     try {
-        // Exchange refresh token for new access token via Supabase Auth (or direct Google call if needed)
-        // Since Supabase handles the initial auth, we might need to use the stored refresh token manually against Google's endpoint
-        // because Supabase's session refresh only handles the user's app session, not the provider's specific scopes unless we use the provider token.
-        
-        // Using Google's Token Endpoint directly
-        await fetch('https://oauth2.googleapis.com/token', {
+        console.log("Refreshing Google OAuth token...");
+        // Exchange refresh token for new access token via Google's Token Endpoint
+        const response = await fetch('https://oauth2.googleapis.com/token', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
             },
             body: new URLSearchParams({
-                client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID, // Ensure these env vars exist or use a proxy
-                client_secret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET, // WARNING: Client secret should ideally not be in frontend
+                client_id: clientId,
+                client_secret: clientSecret,
                 refresh_token: integration.refresh_token,
                 grant_type: 'refresh_token',
             }),
         });
 
-        // NOTE: If client_secret is not available on frontend (security best practice), 
-        // this refresh should happen via a Supabase Edge Function.
-        // For now, assuming we might need to rely on the user re-authenticating if token expires 
-        // OR use a backend proxy.
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error("Failed to refresh token:", response.status, errorText);
+            // If refresh fails (e.g. revoked), we might want to mark integration as inactive
+            // but for now, we just return the old one.
+            return integration;
+        }
+
+        const newTokens = await response.json();
         
-        // If we cannot refresh on client side securely, we return null or the expired token 
-        // and handle the 401 error in the API call by prompting re-auth.
-        
-        // Simplified approach for this iteration: Return existing data.
-        // Real implementation requires a backend function to handle secret key.
-        return integration; 
+        // Calculate new expiration
+        const expiresAt = new Date();
+        expiresAt.setSeconds(expiresAt.getSeconds() + (newTokens.expires_in || 3600));
+
+        // Update in Database
+        const { data: updatedIntegration, error } = await supabase
+            .from('integrations')
+            .update({
+                access_token: newTokens.access_token,
+                expires_at: expiresAt.toISOString(),
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', integration.id)
+            .select()
+            .single();
+
+        if (error) {
+            console.error("Error updating refreshed token in DB:", error);
+            // Even if DB update fails, return the new token for immediate use
+            return { ...integration, access_token: newTokens.access_token, expires_at: expiresAt.toISOString() };
+        }
+
+        console.log("Token refreshed successfully.");
+        return updatedIntegration;
 
     } catch (error) {
         console.error("Error refreshing token:", error);
@@ -218,6 +254,12 @@ export async function addToGoogleCalendar(appointment, existingIntegration = nul
 
             const text = await response.text();
             console.error('Google Calendar API error', { status: response.status, body: text });
+
+            if (response.status === 401) {
+                console.error("Google Calendar Auth Error: Token expired or invalid. Please reconnect Google Calendar in Settings.");
+                // We could emit an event here or use a global store to notify UI
+            }
+
             throw new Error(`Google Calendar API error: ${response.status}`);
         }
 

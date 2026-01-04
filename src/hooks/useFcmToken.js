@@ -6,7 +6,7 @@ import useUser from '../features/auth/useUser';
 const useFcmToken = () => {
   const [token, setToken] = useState(null);
   const [notificationPermissionStatus, setNotificationPermissionStatus] = useState('');
-  const { user } = useUser();
+  const { data: user } = useUser();
 
   useEffect(() => {
     const retrieveToken = async () => {
@@ -26,20 +26,18 @@ const useFcmToken = () => {
             console.log('Notification permission granted.');
             
             // Get the token
-            // Note: If you have a VAPID key from Firebase Console -> Project Settings -> Cloud Messaging -> Web Configuration
-            // you can pass it here: { vapidKey: 'YOUR_PUBLIC_VAPID_KEY' }
-            // Otherwise, it uses the default configuration from firebase.js
             const currentToken = await getToken(messaging);
             
             if (currentToken) {
               console.log('FCM Token retrieved:', currentToken);
               setToken(currentToken);
               
-              if (user?.id) {
-                console.log('Saving token to database for user:', user.id);
-                await saveTokenToDatabase(currentToken, user.id);
+              if (user?.user_id || user?.id) {
+                const userId = user.user_id || user.id;
+                console.log('Saving token to database for user:', userId);
+                await saveTokenToDatabase(currentToken, userId);
               } else {
-                console.log('User ID not found, cannot save token yet.');
+                console.error('User ID not found, cannot save token yet. User object:', user);
               }
             } else {
               console.log('No registration token available. Request permission to generate one.');
@@ -53,11 +51,24 @@ const useFcmToken = () => {
       }
     };
 
-    retrieveToken();
+    if (user) {
+        retrieveToken();
+    }
   }, [user]);
 
   const saveTokenToDatabase = async (token, userId) => {
     try {
+      // Verify session matches userId
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+         console.error('No active session when saving token');
+         return;
+      }
+      
+      if (session.user.id !== userId) {
+          console.warn('Session user ID does not match target user ID', { sessionUser: session.user.id, targetUser: userId });
+      }
+
       // Check if token already exists for this user to avoid unnecessary writes
       // Ideally handled by ON CONFLICT in SQL
       const { error } = await supabase

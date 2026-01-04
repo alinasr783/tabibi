@@ -46,6 +46,6 @@ ON public.notifications
 FOR SELECT
 USING (
   clinic_id IN (
-    SELECT clinic_id FROM public.users WHERE auth_uid = auth.uid()
+    SELECT clinic_id FROM public.users WHERE user_id = auth.uid()
   )
 );

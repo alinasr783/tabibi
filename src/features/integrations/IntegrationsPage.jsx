@@ -64,6 +64,12 @@ export default function IntegrationsPage() {
     };
     checkIntegrations();
 
+    // Check if Env vars are set
+    if (!import.meta.env.VITE_GOOGLE_CLIENT_ID || !import.meta.env.VITE_GOOGLE_CLIENT_SECRET) {
+        console.error("Missing Google OAuth Credentials in .env");
+        toast.error("تنبيه: إعدادات Google OAuth ناقصة في ملف .env", { duration: 6000 });
+    }
+
     // Handle OAuth Callback
     const handleCallback = async () => {
         const pendingId = localStorage.getItem("pending_integration");
