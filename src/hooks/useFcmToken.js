@@ -23,18 +23,29 @@ const useFcmToken = () => {
           setNotificationPermissionStatus(permission);
 
           if (permission === 'granted') {
-            const currentToken = await getToken(messaging, {
-              vapidKey: 'BMYJ2_7q_HhV_b8K_4e_1_2_3_4_5_PLACEHOLDER_KEY_IF_NEEDED' // Optional: providing a VAPID key is often required for web push
-            });
+            console.log('Notification permission granted.');
+            
+            // Get the token
+            // Note: If you have a VAPID key from Firebase Console -> Project Settings -> Cloud Messaging -> Web Configuration
+            // you can pass it here: { vapidKey: 'YOUR_PUBLIC_VAPID_KEY' }
+            // Otherwise, it uses the default configuration from firebase.js
+            const currentToken = await getToken(messaging);
             
             if (currentToken) {
+              console.log('FCM Token retrieved:', currentToken);
               setToken(currentToken);
+              
               if (user?.id) {
+                console.log('Saving token to database for user:', user.id);
                 await saveTokenToDatabase(currentToken, user.id);
+              } else {
+                console.log('User ID not found, cannot save token yet.');
               }
             } else {
               console.log('No registration token available. Request permission to generate one.');
             }
+          } else {
+            console.log('Notification permission denied.');
           }
         }
       } catch (error) {
@@ -60,6 +71,8 @@ const useFcmToken = () => {
 
       if (error) {
         console.error('Error saving FCM token to Supabase:', error);
+      } else {
+        console.log('FCM token saved successfully to Supabase.');
       }
     } catch (error) {
       console.error('Error in saveTokenToDatabase:', error);
