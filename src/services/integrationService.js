@@ -82,7 +82,7 @@ export async function getIntegration(type) {
         .select('id, access_token, refresh_token, expires_at, scope')
         .eq('user_id', session.user.id)
         .eq('integration_type', type)
-        .eq('is_active', true)
+        .is('is_active', true)
         .maybeSingle();
 
     if (error && error.code !== 'PGRST116') console.error(`Error fetching ${type} integration:`, error);
@@ -224,7 +224,7 @@ export async function syncInitialAppointments() {
             date,
             notes,
             price,
-            patient:patients(name)
+            patient_id
         `)
         .eq("clinic_id", userData.clinic_id)
         .gte("date", now)
@@ -248,10 +248,9 @@ export async function syncInitialAppointments() {
 
     // Process sequentially to avoid rate limits
     for (const appointment of appointments) {
-        const patientName = appointment.patient?.name || "مريض";
         const result = await addToGoogleCalendar({
             ...appointment,
-            patient_name: patientName
+            patient_name: "مريض"
         }, integration);
         
         if (result) successCount++;

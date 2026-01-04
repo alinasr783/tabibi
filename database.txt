@@ -49,6 +49,18 @@ CREATE TABLE public.clinics (
   CONSTRAINT clinics_pkey PRIMARY KEY (id),
   CONSTRAINT clinics_current_plan_fkey FOREIGN KEY (current_plan) REFERENCES public.plans(id)
 );
+CREATE TABLE public.daily_email_logs (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  clinic_id uuid,
+  email_to text NOT NULL,
+  appointments_count integer NOT NULL DEFAULT 0,
+  sent_at timestamp with time zone DEFAULT now(),
+  status text DEFAULT 'sent'::text CHECK (status = ANY (ARRAY['sent'::text, 'failed'::text, 'skipped'::text])),
+  error_message text,
+  CONSTRAINT daily_email_logs_pkey PRIMARY KEY (id),
+  CONSTRAINT daily_email_logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
 CREATE TABLE public.discount_redemptions (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
@@ -97,6 +109,24 @@ CREATE TABLE public.financial_records (
   CONSTRAINT financial_records_appointment_id_fkey FOREIGN KEY (appointment_id) REFERENCES public.appointments(id),
   CONSTRAINT financial_records_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(id),
   CONSTRAINT financial_records_patient_plan_id_fkey FOREIGN KEY (patient_plan_id) REFERENCES public.patient_plans(id)
+);
+CREATE TABLE public.integrations (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  clinic_id uuid,
+  provider text NOT NULL,
+  integration_type text NOT NULL,
+  access_token text,
+  refresh_token text,
+  expires_at timestamp with time zone,
+  scope text,
+  is_active boolean DEFAULT true,
+  settings jsonb DEFAULT '{}'::jsonb,
+  metadata jsonb DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT integrations_pkey PRIMARY KEY (id),
+  CONSTRAINT integrations_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
 CREATE TABLE public.notifications (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -202,6 +232,9 @@ CREATE TABLE public.user_preferences (
   dashboard_widgets jsonb DEFAULT '[]'::jsonb,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
+  daily_appointments_email_enabled boolean DEFAULT false,
+  daily_appointments_email_time text DEFAULT '07:00'::text,
+  timezone text DEFAULT 'Africa/Cairo'::text,
   CONSTRAINT user_preferences_pkey PRIMARY KEY (id),
   CONSTRAINT user_preferences_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
