@@ -1,4 +1,5 @@
 import supabase from "./supabase";
+import { getPatientById } from "./apiPatients";
 
 /**
  * Save integration tokens to the database
@@ -22,51 +23,29 @@ export async function saveIntegrationTokens(tokens, provider = 'google') {
     const expiresAt = new Date();
     expiresAt.setSeconds(expiresAt.getSeconds() + (tokens.expires_in || 3600));
 
-    // Upsert integration record
-    // Safe upsert: try update then insert
-    const { data: existing } = await supabase
+    // Idempotent upsert using unique constraint (user_id, provider, integration_type)
+    const { data, error } = await supabase
         .from('integrations')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('provider', provider)
-        .eq('integration_type', integrationType)
-        .maybeSingle();
-
-    if (existing?.id) {
-        const { data, error } = await supabase
-            .from('integrations')
-            .update({
-                access_token: tokens.access_token,
-                refresh_token: tokens.refresh_token,
-                expires_at: expiresAt.toISOString(),
-                scope: tokens.scope,
-                is_active: true,
-                updated_at: new Date().toISOString()
-            })
-            .eq('id', existing.id)
-            .select()
-            .single();
-        if (error) throw error;
-        return data;
-    } else {
-        const { data, error } = await supabase
-            .from('integrations')
-            .insert({
-                user_id: userId,
-                provider,
-                integration_type: integrationType,
-                access_token: tokens.access_token,
-                refresh_token: tokens.refresh_token,
-                expires_at: expiresAt.toISOString(),
-                scope: tokens.scope,
-                is_active: true,
-                updated_at: new Date().toISOString()
-            })
-            .select()
-            .single();
-        if (error) throw error;
-        return data;
+        .upsert({
+            user_id: userId,
+            provider,
+            integration_type: integrationType,
+            access_token: tokens.access_token,
+            refresh_token: tokens.refresh_token,
+            expires_at: expiresAt.toISOString(),
+            scope: tokens.scope,
+            is_active: true,
+            updated_at: new Date().toISOString()
+        }, {
+            onConflict: 'user_id,provider,integration_type'
+        })
+        .select()
+        .single();
+    if (error) {
+        console.error('Error upserting integration:', error);
+        throw error;
     }
+    return data;
 }
 
 /**
@@ -83,6 +62,7 @@ export async function getIntegration(type) {
         .eq('user_id', session.user.id)
         .eq('integration_type', type)
         .is('is_active', true)
+        .limit(1)
         .maybeSingle();
 
     if (error && error.code !== 'PGRST116') console.error(`Error fetching ${type} integration:`, error);
@@ -111,7 +91,7 @@ async function refreshIntegrationToken(integration) {
         // because Supabase's session refresh only handles the user's app session, not the provider's specific scopes unless we use the provider token.
         
         // Using Google's Token Endpoint directly
-        const response = await fetch('https://oauth2.googleapis.com/token', {
+        await fetch('https://oauth2.googleapis.com/token', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
@@ -147,19 +127,61 @@ async function refreshIntegrationToken(integration) {
  * @param {Object} appointment - The appointment object
  * @param {Object} [existingIntegration] - Optional existing integration object to avoid refetching
  */
-export async function addToGoogleCalendar(appointment, existingIntegration = null) {
+export async function addToGoogleCalendar(appointment, existingIntegration = null, customId = null) {
     const integration = existingIntegration || await getIntegration('calendar');
-    if (!integration) return null;
+    if (!integration) {
+        console.warn('Google Calendar integration not active. Event will not be created.');
+        return null;
+    }
+
+    // Ensure we have a valid date
+    if (!appointment.date) {
+        console.error("addToGoogleCalendar: 'date' field is missing in appointment object", appointment);
+        return null; // Cannot create event without date
+    }
 
     const startTime = new Date(appointment.date);
-    const endTime = new Date(startTime.getTime() + 30 * 60000); // 30 minutes duration
+    if (isNaN(startTime.getTime())) {
+        console.error("addToGoogleCalendar: Invalid date format", appointment.date);
+        return null;
+    }
+
+    const endTime = new Date(startTime.getTime() + 30 * 60000);
+    
+    let patientName = appointment.patient_name || null;
+    let patientPhone = appointment.patient_phone || null;
+    
+    // If patient name is missing but we have an ID, fetch it
+    if ((!patientName || !patientPhone) && appointment.patient_id) {
+        try {
+            const patient = await getPatientById(appointment.patient_id);
+            if (patient) {
+                patientName = patientName || patient.name;
+                patientPhone = patientPhone || patient.phone;
+            }
+        } catch (err) { 
+            console.error("Error fetching patient details for calendar event:", err);
+            // Fallback will be handled below
+        }
+    }
+
+    // Final fallback for patient name
+    const displayPatientName = patientName || 'مريض';
+
+    console.log("addToGoogleCalendar/dateCheck", { 
+        providedDate: appointment.date, 
+        parsedDate: startTime,
+        fullAppointment: appointment,
+        patientName: displayPatientName,
+        customId
+    });
 
     const event = {
-        summary: `موعد عيادة: ${appointment.patient_name || 'مريض'}`,
-        description: `ملاحظات: ${appointment.notes || 'لا يوجد'}\nالسعر: ${appointment.price || 0}`,
+        summary: `حجز`,
+        description: `اسم المريض: ${displayPatientName}\nرقم الموبايل: ${patientPhone || 'غير متوفر'}\nملاحظات: ${appointment.notes || 'لا يوجد'}\nالسعر: ${appointment.price ?? 0}\nالمصدر: ${appointment.from || appointment.source || 'clinic'}`,
         start: {
             dateTime: startTime.toISOString(),
-            timeZone: 'Africa/Cairo', // Adjust as needed
+            timeZone: 'Africa/Cairo',
         },
         end: {
             dateTime: endTime.toISOString(),
@@ -172,10 +194,12 @@ export async function addToGoogleCalendar(appointment, existingIntegration = nul
                 { method: 'popup', minutes: 60 },
             ],
         },
+        // Add custom ID if provided (must be base32hex: 0-9, a-v)
+        ...(customId ? { id: customId } : {}),
     };
 
     try {
-        console.log('Adding event to Google Calendar', { start: event.start, end: event.end, summary: event.summary });
+        console.log('Adding event to Google Calendar', { start: event.start, end: event.end, summary: event.summary, id: customId });
         const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
             method: 'POST',
             headers: {
@@ -186,6 +210,12 @@ export async function addToGoogleCalendar(appointment, existingIntegration = nul
         });
 
         if (!response.ok) {
+            // Check for 409 Conflict (Already exists)
+            if (response.status === 409) {
+                 console.log('Google Calendar event already exists (idempotent skip)', { id: customId });
+                 return { id: customId, status: 'already_exists' };
+            }
+
             const text = await response.text();
             console.error('Google Calendar API error', { status: response.status, body: text });
             throw new Error(`Google Calendar API error: ${response.status}`);

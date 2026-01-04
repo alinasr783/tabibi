@@ -30,14 +30,16 @@ export default function CalendarPage() {
   const { 
     data: upcomingData, 
     isLoading: isUpcomingLoading,
-    refetch: refetchUpcoming 
+    refetch: refetchUpcoming,
+    isError: isUpcomingError 
   } = useAppointments(query, page, APPOINTMENTS_PAGE_SIZE, { time: "upcoming" })
   
   // Fetch all appointments
   const { 
     data: allData, 
     isLoading: isAllLoading,
-    refetch: refetchAll 
+    refetch: refetchAll,
+    isError: isAllError 
   } = useAppointments(query, allAppointmentsPage, APPOINTMENTS_PAGE_SIZE, filters)
   
   // Fetch online bookings (similar to OnlineBookingsSection)
@@ -91,7 +93,7 @@ export default function CalendarPage() {
   }, [refetchUpcoming, refetchAll, refetchTodayStats])
 
   // Stats calculations
-  const todayAppointments = todayStatsData?.items || []
+  const todayAppointments = todayStatsData?.data || []
   
   const completedToday = todayAppointments.filter(a => {
     const status = a.status?.toLowerCase()?.trim();
@@ -104,11 +106,24 @@ export default function CalendarPage() {
   }).length
   
   const stats = {
-    today: todayStatsData?.total || 0,
+    today: todayStatsData?.count || 0,
     completedToday,
     pendingToday,
-    upcoming: upcomingData?.total || 0,
-    total: allData?.total || 0
+    upcoming: upcomingData?.count || 0,
+    total: allData?.count || 0
+  }
+
+  if (isUpcomingError || isAllError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
+        <AlertCircle className="w-16 h-16 text-destructive" />
+        <h2 className="text-xl font-bold">فشل في تحميل المواعيد</h2>
+        <p className="text-muted-foreground">حدث خطأ أثناء الاتصال بقاعدة البيانات. يرجى تحديث الصفحة أو التحقق من الصلاحيات.</p>
+        <Button onClick={handleRefresh} variant="outline">
+          إعادة المحاولة
+        </Button>
+      </div>
+    )
   }
 
   return (
@@ -317,10 +332,10 @@ export default function CalendarPage() {
                 <div className="p-4">
                   <TableSkeleton columns={6} rows={6} />
                 </div>
-              ) : upcomingData?.items?.length > 0 ? (
+              ) : (upcomingData?.data || []).length > 0 ? (
                 <AppointmentsTable
-                  appointments={upcomingData.items}
-                  total={upcomingData.total}
+                  appointments={upcomingData.data}
+                  total={upcomingData.count}
                   page={page}
                   pageSize={APPOINTMENTS_PAGE_SIZE}
                   onPageChange={setPage}
@@ -348,10 +363,10 @@ export default function CalendarPage() {
                 <div className="p-4">
                   <TableSkeleton columns={6} rows={6} />
                 </div>
-              ) : allData?.items?.length > 0 ? (
+              ) : (allData?.data || []).length > 0 ? (
                 <AppointmentsTable
-                  appointments={allData.items}
-                  total={allData.total}
+                  appointments={allData.data}
+                  total={allData.count}
                   page={allAppointmentsPage}
                   pageSize={APPOINTMENTS_PAGE_SIZE}
                   onPageChange={setAllAppointmentsPage}
@@ -416,9 +431,9 @@ export default function CalendarPage() {
                   <div className="p-4 md:p-6">
                     <TableSkeleton columns={4} rows={3} />
                   </div>
-                ) : onlineBookingsData?.items?.length > 0 ? (
+                ) : (onlineBookingsData?.data || []).length > 0 ? (
                   <OnlineBookingsTable
-                    appointments={onlineBookingsData.items}
+                    appointments={onlineBookingsData.data}
                   />
                 ) : (
                   <div className="p-6 md:p-8 text-center">

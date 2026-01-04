@@ -10,7 +10,12 @@ export default function useAppointments(search, page, pageSize = 10, filters = {
     
     const queryResult = useQuery({
         queryKey: ["appointments", search, page, pageSize, filters],
-        queryFn: () => getAppointments(search, page, pageSize, filters),
+        queryFn: async () => {
+            console.log("useAppointments/queryFn/start", { search, page, pageSize, filters })
+            const result = await getAppointments(search, page, pageSize, filters)
+            console.log("useAppointments/queryFn/result", { count: result?.count, length: (result?.data || []).length })
+            return result
+        },
         meta: {
             errorMessage: "فشل في تحميل المواعيد"
         }
@@ -20,20 +25,14 @@ export default function useAppointments(search, page, pageSize = 10, filters = {
     useEffect(() => {
         if (!clinic?.clinic_uuid) return
 
-        console.log("Setting up real-time subscription for appointments, clinic:", clinic.clinic_uuid)
+        console.log("useAppointments/subscription/setup", { clinicUuid: clinic.clinic_uuid, source: filters.source })
 
         const unsubscribe = subscribeToAppointments(
             async (payload) => {
-                if (payload.eventType === "INSERT" && payload.new?.from === "booking") {
-                    try {
-                        await addToGoogleCalendar({
-                            date: payload.new.date,
-                            notes: payload.new.notes,
-                            price: payload.new.price,
-                            patient_name: ""
-                        })
-                    } catch {}
-                }
+                // Realtime sync to Google Calendar is now handled globally in useGoogleCalendarSync hook
+                // We just need to refresh the UI here
+                
+                console.log("useAppointments/subscription/invalidateQueries")
                 queryClient.invalidateQueries({ queryKey: ["appointments"] })
             },
             clinic.clinic_uuid,
@@ -41,7 +40,7 @@ export default function useAppointments(search, page, pageSize = 10, filters = {
         )
 
         return () => {
-            console.log("Cleaning up real-time subscription for appointments")
+            console.log("useAppointments/subscription/cleanup")
             unsubscribe()
         }
     }, [clinic?.clinic_uuid, filters.source, queryClient])

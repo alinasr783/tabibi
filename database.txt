@@ -94,6 +94,16 @@ CREATE TABLE public.discounts (
   CONSTRAINT discounts_pkey PRIMARY KEY (id),
   CONSTRAINT discounts_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES public.plans(id)
 );
+CREATE TABLE public.fcm_tokens (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  token text NOT NULL,
+  device_type text DEFAULT 'web'::text,
+  created_at timestamp with time zone DEFAULT now(),
+  last_updated timestamp with time zone DEFAULT now(),
+  CONSTRAINT fcm_tokens_pkey PRIMARY KEY (id),
+  CONSTRAINT fcm_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
 CREATE TABLE public.financial_records (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   clinic_id bigint NOT NULL,
@@ -134,12 +144,12 @@ CREATE TABLE public.notifications (
   title character varying NOT NULL,
   message text,
   clinic_id uuid NOT NULL,
-  patient_id uuid,
-  appointment_id uuid,
   is_read boolean DEFAULT false,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   related_id character varying,
+  appointment_id bigint,
+  patient_id bigint,
   CONSTRAINT notifications_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.patient_plans (

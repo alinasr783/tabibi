@@ -22,6 +22,8 @@ import ClinicInfo from "../../features/auth/ClinicInfo";
 import LogoutButton from "../../features/auth/LogoutButton";
 import { useState, useEffect } from "react";
 import { useUnreadNotifications } from "../../features/Notifications/useUnreadNotifications";
+import useFcmToken from "../../hooks/useFcmToken";
+import useGoogleCalendarSync from "../../features/calendar/useGoogleCalendarSync";
 
 function NavItem({ to, icon: Icon, label, isVisible = true, onClick, badgeCount }) {
   if (!isVisible) return null;
@@ -53,6 +55,12 @@ export default function DoctorLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { unreadCount = 0, loading } = useUnreadNotifications();
   const location = useLocation();
+
+  // Initialize FCM Token for notifications
+  useFcmToken();
+
+  // Initialize Google Calendar Sync (Background Sync)
+  useGoogleCalendarSync();
 
   // Apply scroll to top on route changes
   useEffect(() => {

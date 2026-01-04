@@ -13,13 +13,27 @@ export async function getAppointments(search, page, pageSize, filters = {}) {
         .eq("user_id", session.user.id)
         .single()
 
-    if (!userData?.clinic_id) throw new Error("User has no clinic assigned")
+    if (!userData?.clinic_id) {
+        console.error("Could not find clinic_id for user. Check RLS policies on 'users' table.")
+        console.log("Debug getAppointments: session user id:", session.user.id)
+        throw new Error("User has no clinic assigned")
+    }
+
+    console.log("getAppointments/start", {
+        userId: session.user.id,
+        clinicId: userData.clinic_id,
+        search,
+        page,
+        pageSize,
+        filters
+    })
 
     const from = Math.max(0, (page - 1) * pageSize)
     const to = from + pageSize - 1
 
     // Determine if we need inner join for search
-    const patientRelation = search ? 'patient:patients!inner(id, name, phone)' : 'patient:patients(id, name, phone)';
+    const patientRelation = search ? 'patient:patients!inner(id, name, phone)' : 'patient:patients(id, name, phone)'
+    console.log("getAppointments/patientRelation", patientRelation)
 
     let query = supabase
         .from("appointments")
@@ -43,6 +57,7 @@ export async function getAppointments(search, page, pageSize, filters = {}) {
 
         query = query.order("status", { ascending: false })
             .order("date", { ascending: true })
+        console.log("getAppointments/timeFilter", { type: "upcoming", now })
     } else {
         // For all appointments, sort by date descending (newest first)
         // But for online bookings (source: booking), prioritize pending status
@@ -50,13 +65,16 @@ export async function getAppointments(search, page, pageSize, filters = {}) {
             // Custom sorting: pending status first, then by created_at (newest first)
             // We'll handle this sorting manually after fetching the data
             query = query.order("created_at", { ascending: false })
+            console.log("getAppointments/sourceFilter", { source: "booking" })
         } else {
             query = query.order("date", { ascending: false })
+            console.log("getAppointments/sourceFilter", { source: filters.source || "all" })
         }
     }
 
     // Apply range for pagination
     query = query.range(from, to)
+    console.log("getAppointments/pagination", { from, to })
 
     // Apply date range filter if provided
     if (filters.dateFrom || filters.dateTo) {
@@ -64,11 +82,13 @@ export async function getAppointments(search, page, pageSize, filters = {}) {
             const startDate = new Date(filters.dateFrom)
             startDate.setHours(0, 0, 0, 0)
             query = query.gte('date', startDate.toISOString())
+            console.log("getAppointments/dateFrom", startDate.toISOString())
         }
         if (filters.dateTo) {
             const endDate = new Date(filters.dateTo)
             endDate.setHours(23, 59, 59, 999)
             query = query.lte('date', endDate.toISOString())
+            console.log("getAppointments/dateTo", endDate.toISOString())
         }
     } else if (filters.date) {
         // Single date filter (for backwards compatibility)
@@ -80,16 +100,19 @@ export async function getAppointments(search, page, pageSize, filters = {}) {
         query = query
             .gte('date', startDate.toISOString())
             .lte('date', endDate.toISOString())
+        console.log("getAppointments/date", { start: startDate.toISOString(), end: endDate.toISOString() })
     }
 
     // Apply status filter if provided (skip if "all")
     if (filters.status && filters.status !== "all") {
         query = query.eq('status', filters.status)
+        console.log("getAppointments/statusFilter", filters.status)
     }
 
     // Apply source filter if provided (skip if "all")
     if (filters.source && filters.source !== "all") {
         query = query.eq('from', filters.source)
+        console.log("getAppointments/sourceEqFilter", filters.source)
     }
     
     // Apply notes filter if provided
@@ -100,14 +123,16 @@ export async function getAppointments(search, page, pageSize, filters = {}) {
 
     // Apply search term if provided
     if (search) {
-        // Using inner join on patients table for name/phone search
         query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%`, { foreignTable: 'patients' })
+        console.log("getAppointments/search", search)
     }
 
     const { data, error, count } = await query
+    console.log("getAppointments/result", { count, length: (data || []).length })
 
     if (error) {
         console.error("Error fetching appointments:", error)
+        console.log("getAppointments/errorDetails", { code: error.code, message: error.message })
         throw new Error("فشل في تحميل المواعيد")
     }
 
@@ -119,6 +144,7 @@ export async function getAppointments(search, page, pageSize, filters = {}) {
             if (a.status !== "pending" && b.status === "pending") return 1
             return 0
         })
+        console.log("getAppointments/sortedForBooking", { length: sortedData.length })
     }
 
     return {
@@ -435,6 +461,8 @@ export async function searchPatientsPublic(phone, clinicId) {
 export function subscribeToAppointments(callback, clinicId, sourceFilter = null) {
     if (!clinicId) return () => {}
 
+    console.log("subscribeToAppointments/start", { clinicId, sourceFilter })
+
     const subscription = supabase
         .channel(`appointments_changes_${clinicId}`)
         .on(
@@ -446,15 +474,18 @@ export function subscribeToAppointments(callback, clinicId, sourceFilter = null)
                 filter: `clinic_id=eq.${clinicId}`
             },
             (payload) => {
-                // If a source filter is applied, we could filter here, 
-                // but for now we'll pass all events for the clinic 
-                // and let the query invalidation handle the update.
+                console.log("subscribeToAppointments/event", {
+                    eventType: payload.eventType,
+                    newRow: payload.new,
+                    oldRow: payload.old
+                })
                 callback(payload)
             }
         )
         .subscribe()
 
     return () => {
+        console.log("subscribeToAppointments/cleanup", { clinicId })
         supabase.removeChannel(subscription)
     }
 }

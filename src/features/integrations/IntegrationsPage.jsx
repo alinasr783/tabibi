@@ -75,8 +75,23 @@ export default function IntegrationsPage() {
         
         if (pendingId && isGoogleCallback) {
             try {
-                // Wait a bit for Supabase to process the hash
-                const { data: { session } } = await supabase.auth.getSession();
+                // Wait for auth state change to ensure provider session is applied
+                const waitForProviderSession = () => new Promise((resolve) => {
+                    const timeoutId = setTimeout(() => resolve(null), 8000);
+                    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+                        console.log("Auth event:", event, session?.user?.app_metadata?.provider);
+                        if (session?.provider_token || session?.user?.app_metadata?.provider === 'google') {
+                            clearTimeout(timeoutId);
+                            subscription.unsubscribe();
+                            resolve(session);
+                        }
+                    });
+                });
+
+                let { data: { session } } = await supabase.auth.getSession();
+                if (!session?.provider_token || session?.user?.app_metadata?.provider !== 'google') {
+                    session = await waitForProviderSession();
+                }
                 console.log("Session after OAuth:", { hasSession: !!session, provider: session?.user?.app_metadata?.provider, hasProviderToken: !!session?.provider_token });
                 
                 if (session?.provider_token) {
@@ -84,8 +99,8 @@ export default function IntegrationsPage() {
                     console.log("Saving integration tokens...");
                     const saved = await saveIntegrationTokens({
                         access_token: session.provider_token,
-                        refresh_token: session.provider_refresh_token, // might be null if not offline
-                        scope: session.user.app_metadata.provider === 'google' ? integrations.find(i => i.id === pendingId)?.scope : '',
+                        refresh_token: session.provider_refresh_token,
+                        scope: integrations.find(i => i.id === pendingId)?.scope || '',
                         expires_in: session.expires_in,
                     });
                     console.log("Integration tokens saved:", saved?.id);
@@ -125,7 +140,7 @@ export default function IntegrationsPage() {
                         }
                     }
                 } else {
-                   console.log("Session established but no provider_token found.");
+                    console.log("Session established but no provider_token found.");
                 }
 
                 // Clean up URL

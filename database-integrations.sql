@@ -46,29 +46,53 @@ ALTER TABLE public.integrations ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies
 
--- 1. Users can view their own integrations
-CREATE POLICY "Users can view own integrations"
-ON public.integrations
-FOR SELECT
-USING (auth.uid() = user_id);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy WHERE polname = 'Users can view own integrations'
+  ) THEN
+    CREATE POLICY "Users can view own integrations"
+    ON public.integrations
+    FOR SELECT
+    USING (auth.uid() = user_id);
+  END IF;
+END $$;
 
--- 2. Users can insert their own integrations
-CREATE POLICY "Users can insert own integrations"
-ON public.integrations
-FOR INSERT
-WITH CHECK (auth.uid() = user_id);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy WHERE polname = 'Users can insert own integrations'
+  ) THEN
+    CREATE POLICY "Users can insert own integrations"
+    ON public.integrations
+    FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+  END IF;
+END $$;
 
--- 3. Users can update their own integrations
-CREATE POLICY "Users can update own integrations"
-ON public.integrations
-FOR UPDATE
-USING (auth.uid() = user_id);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy WHERE polname = 'Users can update own integrations'
+  ) THEN
+    CREATE POLICY "Users can update own integrations"
+    ON public.integrations
+    FOR UPDATE
+    USING (auth.uid() = user_id);
+  END IF;
+END $$;
 
--- 4. Users can delete their own integrations
-CREATE POLICY "Users can delete own integrations"
-ON public.integrations
-FOR DELETE
-USING (auth.uid() = user_id);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy WHERE polname = 'Users can delete own integrations'
+  ) THEN
+    CREATE POLICY "Users can delete own integrations"
+    ON public.integrations
+    FOR DELETE
+    USING (auth.uid() = user_id);
+  END IF;
+END $$;
 
 -- Create trigger for updating timestamp
 DO $$
