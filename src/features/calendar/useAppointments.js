@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useEffect } from "react"
 import { getAppointments, subscribeToAppointments } from "../../services/apiAppointments"
+import { addToGoogleCalendar } from "../../services/integrationService"
 import useClinic from "../auth/useClinic"
 
 export default function useAppointments(search, page, pageSize = 10, filters = {}) {
@@ -22,14 +23,21 @@ export default function useAppointments(search, page, pageSize = 10, filters = {
         console.log("Setting up real-time subscription for appointments, clinic:", clinic.clinic_uuid)
 
         const unsubscribe = subscribeToAppointments(
-            (payload) => {
-                console.log("Real-time appointment change:", payload)
-                
-                // Invalidate and refetch appointments
+            async (payload) => {
+                if (payload.eventType === "INSERT" && payload.new?.from === "booking") {
+                    try {
+                        await addToGoogleCalendar({
+                            date: payload.new.date,
+                            notes: payload.new.notes,
+                            price: payload.new.price,
+                            patient_name: ""
+                        })
+                    } catch {}
+                }
                 queryClient.invalidateQueries({ queryKey: ["appointments"] })
             },
             clinic.clinic_uuid,
-            filters.source // Pass source filter to only listen to relevant appointments
+            filters.source
         )
 
         return () => {
