@@ -40,8 +40,6 @@ export async function saveIntegrationTokens(tokens, provider = 'google') {
                 refresh_token: tokens.refresh_token,
                 expires_at: expiresAt.toISOString(),
                 scope: tokens.scope,
-                token_type: tokens.token_type,
-                id_token: tokens.id_token,
                 is_active: true,
                 updated_at: new Date().toISOString()
             })
@@ -61,8 +59,6 @@ export async function saveIntegrationTokens(tokens, provider = 'google') {
                 refresh_token: tokens.refresh_token,
                 expires_at: expiresAt.toISOString(),
                 scope: tokens.scope,
-                token_type: tokens.token_type,
-                id_token: tokens.id_token,
                 is_active: true,
                 updated_at: new Date().toISOString()
             })
@@ -83,7 +79,7 @@ export async function getIntegration(type) {
 
     const { data, error } = await supabase
         .from('integrations')
-        .select('id, access_token, refresh_token, expires_at, scope, token_type')
+        .select('id, access_token, refresh_token, expires_at, scope')
         .eq('user_id', session.user.id)
         .eq('integration_type', type)
         .eq('is_active', true)
