@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query"
-import { getAppointmentsByPatientId } from "../../services/apiAppointments"
+import { getPatientAppointments } from "../../services/apiAppointments"
 
 export default function usePatientAppointments(patientId) {
     return useQuery({
         queryKey: ["patient-appointments", patientId],
-        queryFn: () => getAppointmentsByPatientId(patientId),
+        queryFn: () => getPatientAppointments(patientId),
         enabled: !!patientId,
         staleTime: 5 * 60 * 1000, // 5 minutes
         retry: 1,

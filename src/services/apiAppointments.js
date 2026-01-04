@@ -1,5 +1,6 @@
 import supabase from "./supabase"
 import { createPublicNotification } from "./apiNotifications"
+import { addToGoogleCalendar } from "./integrationService"
 
 export async function getAppointments(search, page, pageSize, filters = {}) {
     // Get current user's clinic_id
@@ -99,78 +100,31 @@ export async function getAppointments(search, page, pageSize, filters = {}) {
 
     // Apply search term if provided
     if (search) {
-        const s = `%${search.trim()}%`
-        query = query.or(`name.ilike.${s},phone.ilike.${s}`, { foreignTable: "patients" })
+        // Using inner join on patients table for name/phone search
+        query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%`, { foreignTable: 'patients' })
     }
 
     const { data, error, count } = await query
 
-    if (error) throw error
-    
-    // For online bookings, manually sort to put pending first
-    let sortedData = data ?? []
-    if (filters.source === "booking" && sortedData.length > 0) {
-        sortedData = [...sortedData].sort((a, b) => {
-            // If one is pending and the other is not, pending comes first
+    if (error) {
+        console.error("Error fetching appointments:", error)
+        throw new Error("فشل في تحميل المواعيد")
+    }
+
+    // If source=booking, manually sort pending items to top
+    let sortedData = data || []
+    if (filters.source === "booking") {
+        sortedData = sortedData.sort((a, b) => {
             if (a.status === "pending" && b.status !== "pending") return -1
-            if (b.status === "pending" && a.status !== "pending") return 1
-            // If both are pending or both are not pending, sort by created_at (newest first)
-            return new Date(b.created_at) - new Date(a.created_at)
+            if (a.status !== "pending" && b.status === "pending") return 1
+            return 0
         })
     }
-    
-    return { items: sortedData, total: count ?? 0 }
-}
 
-export async function createAppointmentPublic(payload, clinicId) {
-    // Convert clinicId to string for JSON serialization
-    const clinicIdString = clinicId.toString();
-
-    // Add clinic_id to the appointment data
-    const appointmentData = {
-        ...payload,
-        clinic_id: clinicIdString,
-        status: "pending",
-        from: "booking" // Indicate that this appointment was created from the booking page
+    return {
+        data: sortedData,
+        count
     }
-
-    const { data, error } = await supabase
-        .from("appointments")
-        .insert(appointmentData)
-        .select()
-        .single()
-
-    if (error) {
-        console.error("Error creating appointment:", error);
-        throw error
-    }
-    
-    // Debug logging to see what IDs we're getting
-    console.log("Appointment created with data:", data);
-    console.log("Payload patient:", payload.patient);
-    
-    // Validate that we have a proper ID for the appointment
-    if (!data.id) {
-        console.error("Appointment ID is missing from created appointment");
-        return data;
-    }
-    
-    // Create notification for the new appointment
-    try {
-        await createPublicNotification({
-            clinic_id: clinicIdString,
-            title: "حجز جديد",
-            message: `لديك حجز جديد من ${payload.patient?.name || 'مريض'} في ${new Date(payload.date).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}`,
-            type: "appointment",
-            // Pass the appointment ID - it should be a UUID
-            appointment_id: data.id
-        });
-    } catch (notificationError) {
-        console.error("Error creating notification:", notificationError);
-        // Don't throw error here as we still want to return the appointment data
-    }
-
-    return data
 }
 
 export async function createAppointment(payload) {
@@ -178,6 +132,7 @@ export async function createAppointment(payload) {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) throw new Error("Not authenticated")
 
+    // Get clinic_id (which is a UUID in users table)
     const { data: userData } = await supabase
         .from("users")
         .select("clinic_id")
@@ -185,68 +140,31 @@ export async function createAppointment(payload) {
         .single()
 
     if (!userData?.clinic_id) throw new Error("User has no clinic assigned")
-    
-    // The clinic_id in users table is a UUID that matches clinic_uuid in clinics table
-    const clinicUuid = userData.clinic_id;
 
-    // For subscriptions, we need to check if the clinic_id is stored as UUID or BIGINT
-    // Let's try both approaches to handle the inconsistency
-    let subscription = null;
-    let subscriptionError = null;
-    
-    // First, try querying subscriptions by UUID (as in the actual database)
-    try {
-        const { data, error } = await supabase
-            .from('subscriptions')
-            .select('*, plans(limits)')
-            .eq('clinic_id', clinicUuid)  // Try with UUID first
-            .eq('status', 'active')
-            .single()
-        
-        if (error) throw error
-        subscription = data
-    } catch (err) {
-        subscriptionError = err
-        console.log("Failed to find subscription by UUID, will try by BIGINT")
-    }
-    
-    // If that fails, try querying by BIGINT (as in the project schema)
-    if (!subscription) {
-        try {
-            // Get the BIGINT clinic_id from clinics table
-            const { data: clinicData } = await supabase
-                .from('clinics')
-                .select('clinic_id_bigint')
-                .eq('clinic_uuid', clinicUuid)
-                .single()
-            
-            if (clinicData?.clinic_id_bigint) {
-                const { data, error } = await supabase
-                    .from('subscriptions')
-                    .select('*, plans(limits)')
-                    .eq('clinic_id', clinicData.clinic_id_bigint)  // Try with BIGINT
-                    .eq('status', 'active')
-                    .single()
-                
-                if (!error) {
-                    subscription = data
-                }
-            }
-        } catch (err) {
-            console.log("Failed to find subscription by BIGINT as well")
-        }
-    }
-    
-    // If we still don't have a subscription, show a more helpful error
-    if (!subscription) {
-        console.error("Subscription not found with either method:", subscriptionError)
-        throw new Error("لا يوجد اشتراك مفعل. يرجى التحقق من صفحة الاشتراكات.")
-    }
+    // The clinic_id in users table is the UUID for the clinics table
+    const clinicUuid = userData.clinic_id
 
-    const maxAppointments = subscription.plans.limits.max_appointments
-    const periodStart = subscription.current_period_start
+    // Check plan limits
+    const { data: clinicData } = await supabase
+        .from("clinics")
+        .select("current_plan")
+        .eq("clinic_uuid", clinicUuid) // Use clinic_uuid to find the clinic
+        .single()
 
-    // Check if maxPatients is -1 (unlimited), skip the count check if so
+    const currentPlan = clinicData?.current_plan || 'free'
+    const { data: planLimits } = await supabase
+        .from("plans")
+        .select("limits")
+        .eq("id", currentPlan)
+        .single()
+
+    const maxAppointments = planLimits?.limits?.appointments || 50 // Default for free plan if not found
+
+    // Check usage for CURRENT MONTH
+    const now = new Date()
+    // Start of current month
+    const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+
     if (maxAppointments !== -1) {
         // 3. احسب عدد المرضى المضافين في الشهر الحالي فقط
         const { count } = await supabase
@@ -272,10 +190,29 @@ export async function createAppointment(payload) {
     const { data, error } = await supabase
         .from("appointments")
         .insert(appointmentData)
-        .select()
+        .select(`
+            *,
+            patient:patients(name)
+        `)
         .single()
 
     if (error) throw error
+    
+    // --- Google Calendar Integration Hook ---
+    try {
+        if (data) {
+            const patientName = data.patient?.name || "مريض";
+            await addToGoogleCalendar({
+                ...data,
+                patient_name: patientName
+            });
+        }
+    } catch (integrationError) {
+        console.error("Calendar sync failed:", integrationError);
+        // Don't fail the main request, just log it
+    }
+    // ----------------------------------------
+
     return data
 }
 
@@ -347,43 +284,70 @@ export async function searchPatients(searchTerm) {
 
     if (!userData?.clinic_id) throw new Error("User has no clinic assigned")
 
-    const s = `%${searchTerm.trim()}%`
     const { data, error } = await supabase
         .from("patients")
         .select("id, name, phone")
         .eq("clinic_id", userData.clinic_id)
-        .or(`name.ilike.${s},phone.ilike.${s}`)
+        .ilike("name", `%${searchTerm}%`)
         .limit(5)
 
-    if (error) {
-        console.error("Error searching patients:", error);
-        console.error("Attempted to search patients at clinic:", userData.clinic_id);
-        throw error;
-    }
-    return data ?? []
+    if (error) throw new Error("فشل البحث عن المرضى")
+
+    return data
 }
 
-// New function for public booking - search patients by phone only
-export async function searchPatientsPublic(searchTerm, clinicId) {
-    // Only search by phone number for public booking
-    const s = `%${searchTerm.trim()}%`
+export async function createAppointmentPublic(payload, clinicId) {
+    // Convert clinicId to string for JSON serialization
+    const clinicIdString = clinicId.toString();
+
+    // Add clinic_id to the appointment data
+    const appointmentData = {
+        ...payload,
+        clinic_id: clinicIdString,
+        status: "pending",
+        from: "booking" // Indicate that this appointment was created from the booking page
+    }
+
     const { data, error } = await supabase
-        .from("patients")
-        .select("id, name, phone")
-        .eq("clinic_id", clinicId)
-        .ilike("phone", s)
-        .limit(5)
+        .from("appointments")
+        .insert(appointmentData)
+        .select()
+        .single()
 
     if (error) {
-        console.error("Error searching patients:", error);
-        console.error("Attempted to search patients at clinic:", clinicId);
-        throw error;
+        console.error("Error creating appointment:", error);
+        throw error
     }
-    return data ?? []
+    
+    // Debug logging to see what IDs we're getting
+    console.log("Appointment created with data:", data);
+    console.log("Payload patient:", payload.patient);
+    
+    // Validate that we have a proper ID for the appointment
+    if (!data.id) {
+        console.error("Appointment ID is missing from created appointment");
+        return data;
+    }
+    
+    // Create notification for the new appointment
+    try {
+        await createPublicNotification({
+            clinic_id: clinicIdString,
+            title: "حجز جديد",
+            message: `لديك حجز جديد من ${payload.patient?.name || 'مريض'} في ${new Date(payload.date).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}`,
+            type: "appointment",
+            // Pass the appointment ID - it should be a UUID
+            appointment_id: data.id
+        });
+    } catch (notificationError) {
+        console.error("Error creating notification:", notificationError);
+        // Don't throw error here as we still want to return the appointment data
+    }
+
+    return data
 }
 
-// New function to get appointments for a specific patient
-export async function getAppointmentsByPatientId(patientId) {
+export async function getPatientAppointments(patientId) {
     // Get current user's clinic_id
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) throw new Error("Not authenticated")
@@ -399,34 +363,26 @@ export async function getAppointmentsByPatientId(patientId) {
     const { data, error } = await supabase
         .from("appointments")
         .select(`
-      id,
-      date,
-      notes,
-      price,
-      status,
-      created_at
-    `)
+            id,
+            date,
+            notes,
+            price,
+            status,
+            from,
+            created_at
+        `)
         .eq("clinic_id", userData.clinic_id)
-        .eq("patient_id", patientId.toString())  // Convert to string for compatibility
-        // Show all appointments for the patient, sorted by date descending (newest first)
+        .eq("patient_id", patientId)
         .order("date", { ascending: false })
 
     if (error) {
-        console.error("Error fetching appointments by patient ID:", error);
-        console.error("Attempted to fetch appointments for patient ID:", patientId, "at clinic:", userData.clinic_id);
-        
-        // Check if the error is because there are no appointments for this patient
-        if (error.code === 'PGRST116' && error.details === 'The result contains 0 rows') {
-            console.warn(`No appointments found for patient with ID ${patientId} in clinic ${userData.clinic_id}`);
-            return [];
-        }
-        
-        throw error;
+        console.error("Error fetching patient appointments:", error)
+        throw new Error("فشل في تحميل مواعيد المريض")
     }
-    return data ?? []
+
+    return data
 }
 
-// New function to get a single appointment by ID
 export async function getAppointmentById(id) {
     // Get current user's clinic_id
     const { data: { session } } = await supabase.auth.getSession()
@@ -443,34 +399,44 @@ export async function getAppointmentById(id) {
     const { data, error } = await supabase
         .from("appointments")
         .select(`
-      id,
-      date,
-      notes,
-      price,
-      status,
-      from,
-      created_at,
-      patient:patients(id, name, phone)
-    `)
-        .eq("id", id.toString())  // Convert to string for compatibility
+            *,
+            patient:patients(*)
+        `)
+        .eq("id", id)
         .eq("clinic_id", userData.clinic_id)
         .single()
 
     if (error) {
-        console.error("Error fetching appointment by ID:", error);
-        console.error("Attempted to fetch appointment ID:", id, "at clinic:", userData.clinic_id);
-        throw error;
+        console.error("Error fetching appointment:", error)
+        throw new Error("فشل في تحميل تفاصيل الموعد")
     }
+
     return data
 }
 
-// New function to subscribe to real-time appointment changes
-export function subscribeToAppointments(callback, clinicId, sourceFilter = null) {
-    const channelName = `appointments-${clinicId}${sourceFilter ? `-${sourceFilter}` : ''}`;
-    console.log('Creating subscription channel:', channelName);
+export async function searchPatientsPublic(phone, clinicId) {
+    if (!clinicId) throw new Error("Clinic ID is required");
     
-    let query = supabase
-        .channel(channelName)
+    const { data, error } = await supabase
+        .from("patients")
+        .select("id, name, phone, gender, age")
+        .eq("clinic_id", clinicId.toString())
+        .eq("phone", phone)
+        .limit(1)
+
+    if (error) {
+        console.error("Error searching patients:", error)
+        throw new Error("فشل البحث عن المرضى")
+    }
+
+    return data
+}
+
+export function subscribeToAppointments(callback, clinicId, sourceFilter = null) {
+    if (!clinicId) return () => {}
+
+    const subscription = supabase
+        .channel(`appointments_changes_${clinicId}`)
         .on(
             'postgres_changes',
             {
@@ -480,22 +446,15 @@ export function subscribeToAppointments(callback, clinicId, sourceFilter = null)
                 filter: `clinic_id=eq.${clinicId}`
             },
             (payload) => {
-                console.log('Appointment change received:', payload);
-                // If source filter is specified, only trigger callback for matching source
-                if (!sourceFilter || payload.new?.from === sourceFilter || payload.old?.from === sourceFilter) {
-                    callback(payload);
-                }
+                // If a source filter is applied, we could filter here, 
+                // but for now we'll pass all events for the clinic 
+                // and let the query invalidation handle the update.
+                callback(payload)
             }
-        );
-    
-    // Subscribe to the channel
-    const subscription = query.subscribe((status) => {
-        console.log('Subscription status for', channelName, ':', status);
-    });
-    
-    // Return unsubscribe function
+        )
+        .subscribe()
+
     return () => {
-        console.log('Unsubscribing from', channelName);
-        supabase.removeChannel(subscription);
-    };
+        supabase.removeChannel(subscription)
+    }
 }

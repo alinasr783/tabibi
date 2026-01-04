@@ -5,7 +5,9 @@ import { Badge } from "../../components/ui/badge";
 import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import { linkGoogleAccount } from "../../services/apiAuth";
+import { saveIntegrationTokens, getIntegration, syncInitialAppointments } from "../../services/integrationService";
 import { useSearchParams } from "react-router-dom";
+import supabase from "../../services/supabase";
 
 export default function IntegrationsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -43,51 +45,93 @@ export default function IntegrationsPage() {
   ]);
 
   useEffect(() => {
-    // Load connected state from localStorage
-    const saved = localStorage.getItem("connected_integrations");
-    if (saved) {
-      const connectedIds = JSON.parse(saved);
-      setIntegrations(prev => prev.map(i => ({
-        ...i,
-        connected: connectedIds.includes(i.id)
-      })));
-    }
+    // Check initial status from DB
+    const checkIntegrations = async () => {
+      try {
+        const cal = await getIntegration('calendar');
+        const tasks = await getIntegration('tasks');
+        const contacts = await getIntegration('contacts');
 
-    // Check if we just returned from OAuth
-    const pendingId = localStorage.getItem("pending_integration");
-    
-    // Check if this is a valid callback from Google
-    // We expect google_auth_callback=true in the URL query params
-    const isGoogleCallback = searchParams.get("google_auth_callback") === "true";
-
-    if (pendingId) {
-      if (isGoogleCallback) {
-        // Optimistically mark as connected ONLY if we have the callback param
-        const newConnected = saved ? JSON.parse(saved) : [];
-        if (!newConnected.includes(pendingId)) {
-          newConnected.push(pendingId);
-          localStorage.setItem("connected_integrations", JSON.stringify(newConnected));
-          toast.success("تم الربط بنجاح!");
-          
-          setIntegrations(prev => prev.map(i => {
-              if (i.id === pendingId) return { ...i, connected: true };
-              return i;
-          }));
-        }
-        
-        // Clean up URL
-        const newParams = new URLSearchParams(searchParams);
-        newParams.delete("google_auth_callback");
-        setSearchParams(newParams);
-      } else {
-        // If pendingId exists but no callback param, it implies the user clicked "Back" or cancelled
-        // Do NOT mark as connected. Just clear the pending state.
-        console.log("Integration pending but no callback detected. User likely cancelled.");
+        setIntegrations(prev => prev.map(i => {
+          if (i.id === "google-calendar" && cal) return { ...i, connected: true };
+          if (i.id === "google-tasks" && tasks) return { ...i, connected: true };
+          if (i.id === "google-contacts" && contacts) return { ...i, connected: true };
+          return i;
+        }));
+      } catch (e) {
+        console.error("Error loading integrations:", e);
       }
-      
-      // Always clear pending state after checking
-      localStorage.removeItem("pending_integration");
-    }
+    };
+    checkIntegrations();
+
+    // Handle OAuth Callback
+    const handleCallback = async () => {
+        const pendingId = localStorage.getItem("pending_integration");
+        const isGoogleCallback = searchParams.get("google_auth_callback") === "true";
+        
+        // Supabase puts the tokens in the URL hash, but the client library handles it automatically
+        // We need to wait for the session to be established
+        
+        if (pendingId && isGoogleCallback) {
+            try {
+                // Wait a bit for Supabase to process the hash
+                const { data: { session } } = await supabase.auth.getSession();
+                
+                if (session?.provider_token) {
+                    // We have the provider token!
+                    await saveIntegrationTokens({
+                        access_token: session.provider_token,
+                        refresh_token: session.provider_refresh_token, // might be null if not offline
+                        scope: session.user.app_metadata.provider === 'google' ? integrations.find(i => i.id === pendingId)?.scope : '',
+                        expires_in: session.expires_in,
+                        token_type: session.token_type,
+                    });
+                    
+                    toast.success("تم الربط وحفظ الصلاحيات بنجاح!");
+                    
+                    setIntegrations(prev => prev.map(i => {
+                        if (i.id === pendingId) return { ...i, connected: true };
+                        return i;
+                    }));
+
+                    // Initial Sync for Calendar
+                    if (pendingId === "google-calendar") {
+                        toast.loading("جاري مزامنة المواعيد المستقبلية...", { id: "sync-toast" });
+                        try {
+                            const syncResult = await syncInitialAppointments();
+                            if (syncResult.success) {
+                                toast.success(`تمت المزامنة: ${syncResult.count} موعد`, { id: "sync-toast" });
+                            } else {
+                                toast.error("حدث خطأ أثناء المزامنة", { id: "sync-toast" });
+                            }
+                        } catch (syncErr) {
+                            console.error("Sync error:", syncErr);
+                            toast.error("فشل في مزامنة المواعيد", { id: "sync-toast" });
+                        }
+                    }
+                } else {
+                   // Fallback: Just mark as connected locally if we can't get the token immediately (rare)
+                   // Ideally we should fail here, but for UX we might be lenient or retry
+                   console.log("Session established but no provider_token found immediately.");
+                }
+
+                // Clean up URL
+                const newParams = new URLSearchParams(searchParams);
+                newParams.delete("google_auth_callback");
+                setSearchParams(newParams);
+                localStorage.removeItem("pending_integration");
+
+            } catch (err) {
+                console.error("Error saving integration:", err);
+                toast.error("حدث خطأ أثناء حفظ الربط");
+            }
+        } else if (pendingId && !isGoogleCallback) {
+             // User cancelled
+             localStorage.removeItem("pending_integration");
+        }
+    };
+
+    handleCallback();
   }, [searchParams, setSearchParams]);
 
   const handleConnect = async (integration) => {
@@ -101,18 +145,30 @@ export default function IntegrationsPage() {
     }
   };
 
-  const handleDisconnect = (integration) => {
-     const saved = localStorage.getItem("connected_integrations");
-     if (saved) {
-         let connectedIds = JSON.parse(saved);
-         connectedIds = connectedIds.filter(id => id !== integration.id);
-         localStorage.setItem("connected_integrations", JSON.stringify(connectedIds));
-         
+  const handleDisconnect = async (integration) => {
+     try {
+         // In a real app, we would call an API to delete the token from DB
+         const { data: { session } } = await supabase.auth.getSession();
+         if (session) {
+             let type = 'other';
+             if (integration.id.includes('calendar')) type = 'calendar';
+             else if (integration.id.includes('tasks')) type = 'tasks';
+             else if (integration.id.includes('contacts')) type = 'contacts';
+
+             await supabase.from('integrations')
+                 .update({ is_active: false })
+                 .eq('user_id', session.user.id)
+                 .eq('integration_type', type);
+         }
+
          setIntegrations(prev => prev.map(i => {
              if (i.id === integration.id) return { ...i, connected: false };
              return i;
          }));
          toast.success(`تم إلغاء الربط مع ${integration.title}`);
+     } catch (e) {
+         console.error("Error disconnecting:", e);
+         toast.error("فشل إلغاء الربط");
      }
   };
 
