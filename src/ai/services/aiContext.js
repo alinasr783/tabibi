@@ -621,7 +621,7 @@ async function getWorkModeData() {
 }
 
 // ========================
-// جلب بيانات الإشعارات (شاملة - بالتفاصيل الكاملة)
+// جلب بيانات الإشعارات (شاملة)
 // ========================
 async function getNotificationsData() {
   try {
@@ -650,93 +650,29 @@ async function getNotificationsData() {
       .select('*', { count: 'exact', head: true })
       .eq('clinic_id', clinicId);
 
-    // Get recent notifications with FULL details (not truncated)
+    // Get recent notifications with full details
     const { data: recent } = await supabase
       .from('notifications')
-      .select('id, title, message, type, is_read, created_at, patient_id, appointment_id')
+      .select('id, title, message, type, is_read, created_at')
       .eq('clinic_id', clinicId)
       .order('created_at', { ascending: false })
-      .limit(30);
-
-    // Format notification type to Arabic
-    const typeLabels = {
-      'appointment': 'موعد',
-      'payment': 'دفع',
-      'reminder': 'تذكير',
-      'system': 'نظام',
-      'booking': 'حجز',
-      'cancellation': 'إلغاء'
-    };
-
-    // Format notifications with full details for AI
-    const formattedNotifications = (recent || []).map(n => {
-      const date = new Date(n.created_at);
-      const timeAgo = getTimeAgo(date);
-      return {
-        id: n.id,
-        title: n.title,
-        message: n.message, // Full message, not truncated
-        type: n.type,
-        typeArabic: typeLabels[n.type] || n.type,
-        isRead: n.is_read,
-        date: n.created_at,
-        timeAgo: timeAgo,
-        formattedDate: date.toLocaleDateString('ar-EG', { 
-          weekday: 'long', 
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        }),
-        patientId: n.patient_id,
-        appointmentId: n.appointment_id
-      };
-    });
-
-    // Group by type for summary
-    const byType = {};
-    formattedNotifications.forEach(n => {
-      if (!byType[n.type]) byType[n.type] = [];
-      byType[n.type].push(n);
-    });
-
-    // Create detailed text for AI to read
-    const notificationsDetails = formattedNotifications.slice(0, 15).map((n, idx) => 
-      `${idx + 1}. [نوع: ${n.typeArabic}] ${n.title} - ${n.message} (منذ ${n.timeAgo})`
-    ).join('\n');
+      .limit(15);
 
     return {
       total: total || 0,
       unreadCount: unread || 0,
-      recent: formattedNotifications,
-      byType: byType,
-      detailedList: notificationsDetails,
-      summary: {
-        appointments: byType['appointment']?.length || 0,
-        payments: byType['payment']?.length || 0,
-        reminders: byType['reminder']?.length || 0,
-        system: byType['system']?.length || 0,
-        bookings: byType['booking']?.length || 0,
-        cancellations: byType['cancellation']?.length || 0
-      }
+      recent: (recent || []).map(n => ({
+        title: n.title,
+        message: n.message?.substring(0, 100) || '',
+        type: n.type,
+        isRead: n.is_read,
+        date: n.created_at
+      }))
     };
   } catch (error) {
     console.error('Error fetching notifications:', error);
     return null;
   }
-}
-
-// Helper function to calculate time ago in Arabic
-function getTimeAgo(date) {
-  const now = new Date();
-  const seconds = Math.floor((now - date) / 1000);
-  
-  if (seconds < 60) return 'الآن';
-  if (seconds < 3600) return `${Math.floor(seconds / 60)} دقيقة`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)} ساعة`;
-  if (seconds < 604800) return `${Math.floor(seconds / 86400)} يوم`;
-  return `${Math.floor(seconds / 604800)} أسبوع`;
 }
 
 // ========================
