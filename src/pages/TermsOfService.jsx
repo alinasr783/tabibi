@@ -91,7 +91,7 @@ export default function TermsOfService() {
           >
             <p>آخر تحديث: {new Date().toLocaleDateString('ar-EG')}</p>
             <p className="mt-2">
-              للاستفسارات القانونية، يرجى التواصل معنا عبر: <a href="mailto:legal@tabibi.site" className="text-primary hover:underline">legal@tabibi.site</a>
+              للاستفسارات القانونية، يرجى التواصل معنا عبر: <a href="mailto:contact@tabibi.site" className="text-primary hover:underline">contact@tabibi.site</a>
             </p>
           </motion.div>
         </div>

@@ -250,7 +250,7 @@ export default function Finance() {
         </div>
       </div>
 
-      {/* Summary Cards - Patient Detail Style */}
+      {/* Summary Cards */}
       <div className="grid grid-cols-3 sm:grid-cols-3 gap-3" dir="rtl">
         {/* Total Income */}
         <Card className="bg-white dark:bg-slate-900 border-border shadow-sm">

@@ -104,7 +104,7 @@ export default function PrivacyPolicy() {
             className="mt-12 text-center text-sm text-gray-500"
           >
             <p>آخر تحديث: {new Date().toLocaleDateString('ar-EG')}</p>
-            <p className="mt-2">إذا كان لديك أي أسئلة حول سياسة الخصوصية، يرجى التواصل معنا.</p>
+            <p className="mt-2">إذا كان لديك أي أسئلة حول سياسة الخصوصية، يرجى التواصل معنا عبر: <a href="mailto:contact@tabibi.site" className="text-primary hover:underline">contact@tabibi.site</a></p>
           </motion.div>
         </div>
       </main>

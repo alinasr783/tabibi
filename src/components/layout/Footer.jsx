@@ -19,6 +19,10 @@ export default function Footer() {
             شروط الخدمة
           </Link>
           <span className="hidden sm:inline text-muted-foreground">•</span>
+          <a href="mailto:contact@tabibi.site" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+            contact@tabibi.site
+          </a>
+          <span className="hidden sm:inline text-muted-foreground">•</span>
           <span className="text-sm text-muted-foreground">
             © جميع الحقوق محفوظة
           </span>
