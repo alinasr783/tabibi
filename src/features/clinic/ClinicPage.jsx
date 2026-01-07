@@ -8,7 +8,7 @@ import useUpdateClinic from "./useUpdateClinic"
 import ClinicInfoForm from "./ClinicInfoForm"
 import SecretsSection from "./SecretsSection"
 import { initializeAvailableTime } from "./clinicUtils"
-import { Settings, Users, ArrowLeft, Info, ExternalLink } from "lucide-react"
+import { Settings, Users, Info, ExternalLink } from "lucide-react"
 import { Button } from "../../components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs"
 
@@ -129,14 +129,6 @@ export default function ClinicPage() {
         {/* Header */}
         <div className="mb-4 sm:mb-5 md:mb-6">
           <div className="flex items-center gap-2 sm:gap-3 md:gap-3 mb-3 sm:mb-4 md:mb-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate(-1)}
-              className="h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 min-h-[36px] min-w-[36px]"
-            >
-              <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 flex-shrink-0" />
-            </Button>
             <div className="p-1.5 sm:p-2 md:p-2 rounded-lg bg-primary/10 text-primary flex-shrink-0">
               <Settings className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 flex-shrink-0" />
             </div>

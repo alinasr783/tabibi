@@ -96,7 +96,7 @@ export default function DoctorLayout() {
   // Function to close sidebar on mobile after clicking a nav item
   const handleNavItemClick = () => {
     if (window.innerWidth < 768) {
-      setIsSidebarOpen(false);
+      requestAnimationFrame(() => setIsSidebarOpen(false));
     }
   };
 
@@ -137,7 +137,10 @@ export default function DoctorLayout() {
       {/* Floating Mobile menu button - Always visible and floating on small screens at the top */}
       <button
         className="md:hidden fixed top-6 left-6 z-50 p-3 rounded-full bg-primary text-primary-foreground shadow-lg menu-button"
-        onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
+        onClick={() => {
+          // Prevent synchronous layout thrash during React commit
+          requestAnimationFrame(() => setIsSidebarOpen((v) => !v));
+        }}>
         <Menu className="size-6" />
       </button>
 
@@ -208,8 +211,15 @@ export default function DoctorLayout() {
           <NavItem
             to="/treatments"
             icon={ClipboardList}
-            label="العلاجات"
+            label="الخطط العلاجية"
             isVisible={hasTreatmentsAccess}
+            onClick={handleNavItemClick}
+          />
+          <NavItem
+            to="/finance"
+            icon={CreditCard}
+            label="الماليات"
+            isVisible={hasFinanceAccess}
             onClick={handleNavItemClick}
           />
           <NavItem
@@ -224,13 +234,6 @@ export default function DoctorLayout() {
             icon={UserCog}
             label="الموظفين"
             isVisible={hasStaffAccess}
-            onClick={handleNavItemClick}
-          />
-          <NavItem
-            to="/finance"
-            icon={CreditCard}
-            label="المالية"
-            isVisible={hasFinanceAccess}
             onClick={handleNavItemClick}
           />
           <NavItem

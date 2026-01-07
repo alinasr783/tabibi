@@ -23,8 +23,14 @@ export async function getPatients(search, page, pageSize) {
     .order("created_at", { ascending: false })
     .range(from, to)
   if (search && search.trim()) {
-    const s = `%${search.trim()}%`
-    query = query.or(`name.ilike.${s},phone.ilike.${s}`)
+    const trimmed = search.trim()
+    const isIdSearch = /^(?:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|\d+)$/.test(trimmed)
+    if (isIdSearch) {
+      query = query.eq("id", trimmed)
+    } else {
+      const s = `%${trimmed}%`
+      query = query.or(`name.ilike.${s},phone.ilike.${s}`)
+    }
   }
   const { data, error, count } = await query
   if (error) throw error

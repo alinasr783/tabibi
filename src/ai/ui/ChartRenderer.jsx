@@ -15,11 +15,11 @@ import {
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  Legend, 
-  ResponsiveContainer 
+  Legend
 } from 'recharts';
 import { Card } from "../../components/ui/card";
 import { motion } from "framer-motion";
+import ChartContainer from "../../components/ui/ChartContainer";
 
 // ألوان عصرية للرسومات
 const COLORS = [
@@ -62,42 +62,45 @@ export function LineChartRenderer({ data, title, height = 300 }) {
             {title}
           </h3>
         )}
-        <ResponsiveContainer width="100%" height={height}>
-          <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-            <XAxis 
-              dataKey="name" 
-              tick={{ fontSize: 12 }}
-              angle={-45}
-              textAnchor="end"
-              height={60}
-            />
-            <YAxis tick={{ fontSize: 12 }} />
-            <Tooltip 
-              contentStyle={{ 
-                backgroundColor: 'var(--card)',
-                border: '1px solid var(--border)',
-                borderRadius: '8px',
-                fontSize: '12px'
-              }}
-            />
-            <Legend 
-              wrapperStyle={{ fontSize: '12px' }}
-              iconType="line"
-            />
-            {data.datasets.map((dataset, index) => (
-              <Line
-                key={index}
-                type="monotone"
-                dataKey={dataset.label || `Series ${index + 1}`}
-                stroke={dataset.color || COLORS[index % COLORS.length]}
-                strokeWidth={2}
-                dot={{ r: 4 }}
-                activeDot={{ r: 6 }}
+        <ChartContainer minHeight={height}>
+          {({ width, height: chartHeight }) => (
+            <LineChart width={width} height={chartHeight} data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+              <XAxis 
+                dataKey="name" 
+                tick={{ fontSize: 12 }}
+                angle={-45}
+                textAnchor="end"
+                height={60}
               />
-            ))}
-          </LineChart>
-        </ResponsiveContainer>
+              <YAxis tick={{ fontSize: 12 }} />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: 'var(--card)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '8px',
+                  fontSize: '12px'
+                }}
+              />
+              <Legend 
+                wrapperStyle={{ fontSize: '12px' }}
+                iconType="line"
+              />
+              {data.datasets.map((dataset, index) => (
+                <Line
+                  key={index}
+                  type="monotone"
+                  dataKey={dataset.label || `Series ${index + 1}`}
+                  stroke={dataset.color || COLORS[index % COLORS.length]}
+                  strokeWidth={2}
+                  dot={{ r: 4 }}
+                  activeDot={{ r: 6 }}
+                  isAnimationActive={false}
+                />
+              ))}
+            </LineChart>
+          )}
+        </ChartContainer>
       </Card>
     </motion.div>
   );
@@ -132,39 +135,42 @@ export function BarChartRenderer({ data, title, height = 300 }) {
             {title}
           </h3>
         )}
-        <ResponsiveContainer width="100%" height={height}>
-          <BarChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-            <XAxis 
-              dataKey="name" 
-              tick={{ fontSize: 12 }}
-              angle={-45}
-              textAnchor="end"
-              height={60}
-            />
-            <YAxis tick={{ fontSize: 12 }} />
-            <Tooltip 
-              contentStyle={{ 
-                backgroundColor: 'var(--card)',
-                border: '1px solid var(--border)',
-                borderRadius: '8px',
-                fontSize: '12px'
-              }}
-            />
-            <Legend 
-              wrapperStyle={{ fontSize: '12px' }}
-              iconType="square"
-            />
-            {data.datasets.map((dataset, index) => (
-              <Bar
-                key={index}
-                dataKey={dataset.label || `Series ${index + 1}`}
-                fill={dataset.color || COLORS[index % COLORS.length]}
-                radius={[8, 8, 0, 0]}
+        <ChartContainer minHeight={height}>
+          {({ width, height: chartHeight }) => (
+            <BarChart width={width} height={chartHeight} data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+              <XAxis 
+                dataKey="name" 
+                tick={{ fontSize: 12 }}
+                angle={-45}
+                textAnchor="end"
+                height={60}
               />
-            ))}
-          </BarChart>
-        </ResponsiveContainer>
+              <YAxis tick={{ fontSize: 12 }} />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: 'var(--card)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '8px',
+                  fontSize: '12px'
+                }}
+              />
+              <Legend 
+                wrapperStyle={{ fontSize: '12px' }}
+                iconType="square"
+              />
+              {data.datasets.map((dataset, index) => (
+                <Bar
+                  key={index}
+                  dataKey={dataset.label || `Series ${index + 1}`}
+                  fill={dataset.color || COLORS[index % COLORS.length]}
+                  radius={[8, 8, 0, 0]}
+                  isAnimationActive={false}
+                />
+              ))}
+            </BarChart>
+          )}
+        </ChartContainer>
       </Card>
     </motion.div>
   );
@@ -197,36 +203,39 @@ export function PieChartRenderer({ data, title, height = 300 }) {
             {title}
           </h3>
         )}
-        <ResponsiveContainer width="100%" height={height}>
-          <PieChart>
-            <Pie
-              data={chartData}
-              cx="50%"
-              cy="50%"
-              labelLine={false}
-              label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-              outerRadius={80}
-              fill="#8884d8"
-              dataKey="value"
-            >
-              {chartData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-              ))}
-            </Pie>
-            <Tooltip 
-              contentStyle={{ 
-                backgroundColor: 'var(--card)',
-                border: '1px solid var(--border)',
-                borderRadius: '8px',
-                fontSize: '12px'
-              }}
-            />
-            <Legend 
-              wrapperStyle={{ fontSize: '12px' }}
-              iconType="circle"
-            />
-          </PieChart>
-        </ResponsiveContainer>
+        <ChartContainer minHeight={height}>
+          {({ width, height: chartHeight }) => (
+            <PieChart width={width} height={chartHeight}>
+              <Pie
+                data={chartData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                outerRadius={80}
+                fill="#8884d8"
+                dataKey="value"
+                isAnimationActive={false}
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: 'var(--card)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '8px',
+                  fontSize: '12px'
+                }}
+              />
+              <Legend 
+                wrapperStyle={{ fontSize: '12px' }}
+                iconType="circle"
+              />
+            </PieChart>
+          )}
+        </ChartContainer>
       </Card>
     </motion.div>
   );

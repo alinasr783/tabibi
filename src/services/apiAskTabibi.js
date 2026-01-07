@@ -3141,7 +3141,7 @@ export async function reorderMenuItem(itemId, newPosition) {
 export async function resetToDefaultSettings() {
   try {
     const defaultSettings = {
-      theme_mode: 'system',
+      theme_mode: 'light',
       primary_color: '#1AA19C',
       secondary_color: '#224FB5',
       accent_color: '#FF6B6B',

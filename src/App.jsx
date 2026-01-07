@@ -19,7 +19,6 @@ import Booking from "./pages/Booking";
 import Calendar from "./pages/Calendar";
 import Clinic from "./pages/Clinic";
 import Dashboard from "./pages/Dashboard";
-import Finance from "./pages/Finance";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Notifications from "./pages/Notifications";
@@ -36,6 +35,7 @@ import Subscriptions from "./pages/Subscriptions";
 import WorkMode from "./pages/WorkMode";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
+import Finance from "./pages/Finance";
 import { AskTabibiPage } from "./ai/ui";
 import OfflineIndicator from "./components/OfflineIndicator";
 import { OfflineProvider } from "./features/offline-mode/OfflineContext";
@@ -61,7 +61,6 @@ const MemoizedClinic = memo(Clinic);
 const MemoizedTreatmentPlans = memo(TreatmentPlans);
 const MemoizedSettings = memo(Settings);
 const MemoizedIntegrations = memo(Integrations);
-const MemoizedFinance = memo(Finance);
 const MemoizedOnlineBooking = memo(OnlineBooking);
 const MemoizedNotifications = memo(Notifications);
 const MemoizedStaff = memo(Staff);
@@ -69,6 +68,7 @@ const MemoizedSubscriptions = memo(Subscriptions);
 const MemoizedWorkMode = memo(WorkMode);
 const MemoizedPrivacyPolicy = memo(PrivacyPolicy);
 const MemoizedTermsOfService = memo(TermsOfService);
+const MemoizedFinance = memo(Finance);
 const MemoizedAskTabibi = memo(AskTabibiPage);
 
 function AppRoutes() {
@@ -203,6 +203,16 @@ function AppRoutes() {
           }
         />
         <Route
+          path="/finance"
+          element={
+            <PermissionGuard requiredPermission="finance">
+              <SubscriptionExpiryGuard>
+                <MemoizedFinance />
+              </SubscriptionExpiryGuard>
+            </PermissionGuard>
+          }
+        />
+        <Route
           path="/settings"
           element={
             <PermissionGuard requiredPermission="settings">
@@ -224,16 +234,6 @@ function AppRoutes() {
             <PermissionGuard requiredPermission="appointments">
               <SubscriptionExpiryGuard>
                 <MemoizedAppointmentDetailPage />
-              </SubscriptionExpiryGuard>
-            </PermissionGuard>
-          }
-        />
-        <Route
-          path="/finance"
-          element={
-            <PermissionGuard requiredPermission="finance">
-              <SubscriptionExpiryGuard>
-                <MemoizedFinance />
               </SubscriptionExpiryGuard>
             </PermissionGuard>
           }

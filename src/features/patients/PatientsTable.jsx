@@ -81,8 +81,8 @@ export default function PatientsTable({ patients, total, page, pageSize, onPageC
               : null;
 
             return (
-              <Card key={patient.id} className="bg-card/70 hover:shadow-md transition-shadow">
-                <CardContent className="p-4">
+              <div key={patient.id} className="mb-4 pb-4 border-b border-border last:border-0 last:mb-0 last:pb-0">
+                <div className="p-1">
                   <div className="flex items-start gap-3 mb-3">
                     <div className="w-12 h-12 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
                       <User className="w-6 h-6" />
@@ -96,7 +96,7 @@ export default function PatientsTable({ patients, total, page, pageSize, onPageC
                     </Badge>
                   </div>
 
-                  <div className="space-y-2 mb-4 bg-accent/50 rounded-lg p-3">
+                  <div className="space-y-2 mb-4 p-3">
                     <div className="flex items-center gap-2 text-sm">
                       <Phone className="w-4 h-4 text-primary" />
                       <span className="font-medium text-foreground">{patient.phone || "-"}</span>
@@ -115,8 +115,8 @@ export default function PatientsTable({ patients, total, page, pageSize, onPageC
                       شوف التفاصيل
                     </Button>
                   </Link>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             );
           })
         )}

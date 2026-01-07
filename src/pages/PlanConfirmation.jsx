@@ -20,6 +20,7 @@ import {
 import { Button } from '../components/ui/button.jsx'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card.jsx'
 import { Badge } from '../components/ui/badge.jsx'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog.jsx'
 import { useAuth } from '@/features/auth/AuthContext'
 import { useCreateSubscription } from '@/features/auth/useSubscription'
 import { getPlanById } from '@/services/apiSubscriptions'
@@ -37,6 +38,7 @@ export default function PlanConfirmation() {
   const { mutate: createSubscription, isPending: isCreating } = useCreateSubscription()
   
   const [billingPeriod, setBillingPeriod] = useState('monthly')
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const discount = useDiscountCode(plan?.price || 0, planId, billingPeriod)
   
   const isLoading = isPlanLoading
@@ -74,7 +76,7 @@ export default function PlanConfirmation() {
   // Handle subscription confirmation
   const handleConfirmSubscription = async (paymentMethod = 'card') => {
     if (!user) {
-      navigate("/login")
+      setIsAuthModalOpen(true)
       return
     }
 
@@ -172,6 +174,7 @@ export default function PlanConfirmation() {
             ))}
           </div>
         </div>
+
       </main>
     )
   }
@@ -214,25 +217,25 @@ export default function PlanConfirmation() {
     <main className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/30" dir="rtl" lang="ar">
       <div className="container mx-auto px-4 py-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+        <div className="flex items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
               <div className="bg-primary/10 p-2 rounded-lg">
                 <CreditCard className="w-6 h-6 text-primary" />
               </div>
-              تأكيد الاشتراك في الخطة
+             الاشتراك في الخطة
             </h1>
-            <p className="text-gray-600 text-lg">
+            <p className="text-gray-600 text-sm sm:text-lg">
               راجع تفاصيل الخطة وأكمل عملية الدفع
             </p>
           </div>
           <Button 
             variant="outline" 
-            className="border-gray-300 hover:bg-gray-50 flex items-center gap-2"
+            size="icon"
+            className="border-gray-300 hover:bg-gray-50 shrink-0"
             onClick={() => navigate(-1)}
           >
-            <ArrowLeft className="w-4 h-4" />
-            العودة
+            <ArrowLeft className="w-5 h-5" />
           </Button>
         </div>
 
@@ -254,7 +257,7 @@ export default function PlanConfirmation() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column - Plan Details */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-6 order-2 lg:order-1">
             {/* Plan Overview Card */}
             <Card className="rounded-2xl border-0 shadow-lg">
               <CardHeader className="pb-4 border-b border-gray-200">
@@ -263,9 +266,6 @@ export default function PlanConfirmation() {
                     {getPlanIcon(plan.name)}
                   </div>
                   {plan.name}
-                  <span className="text-sm font-normal text-gray-600">
-                    {plan.description}
-                  </span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6">
@@ -340,7 +340,7 @@ export default function PlanConfirmation() {
           </div>
 
           {/* Right Column - Payment Summary */}
-          <div className="space-y-6">
+          <div className="space-y-6 order-1 lg:order-2">
             {/* Payment Summary Card */}
             <Card className="rounded-2xl border-0 shadow-lg sticky top-6">
               <CardHeader className="pb-4 border-b border-gray-200">
@@ -539,6 +539,36 @@ export default function PlanConfirmation() {
             </Card>
           </div>
         </div>
+        {/* Auth Requirement Modal */}
+        <Dialog open={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)}>
+          <DialogContent className="sm:max-w-md" dir="rtl">
+            <DialogHeader>
+              <div className="mx-auto bg-blue-50 p-3 rounded-full mb-4">
+                <Shield className="w-8 h-8 text-primary" />
+              </div>
+              <DialogTitle className="text-center text-xl">مطلوب حساب للاشتراك</DialogTitle>
+            </DialogHeader>
+            <div className="text-center py-4 text-gray-600">
+              <p>لإتمام عملية الاشتراك في هذه الباقة، يجب أن يكون لديك حساب في طبيبي.</p>
+              <p className="mt-2 text-sm text-gray-500">يرجى إنشاء حساب جديد أو تسجيل الدخول إذا كان لديك حساب بالفعل.</p>
+            </div>
+            <DialogFooter className="flex-col sm:flex-row gap-3 sm:justify-center">
+              <Button 
+                onClick={() => navigate('/signup')} 
+                className="w-full sm:w-auto min-w-[140px]"
+              >
+                إنشاء حساب جديد
+              </Button>
+              <Button 
+                onClick={() => navigate('/login')} 
+                variant="outline"
+                className="w-full sm:w-auto min-w-[140px]"
+              >
+                تسجيل الدخول
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </main>
   )

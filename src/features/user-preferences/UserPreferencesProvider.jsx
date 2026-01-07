@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useUserPreferences } from '../../hooks/useUserPreferences';
 import { useAuth } from '../auth/AuthContext';
 
@@ -114,12 +115,34 @@ function setupSystemThemeListener(mode) {
   return () => mediaQuery.removeEventListener('change', handler);
 }
 
+// Reset styles to default
+function resetStyles() {
+  const root = document.documentElement;
+  root.style.removeProperty('--primary');
+  root.style.removeProperty('--secondary');
+  root.style.removeProperty('--accent');
+  root.style.removeProperty('--primary-light');
+  root.style.removeProperty('--primary-dark');
+  root.style.removeProperty('--accent-foreground');
+  root.style.removeProperty('--ring');
+  root.classList.remove('dark', 'light');
+}
+
 export function UserPreferencesProvider({ children }) {
   const { user } = useAuth();
   const { data: preferences, isLoading } = useUserPreferences();
+  const location = useLocation();
+  const isLanding = location.pathname === '/';
 
   // Apply preferences when loaded
   useEffect(() => {
+    if (isLanding) {
+      // Force light mode on landing page and reset custom colors
+      resetStyles();
+      applyThemeMode('light');
+      return;
+    }
+
     if (!preferences || isLoading) return;
     
     // Apply colors
@@ -139,19 +162,12 @@ export function UserPreferencesProvider({ children }) {
     // Setup listener for system theme changes
     const cleanup = setupSystemThemeListener(preferences.theme_mode);
     return cleanup;
-  }, [preferences, isLoading]);
+  }, [preferences, isLoading, isLanding]);
 
   // Reset styles when user logs out
   useEffect(() => {
     if (!user) {
-      // Reset to defaults
-      const root = document.documentElement;
-      root.style.removeProperty('--primary');
-      root.style.removeProperty('--secondary');
-      root.style.removeProperty('--accent');
-      root.style.removeProperty('--primary-light');
-      root.style.removeProperty('--primary-dark');
-      root.classList.remove('dark', 'light');
+      resetStyles();
     }
   }, [user]);
 

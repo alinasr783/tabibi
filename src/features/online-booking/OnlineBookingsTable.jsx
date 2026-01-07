@@ -324,7 +324,7 @@ export default function OnlineBookingsTable({
           </div>
 
           {/* معلومات الموعد */}
-          <div className="space-y-2.5 mb-4 bg-accent/50 rounded-lg p-3">
+          <div className="space-y-2.5 mb-4 p-3">
             <div className="flex items-center gap-2 text-sm">
               <Calendar className="w-4 h-4 text-primary flex-shrink-0" />
               <span className="font-medium text-foreground">

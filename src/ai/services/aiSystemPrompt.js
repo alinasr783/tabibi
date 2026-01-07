@@ -777,9 +777,6 @@ Zap, Sparkles, Award, Target, Flag, Bookmark, Tag, Share2, Copy, Menu, MoreVerti
 \`\`\`action
 {"type": "chart", "chartType": "bar", "title": "الماليات", "data": [{"label": "إيرادات", "value": ${financeThisMonth.income || 0}, "color": "success"}, {"label": "مصروفات", "value": ${financeThisMonth.expenses || 0}, "color": "danger"}]}
 \`\`\`
-\`\`\`action
-{"type": "button", "label": "عرض الحسابات", "navigate": "/finance", "icon": "CreditCard"}
-\`\`\`
 
 ### لما حد يسأل عن مصادر الحجوزات:
 [icon:PieChart] **مصادر الحجوزات هذا الشهر:**

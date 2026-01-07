@@ -147,8 +147,8 @@ export default function Pricing() {
   }
 
   const handleSelectPlan = (plan) => {
-    // Redirect to subscriptions page instead of creating subscription immediately
-    navigate('/subscriptions');
+    // Navigate to plan details page
+    navigate(`/plan/${plan.id}`);
   };
 
   // Progress bar component for usage statistics

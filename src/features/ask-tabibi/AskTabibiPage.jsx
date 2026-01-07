@@ -902,7 +902,7 @@ export default function AskTabibiPage() {
             const result = await resetToDefaultSettings();
             // Apply default colors and theme immediately
             applyColors('#1AA19C', '#224FB5', '#FF6B6B');
-            applyThemeMode('system');
+            applyThemeMode('light');
             toast.success(result.message);
             break;
           }

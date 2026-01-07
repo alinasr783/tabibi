@@ -1,46 +1,59 @@
-import { Share2, Calendar, CheckSquare, Users, Trash2, ExternalLink } from "lucide-react";
+import { Share2, Calendar, CheckSquare, Users, Trash2, ExternalLink, ChevronDown, Activity } from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
+import { Switch } from "../../components/ui/switch";
 import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import { linkGoogleAccount } from "../../services/apiAuth";
 import { saveIntegrationTokens, getIntegration, syncInitialAppointments } from "../../services/integrationService";
 import { useSearchParams } from "react-router-dom";
 import supabase from "../../services/supabase";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function IntegrationsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const [expandedId, setExpandedId] = useState(null);
   const [integrations, setIntegrations] = useState([
     {
       id: "google-calendar",
-      title: "Google Calendar",
-      description: "هنحطلك كل حجوزاتك في الكالندر وهيجيلك اشعار علي موبيلك علي كل حجز",
-      icon: Calendar,
+      title: "Calendar",
+      description: "اول ما يحصل حجز في tabibi سواء من النت او من العيادة هيتم اضافته في نفس الوقت المحدد في الحجز في الكالندر الخاصة بيه وهيتم ارسال اشعار ليك قبل الحجز بنص ساعة",
+      iconUrl: "https://upload.wikimedia.org/wikipedia/commons/a/a5/Google_Calendar_icon_%282020%29.svg",
       scope: "https://www.googleapis.com/auth/calendar",
-      color: "text-blue-600",
-      bgColor: "bg-blue-100 dark:bg-blue-900/20",
+      bgColor: "bg-primary/10",
       connected: false,
+      isComingSoon: false,
     },
     {
       id: "google-tasks",
-      title: "Google Tasks",
-      description: "إدارة المهام والمتابعة عبر مهام جوجل مباشرة",
-      icon: CheckSquare,
+      title: "Tasks",
+      description: "هيتم اضافة الحجوزات اللي بتحصل في tabibi سواء من النت او من العياده ك مهام في تطبيق google tasks بشكل مباشر",
+      iconUrl: "https://upload.wikimedia.org/wikipedia/commons/5/5b/Google_Tasks_2021.svg",
       scope: "https://www.googleapis.com/auth/tasks",
-      color: "text-blue-500",
-      bgColor: "bg-blue-100 dark:bg-blue-900/20",
+      bgColor: "bg-primary/10",
       connected: false,
+      isComingSoon: true,
     },
     {
       id: "google-contacts",
-      title: "Google Contacts",
-      description: "مع كل مريض بيضاف هنضيف جهة اتصال جديدة باسم ورقم المريض ده",
-      icon: Users,
+      title: "Contacts",
+      description: "اول ما يتم اضافة مريض جديد هيتم مزامنة اسم ورقم موبيل المريض ضمن جهات الاتصال فورا واضافة وسم مريض ليه",
+      iconUrl: "https://upload.wikimedia.org/wikipedia/commons/a/a8/Google_Contacts_icon_%282022%29.svg",
       scope: "https://www.googleapis.com/auth/contacts",
-      color: "text-blue-600",
-      bgColor: "bg-blue-100 dark:bg-blue-900/20",
+      bgColor: "bg-primary/10",
       connected: false,
+      isComingSoon: true,
+    },
+    {
+      id: "vezeeta",
+      title: "Vezeeta",
+      description: "اول ما يحصل حجز في حسابك في Vezeeta هيوصل ل tabibi مباشرة بدون اي تدخل منك والحجز هيدخل في ال workflow الخاص ب Tabibi",
+      iconUrl: "https://play-lh.googleusercontent.com/ttLkUcwcja5-8YAhk1ndWbPEglgdoCjs2tEDEOXsd09uq6WuIL-GjWRn_a7HVJbpN06Q",
+      scope: "",
+      bgColor: "bg-primary/10",
+      connected: false,
+      isComingSoon: true,
     },
   ]);
 
@@ -51,11 +64,14 @@ export default function IntegrationsPage() {
         const cal = await getIntegration('calendar');
         const tasks = await getIntegration('tasks');
         const contacts = await getIntegration('contacts');
+        // Mock Vezeeta check
+        const vezeeta = await getIntegration('vezeeta').catch(() => null); 
 
         setIntegrations(prev => prev.map(i => {
           if (i.id === "google-calendar" && cal) return { ...i, connected: true };
           if (i.id === "google-tasks" && tasks) return { ...i, connected: true };
           if (i.id === "google-contacts" && contacts) return { ...i, connected: true };
+          if (i.id === "vezeeta" && vezeeta) return { ...i, connected: true };
           return i;
         }));
       } catch (e) {
@@ -67,7 +83,7 @@ export default function IntegrationsPage() {
     // Check if Env vars are set
     if (!import.meta.env.VITE_GOOGLE_CLIENT_ID || !import.meta.env.VITE_GOOGLE_CLIENT_SECRET) {
         console.error("Missing Google OAuth Credentials in .env");
-        toast.error("تنبيه: إعدادات Google OAuth ناقصة في ملف .env", { duration: 6000 });
+        // toast.error("تنبيه: إعدادات Google OAuth ناقصة في ملف .env", { duration: 6000 });
     }
 
     // Handle OAuth Callback
@@ -168,7 +184,26 @@ export default function IntegrationsPage() {
     handleCallback();
   }, [searchParams, setSearchParams]);
 
+  const toggleIntegration = async (integration) => {
+    if (integration.connected) {
+        // Disconnect
+        await handleDisconnect(integration);
+    } else {
+        // Connect
+        await handleConnect(integration);
+    }
+  };
+
   const handleConnect = async (integration) => {
+    if (integration.id === "vezeeta") {
+        toast.success("تم تفعيل الربط مع Vezeeta");
+        setIntegrations(prev => prev.map(i => {
+            if (i.id === integration.id) return { ...i, connected: true };
+            return i;
+        }));
+        return;
+    }
+
     try {
       localStorage.setItem("pending_integration", integration.id);
       console.log("Starting link for integration:", integration.id, integration.scope);
@@ -184,7 +219,7 @@ export default function IntegrationsPage() {
      try {
          // In a real app, we would call an API to delete the token from DB
          const { data: { session } } = await supabase.auth.getSession();
-         if (session) {
+         if (session && integration.id !== "vezeeta") {
              let type = 'other';
              if (integration.id.includes('calendar')) type = 'calendar';
              else if (integration.id.includes('tasks')) type = 'tasks';
@@ -215,59 +250,77 @@ export default function IntegrationsPage() {
         </div>
         <div>
           <h1 className="text-2xl font-bold">التكاملات</h1>
-          <p className="text-muted-foreground">اربط حسابك بخدمات جوجل لزيادة الإنتاجية</p>
+          <p className="text-muted-foreground">اربط Tabibi مع باقي تطبيقاتك</p>
         </div>
       </div>
 
       <div className="flex flex-col gap-4">
         {integrations.map((item) => {
-            const Icon = item.icon;
+            const isExpanded = expandedId === item.id;
+
             return (
-                <Card key={item.id} className="p-6 hover:shadow-md transition-shadow">
-                    <div className="flex flex-col gap-4">
-                        {/* Top Row: Icon | Name | Button */}
+                <Card 
+                    key={item.id} 
+                    className={`overflow-hidden transition-all duration-200 cursor-pointer ${isExpanded ? 'ring-2 ring-primary/20' : ''}`}
+                    onClick={() => setExpandedId(isExpanded ? null : item.id)}
+                >
+                    <div className="p-6">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4">
-                                <div className={`p-3 rounded-full ${item.bgColor} ${item.color}`}>
-                                    <Icon className="w-6 h-6" />
+                                <div className={`p-3 rounded-full ${item.bgColor} flex items-center justify-center`}>
+                                    <img src={item.iconUrl} alt={item.title} className="w-6 h-6 object-contain" />
                                 </div>
-                                <div>
+                                <div className="flex flex-col">
                                     <h3 className="font-bold text-lg">{item.title}</h3>
                                     {item.connected && (
-                                        <Badge variant="secondary" className="bg-green-100 text-green-700 mt-1">
-                                            متصل
-                                        </Badge>
+                                        <span className="text-xs text-green-600 font-medium flex items-center gap-1">
+                                            متصل الآن
+                                        </span>
                                     )}
                                 </div>
                             </div>
                             
-                            <div>
-                                {item.connected ? (
-                                    <Button 
-                                        variant="outline" 
-                                        className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                                        onClick={() => handleDisconnect(item)}
-                                    >
-                                        <Trash2 className="w-4 h-4 ml-2" />
-                                        إلغاء الربط
-                                    </Button>
-                                ) : (
-                                    <Button 
-                                        onClick={() => handleConnect(item)}
-                                    >
-                                        <ExternalLink className="w-4 h-4 ml-2" />
-                                        ربط الحساب
-                                    </Button>
-                                )}
+                            <div className="flex items-center gap-4">
+                                <div onClick={(e) => e.stopPropagation()}>
+                                    {item.isComingSoon ? (
+                                        <Badge variant="secondary" className="bg-gray-100 text-gray-500 whitespace-nowrap">
+                                            قريبا ان شاء الله
+                                        </Badge>
+                                    ) : (
+                                        <Switch
+                                            checked={item.connected}
+                                            onCheckedChange={() => toggleIntegration(item)}
+                                        />
+                                    )}
+                                </div>
+                                <motion.div
+                                    animate={{ rotate: isExpanded ? 180 : 0 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="text-muted-foreground"
+                                >
+                                    <ChevronDown className="w-5 h-5" />
+                                </motion.div>
                             </div>
                         </div>
 
-                        {/* Bottom Row: Description */}
-                        <div className="mr-16">
-                            <p className="text-muted-foreground text-sm leading-relaxed">
-                                {item.description}
-                            </p>
-                        </div>
+                        <AnimatePresence>
+                            {isExpanded && (
+                                <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: "auto", opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="overflow-hidden"
+                                >
+                                    <div className="pt-4 mt-4 border-t border-border">
+                                        <h4 className="font-medium mb-2 text-sm text-primary">كيف يعمل الربط؟</h4>
+                                        <p className="text-muted-foreground text-sm leading-relaxed">
+                                            {item.description}
+                                        </p>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
                 </Card>
             );

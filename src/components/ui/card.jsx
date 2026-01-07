@@ -1,8 +1,8 @@
 import { cn } from "../../lib/utils"
 
-export function Card({ className, children }) {
+export function Card({ className, children, ...props }) {
   return (
-    <div className={cn("rounded-[var(--radius)] border border-border bg-card", className)}>
+    <div className={cn("rounded-[var(--radius)] border border-border bg-card", className)} {...props}>
       {children}
     </div>
   )

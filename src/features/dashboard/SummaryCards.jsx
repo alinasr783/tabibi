@@ -131,7 +131,6 @@ export default function SummaryCards({ filter, setFilter }) {
                 : "0.00 جنيه"
             }
             isLoading={isLoading}
-            onClick={() => navigate('/finance')}
           />
         )}
       </div>

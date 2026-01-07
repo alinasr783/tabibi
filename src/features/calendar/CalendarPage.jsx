@@ -154,19 +154,19 @@ export default function CalendarPage() {
                   </div>
                   <div>
                     <div className="text-xs text-muted-foreground">اليوم</div>
-                    <div className="text-lg font-semibold">{stats.today}</div>
+                    <div className="text-lg font-semibold text-black">{stats.today}</div>
                   </div>
                 </CardContent>
               </Card>
               
               <Card className="bg-card/70">
                 <CardContent className="flex items-center gap-3 py-3">
-                  <div className="size-8 rounded-[calc(var(--radius)-4px)] bg-green-500/10 text-green-600 grid place-items-center">
+                  <div className="size-8 rounded-[calc(var(--radius)-4px)] bg-primary/10 text-primary grid place-items-center">
                     <CheckCircle className="size-4" />
                   </div>
                   <div>
                     <div className="text-xs text-muted-foreground">مكتمل</div>
-                    <div className="text-lg font-semibold text-green-600">{stats.completedToday}</div>
+                    <div className="text-lg font-semibold text-black">{stats.completedToday}</div>
                   </div>
                 </CardContent>
               </Card>
@@ -178,19 +178,19 @@ export default function CalendarPage() {
                   </div>
                   <div>
                     <div className="text-xs text-muted-foreground">منتظر</div>
-                    <div className="text-lg font-semibold text-amber-600">{stats.pendingToday}</div>
+                    <div className="text-lg font-semibold text-black">{stats.pendingToday}</div>
                   </div>
                 </CardContent>
               </Card>
               
               <Card className="bg-card/70">
                 <CardContent className="flex items-center gap-3 py-3">
-                  <div className="size-8 rounded-[calc(var(--radius)-4px)] bg-blue-500/10 text-blue-600 grid place-items-center">
+                  <div className="size-8 rounded-[calc(var(--radius)-4px)] bg-primary/10 text-primary grid place-items-center">
                     <CalendarDays className="size-4" />
                   </div>
                   <div>
                     <div className="text-xs text-muted-foreground">قادمة</div>
-                    <div className="text-lg font-semibold text-blue-600">{stats.upcoming}</div>
+                    <div className="text-lg font-semibold text-black">{stats.upcoming}</div>
                   </div>
                 </CardContent>
               </Card>
@@ -396,6 +396,11 @@ export default function CalendarPage() {
         {/* Online Bookings - Moved below main tables */}
         <div className="mt-4 md:mt-6">
           <div className="space-y-3">
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-2.5 md:p-3 flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 md:h-5 md:w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+              <p className="text-xs md:text-sm text-blue-700">الحجوزات الجديدة من النت بتظهر هنا</p>
+            </div>
+
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="p-1.5 rounded-lg bg-green-500/10 text-green-600">
@@ -415,14 +420,6 @@ export default function CalendarPage() {
                 <RefreshCw className="w-3 h-3 md:w-4 md:h-4" />
                 <span className="hidden sm:inline">تحديث</span>
               </Button>
-            </div>
-
-            {/* Info box */}
-            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-2.5 md:p-3 flex items-start gap-2">
-              <AlertCircle className="h-4 w-4 md:h-5 md:w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-              <p className="text-xs md:text-sm text-blue-700">
-                الحجوزات الجديدة من النت بتظهر هنا
-              </p>
             </div>
 
             <Card className="bg-card/70">
@@ -457,7 +454,7 @@ export default function CalendarPage() {
         </Button>
       </div>
 
-      {/* Create Appointment Dialog */}
+      { /* Create Appointment Dialog */}
       <AppointmentCreateDialog open={open} onClose={() => setOpen(false)} />
     </div>
   )

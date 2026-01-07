@@ -155,7 +155,7 @@ export default function WorkModePage() {
 
         {/* Stats */}
         <div className="mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Card className="bg-card/70">
               <CardContent className="flex items-center gap-3 py-3">
                 <div className="size-8 rounded-[calc(var(--radius)-4px)] bg-primary/10 text-primary grid place-items-center">

@@ -53,10 +53,10 @@ export function PersonalizationSettings() {
       // Apply defaults immediately
       const defaultColors = { primary: '#1AA19C', secondary: '#224FB5', accent: '#FF6B6B' };
       applyColors(defaultColors.primary, defaultColors.secondary, defaultColors.accent);
-      applyThemeMode('system');
+      applyThemeMode('light');
       // Update local state
       setColorState(defaultColors);
-      setThemeMode('system');
+      setThemeMode('light');
       setSidebarStyle('default');
       toast.success(result.message);
     } catch (error) {

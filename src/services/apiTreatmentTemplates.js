@@ -110,3 +110,37 @@ export async function getTreatmentTemplates() {
     }
     return data;
 }
+
+export async function deleteTreatmentTemplate(id) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("Not authenticated");
+
+    const { data: userData } = await supabase
+        .from("users")
+        .select("clinic_id")
+        .eq("user_id", session.user.id)
+        .single();
+
+    if (!userData?.clinic_id) throw new Error("User has no clinic assigned");
+
+    // Prevent deletion if template is used in patient plans
+    const { count: usageCount, error: usageError } = await supabase
+        .from('patient_plans')
+        .select('*', { count: 'exact', head: true })
+        .eq('template_id', id)
+        .eq('clinic_id', userData.clinic_id);
+
+    if (usageError) throw new Error(usageError.message);
+    if (usageCount && usageCount > 0) {
+        throw new Error('لا يمكن حذف هذه الخطة لأنها مستخدمة في خطط المرضى');
+    }
+
+    const { error } = await supabase
+        .from("treatment_templates")
+        .delete()
+        .eq("id", id)
+        .eq("clinic_id", userData.clinic_id);
+
+    if (error) throw new Error(error.message);
+    return true;
+}

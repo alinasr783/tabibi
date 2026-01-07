@@ -136,43 +136,79 @@ export async function getFinancialSummary(filters = {}) {
 
     if (!clinicIdBigint) throw new Error("User has no clinic assigned")
 
-    // Get income summary
-    let incomeQuery = supabase
+    // Get all records for calculation
+    let query = supabase
         .from("financial_records")
-        .select("sum(amount)")
+        .select("amount, type")
         .eq("clinic_id", clinicIdBigint)
-        .eq("type", "income")
 
     // Apply date filter if provided
     if (filters.startDate && filters.endDate) {
-        incomeQuery = incomeQuery
+        query = query
             .gte('recorded_at', filters.startDate)
             .lte('recorded_at', filters.endDate)
     }
 
-    const { data: incomeData, error: incomeError } = await incomeQuery.single()
-    if (incomeError) throw incomeError
+    const { data, error } = await query
+    if (error) throw error
 
-    // Get expense summary
-    let expenseQuery = supabase
-        .from("financial_records")
-        .select("sum(amount)")
-        .eq("clinic_id", clinicIdBigint)
-        .eq("type", "expense")
+    const totalIncome = data
+        .filter(r => r.type === 'income')
+        .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
 
-    // Apply date filter if provided
-    if (filters.startDate && filters.endDate) {
-        expenseQuery = expenseQuery
-            .gte('recorded_at', filters.startDate)
-            .lte('recorded_at', filters.endDate)
-    }
-
-    const { data: expenseData, error: expenseError } = await expenseQuery.single()
-    if (expenseError) throw expenseError
+    const totalExpense = data
+        .filter(r => r.type === 'expense')
+        .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
 
     return {
-        totalIncome: incomeData.sum || 0,
-        totalExpense: expenseData.sum || 0,
-        netProfit: (incomeData.sum || 0) - (expenseData.sum || 0)
+        totalIncome,
+        totalExpense,
+        netProfit: totalIncome - totalExpense
     }
+}
+
+export async function getFinancialChartData(filters = {}) {
+    // Get current user's clinic_id (bigint)
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) throw new Error("Not authenticated")
+
+    const { data: userData } = await supabase
+        .from("users")
+        .select("clinic_id_bigint, clinic_id")
+        .eq("user_id", session.user.id)
+        .single()
+
+    // Use clinic_id_bigint for financial_records table
+    let clinicIdBigint = userData?.clinic_id_bigint
+    
+    if (!clinicIdBigint && userData?.clinic_id) {
+        const { data: clinicData } = await supabase
+            .from("clinics")
+            .select("clinic_id_bigint, id")
+            .eq("clinic_uuid", userData.clinic_id)
+            .single()
+        
+        clinicIdBigint = clinicData?.clinic_id_bigint || clinicData?.id
+    }
+
+    if (!clinicIdBigint) throw new Error("User has no clinic assigned")
+
+    // Get all records for charts
+    let query = supabase
+        .from("financial_records")
+        .select("amount, type, recorded_at, description")
+        .eq("clinic_id", clinicIdBigint)
+        .order("recorded_at", { ascending: true })
+
+    // Apply date filter if provided
+    if (filters.startDate && filters.endDate) {
+        query = query
+            .gte('recorded_at', filters.startDate)
+            .lte('recorded_at', filters.endDate)
+    }
+
+    const { data, error } = await query
+    if (error) throw error
+
+    return data ?? []
 }

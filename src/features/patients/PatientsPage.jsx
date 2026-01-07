@@ -1,4 +1,4 @@
-import { Search, Plus, X, Users, UserPlus, UserCheck, UserX, Calendar } from "lucide-react";
+import { Search, Plus, X, Users, Calendar } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
@@ -44,9 +44,7 @@ export default function PatientsPage() {
   // Calculate statistics
   const allPatients = data?.items || [];
   const totalPatients = data?.total || 0;
-  const activePatients = allPatients.filter(p => p.status === "active").length;
-  const newPatients = allPatients.filter(p => p.status === "new").length;
-  const inactivePatients = allPatients.filter(p => p.status === "inactive").length;
+  
   const todaysPatients = allPatients.filter(p => {
     const today = new Date().toISOString().split('T')[0];
     return p.createdAt && p.createdAt.split('T')[0] === today;
@@ -72,13 +70,7 @@ export default function PatientsPage() {
   };
 
   // Filter patients based on status
-  const filteredPatients = allPatients.filter(patient => {
-    if (statusFilter === "all") return true;
-    if (statusFilter === "active") return patient.status === "active";
-    if (statusFilter === "new") return patient.status === "new";
-    if (statusFilter === "inactive") return patient.status === "inactive";
-    return true;
-  });
+  const filteredPatients = allPatients;
 
   const handleResetFilters = () => {
     setQuery("");
@@ -117,58 +109,34 @@ export default function PatientsPage() {
             </div>
             <div>
               <div className="text-xs text-muted-foreground">الإجمالي</div>
-              <div className="text-lg font-semibold">{totalPatients}</div>
-            </div>
-          </CardContent>
-        </Card>
+              <div className="text-lg font-semibold text-black">{totalPatients}</div>
+          </div>
+        </CardContent>
+      </Card>
         
         <Card className="bg-card/70">
           <CardContent className="flex items-center gap-3 py-3">
-            <div className="size-8 rounded-[calc(var(--radius)-4px)] bg-green-500/10 text-green-600 grid place-items-center">
-              <UserCheck className="size-4" />
+            <div className="size-8 rounded-[calc(var(--radius)-4px)] bg-primary/10 text-primary grid place-items-center">
+              <Calendar className="size-4" />
             </div>
             <div>
-              <div className="text-xs text-muted-foreground">نشط</div>
-              <div className="text-lg font-semibold text-green-600">{activePatients}</div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-card/70">
-          <CardContent className="flex items-center gap-3 py-3">
-            <div className="size-8 rounded-[calc(var(--radius)-4px)] bg-blue-500/10 text-blue-600 grid place-items-center">
-              <UserPlus className="size-4" />
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">جديد</div>
-              <div className="text-lg font-semibold text-blue-600">{newPatients}</div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-card/70">
-          <CardContent className="flex items-center gap-3 py-3">
-            <div className="size-8 rounded-[calc(var(--radius)-4px)] bg-amber-500/10 text-amber-600 grid place-items-center">
-              <UserX className="size-4" />
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">غير نشط</div>
-              <div className="text-lg font-semibold text-amber-600">{inactivePatients}</div>
+              <div className="text-xs text-muted-foreground">جديد اليوم</div>
+              <div className="text-lg font-semibold text-black">{todaysPatients}</div>
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Search and Filters Bar */}
-      <Card className="bg-card/70">
+      <Card className="bg-card/70 border-0 shadow-none">
         <CardContent className="p-4">
           <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
             {/* Search Input */}
-            <div className="relative flex-1">
+            <div className="relative flex-1 w-full lg:w-auto">
               <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input
                 className="pr-10 h-11 text-base"
-                placeholder="دور على المريض بالاسم أو الموبايل"
+                placeholder="دور على المريض بالاسم، الموبايل أو ID"
                 value={query}
                 onChange={(e) => {
                   setQuery(e.target.value);
@@ -177,46 +145,8 @@ export default function PatientsPage() {
               />
             </div>
             
-            {/* Status Filters */}
             <div className="flex flex-wrap gap-2">
-              <Button
-                variant={statusFilter === "all" ? "default" : "outline"}
-                size="sm"
-                className="h-9"
-                onClick={() => setStatusFilter("all")}
-              >
-                الكل
-              </Button>
-              <Button
-                variant={statusFilter === "active" ? "default" : "outline"}
-                size="sm"
-                className="h-9 gap-2"
-                onClick={() => setStatusFilter("active")}
-              >
-                <div className="h-2 w-2 rounded-full bg-green-500"></div>
-                نشط
-              </Button>
-              <Button
-                variant={statusFilter === "new" ? "default" : "outline"}
-                size="sm"
-                className="h-9 gap-2"
-                onClick={() => setStatusFilter("new")}
-              >
-                <div className="h-2 w-2 rounded-full bg-blue-500"></div>
-                جديد
-              </Button>
-              <Button
-                variant={statusFilter === "inactive" ? "default" : "outline"}
-                size="sm"
-                className="h-9 gap-2"
-                onClick={() => setStatusFilter("inactive")}
-              >
-                <div className="h-2 w-2 rounded-full bg-amber-500"></div>
-                مش نشط
-              </Button>
-              
-              {/* Reset Filters */}
-              {(query || statusFilter !== "all") && (
+              {(query) && (
                 <Button
                   variant="ghost"
                   size="sm"

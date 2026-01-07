@@ -31,8 +31,13 @@ export async function getAppointments(search, page, pageSize, filters = {}) {
     const from = Math.max(0, (page - 1) * pageSize)
     const to = from + pageSize - 1
 
-    // Determine if we need inner join for search
-    const patientRelation = search ? 'patient:patients!inner(id, name, phone)' : 'patient:patients(id, name, phone)'
+    // Detect if search is appointment ID (UUID or strict ID)
+    const isIdSearch = !!search && /^(?:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|\d+)$/.test(search.trim())
+
+    // Determine if we need inner join for patient search only
+    const patientRelation = (!search || isIdSearch) 
+        ? 'patient:patients(id, name, phone)' 
+        : 'patient:patients!inner(id, name, phone)'
     console.log("getAppointments/patientRelation", patientRelation)
 
     let query = supabase
@@ -121,10 +126,17 @@ export async function getAppointments(search, page, pageSize, filters = {}) {
         query = query.neq('notes', '')
     }
 
-    // Apply search term if provided
+    // Apply search by ID or by patient fields
     if (search) {
-        query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%`, { foreignTable: 'patients' })
-        console.log("getAppointments/search", search)
+        if (isIdSearch) {
+            // Exact match on appointment ID within the same clinic
+            query = query.eq('id', search.trim())
+            console.log("getAppointments/searchById", search)
+        } else {
+            // Patient name/phone search
+            query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%`, { foreignTable: 'patients' })
+            console.log("getAppointments/search", search)
+        }
     }
 
     const { data, error, count } = await query
