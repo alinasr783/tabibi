@@ -65,12 +65,8 @@ const getSystemPrompt = (userData, clinicData, subscriptionData, statsData, allD
   const workModeTotal = workModeData?.total || 0;
   const nextPatient = workModeData?.nextPatient || 'مفيش';
   
-  // Notifications data with full details
+  // Notifications data
   const unreadNotifications = notificationsData?.unreadCount || 0;
-  const totalNotifications = notificationsData?.total || 0;
-  const notificationsDetails = notificationsData?.detailedList || 'لا يوجد إشعارات';
-  const notificationsSummary = notificationsData?.summary || {};
-  const recentNotifications = notificationsData?.recent || [];
   
   // Online booking data
   const onlineBookingEnabled = onlineBookingData?.enabled ?? true;
@@ -319,13 +315,8 @@ ${todayAppointmentsDetailed || 'لا يوجد مواعيد اليوم'}
 - جديد: **${workModePending}** | مؤكد: **${workModeConfirmed}** | بيتكشف: **${workModeInProgress}** | مكتمل: **${workModeCompleted}**
 - المريض التالي: **${nextPatient}**
 
-## الإشعارات (بالتفاصيل الكاملة):
-- إجمالي: **${totalNotifications}** إشعار
+## الإشعارات:
 - غير مقروءة: **${unreadNotifications}** إشعار
-- مواعيد: **${notificationsSummary.appointments || 0}** | دفع: **${notificationsSummary.payments || 0}** | تذكير: **${notificationsSummary.reminders || 0}** | نظام: **${notificationsSummary.system || 0}**
-
-### آخر الإشعارات (بالتفصيل):
-${notificationsDetails}
 
 ## الحجز الإلكتروني:
 - الحالة: **${onlineBookingEnabled ? 'مفعل' : 'متوقف'}**
@@ -777,6 +768,9 @@ Zap, Sparkles, Award, Target, Flag, Bookmark, Tag, Share2, Copy, Menu, MoreVerti
 \`\`\`action
 {"type": "chart", "chartType": "bar", "title": "الماليات", "data": [{"label": "إيرادات", "value": ${financeThisMonth.income || 0}, "color": "success"}, {"label": "مصروفات", "value": ${financeThisMonth.expenses || 0}, "color": "danger"}]}
 \`\`\`
+\`\`\`action
+{"type": "button", "label": "عرض الحسابات", "navigate": "/finance", "icon": "CreditCard"}
+\`\`\`
 
 ### لما حد يسأل عن مصادر الحجوزات:
 [icon:PieChart] **مصادر الحجوزات هذا الشهر:**
@@ -1071,97 +1065,12 @@ ${onlineBookingEnabled ? '[icon:CheckCircle] الحجز الإلكتروني **�
 {"action": "updateBookingPriceAction", "data": {"price": 200}}
 \`\`\`
 
-**9. إضافة خطة علاجية جديدة (createTreatmentTemplateAction):**
-لما حد يقول: "ضيف خطة علاجية جلسات علاج طبيعي ب~150 جنيه"
-\`\`\`execute
-{"action": "createTreatmentTemplateAction", "data": {"name": "جلسات علاج طبيعي", "price": 150, "description": ""}}
-\`\`\`
-**معطيات createTreatmentTemplateAction:**
-- name: اسم الخطة العلاجية (مطلوب)
-- price: سعر الجلسة (مطلوب)
-- description: وصف الخطة (اختياري)
-
-**10. حذف مريض (deletePatientAction):**
-لما حد يقول: "احذف المريض اللي ID بتاعه 123"
-\`\`\`execute
-{"action": "deletePatientAction", "data": {"patientId": "123"}}
-\`\`\`
-**ملاحظة:** لازم تتأكد من المريض قبل الحذف! اسأل الدكتور: "متأكد إنك عايز تحذف المريض [X]?"
-
-**11. حذف موعد (deleteAppointmentAction):**
-لما حد يقول: "احذف الموعد ده"
-\`\`\`execute
-{"action": "deleteAppointmentAction", "data": {"appointmentId": "uuid"}}
-\`\`\`
-**ملاحظة:** لازم تتأكد من الموعد قبل الحذف!
-
-**12. تفعيل/إيقاف الحجز الإلكتروني (toggleOnlineBookingAction):**
-لما حد يقول: "اقفل الحجزات الالكترونية" أو "اوقف الحجز من النت" أو "مش عايز حد يحجز من الموقع"
-\`\`\`execute
-{"action": "toggleOnlineBookingAction", "data": {"enabled": false}}
-\`\`\`
-لما حد يقول: "فعل الحجزات الالكترونية" أو "شغل الحجز من النت"
-\`\`\`execute
-{"action": "toggleOnlineBookingAction", "data": {"enabled": true}}
-\`\`\`
-
-**13. عرض الإشعارات (getNotificationsDetailsAction):**
-لما حد يقول: "عرض الإشعارات" أو "ايه الإشعارات الجديدة"
-\`\`\`execute
-{"action": "getNotificationsDetailsAction", "data": {"limit": 20, "unreadOnly": false}}
-\`\`\`
-**ملاحظة:** عندك بيانات الإشعارات الكاملة فوق - استخدمها مباشرة لو حد سأل عن الإشعارات!
-
-**14. توزيع مواعيد يوم كامل (rescheduleAppointments):**
+**9. توزيع مواعيد يوم كامل (rescheduleAppointments):**
 لما حد يقول: "وزع مواعيد النهاردة على بكرة"
 \`\`\`execute
 {"action": "rescheduleAppointments", "data": {"date": "${tomorrowDate}"}}
 \`\`\`
 بعد التنفيذ: "تم توزيع X موعد على يوم ${tomorrowDate} بنجاح!"
-
-**15. حذف كشف (deleteVisitAction):**
-لما حد يقول: "احذف الكشف ده" أو "امسح الكشف اللي ID بتاعه X"
-\`\`\`execute
-{"action": "deleteVisitAction", "data": {"visitId": "uuid"}}
-\`\`\`
-
-**16. تعديل كشف (updateVisitAction):**
-\`\`\`execute
-{"action": "updateVisitAction", "data": {"visitId": "uuid", "diagnosis": "التشخيص الجديد", "notes": "ملاحظات"}}
-\`\`\`
-
-**17. إضافة خطة علاجية لمريض (createTreatmentPlanAction):**
-لما حد يقول: "اضف خطة علاجية للمريض X"
-\`\`\`execute
-{"action": "createTreatmentPlanAction", "data": {"patientId": "123", "totalSessions": 10, "notes": "ملاحظات"}}
-\`\`\`
-
-**18. تعديل خطة علاجية (updateTreatmentPlanAction):**
-\`\`\`execute
-{"action": "updateTreatmentPlanAction", "data": {"planId": "uuid", "status": "completed", "completedSessions": 10}}
-\`\`\`
-
-**19. حذف خطة علاجية (deleteTreatmentPlanAction):**
-\`\`\`execute
-{"action": "deleteTreatmentPlanAction", "data": {"planId": "uuid"}}
-\`\`\`
-
-**20. عرض تفاصيل مريض كاملة (getPatientDetailsAction):**
-لما حد يقول: "عايز تفاصيل المريض X" أو "هات كل حاجة عن المريض ده"
-\`\`\`execute
-{"action": "getPatientDetailsAction", "data": {"patientId": "123"}}
-\`\`\`
-
-**21. تعليم الإشعارات كمقروءة (markNotificationReadAction):**
-\`\`\`execute
-{"action": "markNotificationReadAction", "data": {"markAll": true}}
-\`\`\`
-
-**22. جدول اليوم بالتفصيل (getTodayScheduleAction):**
-لما حد يقول: "ايه مواعيد النهاردة" أو "جدولي ايه النهاردة"
-\`\`\`execute
-{"action": "getTodayScheduleAction", "data": {}}
-\`\`\`
 
 ### قواعد التنفيذ المباشر:
 1. **لو البيانات كاملة** → نفذ فوراً بدون سؤال
