@@ -8,16 +8,14 @@ import { Badge } from "../../components/ui/badge";
 import * as LucideIcons from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "../../lib/utils";
-import ChartRenderer from "./ChartRenderer";
-import TableRenderer, { ComparisonTableRenderer } from "./TableRenderer";
 
 // Import commonly used icons
-const {
-  Calendar,
-  Users,
-  Building,
-  CreditCard,
-  Settings,
+const { 
+  Calendar, 
+  Users, 
+  Building, 
+  CreditCard, 
+  Settings, 
   FileText,
   Bell,
   Clock,
@@ -115,9 +113,9 @@ function withAnimation(Component, animationConfig) {
   if (!animationConfig || !animationConfig.animation) {
     return Component;
   }
-
+  
   const { animation, duration = 300, direction = 'right' } = animationConfig;
-
+  
   const animationVariants = {
     fadeIn: {
       initial: { opacity: 0 },
@@ -125,7 +123,7 @@ function withAnimation(Component, animationConfig) {
       transition: { duration: duration / 1000 }
     },
     slideIn: {
-      initial: {
+      initial: { 
         opacity: 0,
         x: direction === 'left' ? -20 : direction === 'right' ? 20 : 0,
         y: direction === 'up' ? -20 : direction === 'down' ? 20 : 0
@@ -140,11 +138,11 @@ function withAnimation(Component, animationConfig) {
     },
     bounce: {
       initial: { opacity: 0, scale: 0.3 },
-      animate: {
-        opacity: 1,
+      animate: { 
+        opacity: 1, 
         scale: [0.3, 1.1, 0.9, 1.05, 1],
       },
-      transition: {
+      transition: { 
         duration: duration / 1000,
         times: [0, 0.4, 0.6, 0.8, 1],
         ease: 'easeOut'
@@ -152,20 +150,20 @@ function withAnimation(Component, animationConfig) {
     },
     pulse: {
       initial: { opacity: 1, scale: 1 },
-      animate: {
+      animate: { 
         opacity: [1, 0.8, 1],
         scale: [1, 1.05, 1]
       },
-      transition: {
+      transition: { 
         duration: duration / 1000,
         repeat: Infinity,
         repeatType: 'loop'
       }
     }
   };
-
+  
   const variant = animationVariants[animation] || animationVariants.fadeIn;
-
+  
   return (
     <motion.div
       initial={variant.initial}
@@ -191,10 +189,7 @@ export const ACTION_TYPES = {
   COMPONENT: "component",
   DATA_TABLE: "data_table",
   FORM: "form",
-  CHART: "chart",
-  TABLE: "table",
-  RECHARTS: "recharts",  // New: Recharts visualization
-  COMPARISON_TABLE: "comparison_table"  // New: Comparison table
+  CHART: "chart"
 };
 
 // ========================
@@ -364,14 +359,8 @@ export function InlineIcon({ name, className = "" }) {
 function ActionButton({ action, onAction }) {
   const navigate = useNavigate();
   const IconComponent = getIcon(action.icon) || IconMap[action.icon];
-
+  
   const handleClick = () => {
-    // ALWAYS send the button label as a message to the chat first
-    // This makes the conversation flow naturally
-    if (action.label && onAction) {
-      onAction("sendMessage", action.label);
-    }
-
     if (action.navigate) {
       // Navigate to a page
       onAction?.("navigate", action.navigate);
@@ -386,7 +375,7 @@ function ActionButton({ action, onAction }) {
       onAction?.("custom", action.onClick);
     }
   };
-
+  
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -419,7 +408,7 @@ function ActionButton({ action, onAction }) {
 // ========================
 function ActionLink({ action }) {
   const navigate = useNavigate();
-
+  
   return (
     <button
       onClick={() => navigate(action.to)}
@@ -438,7 +427,7 @@ function ActionInput({ action, onAction }) {
   const [value, setValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
-
+  
   const handleSubmit = async () => {
     if (!value.trim()) return;
     setIsLoading(true);
@@ -446,7 +435,7 @@ function ActionInput({ action, onAction }) {
     setIsSubmitted(true);
     setIsLoading(false);
   };
-
+  
   if (isSubmitted) {
     return (
       <div className="flex items-center gap-2 py-2 px-3 rounded-lg bg-green-500/10 border border-green-500/20">
@@ -457,7 +446,7 @@ function ActionInput({ action, onAction }) {
       </div>
     );
   }
-
+  
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -478,9 +467,9 @@ function ActionInput({ action, onAction }) {
           className="flex-1"
           type={action.inputType || "text"}
         />
-        <Button
-          onClick={handleSubmit}
-          disabled={isLoading || !value.trim()}
+        <Button 
+          onClick={handleSubmit} 
+          disabled={isLoading || !value.trim()} 
           size="icon"
           className="bg-primary hover:bg-primary/90"
         >
@@ -498,7 +487,7 @@ function ActionForm({ action, onAction }) {
   const [formData, setFormData] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
-
+  
   // Initialize form data from fields
   useEffect(() => {
     const initialData = {};
@@ -507,11 +496,11 @@ function ActionForm({ action, onAction }) {
     });
     setFormData(initialData);
   }, [action.fields]);
-
+  
   const handleFieldChange = (fieldId, value) => {
     setFormData(prev => ({ ...prev, [fieldId]: value }));
   };
-
+  
   const handleSubmit = async () => {
     setIsLoading(true);
     // Send all form data to the AI as a message
@@ -522,9 +511,9 @@ function ActionForm({ action, onAction }) {
         return `${field?.label || key}: ${value}`;
       })
       .join("\n");
-
-    await onAction?.("formSubmit", {
-      formId: action.id,
+    
+    await onAction?.("formSubmit", { 
+      formId: action.id, 
       data: formData,
       formattedMessage: formattedData,
       action: action.submitAction
@@ -532,14 +521,14 @@ function ActionForm({ action, onAction }) {
     setIsSubmitted(true);
     setIsLoading(false);
   };
-
+  
   const isValid = (action.fields || []).every(field => {
     if (field.required) {
       return formData[field.id] && formData[field.id].toString().trim() !== "";
     }
     return true;
   });
-
+  
   if (isSubmitted) {
     return (
       <motion.div
@@ -556,7 +545,7 @@ function ActionForm({ action, onAction }) {
       </motion.div>
     );
   }
-
+  
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -572,7 +561,7 @@ function ActionForm({ action, onAction }) {
           {action.title}
         </h4>
       )}
-
+      
       <div className="space-y-3">
         {(action.fields || []).map((field, index) => (
           <div key={field.id || index} className="space-y-1.5">
@@ -590,7 +579,7 @@ function ActionForm({ action, onAction }) {
           </div>
         ))}
       </div>
-
+      
       <Button
         onClick={handleSubmit}
         disabled={isLoading || !isValid}
@@ -617,7 +606,7 @@ function ActionProgress({ action }) {
     if (action.value >= 50) return 'bg-amber-500';
     return 'bg-primary';
   };
-
+  
   return (
     <div className="p-3 rounded-xl bg-muted/30 border border-border/50">
       <div className="flex justify-between items-center mb-2">
@@ -625,8 +614,8 @@ function ActionProgress({ action }) {
         <span className={cn(
           "px-2 py-0.5 rounded-full text-xs font-bold",
           action.value >= 80 ? "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300" :
-            action.value >= 50 ? "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300" :
-              "bg-primary/10 text-primary"
+          action.value >= 50 ? "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300" :
+          "bg-primary/10 text-primary"
         )}>
           {action.value}%
         </span>
@@ -646,7 +635,7 @@ function ActionProgress({ action }) {
 // ========================
 function ActionCard({ action, onAction }) {
   const IconComponent = getIcon(action.icon) || IconMap[action.icon] || Info;
-
+  
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -719,17 +708,17 @@ function ActionAlert({ action }) {
     warning: "bg-amber-50 dark:bg-amber-950/50 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200",
     error: "bg-red-50 dark:bg-red-950/50 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200"
   };
-
+  
   const icons = {
     info: Info,
     success: CheckCircle,
     warning: AlertTriangle,
     error: AlertCircle
   };
-
+  
   const variant = action.variant || "info";
   const IconComponent = icons[variant];
-
+  
   return (
     <motion.div
       initial={{ opacity: 0, x: -20 }}
@@ -772,8 +761,8 @@ function ActionSteps({ action }) {
           <div key={index} className="flex items-center gap-3">
             <div className={cn(
               "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0",
-              step.completed
-                ? "bg-green-500 text-white"
+              step.completed 
+                ? "bg-green-500 text-white" 
                 : "bg-primary text-primary-foreground"
             )}>
               {step.completed ? <CheckCircle className="w-3.5 h-3.5" /> : index + 1}
@@ -796,12 +785,12 @@ function ActionSteps({ action }) {
 // ========================
 function QuickActionsGrid({ actions, onAction }) {
   const navigate = useNavigate();
-
+  
   return (
     <div className="grid grid-cols-2 gap-2">
       {actions.map((action, index) => {
         const IconComponent = getIcon(action.icon) || IconMap[action.icon];
-
+        
         return (
           <button
             key={index}
@@ -844,7 +833,7 @@ function ActionChart({ action }) {
     indigo: 'bg-indigo-500',
     cyan: 'bg-cyan-500'
   };
-
+  
   const strokeColorMap = {
     primary: 'stroke-primary',
     secondary: 'stroke-muted-foreground',
@@ -854,26 +843,12 @@ function ActionChart({ action }) {
     blue: 'stroke-blue-500',
     purple: 'stroke-purple-500'
   };
-
+  
   // Handle both array format (old charts) and object format (multi-line)
   const rawData = action.data || [];
   const data = Array.isArray(rawData) ? rawData : [];
+  const maxValue = data.length > 0 ? Math.max(...data.map(d => d.value), 1) : 1;
   
-  // Validate data - ensure all items have value property
-  const validData = data.filter(item => item && typeof item.value === 'number');
-  const maxValue = validData.length > 0 ? Math.max(...validData.map(d => d.value), 1) : 1;
-
-  // Return error message if no valid data
-  if (validData.length === 0 && action.chartType !== 'multi-line') {
-    return (
-      <div className="p-4 rounded-xl bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800">
-        <p className="text-sm text-red-600 dark:text-red-400">
-          ⚠️ مفيش بيانات صحيحة لعرض الرسم البياني
-        </p>
-      </div>
-    );
-  }
-
   // Vertical Bar Chart
   if (action.chartType === 'bar' || action.chartType === 'vertical-bar') {
     return (
@@ -885,7 +860,7 @@ function ActionChart({ action }) {
           </h4>
         )}
         <div className="flex items-end justify-around gap-2" style={{ height: '128px' }}>
-          {validData.map((item, index) => {
+          {data.map((item, index) => {
             const barHeight = maxValue > 0 ? (item.value / maxValue) * 100 : 0;
             const heightPx = maxValue > 0 ? Math.max((item.value / maxValue) * 112, 8) : 8; // 112px is ~88% of 128px container
             return (
@@ -896,7 +871,7 @@ function ActionChart({ action }) {
                     "w-full rounded-t-md transition-all duration-500",
                     colorMap[item.color] || 'bg-primary'
                   )}
-                  style={{
+                  style={{ 
                     height: `${heightPx}px`
                   }}
                 />
@@ -910,7 +885,7 @@ function ActionChart({ action }) {
       </div>
     );
   }
-
+  
   // Horizontal Bar Chart
   if (action.chartType === 'horizontal-bar') {
     return (
@@ -922,7 +897,7 @@ function ActionChart({ action }) {
           </h4>
         )}
         <div className="space-y-3">
-          {validData.map((item, index) => (
+          {data.map((item, index) => (
             <div key={index} className="space-y-1">
               <div className="flex justify-between items-center text-sm">
                 <span className="text-muted-foreground">{item.label}</span>
@@ -943,7 +918,7 @@ function ActionChart({ action }) {
       </div>
     );
   }
-
+  
   // Line Chart
   if (action.chartType === 'line') {
     const width = 300;
@@ -951,22 +926,22 @@ function ActionChart({ action }) {
     const padding = 20;
     const chartWidth = width - (padding * 2);
     const chartHeight = height - (padding * 2);
-
+    
     // Calculate points
-    const points = validData.map((item, index) => {
-      const x = padding + (index / Math.max(validData.length - 1, 1)) * chartWidth;
+    const points = data.map((item, index) => {
+      const x = padding + (index / Math.max(data.length - 1, 1)) * chartWidth;
       const y = padding + chartHeight - (item.value / maxValue) * chartHeight;
       return { x, y, ...item };
     });
-
+    
     // Create path
     const pathD = points.map((point, index) => {
       return `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`;
     }).join(' ');
-
+    
     // Create area path
     const areaD = `${pathD} L ${points[points.length - 1]?.x || padding} ${height - padding} L ${padding} ${height - padding} Z`;
-
+    
     return (
       <div className="p-4 rounded-xl bg-muted/20 border border-border/50">
         {action.title && (
@@ -989,13 +964,13 @@ function ActionChart({ action }) {
               strokeDasharray="4 4"
             />
           ))}
-
+          
           {/* Area fill */}
           <path
             d={areaD}
             className="fill-primary/10"
           />
-
+          
           {/* Line */}
           <path
             d={pathD}
@@ -1004,7 +979,7 @@ function ActionChart({ action }) {
             strokeLinecap="round"
             strokeLinejoin="round"
           />
-
+          
           {/* Points */}
           {points.map((point, index) => (
             <g key={index}>
@@ -1037,7 +1012,7 @@ function ActionChart({ action }) {
       </div>
     );
   }
-
+  
   // Multi-Line Chart
   if (action.chartType === 'multi-line') {
     const width = 300;
@@ -1045,16 +1020,16 @@ function ActionChart({ action }) {
     const padding = 20;
     const chartWidth = width - (padding * 2);
     const chartHeight = height - (padding * 2);
-
+    
     // Parse data - use rawData for object format
     const chartData = typeof rawData === 'object' && !Array.isArray(rawData) ? rawData : {};
     const datasets = chartData.datasets || [];
     const labels = chartData.labels || [];
-
+    
     // Calculate max value across all datasets
     const allValues = datasets.flatMap(ds => ds.data || []);
     const chartMaxValue = Math.max(...allValues, 1);
-
+    
     // Color mapping for datasets
     const lineColorMap = {
       primary: '#6366f1',
@@ -1068,7 +1043,7 @@ function ActionChart({ action }) {
       indigo: '#4f46e5',
       cyan: '#06b6d4'
     };
-
+    
     return (
       <div className="p-4 rounded-xl bg-muted/20 border border-border/50">
         {action.title && (
@@ -1077,7 +1052,7 @@ function ActionChart({ action }) {
             {action.title}
           </h4>
         )}
-
+        
         <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-32">
           {/* Grid lines */}
           {[0, 25, 50, 75, 100].map((percent, i) => (
@@ -1092,24 +1067,24 @@ function ActionChart({ action }) {
               strokeDasharray="4 4"
             />
           ))}
-
+          
           {/* Render each dataset as a line */}
           {datasets.map((dataset, datasetIndex) => {
             const datasetData = dataset.data || [];
             const color = lineColorMap[dataset.color] || lineColorMap.primary;
-
+            
             // Calculate points for this dataset
             const points = datasetData.map((value, index) => {
               const x = padding + (index / Math.max(labels.length - 1, 1)) * chartWidth;
               const y = padding + chartHeight - (value / chartMaxValue) * chartHeight;
               return { x, y, value, label: labels[index] };
             });
-
+            
             // Create path for this dataset
             const pathD = points.map((point, index) => {
               return `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`;
             }).join(' ');
-
+            
             return (
               <g key={datasetIndex}>
                 {/* Line */}
@@ -1121,7 +1096,7 @@ function ActionChart({ action }) {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
-
+                
                 {/* Points */}
                 {points.map((point, index) => (
                   <circle
@@ -1137,7 +1112,7 @@ function ActionChart({ action }) {
               </g>
             );
           })}
-
+          
           {/* X-axis labels */}
           {labels.map((label, index) => {
             const x = padding + (index / Math.max(labels.length - 1, 1)) * chartWidth;
@@ -1154,15 +1129,15 @@ function ActionChart({ action }) {
             );
           })}
         </svg>
-
+        
         {/* Legend */}
         <div className="mt-3 flex flex-wrap gap-3 text-xs">
           {datasets.map((dataset, index) => {
             const color = lineColorMap[dataset.color] || lineColorMap.primary;
             return (
               <div key={index} className="flex items-center gap-1.5">
-                <div
-                  className="w-3 h-3 rounded-sm"
+                <div 
+                  className="w-3 h-3 rounded-sm" 
                   style={{ backgroundColor: color }}
                 />
                 <span className="text-muted-foreground">{dataset.label}</span>
@@ -1173,47 +1148,47 @@ function ActionChart({ action }) {
       </div>
     );
   }
-
+  
   // Pie Chart
   if (action.chartType === 'pie' || action.chartType === 'donut') {
-    const total = validData.reduce((sum, d) => sum + d.value, 0);
+    const total = data.reduce((sum, d) => sum + d.value, 0);
     const radius = 50;
     const centerX = 60;
     const centerY = 60;
     const innerRadius = action.chartType === 'donut' ? 25 : 0;
-
+    
     // Calculate pie slices
     let currentAngle = -90; // Start from top
-    const slices = validData.map((item, index) => {
+    const slices = data.map((item, index) => {
       const percentage = total > 0 ? (item.value / total) : 0;
       const angle = percentage * 360;
       const startAngle = currentAngle;
       const endAngle = currentAngle + angle;
       currentAngle = endAngle;
-
+      
       // Calculate arc path
       const startRad = (startAngle * Math.PI) / 180;
       const endRad = (endAngle * Math.PI) / 180;
-
+      
       const x1 = centerX + radius * Math.cos(startRad);
       const y1 = centerY + radius * Math.sin(startRad);
       const x2 = centerX + radius * Math.cos(endRad);
       const y2 = centerY + radius * Math.sin(endRad);
-
+      
       const largeArc = angle > 180 ? 1 : 0;
-
+      
       let path;
       if (innerRadius > 0) {
         const ix1 = centerX + innerRadius * Math.cos(startRad);
         const iy1 = centerY + innerRadius * Math.sin(startRad);
         const ix2 = centerX + innerRadius * Math.cos(endRad);
         const iy2 = centerY + innerRadius * Math.sin(endRad);
-
+        
         path = `M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} L ${ix2} ${iy2} A ${innerRadius} ${innerRadius} 0 ${largeArc} 0 ${ix1} ${iy1} Z`;
       } else {
         path = `M ${centerX} ${centerY} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`;
       }
-
+      
       return {
         path,
         color: item.color,
@@ -1222,7 +1197,7 @@ function ActionChart({ action }) {
         percentage: Math.round(percentage * 100)
       };
     });
-
+    
     const pieColors = {
       primary: '#6366f1',
       secondary: '#8b5cf6',
@@ -1233,7 +1208,7 @@ function ActionChart({ action }) {
       purple: '#a855f7',
       pink: '#ec4899'
     };
-
+    
     return (
       <div className="p-4 rounded-xl bg-muted/20 border border-border/50">
         {action.title && (
@@ -1266,7 +1241,7 @@ function ActionChart({ action }) {
           <div className="flex flex-col gap-1.5">
             {slices.map((slice, index) => (
               <div key={index} className="flex items-center gap-2 text-sm">
-                <div
+                <div 
                   className="w-3 h-3 rounded-sm flex-shrink-0"
                   style={{ backgroundColor: pieColors[slice.color] || pieColors.primary }}
                 />
@@ -1280,7 +1255,7 @@ function ActionChart({ action }) {
       </div>
     );
   }
-
+  
   return null;
 }
 
@@ -1289,7 +1264,7 @@ function ActionChart({ action }) {
 // ========================
 export function ActionRenderer({ actions, onAction }) {
   if (!actions || actions.length === 0) return null;
-
+  
   return (
     <div className="space-y-3 mt-3">
       <AnimatePresence>
@@ -1328,180 +1303,90 @@ export function ActionRenderer({ actions, onAction }) {
 // Parse AI Response for Actions and Formatting - INLINE SUPPORT
 // ========================
 export function parseAIResponse(content) {
-  console.log('\n🔍 ==================== PARSING AI RESPONSE ====================');
-  console.log('📝 Content Length:', content?.length);
-  console.log('📝 First 200 chars:', content?.substring(0, 200));
-  
   // Split content into segments: text, actions, and execute commands
   const segments = [];
   const executeCommands = []; // Commands to execute automatically
-
-  // Regex patterns
+  
+  // More flexible regex to handle variations in code blocks
   const blockRegex = /```(action|execute)\s*\n([\s\S]*?)```/g;
-  const chartRegex = /\[CHART:({[\s\S]*?})\]/g;
-  const tableRegex = /\[TABLE:({[\s\S]*?})\]/g;
-  const comparisonTableRegex = /\[COMPARISON_TABLE:({[\s\S]*?})\]/g;
   
-  // Check for chart/table tags
-  const hasChartTag = chartRegex.test(content);
-  const hasTableTag = tableRegex.test(content);
-  chartRegex.lastIndex = 0; // Reset regex
-  tableRegex.lastIndex = 0;
-  
-  console.log('🔍 Has [CHART:...] tag:', hasChartTag);
-  console.log('🔍 Has [TABLE:...] tag:', hasTableTag);
-
   let lastIndex = 0;
   let match;
-
-  // First, find all matches and sort by position
-  const allMatches = [];
   
-  // Find code blocks
   while ((match = blockRegex.exec(content)) !== null) {
-    allMatches.push({
-      index: match.index,
-      length: match[0].length,
-      type: match[1], // 'action' or 'execute'
-      content: match[2].trim(),
-      matchType: 'block'
-    });
-  }
-
-  // Find chart tags
-  while ((match = chartRegex.exec(content)) !== null) {
-    allMatches.push({
-      index: match.index,
-      length: match[0].length,
-      type: 'chart',
-      content: match[1],
-      matchType: 'tag'
-    });
-  }
-
-  // Find table tags
-  while ((match = tableRegex.exec(content)) !== null) {
-    allMatches.push({
-      index: match.index,
-      length: match[0].length,
-      type: 'table',
-      content: match[1],
-      matchType: 'tag'
-    });
-  }
-
-  // Find comparison table tags
-  while ((match = comparisonTableRegex.exec(content)) !== null) {
-    allMatches.push({
-      index: match.index,
-      length: match[0].length,
-      type: 'comparison_table',
-      content: match[1],
-      matchType: 'tag'
-    });
-  }
-
-  // Sort by position
-  allMatches.sort((a, b) => a.index - b.index);
-
-  // Process all matches in order
-  lastIndex = 0;
-  for (const match of allMatches) {
-    // Add text before this match
+    // Add text before this block
     if (match.index > lastIndex) {
       const textBefore = content.slice(lastIndex, match.index).trim();
       if (textBefore) {
         segments.push({ type: 'text', content: textBefore });
       }
     }
-
+    
+    const blockType = match[1]; // 'action' or 'execute'
+    let blockContent = match[2].trim();
+    
     try {
-      if (match.matchType === 'tag') {
-        // Handle [CHART:...], [TABLE:...], [COMPARISON_TABLE:...]
-        console.log('✅ Found tag:', match.type);
-        console.log('📊 Tag content (first 100 chars):', match.content.substring(0, 100));
-        
-        const parsedData = JSON.parse(match.content);
-        
-        if (match.type === 'chart') {
-          console.log('✅ Creating CHART segment');
-          segments.push({
-            type: 'action',
-            content: {
-              type: 'recharts',
-              chartData: parsedData
-            }
-          });
-        } else if (match.type === 'table') {
-          segments.push({
-            type: 'action',
-            content: {
-              type: 'table',
-              tableData: parsedData.tableData || parsedData,
-              title: parsedData.title
-            }
-          });
-        } else if (match.type === 'comparison_table') {
-          segments.push({
-            type: 'action',
-            content: {
-              type: 'comparison_table',
-              data: parsedData,
-              title: parsedData.title
-            }
-          });
+      // Try to extract JSON from the block content
+      // Remove any leading/trailing text that's not part of JSON
+      const jsonMatch = blockContent.match(/({[\s\S]*}|\[[\s\S]*\])/);
+      if (jsonMatch) {
+        blockContent = jsonMatch[0];
+      }
+      
+      const parsedData = JSON.parse(blockContent);
+      
+      if (blockType === 'execute') {
+        // This is an execute command - collect for automatic execution
+        if (Array.isArray(parsedData)) {
+          executeCommands.push(...parsedData);
+        } else {
+          executeCommands.push(parsedData);
         }
+        // Also add a visual indicator that action was executed
+        segments.push({ 
+          type: 'execute', 
+          content: parsedData,
+          status: 'pending' // Will be updated after execution
+        });
       } else {
-        // Handle code blocks (```action or ```execute)
-        let blockContent = match.content;
-        
-        // Try to extract JSON
-        const jsonMatch = blockContent.match(/({[\s\S]*}|\[[\s\S]*\])/);  
-        if (jsonMatch) {
-          blockContent = jsonMatch[0];
-        }
-
-        const parsedData = JSON.parse(blockContent);
-
-        if (match.type === 'execute') {
-          // Execute command
-          if (Array.isArray(parsedData)) {
-            executeCommands.push(...parsedData);
-          } else {
-            executeCommands.push(parsedData);
-          }
-          segments.push({
-            type: 'execute',
-            content: parsedData,
-            status: 'pending'
+        // Regular action (button, chart, etc.)
+        if (Array.isArray(parsedData)) {
+          parsedData.forEach(action => {
+            segments.push({ type: 'action', content: action });
           });
         } else {
-          // Regular action
-          if (Array.isArray(parsedData)) {
-            parsedData.forEach(action => {
-              segments.push({ type: 'action', content: action });
-            });
-          } else {
-            segments.push({ type: 'action', content: parsedData });
-          }
+          segments.push({ type: 'action', content: parsedData });
         }
       }
     } catch (e) {
-      console.error(`❌ Failed to parse ${match.type}:`, e);
-      console.error("❌ Content:", match.content);
+      console.error("Failed to parse block:", e);
+      console.error("Block content:", blockContent);
+      // Try to salvage by looking for JSON patterns
+      const salvageMatch = blockContent.match(/({[\s\S]*}|\[[\s\S]*\])/);
+      if (salvageMatch) {
+        try {
+          const salvaged = JSON.parse(salvageMatch[0]);
+          if (blockType === 'action') {
+            segments.push({ type: 'action', content: salvaged });
+          }
+        } catch (salvageError) {
+          // Give up on this block
+          console.error("Could not salvage block");
+        }
+      }
     }
-
-    lastIndex = match.index + match.length;
+    
+    lastIndex = match.index + match[0].length;
   }
-
-  // Add remaining text after last match
+  
+  // Add remaining text after last block
   if (lastIndex < content.length) {
     const remainingText = content.slice(lastIndex).trim();
     if (remainingText) {
       segments.push({ type: 'text', content: remainingText });
     }
   }
-
+  
   // For backwards compatibility, also return text and actions separately
   const textContent = segments
     .filter(s => s.type === 'text')
@@ -1511,11 +1396,6 @@ export function parseAIResponse(content) {
     .filter(s => s.type === 'action')
     .map(s => s.content);
   
-  console.log('🔍 Total segments:', segments.length);
-  console.log('🔍 Action segments:', actions.length);
-  console.log('🔍 Action types:', actions.map(a => a.type));
-  console.log('🔍 ============================================================\n');
-
   return {
     text: textContent,
     actions,
@@ -1529,21 +1409,21 @@ export function parseAIResponse(content) {
 // ========================
 export function FormattedText({ text }) {
   if (!text) return null;
-
+  
   // Split text into lines for processing
   const lines = text.split('\n');
-
+  
   return (
     <div className="space-y-1">
       {lines.map((line, index) => {
         // Process inline formatting
         let processedLine = line;
-
+        
         // Check for heading patterns
         const h1Match = processedLine.match(/^###\s*(.+)$/);
         const h2Match = processedLine.match(/^##\s*(.+)$/);
         const h3Match = processedLine.match(/^#\s*(.+)$/);
-
+        
         if (h1Match) {
           return (
             <h3 key={index} className="text-lg font-bold text-foreground mt-3 mb-1">
@@ -1565,7 +1445,7 @@ export function FormattedText({ text }) {
             </h5>
           );
         }
-
+        
         // Check for bullet points
         const bulletMatch = processedLine.match(/^[-•]\s*(.+)$/);
         if (bulletMatch) {
@@ -1576,7 +1456,7 @@ export function FormattedText({ text }) {
             </div>
           );
         }
-
+        
         // Check for numbered lists
         const numberedMatch = processedLine.match(/^(\d+)[.)]\s*(.+)$/);
         if (numberedMatch) {
@@ -1587,12 +1467,12 @@ export function FormattedText({ text }) {
             </div>
           );
         }
-
+        
         // Empty line
         if (!processedLine.trim()) {
           return <div key={index} className="h-2" />;
         }
-
+        
         // Regular line
         return (
           <p key={index}>
@@ -1609,29 +1489,29 @@ function formatInlineContent(text) {
   const parts = [];
   let remaining = text;
   let keyIndex = 0;
-
+  
   // Pattern for icons: [icon:IconName]
   // Pattern for bold: **text** or __text__
   // Pattern for italic: *text* or _text_
   const combinedPattern = /\[icon:(\w+)\]|\*\*(.+?)\*\*|__(.+?)__|\*(.+?)\*|_(.+?)_/g;
-
+  
   let lastIndex = 0;
   let match;
-
+  
   while ((match = combinedPattern.exec(text)) !== null) {
     // Add text before the match
     if (match.index > lastIndex) {
       parts.push(<span key={keyIndex++}>{text.slice(lastIndex, match.index)}</span>);
     }
-
+    
     if (match[1]) {
       // Icon match
       const IconComponent = getIcon(match[1]) || IconMap[match[1]];
       if (IconComponent) {
         parts.push(
-          <IconComponent
-            key={keyIndex++}
-            className="inline-block w-4 h-4 mx-0.5 align-text-bottom text-primary"
+          <IconComponent 
+            key={keyIndex++} 
+            className="inline-block w-4 h-4 mx-0.5 align-text-bottom text-primary" 
           />
         );
       }
@@ -1642,15 +1522,15 @@ function formatInlineContent(text) {
       // Italic match
       parts.push(<em key={keyIndex++} className="italic">{match[4] || match[5]}</em>);
     }
-
+    
     lastIndex = match.index + match[0].length;
   }
-
+  
   // Add remaining text
   if (lastIndex < text.length) {
     parts.push(<span key={keyIndex++}>{text.slice(lastIndex)}</span>);
   }
-
+  
   return parts.length > 0 ? parts : text;
 }
 
@@ -1659,7 +1539,7 @@ function formatInlineContent(text) {
 // ========================
 function ExecuteIndicator({ execute, status = 'pending', result }) {
   const actionName = execute?.action || 'unknown';
-
+  
   // Map action names to friendly labels
   const actionLabels = {
     createPatientAction: 'إضافة مريض',
@@ -1672,9 +1552,9 @@ function ExecuteIndicator({ execute, status = 'pending', result }) {
     updateClinicHoursAction: 'تعديل مواعيد',
     updateBookingPriceAction: 'تعديل سعر الكشف'
   };
-
+  
   const label = actionLabels[actionName] || actionName;
-
+  
   if (status === 'pending') {
     return (
       <div className="flex items-center gap-2 py-2 px-3 rounded-lg bg-primary/10 border border-primary/20">
@@ -1683,7 +1563,7 @@ function ExecuteIndicator({ execute, status = 'pending', result }) {
       </div>
     );
   }
-
+  
   if (status === 'success') {
     return (
       <div className="flex items-center gap-2 py-2 px-3 rounded-lg bg-green-500/10 border border-green-500/20">
@@ -1694,7 +1574,7 @@ function ExecuteIndicator({ execute, status = 'pending', result }) {
       </div>
     );
   }
-
+  
   if (status === 'error') {
     return (
       <div className="flex items-center gap-2 py-2 px-3 rounded-lg bg-red-500/10 border border-red-500/20">
@@ -1705,7 +1585,7 @@ function ExecuteIndicator({ execute, status = 'pending', result }) {
       </div>
     );
   }
-
+  
   return null;
 }
 
@@ -1714,7 +1594,7 @@ function ExecuteIndicator({ execute, status = 'pending', result }) {
 // ========================
 export function InlineMessageRenderer({ segments, onAction, executeResults = {} }) {
   if (!segments || segments.length === 0) return null;
-
+  
   return (
     <div className="space-y-3">
       <AnimatePresence>
@@ -1731,7 +1611,7 @@ export function InlineMessageRenderer({ segments, onAction, executeResults = {} 
               </motion.div>
             );
           }
-
+          
           if (segment.type === 'execute') {
             const execKey = JSON.stringify(segment.content);
             const execResult = executeResults[execKey];
@@ -1740,22 +1620,22 @@ export function InlineMessageRenderer({ segments, onAction, executeResults = {} 
                 key={`execute-${index}`}
                 initial={{ opacity: 0, y: 8, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{
+                transition={{ 
                   delay: index * 0.05,
                   type: "spring",
                   stiffness: 400,
                   damping: 25
                 }}
               >
-                <ExecuteIndicator
-                  execute={segment.content}
+                <ExecuteIndicator 
+                  execute={segment.content} 
                   status={execResult?.status || 'pending'}
                   result={execResult?.result}
                 />
               </motion.div>
             );
           }
-
+          
           if (segment.type === 'action') {
             const action = segment.content;
             return (
@@ -1763,7 +1643,7 @@ export function InlineMessageRenderer({ segments, onAction, executeResults = {} 
                 key={`action-${index}`}
                 initial={{ opacity: 0, y: 8, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{
+                transition={{ 
                   delay: index * 0.05,
                   type: "spring",
                   stiffness: 400,
@@ -1774,7 +1654,7 @@ export function InlineMessageRenderer({ segments, onAction, executeResults = {} 
               </motion.div>
             );
           }
-
+          
           return null;
         })}
       </AnimatePresence>
@@ -1785,7 +1665,7 @@ export function InlineMessageRenderer({ segments, onAction, executeResults = {} 
 // Helper function to render a single action
 function renderSingleAction(action, onAction, index) {
   let component;
-
+  
   switch (action.type) {
     case ACTION_TYPES.BUTTON:
       component = <ActionButton action={action} onAction={onAction} />;
@@ -1811,25 +1691,13 @@ function renderSingleAction(action, onAction, index) {
     case ACTION_TYPES.CHART:
       component = <ActionChart action={action} />;
       break;
-    case ACTION_TYPES.RECHARTS:
-      // New: Recharts visualization
-      component = <ChartRenderer chartData={action.chartData} />;
-      break;
-    case ACTION_TYPES.TABLE:
-      // New: Simple table
-      component = <TableRenderer tableData={action.tableData} title={action.title} />;
-      break;
-    case ACTION_TYPES.COMPARISON_TABLE:
-      // New: Comparison table (for bookings, etc.)
-      component = <ComparisonTableRenderer data={action.data} title={action.title} />;
-      break;
     case "quick_actions":
       component = <QuickActionsGrid actions={action.items} onAction={onAction} />;
       break;
     default:
       return null;
   }
-
+  
   // Apply animation if specified
   if (action.animation) {
     return withAnimation(component, {
@@ -1838,7 +1706,7 @@ function renderSingleAction(action, onAction, index) {
       direction: action.direction
     });
   }
-
+  
   return component;
 }
 
