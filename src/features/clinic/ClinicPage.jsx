@@ -129,7 +129,7 @@ export default function ClinicPage() {
         {/* Header */}
         <div className="mb-4 sm:mb-5 md:mb-6">
           <div className="flex items-center gap-2 sm:gap-3 md:gap-3 mb-3 sm:mb-4 md:mb-4">
-            <div className="p-1.5 sm:p-2 md:p-2 rounded-lg bg-primary/10 text-primary flex-shrink-0">
+            <div className="p-1.5 sm:p-2 md:p-2 rounded-[var(--radius)] bg-primary/10 text-primary flex-shrink-0">
               <Settings className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 flex-shrink-0" />
             </div>
             <div className="flex-1 min-w-0">
@@ -145,10 +145,10 @@ export default function ClinicPage() {
 
         {/* Tabs Navigation */}
         <Tabs defaultValue="clinic-info" className="w-full mb-4 sm:mb-6" style={{ direction: 'rtl' }}>
-          <TabsList className="grid grid-cols-2 w-full h-auto p-1 sm:p-1.5 bg-muted/50 rounded-lg">
+          <TabsList className="grid grid-cols-2 w-full h-auto p-1 sm:p-1.5 bg-muted/50 rounded-[var(--radius)]">
             <TabsTrigger 
               value="clinic-info" 
-              className="text-xs sm:text-sm py-2.5 sm:py-3 px-2 data-[state=active]:bg-background rounded-md transition-all duration-200"
+              className="text-xs sm:text-sm py-2.5 sm:py-3 px-2 data-[state=active]:bg-background rounded-[var(--radius)] transition-all duration-200"
             >
               <div className="flex items-center justify-center gap-1.5 sm:gap-2">
                 <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
@@ -157,7 +157,7 @@ export default function ClinicPage() {
             </TabsTrigger>
             <TabsTrigger 
               value="secretaries" 
-              className="text-xs sm:text-sm py-2.5 sm:py-3 px-2 data-[state=active]:bg-background rounded-md transition-all duration-200"
+              className="text-xs sm:text-sm py-2.5 sm:py-3 px-2 data-[state=active]:bg-background rounded-[var(--radius)] transition-all duration-200"
             >
               <div className="flex items-center justify-center gap-1.5 sm:gap-2">
                 <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
@@ -167,10 +167,10 @@ export default function ClinicPage() {
           </TabsList>
           
           <TabsContent value="clinic-info" className="mt-4 sm:mt-6">
-            <Card className="bg-card/70 w-full overflow-hidden border border-border/50 shadow-sm">
+            <Card className="bg-card/70 w-full overflow-hidden border border-border/50 shadow-sm rounded-[var(--radius)]">
               <div className="border-b border-border/50 p-3 sm:p-4 md:p-6">
                 <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="p-1.5 sm:p-2 rounded-lg bg-primary/10 text-primary flex-shrink-0">
+                  <div className="p-1.5 sm:p-2 rounded-[var(--radius)] bg-primary/10 text-primary flex-shrink-0">
                     <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 flex-shrink-0" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -199,10 +199,10 @@ export default function ClinicPage() {
           </TabsContent>
           
           <TabsContent value="secretaries" className="mt-4 sm:mt-6">
-            <Card className="bg-card/70 w-full overflow-hidden border border-border/50 shadow-sm">
+            <Card className="bg-card/70 w-full overflow-hidden border border-border/50 shadow-sm rounded-[var(--radius)]">
               <div className="border-b border-border/50 p-3 sm:p-4 md:p-6">
                 <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="p-1.5 sm:p-2 rounded-lg bg-primary/10 text-primary flex-shrink-0">
+                  <div className="p-1.5 sm:p-2 rounded-[var(--radius)] bg-primary/10 text-primary flex-shrink-0">
                     <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 flex-shrink-0" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -226,10 +226,10 @@ export default function ClinicPage() {
         </Tabs>
 
         {/* Bottom Info */}
-        <div className="mt-4 sm:mt-6 md:mt-8 p-3 sm:p-4 md:p-4 bg-card/70 rounded-xl border border-border/50 shadow-sm w-full">
+        <div className="mt-4 sm:mt-6 md:mt-8 p-3 sm:p-4 md:p-4 bg-card/70 rounded-[var(--radius)] border border-border/50 shadow-sm w-full">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
             <div className="flex items-start gap-2 sm:gap-3 flex-1 min-w-0">
-              <div className="p-1.5 sm:p-2 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex-shrink-0">
+              <div className="p-1.5 sm:p-2 rounded-[var(--radius)] bg-blue-500/10 text-blue-600 dark:text-blue-400 flex-shrink-0">
                 <Info className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5" />
               </div>
               <div className="flex-1 min-w-0">

@@ -202,7 +202,7 @@ export default function AppointmentCreateDialog({ open, onClose }) {
   return (
     <>
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-[600px] w-[95vw] max-w-[95vw] max-h-[90vh] p-0 rounded-xl overflow-hidden border border-border" dir="rtl">
+        <DialogContent className="sm:max-w-[600px] w-[95vw] max-w-[95vw] max-h-[90vh] p-0 rounded-[var(--radius)] overflow-hidden border border-border" dir="rtl">
           {/* Header */}
           <DialogHeader className="p-4 sticky top-0 z-10 bg-background border-b border-border">
             <div className="flex items-center justify-between">
@@ -211,7 +211,7 @@ export default function AppointmentCreateDialog({ open, onClose }) {
                   variant="ghost"
                   size="icon"
                   onClick={handleClose}
-                  className="h-8 w-8 rounded-lg"
+                  className="h-8 w-8 rounded-[var(--radius)]"
                 >
                   <X className="w-4 h-4" />
                 </Button>
@@ -287,7 +287,7 @@ export default function AppointmentCreateDialog({ open, onClose }) {
 
                     {/* نتائج البحث */}
                     {patientSearch.length >= 2 && !selectedPatient && (
-                      <div className="rounded-lg border border-border overflow-hidden max-h-48 overflow-y-auto">
+                      <div className="rounded-[var(--radius)] border border-border overflow-hidden max-h-48 overflow-y-auto">
                         {isSearching ? (
                           <div className="p-4 text-center">
                             <Loader2 className="w-4 h-4 animate-spin text-primary mx-auto" />
@@ -375,7 +375,7 @@ export default function AppointmentCreateDialog({ open, onClose }) {
                     </div>
 
                     {/* التقويم واختيار الوقت */}
-                    <div className="rounded-lg overflow-hidden">
+                    <div className="rounded-[var(--radius)] overflow-hidden">
                       <AppointmentTimePicker
                         selectedDate={selectedDate}
                         onDateChange={handleDateChange}
@@ -456,7 +456,7 @@ export default function AppointmentCreateDialog({ open, onClose }) {
                       variant="ghost"
                       size="icon"
                       onClick={() => setStep(1)}
-                      className="h-8 w-8 rounded-lg"
+                      className="h-8 w-8 rounded-[var(--radius)]"
                     >
                       <ArrowRight className="w-4 h-4" />
                     </Button>
@@ -524,7 +524,7 @@ export default function AppointmentCreateDialog({ open, onClose }) {
                           key={type}
                           type="button"
                           onClick={() => handleQuickAppointmentType(type)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                          className={`px-3 py-1.5 rounded-[var(--radius)] text-xs font-medium transition-all ${
                             watchNotes === type 
                               ? 'bg-primary text-white shadow-sm' 
                               : 'bg-muted hover:bg-muted/80'
@@ -542,7 +542,7 @@ export default function AppointmentCreateDialog({ open, onClose }) {
                       type="button"
                       variant="outline"
                       onClick={() => setStep(1)}
-                      className="flex-1 h-10"
+                      className="w-[25%] h-10"
                     >
                       <ArrowRight className="w-4 h-4 ml-2" />
                       رجوع
@@ -562,7 +562,7 @@ export default function AppointmentCreateDialog({ open, onClose }) {
                           toast.error("يرجى ملء جميع الحقول");
                         }
                       }}
-                      className="flex-1 h-10"
+                      className="w-[75%] h-10"
                     >
                       {isPending ? (
                         <>

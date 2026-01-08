@@ -68,10 +68,10 @@ export default function PrivacyPolicy() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className="bg-card border border-border rounded-xl p-6 md:p-8 shadow-sm"
+                className="bg-card border border-border rounded-[var(--radius)] p-6 md:p-8 shadow-sm"
               >
                 <div className="flex items-start gap-4">
-                  <div className="p-3 bg-primary/10 rounded-lg shrink-0">
+                  <div className="p-3 bg-primary/10 rounded-[var(--radius)] shrink-0">
                     {section.icon}
                   </div>
                   <div className="space-y-4 flex-1">
@@ -81,7 +81,7 @@ export default function PrivacyPolicy() {
                     {section.subsections && (
                       <div className="mt-6 space-y-4">
                         {section.subsections.map((sub, idx) => (
-                          <div key={idx} className="bg-muted/50 p-4 rounded-lg border border-border/50">
+                          <div key={idx} className="bg-muted/50 p-4 rounded-[var(--radius)] border border-border/50">
                             <div className="flex items-center gap-2 mb-2">
                               {sub.icon}
                               <h3 className="font-semibold text-gray-900">{sub.title}</h3>

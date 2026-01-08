@@ -332,10 +332,10 @@ ${medicationsList}
         </div>
         <div className="grid grid-cols-2 gap-3">
           {[1, 2].map((i) => (
-            <div key={i} className="h-20 bg-muted rounded-lg animate-pulse"></div>
+            <div key={i} className="h-20 bg-muted rounded-[var(--radius)] animate-pulse"></div>
           ))}
         </div>
-        <div className="h-32 bg-muted rounded-lg animate-pulse"></div>
+        <div className="h-32 bg-muted rounded-[var(--radius)] animate-pulse"></div>
       </div>
     );
   }
@@ -463,7 +463,7 @@ ${medicationsList}
               {visit.medications.map((medication, index) => (
                 <div
                   key={index}
-                  className="flex items-start gap-3 p-3 rounded-lg bg-muted/50"
+                  className="flex items-start gap-3 p-3 rounded-[var(--radius)] bg-muted/50"
                 >
                   <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
                     <span className="text-xs font-medium text-primary">{index + 1}</span>
@@ -506,10 +506,10 @@ ${medicationsList}
             </div>
           </div>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setIsWhatsAppModalOpen(false)}>
+            <Button variant="outline" onClick={() => setIsWhatsAppModalOpen(false)} className="w-[25%]">
               إلغاء
             </Button>
-            <Button onClick={handleWhatsAppShare} disabled={!whatsappNumber.trim()}>
+            <Button onClick={handleWhatsAppShare} disabled={!whatsappNumber.trim()} className="w-[75%]">
               إرسال
             </Button>
           </DialogFooter>
@@ -550,10 +550,10 @@ ${medicationsList}
             />
           </div>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setIsDiagnosisEditModalOpen(false)}>
+            <Button variant="outline" onClick={() => setIsDiagnosisEditModalOpen(false)} className="w-[25%]">
               إلغاء
             </Button>
-            <Button onClick={handleSaveDiagnosis} disabled={isUpdating}>
+            <Button onClick={handleSaveDiagnosis} disabled={isUpdating} className="w-[75%]">
               {isUpdating ? "جاري الحفظ..." : "حفظ"}
             </Button>
           </DialogFooter>
@@ -577,10 +577,10 @@ ${medicationsList}
             />
           </div>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setIsNotesEditModalOpen(false)}>
+            <Button variant="outline" onClick={() => setIsNotesEditModalOpen(false)} className="w-[25%]">
               إلغاء
             </Button>
-            <Button onClick={handleSaveNotes} disabled={isUpdating}>
+            <Button onClick={handleSaveNotes} disabled={isUpdating} className="w-[75%]">
               {isUpdating ? "جاري الحفظ..." : "حفظ"}
             </Button>
           </DialogFooter>
@@ -641,14 +641,12 @@ ${medicationsList}
             </div>
           </div>
           <DialogFooter className="gap-2">
-            <div className="flex gap-2 w-full">
-              <Button className="flex-[3]" onClick={handleSaveMedications} disabled={isUpdating}>
-                {isUpdating ? "جاري الحفظ..." : "حفظ"}
-              </Button>
-              <Button className="flex-1" variant="outline" onClick={() => setIsMedicationsEditModalOpen(false)}>
-                إلغاء
-              </Button>
-            </div>
+            <Button className="w-[25%]" variant="outline" onClick={() => setIsMedicationsEditModalOpen(false)}>
+              إلغاء
+            </Button>
+            <Button className="w-[75%]" onClick={handleSaveMedications} disabled={isUpdating}>
+              {isUpdating ? "جاري الحفظ..." : "حفظ"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -2,6 +2,14 @@ import {ArrowRight} from "lucide-react";
 import {Label} from "../../components/ui/label";
 import {Input} from "../../components/ui/input";
 import {Button} from "../../components/ui/button";
+import { Controller } from "react-hook-form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
 import {
   Card,
   CardContent,
@@ -12,6 +20,7 @@ import {
 
 export default function PatientFormCard({
   register,
+  control,
   errors,
   onSubmit,
   isLoading,
@@ -75,14 +84,27 @@ export default function PatientFormCard({
             <Label htmlFor="gender" className="text-sm">
               النوع *
             </Label>
-            <select
-              id="gender"
-              className="flex h-10 w-full rounded-[var(--radius)] border border-border bg-background px-3 py-2 text-sm"
-              {...register("gender", {required: "النوع مطلوب"})}>
-              <option value="">اختر</option>
-              <option value="male">ذكر</option>
-              <option value="female">أنثى</option>
-            </select>
+            <Controller
+              control={control}
+              name="gender"
+              rules={{required: "النوع مطلوب"}}
+              render={({ field }) => (
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                  value={field.value}
+                  dir="rtl"
+                >
+                  <SelectTrigger id="gender" className="h-10 w-full justify-between">
+                    <SelectValue placeholder="اختر" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="male">ذكر</SelectItem>
+                    <SelectItem value="female">أنثى</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            />
             {errors.gender && (
               <p className="text-sm text-red-500 mt-1">
                 {errors.gender.message}

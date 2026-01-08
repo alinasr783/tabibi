@@ -74,16 +74,16 @@ const FinancialAnalytics = () => {
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-1">
-        <Skeleton className="h-[300px] w-full rounded-xl" />
-        <Skeleton className="h-[300px] w-full rounded-xl" />
-        <Skeleton className="h-[300px] w-full rounded-xl col-span-1 md:col-span-2" />
+        <Skeleton className="h-[300px] w-full rounded-[var(--radius)]" />
+        <Skeleton className="h-[300px] w-full rounded-[var(--radius)]" />
+        <Skeleton className="h-[300px] w-full rounded-[var(--radius)] col-span-1 md:col-span-2" />
       </div>
     );
   }
 
   if (!rawData || rawData.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-[400px] text-muted-foreground bg-muted/10 rounded-xl border border-dashed border-border">
+      <div className="flex flex-col items-center justify-center h-[400px] text-muted-foreground bg-muted/10 rounded-[var(--radius)] border border-dashed border-border">
         <p className="text-lg">لا توجد بيانات كافية لعرض التحليلات</p>
         <p className="text-sm">أضف بعض المعاملات المالية لتبدأ.</p>
       </div>

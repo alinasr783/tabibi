@@ -416,7 +416,7 @@ function ActionProgress({ action }) {
   };
   
   return (
-    <div className="p-3 rounded-xl bg-muted/30 border border-border/50">
+    <div className="p-3 rounded-[var(--radius)] bg-muted/30 border border-border/50">
       <div className="flex justify-between items-center mb-2">
         <span className="font-medium text-sm">{action.label}</span>
         <span className={cn(
@@ -494,7 +494,7 @@ function ActionAlert({ action }) {
   
   return (
     <div className={cn(
-      "flex items-start gap-3 p-3 rounded-xl border",
+      "flex items-start gap-3 p-3 rounded-[var(--radius)] border",
       variants[variant]
     )}>
       <IconComponent className="w-5 h-5 flex-shrink-0 mt-0.5" />
@@ -511,7 +511,7 @@ function ActionAlert({ action }) {
 // ========================
 function ActionSteps({ action }) {
   return (
-    <div className="p-4 rounded-xl bg-muted/20 border border-border/50">
+    <div className="p-4 rounded-[var(--radius)] bg-muted/20 border border-border/50">
       {action.title && (
         <h4 className="font-semibold text-sm text-foreground mb-3 flex items-center gap-2">
           <ListChecks className="w-4 h-4 text-primary" />
@@ -561,7 +561,7 @@ function QuickActionsGrid({ actions, onAction }) {
               else if (action.openComponent) onAction?.("openComponent", action.openComponent);
             }}
             className={cn(
-              "flex flex-col items-center gap-2 p-3 rounded-xl",
+              "flex flex-col items-center gap-2 p-3 rounded-[var(--radius)]",
               "bg-card border border-border",
               "hover:bg-muted/50 hover:border-primary/30 transition-colors"
             )}
@@ -612,7 +612,7 @@ function ActionChart({ action }) {
   // Vertical Bar Chart
   if (action.chartType === 'bar' || action.chartType === 'vertical-bar') {
     return (
-      <div className="p-4 rounded-xl bg-muted/20 border border-border/50">
+      <div className="p-4 rounded-[var(--radius)] bg-muted/20 border border-border/50">
         {action.title && (
           <h4 className="font-semibold text-sm text-foreground mb-4 flex items-center gap-2">
             <BarChart className="w-4 h-4 text-primary" />
@@ -649,7 +649,7 @@ function ActionChart({ action }) {
   // Horizontal Bar Chart
   if (action.chartType === 'horizontal-bar') {
     return (
-      <div className="p-4 rounded-xl bg-muted/20 border border-border/50">
+      <div className="p-4 rounded-[var(--radius)] bg-muted/20 border border-border/50">
         {action.title && (
           <h4 className="font-semibold text-sm text-foreground mb-4 flex items-center gap-2">
             <BarChart className="w-4 h-4 text-primary" />
@@ -703,7 +703,7 @@ function ActionChart({ action }) {
     const areaD = `${pathD} L ${points[points.length - 1]?.x || padding} ${height - padding} L ${padding} ${height - padding} Z`;
     
     return (
-      <div className="p-4 rounded-xl bg-muted/20 border border-border/50">
+      <div className="p-4 rounded-[var(--radius)] bg-muted/20 border border-border/50">
         {action.title && (
           <h4 className="font-semibold text-sm text-foreground mb-3 flex items-center gap-2">
             <Activity className="w-4 h-4 text-primary" />
@@ -834,7 +834,7 @@ function ActionChart({ action }) {
     };
     
     return (
-      <div className="p-4 rounded-xl bg-muted/20 border border-border/50">
+      <div className="p-4 rounded-[var(--radius)] bg-muted/20 border border-border/50">
         {action.title && (
           <h4 className="font-semibold text-sm text-foreground mb-3 flex items-center gap-2">
             <PieChart className="w-4 h-4 text-primary" />

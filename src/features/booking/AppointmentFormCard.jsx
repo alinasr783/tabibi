@@ -85,7 +85,7 @@ export default function AppointmentFormCard({
             تغيير المريض
           </Button>
         </div>
-        <div className="mt-4 p-3 bg-muted rounded-lg">
+        <div className="mt-4 p-3 bg-muted rounded-[var(--radius)]">
           <p className="font-medium text-sm">{selectedPatient?.name}</p>
           <p className="text-xs text-muted-foreground">
             {selectedPatient?.phone}

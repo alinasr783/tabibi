@@ -108,14 +108,6 @@ export default function WorkModePage() {
         <div className="mb-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate("/appointments")}
-                className="h-10 w-10"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
               <div className="flex items-center gap-2">
                 <div className="p-2 rounded-lg bg-primary/10 text-primary">
                   <Clock className="w-6 h-6" />
@@ -234,7 +226,7 @@ export default function WorkModePage() {
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center gap-3 flex-1">
-                            <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold">
+                            <div className="w-10 h-10 rounded-[var(--radius)] bg-primary/10 text-primary flex items-center justify-center font-bold">
                               {index + 1}
                             </div>
                             <div className="flex-1 min-w-0">

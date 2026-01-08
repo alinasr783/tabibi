@@ -404,18 +404,22 @@ export async function sendMessageToAIStream(messages, userData, clinicData, subs
     
     let fullContent = "";
     
+    // Fixed: Use genAI instance and correct model name (gemini-1.5-flash)
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-1.5-flash",
+      systemInstruction: systemPrompt
+    });
+
     if (history.length > 0) {
       // Use chat for multi-turn conversations with streaming
-      const chat = ai.chats.create({
-        model: "gemini-2.5-flash",
-        config: { systemInstruction: systemPrompt },
+      const chat = model.startChat({
         history: history
       });
       
-      const stream = await chat.sendMessageStream({ message: lastUserMessage });
+      const result = await chat.sendMessageStream(lastUserMessage);
       
-      for await (const chunk of stream) {
-        const text = chunk.text || '';
+      for await (const chunk of result.stream) {
+        const text = chunk.text();
         if (text) {
           fullContent += text;
           onChunk(text, fullContent);
@@ -423,14 +427,10 @@ export async function sendMessageToAIStream(messages, userData, clinicData, subs
       }
     } else {
       // Single turn with streaming
-      const stream = await ai.models.generateContentStream({
-        model: "gemini-2.5-flash",
-        config: { systemInstruction: systemPrompt },
-        contents: lastUserMessage
-      });
+      const result = await model.generateContentStream(lastUserMessage);
       
-      for await (const chunk of stream) {
-        const text = chunk.text || '';
+      for await (const chunk of result.stream) {
+        const text = chunk.text();
         if (text) {
           fullContent += text;
           onChunk(text, fullContent);

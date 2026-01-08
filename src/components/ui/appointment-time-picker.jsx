@@ -230,7 +230,7 @@ export default function AppointmentTimePicker({
   };
 
   return (
-    <div className="rounded-lg border border-border bg-background overflow-hidden w-full">
+    <div className="rounded-[var(--radius)] border border-border bg-background overflow-hidden w-full">
       {/* Calendar Section */}
       <div className="p-2 sm:p-3 w-full">
         <div className="w-full overflow-x-auto">

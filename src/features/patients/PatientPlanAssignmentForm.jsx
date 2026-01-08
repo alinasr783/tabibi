@@ -202,7 +202,7 @@ export default function PatientPlanAssignmentForm({
                   الوصف
                 </Label>
                 <div className="col-span-3">
-                  <div className="text-sm text-muted-foreground bg-muted p-3 rounded-md">
+                  <div className="text-sm text-muted-foreground bg-muted p-3 rounded-[var(--radius)]">
                     {template.description}
                   </div>
                 </div>
@@ -211,18 +211,16 @@ export default function PatientPlanAssignmentForm({
           </div>
           
           <DialogFooter>
-            <div className="flex gap-2 w-full justify-end">
-              <Button 
-                className="flex-[3]"
-                type="submit" 
-                disabled={isCreating || !!sessionError}
-              >
-                {isCreating ? "جارٍ الإنشاء..." : "إنشاء خطة"}
-              </Button>
-              <Button className="flex-1" type="button" variant="outline" onClick={onClose}>
-                إلغاء
-              </Button>
-            </div>
+            <Button className="w-[25%]" type="button" variant="outline" onClick={onClose}>
+              إلغاء
+            </Button>
+            <Button 
+              className="w-[75%]"
+              type="submit" 
+              disabled={isCreating || !!sessionError}
+            >
+              {isCreating ? "جارٍ الإنشاء..." : "إنشاء خطة"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

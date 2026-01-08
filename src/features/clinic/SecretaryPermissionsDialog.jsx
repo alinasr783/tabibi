@@ -36,7 +36,7 @@ export default function SecretaryPermissionsDialog({
           <div className="space-y-3 py-2">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {SECRETARY_PERMISSIONS.map((permission) => (
-                <div key={permission.id} className="flex items-start gap-3 p-3 rounded-lg border border-border/50 bg-muted/20">
+                <div key={permission.id} className="flex items-start gap-3 p-3 rounded-[var(--radius)] border border-border/50 bg-muted/20">
                   <Checkbox
                     id={permission.id}
                     checked={selectedPermissions.includes(permission.id)}
@@ -55,7 +55,7 @@ export default function SecretaryPermissionsDialog({
               ))}
             </div>
             
-            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-[var(--radius)] border border-blue-200 dark:border-blue-800">
               <p className="text-xs text-blue-900 dark:text-white">
                 ملاحظة: صفحة الإعدادات متاحة دائماً للموظف
               </p>
@@ -64,10 +64,10 @@ export default function SecretaryPermissionsDialog({
         </div>
         
         <div className="flex justify-end gap-2 pt-4">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="w-[25%]">
             إلغاء
           </Button>
-          <Button onClick={onSave}>حفظ التغييرات</Button>
+          <Button onClick={onSave} className="w-[75%]">حفظ التغييرات</Button>
         </div>
       </DialogContent>
     </Dialog>

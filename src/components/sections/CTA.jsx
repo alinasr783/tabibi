@@ -45,7 +45,7 @@ export default function CTA() {
             scale: 1.02,
             transition: { duration: 0.3 }
           }}
-          className="bg-gradient-to-r from-primary to-secondary rounded-2xl p-8 md:p-12 text-background"
+          className="bg-gradient-to-r from-primary to-secondary rounded-[var(--radius)] p-8 md:p-12 text-background"
         >
           <div className="max-w-3xl mx-auto text-center space-y-6">
             <motion.h2 

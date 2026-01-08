@@ -66,10 +66,10 @@ export default function TermsOfService() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className="bg-card border border-border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow"
+                className="bg-card border border-border rounded-[var(--radius)] p-6 shadow-sm hover:shadow-md transition-shadow"
               >
                 <div className="flex items-start gap-4">
-                  <div className="p-3 bg-primary/10 rounded-lg shrink-0">
+                  <div className="p-3 bg-primary/10 rounded-[var(--radius)] shrink-0">
                     {section.icon}
                   </div>
                   <div className="space-y-2 flex-1">

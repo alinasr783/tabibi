@@ -125,7 +125,7 @@ export default function ExaminationsPage() {
           </div>
 
           {/* Desktop View - Table */}
-          <div className="hidden md:block rounded-md border">
+          <div className="hidden md:block rounded-[var(--radius)] border">
             <Table>
               <TableHeader>
                 <TableRow>

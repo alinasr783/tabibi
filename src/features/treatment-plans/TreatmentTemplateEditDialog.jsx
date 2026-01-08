@@ -69,19 +69,19 @@ export default function TreatmentTemplateEditDialog({ open, onClose, template })
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="p-6">
           <TreatmentTemplateForm register={register} errors={errors} />
-          <DialogFooter className="mt-6 gap-3 grid grid-cols-2">
+          <DialogFooter className="mt-6 gap-3">
             <Button 
               variant="outline" 
               onClick={handleClose} 
               type="button"
-              className="w-full"
+              className="w-[25%]"
             >
               إلغاء
             </Button>
             <Button 
               type="submit" 
               disabled={isPending}
-              className="w-full flex items-center justify-center gap-2"
+              className="w-[75%] flex items-center justify-center gap-2"
             >
               {isPending ? (
                 <div className="flex items-center gap-2">

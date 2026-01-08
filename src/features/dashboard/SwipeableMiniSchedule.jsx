@@ -255,7 +255,7 @@ export default function SwipeableMiniSchedule() {
           </div>
         </CardHeader>
         <div className="px-4 pb-4">
-          <ScrollArea className="h-96 rounded-lg border border-border">
+          <ScrollArea className="h-96 rounded-[var(--radius)] border border-border">
             <div className="space-y-2 p-4">
               {appointments && appointments.map((appointment) => (
                 <div

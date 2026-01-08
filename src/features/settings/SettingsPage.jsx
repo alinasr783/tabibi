@@ -28,7 +28,7 @@ export default function SettingsPage() {
     <div className="space-y-4 sm:space-y-6 p-3 sm:p-4 md:p-6 bg-background min-h-screen pb-24 md:pb-6" dir="rtl">
       {/* Header */}
       <div className="flex items-center gap-2 sm:gap-3">
-        <div className="p-1.5 sm:p-2 rounded-lg bg-primary/10 text-primary">
+        <div className="p-1.5 sm:p-2 rounded-[var(--radius)] bg-primary/10 text-primary">
           <Settings className="w-5 h-5 sm:w-6 sm:h-6" />
         </div>
         <div>

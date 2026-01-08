@@ -87,9 +87,9 @@ export function PWAInstallPrompt() {
 
   return (
     <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:max-w-sm z-50 animate-slideUp">
-      <div className="bg-card border border-border rounded-xl shadow-2xl p-4">
+      <div className="bg-card border border-border rounded-[var(--radius)] shadow-2xl p-4">
         <div className="flex items-start gap-3">
-          <div className="flex-shrink-0 w-12 h-12 rounded-xl overflow-hidden bg-primary/10 flex items-center justify-center">
+          <div className="flex-shrink-0 w-12 h-12 rounded-[var(--radius)] overflow-hidden bg-primary/10 flex items-center justify-center">
             <img src="/logo.jpeg" alt="Tabibi Logo" className="w-full h-full object-cover" />
           </div>
           

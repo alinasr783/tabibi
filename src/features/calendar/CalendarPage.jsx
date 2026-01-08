@@ -284,10 +284,10 @@ export default function CalendarPage() {
 
         {/* Tabs - Modern Style matching Clinic Page */}
         <div className="w-full mb-6">
-          <div className="inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground w-full">
+          <div className="inline-flex h-10 items-center justify-center rounded-[var(--radius)] bg-muted p-1 text-muted-foreground w-full">
             <button
               onClick={() => setActiveTab("upcoming")}
-              className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 flex-1 ${
+              className={`inline-flex items-center justify-center whitespace-nowrap rounded-[var(--radius)] px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 flex-1 ${
                 activeTab === "upcoming"
                   ? "bg-background text-foreground shadow-sm"
                   : "hover:bg-background/50 hover:text-foreground"
@@ -297,7 +297,7 @@ export default function CalendarPage() {
                 <Clock className="w-4 h-4" />
                 <span>المواعيد القادمة</span>
                 {stats.upcoming > 0 && (
-                  <span className="bg-primary/10 text-primary text-xs px-2 py-0.5 rounded-full mr-1">
+                  <span className="bg-primary/10 text-primary text-xs px-2 py-0.5 rounded-[var(--radius)] mr-1">
                     {stats.upcoming}
                   </span>
                 )}
@@ -343,7 +343,7 @@ export default function CalendarPage() {
                 />
               ) : (
                 <div className="text-center py-8 md:py-12 px-4">
-                  <div className="w-12 h-12 md:w-16 md:h-16 mx-auto mb-3 md:mb-4 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <div className="w-12 h-12 md:w-16 md:h-16 mx-auto mb-3 md:mb-4 rounded-[var(--radius)] bg-primary/10 flex items-center justify-center">
                     <Clock className="w-6 h-6 md:w-8 md:h-8 text-primary" />
                   </div>
                   <h3 className="text-base md:text-lg font-semibold text-foreground mb-2">مفيش مواعيد قادمة</h3>
@@ -403,7 +403,7 @@ export default function CalendarPage() {
 
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-green-500/10 text-green-600">
+                <div className="p-1.5 rounded-[var(--radius)] bg-green-500/10 text-green-600">
                   <Calendar className="w-5 h-5" />
                 </div>
                 <div>

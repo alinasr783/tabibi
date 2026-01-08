@@ -140,7 +140,7 @@ export default function ClinicInfoForm({
             </Label>
           </div>
           <div className="flex flex-col xs:flex-row gap-1.5 sm:gap-2 w-full">
-            <div className="flex-1 min-w-0 bg-muted/50 border border-border rounded-lg px-2.5 sm:px-3 py-2 text-[10px] sm:text-xs md:text-sm overflow-hidden">
+            <div className="flex-1 min-w-0 bg-muted/50 border border-border rounded-[var(--radius)] px-2.5 sm:px-3 py-2 text-[10px] sm:text-xs md:text-sm overflow-hidden">
               <span className="block truncate break-all">
                 {`${window.location.origin}/booking/${clinicId}`}
               </span>
@@ -181,10 +181,10 @@ export default function ClinicInfoForm({
         {/* زر الحفظ */}
         <div className="pt-2 sm:pt-3 md:pt-4">
           <Button 
-            type="submit" 
-            disabled={isUpdating}
-            className="h-9 sm:h-10 md:h-11 w-full bg-primary hover:bg-primary/90 text-primary-foreground px-3 sm:px-6 md:px-8 rounded-lg text-xs sm:text-sm md:text-base min-h-[40px] sm:min-h-[44px] gap-1.5 sm:gap-2"
-          >
+          type="submit" 
+          disabled={isUpdating}
+          className="h-9 sm:h-10 md:h-11 w-full bg-primary hover:bg-primary/90 text-primary-foreground px-3 sm:px-6 md:px-8 rounded-[var(--radius)] text-xs sm:text-sm md:text-base min-h-[40px] sm:min-h-[44px] gap-1.5 sm:gap-2"
+        >
             {isUpdating ? (
               <>
                 <Loader2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 animate-spin" />

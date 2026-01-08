@@ -160,7 +160,7 @@ export default function PaymentCallback() {
   if (status === 'processing') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/30 flex items-center justify-center p-4" dir="rtl" lang="ar">
-        <Card className="w-full max-w-md rounded-2xl border-0 shadow-lg">
+        <Card className="w-full max-w-md rounded-[var(--radius)] border-0 shadow-lg">
           <CardHeader className="text-center pb-4">
             <div className="mx-auto bg-blue-100 p-4 rounded-full w-16 h-16 flex items-center justify-center mb-4">
               <Loader className="w-8 h-8 text-blue-600 animate-spin" />
@@ -192,7 +192,7 @@ export default function PaymentCallback() {
     
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/30 flex items-center justify-center p-4" dir="rtl" lang="ar">
-        <Card className="w-full max-w-md rounded-2xl border-0 shadow-lg">
+        <Card className="w-full max-w-md rounded-[var(--radius)] border-0 shadow-lg">
           <CardHeader className="text-center pb-4">
             <div className={`mx-auto ${methodInfo.bgColorClass} p-4 rounded-full w-16 h-16 flex items-center justify-center mb-4`}>
               <CheckCircle className={`w-8 h-8 ${methodInfo.textColorClass}`} />
@@ -207,11 +207,11 @@ export default function PaymentCallback() {
                 تم تفعيل الاشتراك في الخطة بنجاح
               </p>
               
-              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+              <div className="bg-gray-50 rounded-[var(--radius)] p-4 border border-gray-200">
                 <div className="flex justify-between items-center mb-3">
                   <span className="text-gray-600">طريقة الدفع:</span>
                   <div className="flex items-center gap-2">
-                    <div className={`w-8 h-8 ${methodInfo.bgColorClass} rounded-lg flex items-center justify-center`}>
+                    <div className={`w-8 h-8 ${methodInfo.bgColorClass} rounded-[var(--radius)] flex items-center justify-center`}>
                       {methodInfo.icon}
                     </div>
                     <span className="font-medium">{methodInfo.name}</span>
@@ -246,7 +246,7 @@ export default function PaymentCallback() {
   // Failed status
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/30 flex items-center justify-center p-4" dir="rtl" lang="ar">
-      <Card className="w-full max-w-md rounded-2xl border-0 shadow-lg">
+      <Card className="w-full max-w-md rounded-[var(--radius)] border-0 shadow-lg">
         <CardHeader className="text-center pb-4">
           <div className="mx-auto bg-red-100 p-4 rounded-full w-16 h-16 flex items-center justify-center mb-4">
             <XCircle className="w-8 h-8 text-red-600" />
@@ -261,7 +261,7 @@ export default function PaymentCallback() {
               لم يتم إتمام عملية الدفع بنجاح. يرجى المحاولة مرة أخرى.
             </p>
             {paymentData?.error && (
-              <div className="bg-red-50 rounded-xl p-3 border border-red-200 text-red-700 text-sm">
+              <div className="bg-red-50 rounded-[var(--radius)] p-3 border border-red-200 text-red-700 text-sm">
                 {paymentData.error}
               </div>
             )}

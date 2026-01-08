@@ -134,7 +134,7 @@ export default function Finance() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-primary/10 text-primary flex-shrink-0 mt-[-0.5rem]">
+          <div className="p-2 rounded-[var(--radius)] bg-primary/10 text-primary flex-shrink-0 mt-[-0.5rem]">
             <Wallet className="size-6" />
           </div>
           <div>
@@ -154,10 +154,10 @@ export default function Finance() {
             معاملة جديدة
           </Button>
           <Dialog open={isAddDialogOpen} onClose={() => setIsAddDialogOpen(false)}>
-            <DialogContent className="w-full sm:max-w-[500px] p-0 overflow-hidden rounded-xl gap-0">
+            <DialogContent className="w-full sm:max-w-[500px] p-0 overflow-hidden rounded-[var(--radius)] gap-0">
               <button
                 onClick={() => setIsAddDialogOpen(false)}
-                className="absolute left-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
+                className="absolute left-4 top-4 rounded-[var(--radius)] opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
               >
                 <X className="h-4 w-4" />
                 <span className="sr-only">Close</span>
@@ -306,16 +306,16 @@ export default function Finance() {
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="transactions" className="w-full space-y-4" dir="rtl">
-        <TabsList className="grid grid-cols-2 w-full h-auto p-1 bg-muted/50 rounded-lg">
+        <TabsList className="grid grid-cols-2 w-full h-auto p-1 bg-muted/50 rounded-[var(--radius)]">
           <TabsTrigger 
             value="transactions" 
-            className="text-sm py-2.5 data-[state=active]:bg-background rounded-md transition-all duration-200"
+            className="text-sm py-2.5 data-[state=active]:bg-background rounded-[var(--radius)] transition-all duration-200"
           >
             سجل المعاملات
           </TabsTrigger>
           <TabsTrigger 
             value="reports"
-            className="text-sm py-2.5 data-[state=active]:bg-background rounded-md transition-all duration-200"
+            className="text-sm py-2.5 data-[state=active]:bg-background rounded-[var(--radius)] transition-all duration-200"
           >
             التقارير والتحليلات
           </TabsTrigger>
@@ -326,7 +326,7 @@ export default function Finance() {
             <div className="border-b border-border p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                  <div className="p-2 rounded-[var(--radius)] bg-primary/10 text-primary">
                     <Wallet className="w-5 h-5" />
                   </div>
                   <div>

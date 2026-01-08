@@ -433,7 +433,7 @@ export default function AppointmentDetailPage() {
         <Card className={`${statusConfig[currentStatus]?.bg} ${statusConfig[currentStatus]?.border} border-2`}>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className={`p-2.5 rounded-xl ${statusConfig[currentStatus]?.bg}`}>
+              <div className={`p-2.5 rounded-[var(--radius)] ${statusConfig[currentStatus]?.bg}`}>
                 <StatusIcon className={`size-6 ${statusConfig[currentStatus]?.color}`} />
               </div>
               <div className="flex-1 min-w-0">
@@ -549,7 +549,13 @@ export default function AppointmentDetailPage() {
                   </div>
                   <div>
                     <Label className="text-xs text-muted-foreground">العمر</Label>
-                    <div className="font-medium">{calculatePatientAge(appointment?.patient?.birthDate)}</div>
+                    <div className="font-medium">
+                      {appointment?.patient?.birthDate 
+                        ? calculatePatientAge(appointment?.patient?.birthDate) 
+                        : appointment?.patient?.age 
+                          ? `${appointment.patient.age} ${appointment.patient.age_unit === 'months' ? 'شهر' : appointment.patient.age_unit === 'days' ? 'يوم' : 'سنة'}`
+                          : "مش معروف"}
+                    </div>
                   </div>
                   <div>
                     <Label className="text-xs text-muted-foreground">رقم الملف</Label>
@@ -703,16 +709,20 @@ export default function AppointmentDetailPage() {
             </div>
             <div>
               <Label htmlFor="status" className="text-sm">الحالة</Label>
-              <select
-                id="status"
+              <Select
                 value={editData.status}
-                onChange={(e) => handleEditChange("status", e.target.value)}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm mt-1.5"
+                onValueChange={(value) => handleEditChange("status", value)}
+                dir="rtl"
               >
-                {Object.entries(statusConfig).map(([key, config]) => (
-                  <option key={key} value={key}>{config.label}</option>
-                ))}
-              </select>
+                <SelectTrigger id="status" className="h-10 w-full mt-1.5 justify-between">
+                  <SelectValue placeholder="اختر الحالة" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(statusConfig).map(([key, config]) => (
+                    <SelectItem key={key} value={key}>{config.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label htmlFor="price" className="text-sm">السعر</Label>
@@ -737,10 +747,10 @@ export default function AppointmentDetailPage() {
             </div>
           </div>
           <DialogFooter className="flex gap-2">
-            <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>
+            <Button variant="outline" onClick={() => setIsEditModalOpen(false)} className="w-[25%]">
               إلغاء
             </Button>
-            <Button onClick={handleSaveEdit} disabled={isUpdating} className="gap-2">
+            <Button onClick={handleSaveEdit} disabled={isUpdating} className="w-[75%] gap-2">
               {isUpdating ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />
@@ -843,18 +853,13 @@ export default function AppointmentDetailPage() {
             </Button>
           </div>
           
-          <DialogFooter className="flex gap-2 pt-4 border-t w-full justify-between">
-
-            <Button 
-              variant="outline" 
-              onClick={() => setShowPrescriptionDialog(false)}
-              className="flex-1"
-            >
+          <DialogFooter className="flex gap-2 pt-4 border-t w-full">
+            <Button variant="outline" onClick={() => setShowPrescriptionDialog(false)} className="w-[25%]">
               إلغاء
             </Button>
             <Button 
               onClick={handleCreatePrescription} 
-              className="flex-2 bg-primary hover:bg-primary/90 text-white flex items-center justify-center gap-2"
+              className="w-[75%] bg-primary hover:bg-primary/90 text-white flex items-center justify-center gap-2"
             >
               <Save className="size-4" />
               <span>احفظ الروشتة</span>

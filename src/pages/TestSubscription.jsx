@@ -29,7 +29,7 @@ export default function TestSubscription() {
             <div className="max-w-4xl mx-auto">
                 <h1 className="text-2xl font-bold mb-6">اختبار انتهاء الاشتراك</h1>
                 
-                <div className="bg-white rounded-lg shadow p-6">
+                <div className="bg-white rounded-[var(--radius)] shadow p-6">
                     <h2 className="text-xl font-semibold mb-4">حالة الاشتراك</h2>
                     
                     {subscriptionStatus ? (

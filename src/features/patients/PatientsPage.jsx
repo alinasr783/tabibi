@@ -9,6 +9,7 @@ import { PAGE_SIZE } from "../../constants/pagination";
 import PatientCreateDialog from "./PatientCreateDialog";
 import PatientsTable from "./PatientsTable";
 import usePatients from "./usePatients";
+import usePatientStats from "./usePatientStats";
 import useScrollToTop from "../../hooks/useScrollToTop";
 import supabase from "../../services/supabase";
 
@@ -22,6 +23,7 @@ export default function PatientsPage() {
   const navigate = useNavigate();
 
   const { data, isLoading, refetch } = usePatients(query, page);
+  const { data: genderStats } = usePatientStats();
 
   // Get current user's clinic_id for patient creation
   useEffect(() => {
@@ -83,7 +85,7 @@ export default function PatientsPage() {
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-primary/10 text-primary">
+          <div className="p-2 rounded-[var(--radius)] bg-primary/10 text-primary">
             <Users className="w-6 h-6" />
           </div>
           <div>
@@ -122,6 +124,30 @@ export default function PatientsPage() {
             <div>
               <div className="text-xs text-muted-foreground">جديد اليوم</div>
               <div className="text-lg font-semibold text-black">{todaysPatients}</div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card/70">
+          <CardContent className="flex items-center gap-3 py-3">
+            <div className="size-8 rounded-[calc(var(--radius)-4px)] bg-blue-500/10 text-blue-600 grid place-items-center">
+              <Users className="size-4" />
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">عدد المرضى الذكور</div>
+              <div className="text-lg font-semibold text-black">{genderStats?.maleCount || 0}</div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card/70">
+          <CardContent className="flex items-center gap-3 py-3">
+            <div className="size-8 rounded-[calc(var(--radius)-4px)] bg-pink-500/10 text-pink-600 grid place-items-center">
+              <Users className="size-4" />
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">عدد المرضى الاناث</div>
+              <div className="text-lg font-semibold text-black">{genderStats?.femaleCount || 0}</div>
             </div>
           </CardContent>
         </Card>

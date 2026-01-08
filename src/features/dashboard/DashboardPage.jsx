@@ -138,7 +138,7 @@ function DashboardContent() {
       <div className="space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-3 w-full sm:w-auto">
-            <div className="p-2 rounded-lg bg-primary/10 text-primary flex-shrink-0 mt-[-0.5rem]"> {/* Moved upward with negative margin */}
+            <div className="p-2 rounded-[var(--radius)] bg-primary/10 text-primary flex-shrink-0 mt-[-0.5rem]"> {/* Moved upward with negative margin */}
               <Stethoscope className="size-6" />
             </div>
             <div className="min-w-0 flex-1">
@@ -171,7 +171,6 @@ function DashboardContent() {
           >
             {section.id === 'schedule' && <SwipeableMiniSchedule />}
             {section.id === 'subscription' && <SubscriptionBanner />}
-            {section.id === 'activity' && <Activity />}
           </DraggableSection>
         ))}
       </div>

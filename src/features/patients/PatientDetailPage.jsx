@@ -58,7 +58,13 @@ export default function PatientDetailPage() {
     return age;
   };
 
-  const patientAge = calculateAge(patient?.date_of_birth);
+  let patientAge = calculateAge(patient?.date_of_birth);
+  let patientAgeUnit = "سنة";
+  
+  if (!patientAge && patient?.age) {
+      patientAge = patient.age;
+      patientAgeUnit = patient.age_unit === 'months' ? 'شهر' : patient.age_unit === 'days' ? 'يوم' : 'سنة';
+  }
 
   // Share latest prescription via WhatsApp
   const shareLatestPrescription = () => {
@@ -155,7 +161,7 @@ ${medicationsList}
             </div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[1,2,3,4].map(i => <div key={i} className="h-20 bg-muted rounded-lg animate-pulse"></div>)}</div>
+            {[1,2,3,4].map(i => <div key={i} className="h-20 bg-muted rounded-[var(--radius)] animate-pulse"></div>)}</div>
         </div>
       ) : !patient ? (
         <div className="text-center py-12">
@@ -191,7 +197,7 @@ ${medicationsList}
                   {patientAge && (
                     <span className="flex items-center gap-1">
                       <Cake className="w-3.5 h-3.5" />
-                      {patientAge} سنة
+                      {patientAge} {patientAgeUnit}
                     </span>
                   )}
                 </div>
@@ -397,7 +403,7 @@ function PatientTreatmentPlansTable({ patientId }) {
       {isPlansLoading ? (
         <div className="space-y-2">
           {[1, 2].map((i) => (
-            <div key={i} className="h-16 bg-muted rounded-lg animate-pulse"></div>
+            <div key={i} className="h-16 bg-muted rounded-[var(--radius)] animate-pulse"></div>
           ))}
         </div>
       ) : patientPlans && patientPlans.length > 0 ? (

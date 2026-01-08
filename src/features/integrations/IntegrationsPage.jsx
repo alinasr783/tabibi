@@ -245,7 +245,7 @@ export default function IntegrationsPage() {
   return (
     <div className="space-y-6 p-6" dir="rtl">
        <div className="flex items-center gap-3 mb-8">
-        <div className="p-2 rounded-lg bg-primary/10 text-primary">
+        <div className="p-2 rounded-[var(--radius)] bg-primary/10 text-primary">
           <Share2 className="w-6 h-6" />
         </div>
         <div>

@@ -173,7 +173,7 @@ export default function NotificationsPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-primary/10 text-primary">
+          <div className="p-2 rounded-[var(--radius)] bg-primary/10 text-primary">
             <Bell className="w-6 h-6" />
           </div>
           <div>

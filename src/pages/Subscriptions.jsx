@@ -203,18 +203,18 @@ export default function Subscriptions() {
             <p className="text-gray-600">عرض تفاصيل باقة الاشتراك الحالية واستكشاف الخطط الأخرى</p>
           </div>
           <div className="space-y-6">
-            <Card className="rounded-2xl border-0 shadow-lg">
+            <Card className="rounded-[var(--radius)] border-0 shadow-lg">
               <CardHeader className="pb-4 border-b border-gray-200">
                 <div className="animate-pulse">
-                  <div className="h-6 bg-gray-200 rounded w-1/3 mb-2"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                  <div className="h-6 bg-gray-200 rounded-[var(--radius)] w-1/3 mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded-[var(--radius)] w-1/2"></div>
                 </div>
               </CardHeader>
               <CardContent className="p-6">
                 <div className="animate-pulse space-y-4">
-                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                  <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+                  <div className="h-4 bg-gray-200 rounded-[var(--radius)] w-3/4"></div>
+                  <div className="h-4 bg-gray-200 rounded-[var(--radius)] w-1/2"></div>
+                  <div className="h-4 bg-gray-200 rounded-[var(--radius)] w-2/3"></div>
                 </div>
               </CardContent>
             </Card>
@@ -236,7 +236,7 @@ export default function Subscriptions() {
         {/* Header */}
         <div className="mb-6">
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 rounded-lg bg-primary/10 text-primary">
+            <div className="p-2 rounded-[var(--radius)] bg-primary/10 text-primary">
               <CreditCard className="w-5 h-5" />
             </div>
             <h1 className="text-2xl font-bold text-foreground">إدارة الاشتراك</h1>
@@ -246,7 +246,7 @@ export default function Subscriptions() {
 
         {isLoading ? (
           <div className="space-y-6">
-            <Card className="rounded-2xl bg-card/70">
+            <Card className="rounded-[var(--radius)] bg-card/70">
               <CardHeader className="pb-4 border-b border-border">
                 <div className="animate-pulse">
                   <div className="h-6 bg-muted rounded w-1/3 mb-2"></div>
@@ -264,7 +264,7 @@ export default function Subscriptions() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[...Array(3)].map((_, index) => (
-                <Card key={index} className="rounded-2xl bg-card/70 animate-pulse">
+                <Card key={index} className="rounded-[var(--radius)] bg-card/70 animate-pulse">
                   <CardHeader className="pb-4 border-b border-border">
                     <div className="h-6 bg-muted rounded w-1/2 mb-2"></div>
                     <div className="h-4 bg-muted rounded w-1/3"></div>
@@ -284,11 +284,11 @@ export default function Subscriptions() {
           <>
             {/* Current Plan Section */}
             <section className="mb-8">
-              <Card className="rounded-xl bg-card/70">
+              <Card className="rounded-[var(--radius)] bg-card/70">
                 <CardHeader className="pb-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="bg-primary/10 p-2 rounded-lg">
+                      <div className="bg-primary/10 p-2 rounded-[var(--radius)]">
                         <Zap className="w-5 h-5 text-primary" />
                       </div>
                       <div>
@@ -325,6 +325,7 @@ export default function Subscriptions() {
                         onClick={() => {
                           document.getElementById('available-plans')?.scrollIntoView({ behavior: 'smooth' });
                         }}
+                        className="rounded-[var(--radius)]"
                       >
                         اختار باقتك
                       </Button>
@@ -334,7 +335,7 @@ export default function Subscriptions() {
                       {/* Plan Info Cards */}
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         {/* Plan Type */}
-                        <div className="p-3 rounded-lg border border-border/50 bg-muted/20">
+                        <div className="p-3 rounded-[var(--radius)] border border-border/50 bg-muted/20">
                           <div className="flex items-center gap-2 mb-1">
                             <Zap className="w-4 h-4 text-primary" />
                             <p className="text-xs text-muted-foreground">نوع الباقة</p>
@@ -345,7 +346,7 @@ export default function Subscriptions() {
                         </div>
                         
                         {/* Billing Period */}
-                        <div className="p-3 rounded-lg border border-border/50 bg-muted/20">
+                        <div className="p-3 rounded-[var(--radius)] border border-border/50 bg-muted/20">
                           <div className="flex items-center gap-2 mb-1">
                             <Calendar className="w-4 h-4 text-primary" />
                             <p className="text-xs text-muted-foreground">فترة الفوترة</p>
@@ -369,7 +370,7 @@ export default function Subscriptions() {
                         
                         {/* Expiry Date */}
                         {!isFreePlan && subscriptionEndDate && (
-                          <div className="p-3 rounded-lg border border-border/50 bg-muted/20">
+                          <div className="p-3 rounded-[var(--radius)] border border-border/50 bg-muted/20">
                             <div className="flex items-center gap-2 mb-1">
                               <CalendarDays className="w-4 h-4 text-primary" />
                               <p className="text-xs text-muted-foreground">الانتهاء</p>
@@ -388,7 +389,7 @@ export default function Subscriptions() {
                       
                       {/* Usage Stats */}
                       <div className="space-y-4">
-                        <div className="p-4 rounded-lg border border-border/50 bg-muted/20">
+                        <div className="p-4 rounded-[var(--radius)] border border-border/50 bg-muted/20">
                           <h3 className="text-sm font-medium text-foreground mb-4">إحصائيات الاستخدام</h3>
                           
                           {/* Patient Usage */}
@@ -414,11 +415,11 @@ export default function Subscriptions() {
                         
                         {/* Appointment Source & Income */}
                         {(usageStats?.monthlyAppointments > 0 || usageStats?.totalIncome > 0) && (
-                          <div className="p-4 rounded-lg border border-border/50 bg-muted/20">
+                          <div className="p-4 rounded-[var(--radius)] border border-border/50 bg-muted/20">
                             {/* Appointment Sources */}
                             {usageStats?.monthlyAppointments > 0 && (
                               <div className="grid grid-cols-2 gap-3 mb-4">
-                                <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                                <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-[var(--radius)]">
                                   <Globe className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                                   <div>
                                     <p className="text-xs text-muted-foreground">من الموقع</p>
@@ -427,7 +428,7 @@ export default function Subscriptions() {
                                     </p>
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                                <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-900/20 rounded-[var(--radius)]">
                                   <Building className="w-4 h-4 text-green-600 dark:text-green-400" />
                                   <div>
                                     <p className="text-xs text-muted-foreground">من العيادة</p>
@@ -443,11 +444,11 @@ export default function Subscriptions() {
                             {usageStats?.totalIncome > 0 && (
                               <div className="flex items-center justify-between pt-3 border-t border-border">
                                 <div className="flex items-center gap-2">
-                                  <DollarSign className="w-4 h-4 text-green-600 dark:text-green-400" />
-                                  <span className="text-xs text-muted-foreground">الإيرادات</span>
+                                  <DollarSign className="w-4 h-4 text-primary" />
+                                  <span className="text-sm text-muted-foreground">إجمالي الدخل (الشهر ده)</span>
                                 </div>
-                                <span className="text-sm font-medium">
-                                  {formatCurrency(usageStats?.totalIncome || 0)}
+                                <span className="text-sm font-bold text-foreground">
+                                  {formatCurrency(usageStats?.totalIncome)}
                                 </span>
                               </div>
                             )}
@@ -456,113 +457,67 @@ export default function Subscriptions() {
                       </div>
                     </div>
                   )}
-                  
-                  {/* Features List */}
-                  {currentPlan?.features && (
-                    <div className="mt-6 pt-6 border-t border-gray-200">
-                      <h3 className="font-semibold text-gray-900 mb-3">المميزات المتاحة:</h3>
-                      <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {currentPlan.features.map((feature, index) => (
-                          <li key={index} className="flex items-start gap-2 text-sm">
-                            <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                            <span className="text-gray-700">{feature}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  
-                  {/* Upgrade Button - Only show if not on highest plan */}
-                  {!isFreePlan && upgradePlans.length > 0 && !isHighestPlan && (
-                    <div className="mt-6 pt-6 border-t border-gray-200">
-                      <Button 
-                        onClick={() => handleSwitchPlan(upgradePlans[0].id)}
-                        className="w-full sm:w-auto"
-                      >
-                        ترقية إلى باقة أعلى
-                        <ArrowRight className="w-4 h-4 mr-2" />
-                      </Button>
-                    </div>
-                  )}
                 </CardContent>
               </Card>
             </section>
             
-            {/* Available Plans Section - Only show if not on highest plan */}
-            {!isHighestPlan && (
-              <section id="available-plans">
-                <div className="mb-6">
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">الباقات المتاحة</h2>
-                  <p className="text-gray-600">اختر الباقة التي تناسب احتياجاتك</p>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {allPlans?.map((plan) => {
-                    const isCurrentPlan = plan.id === currentPlan?.id;
-                    const isHigherPlan = plan.price > (currentPlan?.price || 0);
-                    
-                    return (
-                      <Card 
-                        key={plan.id} 
-                        className={`rounded-2xl border-0 shadow-lg overflow-hidden ${
-                          plan.popular ? "ring-2 ring-yellow-500 ring-offset-2" : ""
-                        }`}
-                      >
-                        {plan.popular && (
-                          <div className="bg-yellow-500 text-white text-center py-2 text-sm font-medium">
-                            الأكثر شعبية
-                          </div>
+            {/* Available Plans */}
+            <div id="available-plans" className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-foreground">خطط الاشتراك المتاحة</h2>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {allPlans?.map((plan) => (
+                  <Card 
+                    key={plan.id} 
+                    className={`rounded-[var(--radius)] overflow-hidden transition-all duration-300 hover:shadow-lg ${
+                      currentPlan?.id === plan.id 
+                        ? "border-primary ring-1 ring-primary" 
+                        : "bg-card/70"
+                    }`}
+                  >
+                    <CardHeader className="pb-4">
+                      <div className="flex justify-between items-start">
+                        <div className="bg-primary/10 p-2 rounded-[var(--radius)] mb-3">
+                          <Zap className="w-5 h-5 text-primary" />
+                        </div>
+                        {currentPlan?.id === plan.id && (
+                          <Badge className="bg-primary">باقتك الحالية</Badge>
                         )}
-                        
-                        <CardHeader className="pb-4 border-b border-gray-200">
-                          <div className="flex items-center justify-between">
-                            <CardTitle className="text-lg font-bold text-gray-900">
-                              {plan.name}
-                            </CardTitle>
-                            {isCurrentPlan && (
-                              <Badge variant="default" className="px-2.5 py-0.5 text-xs font-medium">الحالي</Badge>
-                            )}
+                      </div>
+                      <CardTitle className="text-xl font-bold">{plan.name}</CardTitle>
+                      <div className="flex items-baseline gap-1 mt-2">
+                        <span className="text-2xl font-bold">{formatCurrency(plan.price)}</span>
+                        <span className="text-sm text-muted-foreground">/ {plan.billing_period === 'annual' ? 'سنة' : 'شهر'}</span>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-6 pt-0">
+                      <p className="text-sm text-muted-foreground mb-6 line-clamp-2">
+                        {plan.description}
+                      </p>
+                      
+                      <div className="space-y-3 mb-6">
+                        {(typeof plan.features === 'string' ? JSON.parse(plan.features) : plan.features)?.slice(0, 4).map((feature, i) => (
+                          <div key={i} className="flex items-start gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+                            <span className="text-sm text-muted-foreground">{feature}</span>
                           </div>
-                          <div className="mt-2">
-                            <span className="text-3xl font-bold text-gray-900">
-                              {formatCurrency(plan.price)}
-                            </span>
-                            <span className="text-gray-600 mr-2">/ شهر</span>
-                          </div>
-                          {plan.description && (
-                            <p className="text-gray-600 text-sm mt-2">{plan.description}</p>
-                          )}
-                        </CardHeader>
-                        
-                        <CardContent className="p-6">
-                          <ul className="space-y-3 mb-6">
-                            {plan.features.map((feature, index) => (
-                              <li key={index} className="flex items-start gap-2 text-sm">
-                                <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                                <span className="text-gray-700">{feature}</span>
-                              </li>
-                            ))}
-                          </ul>
-                          
-                          <Button
-                            onClick={() => handleSwitchPlan(plan.id)}
-                            disabled={isCurrentPlan}
-                            className="w-full"
-                            variant={isCurrentPlan ? "outline" : isHigherPlan ? "default" : "secondary"}
-                          >
-                            {isCurrentPlan 
-                              ? "الباقة الحالية" 
-                              : isHigherPlan 
-                                ? "ترقية" 
-                                : "تبديل إلى هذه الباقة"}
-                          </Button>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              </section>
-            )}
+                        ))}
+                      </div>
+                      
+                      <Button 
+                        className={`w-full rounded-[var(--radius)] ${currentPlan?.id === plan.id ? "bg-muted text-muted-foreground hover:bg-muted/80" : ""}`}
+                        disabled={currentPlan?.id === plan.id}
+                        onClick={() => handleSwitchPlan(plan.id)}
+                      >
+                        {currentPlan?.id === plan.id ? "مشترك بالفعل" : "اشترك الآن"}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
           </>
         )}
       </div>

@@ -27,9 +27,9 @@ export default function PatientAppointmentsHistory({ appointments, isLoading, pa
   if (isLoading) {
     return (
       <div className="space-y-3">
-        <div className="h-5 w-24 bg-muted rounded animate-pulse"></div>
+        <div className="h-5 w-24 bg-muted rounded-[var(--radius)] animate-pulse"></div>
         {[1, 2, 3].map((i) => (
-          <div key={i} className="h-20 bg-muted rounded-lg animate-pulse"></div>
+          <div key={i} className="h-20 bg-muted rounded-[var(--radius)] animate-pulse"></div>
         ))}
       </div>
     )
@@ -59,7 +59,7 @@ export default function PatientAppointmentsHistory({ appointments, isLoading, pa
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                        <span className={`text-xs px-2 py-0.5 rounded-[var(--radius)] ${
                           statusConfig[appointment.status]?.className || statusConfig.pending.className
                         }`}>
                           {statusConfig[appointment.status]?.label || appointment.status}

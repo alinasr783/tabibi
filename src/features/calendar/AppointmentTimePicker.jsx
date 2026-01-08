@@ -127,7 +127,7 @@ export default function AppointmentTimePicker({
                 yesterday.setHours(23, 59, 59, 999);
                 return date <= yesterday;
               }}
-              className="rounded-md border"
+              className="rounded-[var(--radius)] border"
             />
           </PopoverContent>
         </Popover>

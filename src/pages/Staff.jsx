@@ -8,6 +8,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "../components/ui/dialog";
 import {
   Table,
@@ -250,7 +251,7 @@ export default function Staff() {
     <div className="space-y-6 p-4 md:p-6 bg-background min-h-screen pb-20 md:pb-0" dir="rtl">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-primary/10 text-primary">
+          <div className="p-2 rounded-[var(--radius)] bg-primary/10 text-primary">
             <User className="w-6 h-6" />
           </div>
           <div>
@@ -272,7 +273,7 @@ export default function Staff() {
           {isLoading ? (
             <div className="space-y-4">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-center justify-between p-4 border border-border rounded-lg">
+                <div key={i} className="flex items-center justify-between p-4 border border-border rounded-[var(--radius)]">
                   <div className="space-y-2">
                     <SkeletonLine width={120} height={16} />
                     <SkeletonLine width={200} height={14} />
@@ -296,7 +297,7 @@ export default function Staff() {
                   <div key={secretary.user_id} className="mb-4 pb-4 border-b border-border last:border-0 last:mb-0 last:pb-0">
                     <div className="p-1">
                       <div className="flex items-start gap-3 mb-3">
-                        <div className="w-12 h-12 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                        <div className="w-12 h-12 rounded-[var(--radius)] bg-primary/10 text-primary flex items-center justify-center">
                           <User className="w-6 h-6" />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -478,16 +479,15 @@ export default function Staff() {
                             size="sm"
                             onClick={() => handleEditSecretary(secretary)}
                           >
-                            <Edit className="ml-1 h-4 w-4" />
-                            تعديل
+                            <Edit className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => handleDeleteSecretary(secretary.user_id)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
                           >
-                            <Trash2 className="ml-1 h-4 w-4" />
-                            حذف
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </TableCell>
@@ -497,17 +497,16 @@ export default function Staff() {
               </Table>
               </div>
             </>
-          ) : ( <div className="text-center py-12">
-              <div className="mx-auto w-24 h-24 bg-muted/50 rounded-full flex items-center justify-center mb-4">
-                <UserPlus className="h-12 w-12 text-muted-foreground" />
+          ) : (
+            <div className="text-center py-8">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-[var(--radius)] bg-primary/10 text-primary mb-4">
+                <UserPlus className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-medium text-foreground mb-1">مفيش سكرتاريه</h3>
-              <p className="text-muted-foreground mb-4">
-                ضيف سكرتير جديد للعيادة
-              </p>
-              <Button onClick={() => setIsAddDialogOpen(true)} className="bg-primary hover:bg-primary/90">
-                <Plus className="ml-2 h-4 w-4" />
-                ضيف سكرتير
+              <h3 className="text-lg font-bold text-foreground">لا يوجد موظفين</h3>
+              <p className="text-muted-foreground mb-4">أضف سكرتير لمساعدتك في إدارة العيادة</p>
+              <Button onClick={() => setIsAddDialogOpen(true)}>
+                <UserPlus className="ml-2 h-4 w-4" />
+                إضافة سكرتير
               </Button>
             </div>
           )}
@@ -515,345 +514,242 @@ export default function Staff() {
       </Card>
 
       {/* Add Secretary Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={(open) => !open && handleCloseAddDialog()}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden" dir="rtl">
-          <DialogHeader className="pb-3">
-            <DialogTitle className="text-lg">إضافة موظف جديد</DialogTitle>
-            {/* Step Indicator */}
-            <div className="flex items-center justify-center gap-2 mt-4">
-              {[1, 2, 3].map((step) => (
-                <div key={step} className="flex items-center">
-                  <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
-                      addStaffStep === step
-                        ? 'bg-primary text-white'
-                        : addStaffStep > step
-                        ? 'bg-primary/20 text-primary'
-                        : 'bg-muted text-muted-foreground'
-                    }`}
-                  >
-                    {step}
-                  </div>
-                  {step < 3 && (
-                    <div
-                      className={`w-12 h-0.5 mx-1 transition-colors ${
-                        addStaffStep > step ? 'bg-primary/20' : 'bg-muted'
-                      }`}
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
-            <div className="text-center mt-2">
-              <p className="text-sm text-muted-foreground">
-                {addStaffStep === 1 && 'البيانات الشخصية'}
-                {addStaffStep === 2 && 'بيانات الحساب'}
-                {addStaffStep === 3 && 'الصلاحيات'}
-              </p>
-            </div>
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>إضافة سكرتير جديد</DialogTitle>
           </DialogHeader>
           
-          <div className="overflow-y-auto max-h-[calc(90vh-16rem)] pr-2" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-            <style>
-              {`
-                .overflow-y-auto::-webkit-scrollbar {
-                  display: none;
-                }
-              `}
-            </style>
-            <div className="py-4">
-              {/* Step 1: Personal Information */}
-              {addStaffStep === 1 && (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">الاسم</Label>
-                    <Input
-                      id="name"
-                      value={newSecretary.name}
-                      onChange={(e) =>
-                        setNewSecretary({ ...newSecretary, name: e.target.value })
-                      }
-                      placeholder="اسم الموظف"
-                      autoFocus
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">رقم الموبايل (اختياري)</Label>
-                    <Input
-                      id="phone"
-                      value={newSecretary.phone}
-                      onChange={(e) =>
-                        setNewSecretary({ ...newSecretary, phone: e.target.value })
-                      }
-                      placeholder="رقم الموبايل"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Step 2: Account Information */}
-              {addStaffStep === 2 && (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">الإيميل</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={newSecretary.email}
-                      onChange={(e) =>
-                        setNewSecretary({ ...newSecretary, email: e.target.value })
-                      }
-                      placeholder="email@example.com"
-                      autoFocus
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password">كلمة السر</Label>
-                    <Input
-                      id="password"
-                      type="text"
-                      value={newSecretary.password}
-                      onChange={(e) =>
-                        setNewSecretary({ ...newSecretary, password: e.target.value })
-                      }
-                      placeholder="6 أحرف على الأقل"
-                    />
-                    <p className="text-xs text-amber-600 dark:text-amber-400 flex items-start gap-1">
-                      <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                      <span>احنفظ كلمة السر دي عندك - مش هتقدر تشوفها تاني</span>
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Step 3: Permissions */}
-              {addStaffStep === 3 && (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {SECRETARY_PERMISSIONS.map((permission) => (
-                      <div key={permission.id} className="flex items-start gap-3 p-3 rounded-lg border border-border/50 bg-muted/20">
-                        <Checkbox
-                          id={`new-${permission.id}`}
-                          checked={newSecretary.permissions.includes(permission.id)}
-                          onCheckedChange={() => handleNewSecretaryPermissionChange(permission.id)}
-                          className="mt-0.5"
-                        />
-                        <div className="flex-1">
-                          <label
-                            htmlFor={`new-${permission.id}`}
-                            className="text-sm font-medium cursor-pointer"
-                          >
-                            {permission.label}
-                          </label>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {permission.description}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+          <div className="space-y-4 py-4">
+            {/* Steps indicator */}
+            <div className="flex items-center justify-center mb-6">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${addStaffStep >= 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>1</div>
+              <div className={`w-12 h-1 bg-muted ${addStaffStep >= 2 ? 'bg-primary' : ''}`} />
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${addStaffStep >= 2 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>2</div>
+              <div className={`w-12 h-1 bg-muted ${addStaffStep >= 3 ? 'bg-primary' : ''}`} />
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${addStaffStep >= 3 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>3</div>
             </div>
+
+            {addStaffStep === 1 && (
+              <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">الاسم</Label>
+                  <Input 
+                    id="name" 
+                    value={newSecretary.name}
+                    onChange={(e) => setNewSecretary({...newSecretary, name: e.target.value})}
+                    placeholder="اسم السكرتير" 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">رقم الهاتف (اختياري)</Label>
+                  <Input 
+                    id="phone" 
+                    value={newSecretary.phone}
+                    onChange={(e) => setNewSecretary({...newSecretary, phone: e.target.value})}
+                    placeholder="01xxxxxxxxx" 
+                  />
+                </div>
+              </div>
+            )}
+
+            {addStaffStep === 2 && (
+              <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">البريد الإلكتروني</Label>
+                  <Input 
+                    id="email" 
+                    type="email"
+                    value={newSecretary.email}
+                    onChange={(e) => setNewSecretary({...newSecretary, email: e.target.value})}
+                    placeholder="email@example.com" 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">كلمة المرور</Label>
+                  <Input 
+                    id="password" 
+                    type="password"
+                    value={newSecretary.password}
+                    onChange={(e) => setNewSecretary({...newSecretary, password: e.target.value})}
+                    placeholder="******" 
+                  />
+                </div>
+              </div>
+            )}
+
+            {addStaffStep === 3 && (
+              <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
+                <Label>الصلاحيات</Label>
+                <div className="grid grid-cols-1 gap-2 border rounded-[var(--radius)] p-3 max-h-[250px] overflow-y-auto">
+                  {SECRETARY_PERMISSIONS.map((permission) => (
+                    <div key={permission.id} className="flex items-start gap-2 p-2 hover:bg-muted/50 rounded-[var(--radius)]">
+                      <Checkbox 
+                        id={`new-${permission.id}`} 
+                        checked={newSecretary.permissions.includes(permission.id)}
+                        onCheckedChange={() => handleNewSecretaryPermissionChange(permission.id)}
+                      />
+                      <div className="grid gap-1.5 leading-none">
+                        <label
+                          htmlFor={`new-${permission.id}`}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                        >
+                          {permission.label}
+                        </label>
+                        <p className="text-xs text-muted-foreground">
+                          {permission.description}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Footer Buttons */}
-          <div className="flex justify-between gap-2 pt-4">
-            <div>
-              {addStaffStep > 1 && (
-                <Button variant="outline" onClick={handlePreviousStep}>
+          <DialogFooter>
+            <div className="flex w-full gap-2">
+              {addStaffStep > 1 ? (
+                <Button variant="outline" onClick={handlePreviousStep} className="w-[25%]">
                   السابق
                 </Button>
+              ) : (
+                <Button variant="outline" onClick={handleCloseAddDialog} className="w-[25%]">
+                  إلغاء
+                </Button>
               )}
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={handleCloseAddDialog}>
-                إلغاء
-              </Button>
+              
               {addStaffStep < 3 ? (
-                <Button onClick={handleNextStep}>
+                <Button onClick={handleNextStep} className="w-[75%]">
                   التالي
                 </Button>
               ) : (
-                <Button onClick={handleAddSecretary}>
-                  إضافة الموظف
+                <Button onClick={handleAddSecretary} disabled={!newSecretary.name || !newSecretary.email || !newSecretary.password} className="w-[75%]">
+                  إضافة
                 </Button>
               )}
             </div>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Edit Secretary Dialog */}
+      {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>تعديل بيانات السكرتير</DialogTitle>
           </DialogHeader>
           {selectedSecretary && (
-            <div className="space-y-4">
+            <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label htmlFor="edit-name">الاسم</Label>
-                <Input
-                  id="edit-name"
+                <Input 
+                  id="edit-name" 
                   value={selectedSecretary.name}
-                  onChange={(e) =>
-                    setSelectedSecretary({
-                      ...selectedSecretary,
-                      name: e.target.value,
-                    })
-                  }
-                  placeholder="أدخل اسم السكرتير"
+                  onChange={(e) => setSelectedSecretary({...selectedSecretary, name: e.target.value})}
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-email">البريد الإلكتروني</Label>
-                <Input
-                  id="edit-email"
-                  type="email"
+                <Input 
+                  id="edit-email" 
                   value={selectedSecretary.email}
-                  onChange={(e) =>
-                    setSelectedSecretary({
-                      ...selectedSecretary,
-                      email: e.target.value,
-                    })
-                  }
-                  placeholder="أدخل البريد الإلكتروني"
+                  onChange={(e) => setSelectedSecretary({...selectedSecretary, email: e.target.value})}
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-phone">رقم الهاتف</Label>
-                <Input
-                  id="edit-phone"
+                <Input 
+                  id="edit-phone" 
                   value={selectedSecretary.phone || ""}
-                  onChange={(e) =>
-                    setSelectedSecretary({
-                      ...selectedSecretary,
-                      phone: e.target.value,
-                    })
-                  }
-                  placeholder="أدخل رقم الهاتف"
+                  onChange={(e) => setSelectedSecretary({...selectedSecretary, phone: e.target.value})}
                 />
-              </div>
-              <Separator />
-              <div className="text-sm text-muted-foreground">
-                <p>معرف المستخدم: {selectedSecretary.user_id}</p>
-                <p>
-                  تاريخ التسجيل:{" "}
-                  {new Date(selectedSecretary.created_at).toLocaleDateString(
-                    "ar-EG"
-                  )}
-                </p>
-              </div>
-              <div className="flex justify-end gap-2 pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => setIsEditDialogOpen(false)}
-                >
-                  إلغاء
-                </Button>
-                <Button onClick={handleUpdateSecretary}>حفظ التغييرات</Button>
               </div>
             </div>
           )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="w-[25%]">
+              إلغاء
+            </Button>
+            <Button onClick={handleUpdateSecretary} className="w-[75%]">
+              حفظ التغييرات
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Permissions Dialog */}
-      <SecretaryPermissionsDialog
-        open={isPermissionsDialogOpen}
-        onOpenChange={setIsPermissionsDialogOpen}
-        secretary={selectedSecretary}
-        selectedPermissions={selectedPermissions}
-        onPermissionChange={handlePermissionChange}
-        onSave={handleSavePermissions}
-      />
+      {selectedSecretary && (
+        <SecretaryPermissionsDialog 
+          isOpen={isPermissionsDialogOpen}
+          onClose={() => setIsPermissionsDialogOpen(false)}
+          secretaryName={selectedSecretary.name}
+          selectedPermissions={selectedPermissions}
+          onPermissionChange={handlePermissionChange}
+          onSave={handleSavePermissions}
+        />
+      )}
 
       {/* Success Dialog */}
       <Dialog open={isSuccessDialogOpen} onOpenChange={setIsSuccessDialogOpen}>
-        <DialogContent className="max-w-md" dir="rtl">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center">
-                <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
-              </div>
-              <DialogTitle className="text-lg">تم إضافة الموظف بنجاح</DialogTitle>
-            </div>
+            <DialogTitle className="flex items-center gap-2 text-green-600">
+              <CheckCircle className="w-6 h-6" />
+              تم إضافة السكرتير بنجاح
+            </DialogTitle>
           </DialogHeader>
           
-          {createdSecretaryInfo && (
-            <div className="space-y-4">
-              {/* Warning Alert */}
-              <div className="flex gap-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
-                <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-amber-900 dark:text-white">
-                    مهم جداً
-                  </p>
-                  <p className="text-xs text-amber-900 dark:text-white mt-1">
-                    انسخ بيانات الحساب دلوقتي - مش هتقدر تشوفها تاني!
-                  </p>
+          <div className="space-y-4 py-4">
+            <div className="bg-muted p-4 rounded-[var(--radius)] space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">البريد الإلكتروني:</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono font-medium">{createdSecretaryInfo?.email}</span>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-6 w-6" 
+                    onClick={() => {
+                      navigator.clipboard.writeText(createdSecretaryInfo?.email);
+                      toast.success("تم نسخ البريد الإلكتروني");
+                    }}
+                  >
+                    <Copy className="w-3 h-3" />
+                  </Button>
                 </div>
               </div>
-
-              {/* Account Details */}
-              <div className="space-y-3">
-                <div>
-                  <Label className="text-xs text-muted-foreground">الاسم</Label>
-                  <div className="mt-1 p-3 rounded-lg bg-muted/50 border border-border">
-                    <p className="text-sm font-medium">{createdSecretaryInfo.name}</p>
-                  </div>
+              
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">كلمة المرور:</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono font-medium">{createdSecretaryInfo?.password}</span>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-6 w-6" 
+                    onClick={() => {
+                      navigator.clipboard.writeText(createdSecretaryInfo?.password);
+                      toast.success("تم نسخ كلمة المرور");
+                    }}
+                  >
+                    <Copy className="w-3 h-3" />
+                  </Button>
                 </div>
-
-                <div>
-                  <Label className="text-xs text-muted-foreground">الإيميل</Label>
-                  <div className="mt-1 flex items-center gap-2">
-                    <div className="flex-1 p-3 rounded-lg bg-muted/50 border border-border">
-                      <p className="text-sm font-medium font-mono">{createdSecretaryInfo.email}</p>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        navigator.clipboard.writeText(createdSecretaryInfo.email);
-                        toast.success("تم نسخ الإيميل");
-                      }}
-                    >
-                      <Copy className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                <div>
-                  <Label className="text-xs text-muted-foreground">كلمة السر</Label>
-                  <div className="mt-1 flex items-center gap-2">
-                    <div className="flex-1 p-3 rounded-lg bg-primary/5 border border-primary/20">
-                      <p className="text-sm font-medium font-mono">{createdSecretaryInfo.password}</p>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        navigator.clipboard.writeText(createdSecretaryInfo.password);
-                        toast.success("تم نسخ كلمة السر");
-                      }}
-                    >
-                      <Copy className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end pt-4">
-                <Button onClick={() => {
-                  setIsSuccessDialogOpen(false);
-                  setCreatedSecretaryInfo(null);
-                }}>
-                  تمام
-                </Button>
               </div>
             </div>
-          )}
+            
+            <div className="flex items-start gap-2 text-amber-600 bg-amber-50 p-3 rounded-[var(--radius)] text-sm">
+              <AlertTriangle className="w-5 h-5 shrink-0" />
+              <p>يرجى نسخ هذه البيانات وإرسالها للموظف. لن تتمكن من رؤية كلمة المرور مرة أخرى.</p>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button onClick={() => setIsSuccessDialogOpen(false)} className="w-full">
+              تم، فهمت
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

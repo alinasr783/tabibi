@@ -24,7 +24,7 @@ const BookingCard = ({ booking, onStatusChange, onViewDetails }) => {
   const StatusIcon = statusConfig[booking.status]?.icon || Clock;
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 mb-3 shadow-sm hover:shadow transition-shadow">
+    <div className="bg-white border border-gray-200 rounded-[var(--radius)] p-4 mb-3 shadow-sm hover:shadow transition-shadow">
       <div className="flex justify-between items-start mb-3">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
@@ -223,7 +223,7 @@ export default function OnlineBookingsTable({
           <div className="space-y-3">
             {[...Array(5)].map((_, i) => (
               <div key={i} className="animate-pulse">
-                <div className="h-20 bg-gray-200 rounded-lg"></div>
+                <div className="h-20 bg-gray-200 rounded-[var(--radius)]"></div>
               </div>
             ))}
           </div>
@@ -236,7 +236,7 @@ export default function OnlineBookingsTable({
     return (
       <Card className="max-h-[calc(100vh-200px)]">
         <CardContent className="p-8 text-center">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-[var(--radius)] bg-gray-100 flex items-center justify-center">
             <Smartphone className="w-8 h-8 text-gray-400" />
           </div>
           <h3 className="text-lg font-bold text-gray-700 mb-2">لا توجد حجوزات إلكترونية</h3>

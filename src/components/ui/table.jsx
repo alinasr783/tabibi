@@ -34,7 +34,7 @@ export default function DataTable({
         {data.length > 0 ? (
           <div className="space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
             {data.map((row) => (
-              <div key={rowKey(row)} className="table-row border border-gray-200 rounded-xl p-4 bg-white shadow-sm">
+              <div key={rowKey(row)} className="table-row border border-gray-200 rounded-[var(--radius)] p-4 bg-white shadow-sm">
                 {columns.map((col, i) => {
                   const value = col.render ? col.render(row) : row[col.accessor] ?? "-";
                   // Skip action columns on mobile if they contain buttons

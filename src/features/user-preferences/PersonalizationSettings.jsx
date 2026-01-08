@@ -178,11 +178,11 @@ export function PersonalizationSettings() {
                 <Label className="text-sm font-medium">اللون الأساسي</Label>
                 <div className="flex items-center gap-2 sm:gap-4">
                   <input
-                    type="color"
-                    value={colorState.primary}
-                    onChange={(e) => setColorState({ ...colorState, primary: e.target.value })}
-                    className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg cursor-pointer border-2 border-border"
-                  />
+                  type="color"
+                  value={colorState.primary}
+                  onChange={(e) => setColorState({ ...colorState, primary: e.target.value })}
+                  className="w-12 h-12 sm:w-14 sm:h-14 rounded-[var(--radius)] cursor-pointer border-2 border-border"
+                />
                   <Input
                     value={colorState.primary}
                     onChange={(e) => setColorState({ ...colorState, primary: e.target.value })}
@@ -190,7 +190,7 @@ export function PersonalizationSettings() {
                     className="flex-1 max-w-[120px] text-sm"
                   />
                   <div
-                    className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg border-2 border-border shadow-inner"
+                    className="w-12 h-12 sm:w-14 sm:h-14 rounded-[var(--radius)] border-2 border-border shadow-inner"
                     style={{ backgroundColor: colorState.primary }}
                   />
                 </div>
@@ -213,7 +213,7 @@ export function PersonalizationSettings() {
                     className="flex-1 max-w-[120px] text-sm"
                   />
                   <div
-                    className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg border-2 border-border shadow-inner"
+                    className="w-12 h-12 sm:w-14 sm:h-14 rounded-[var(--radius)] border-2 border-border shadow-inner"
                     style={{ backgroundColor: colorState.secondary }}
                   />
                 </div>
@@ -224,11 +224,11 @@ export function PersonalizationSettings() {
                 <Label className="text-sm font-medium">لون التركيز</Label>
                 <div className="flex items-center gap-2 sm:gap-4">
                   <input
-                    type="color"
-                    value={colorState.accent}
-                    onChange={(e) => setColorState({ ...colorState, accent: e.target.value })}
-                    className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg cursor-pointer border-2 border-border"
-                  />
+                  type="color"
+                  value={colorState.accent}
+                  onChange={(e) => setColorState({ ...colorState, accent: e.target.value })}
+                  className="w-12 h-12 sm:w-14 sm:h-14 rounded-[var(--radius)] cursor-pointer border-2 border-border"
+                />
                   <Input
                     value={colorState.accent}
                     onChange={(e) => setColorState({ ...colorState, accent: e.target.value })}
@@ -279,7 +279,7 @@ export function PersonalizationSettings() {
                       key={style.value}
                       onClick={() => handleSidebarStyleChange(style.value)}
                       className={cn(
-                        'p-3 sm:p-4 rounded-lg border-2 transition-all text-right',
+                        'p-3 sm:p-4 rounded-[var(--radius)] border-2 transition-all text-right',
                         sidebarStyle === style.value
                           ? 'border-primary bg-primary/10'
                           : 'border-border hover:border-primary/50'
@@ -311,7 +311,7 @@ export function PersonalizationSettings() {
                       key={theme.value}
                       onClick={() => handleThemeModeChange(theme.value)}
                       className={cn(
-                        'p-3 sm:p-4 rounded-lg border-2 transition-all text-center',
+                        'p-3 sm:p-4 rounded-[var(--radius)] border-2 transition-all text-center',
                         themeMode === theme.value
                           ? 'border-primary bg-primary/10'
                           : 'border-border hover:border-primary/50'

@@ -97,7 +97,7 @@ export default function NotificationsTab() {
           {/* Header */}
           <div className="p-4 sm:p-6 border-b border-border/50 bg-gradient-to-r from-primary/5 to-transparent">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
+              <div className="p-2 rounded-[var(--radius)] bg-primary/10">
                 <Mail className="w-5 h-5 text-primary" />
               </div>
               <div>
@@ -110,7 +110,7 @@ export default function NotificationsTab() {
           {/* Content */}
           <div className="p-4 sm:p-6 space-y-6">
             {/* Enable Toggle */}
-            <div className="flex items-center justify-between gap-4 p-4 rounded-xl bg-muted/30 border border-border/50">
+            <div className="flex items-center justify-between gap-4 p-4 rounded-[var(--radius)] bg-muted/30 border border-border/50">
               <div className="flex items-center gap-3">
                 <Bell className={cn(
                   "w-5 h-5 transition-colors",
@@ -189,7 +189,7 @@ export default function NotificationsTab() {
       <Card className="opacity-60">
         <CardContent className="p-4 sm:p-6">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-muted">
+            <div className="p-2 rounded-[var(--radius)] bg-muted">
               <Bell className="w-5 h-5 text-muted-foreground" />
             </div>
             <div>

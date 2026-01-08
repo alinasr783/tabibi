@@ -47,10 +47,10 @@ export default function TreatmentTemplateCreateDialog({ open, onClose, onTemplat
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-lg p-0 overflow-hidden">
-        <DialogHeader className="bg-primary text-white p-6 rounded-t-xl">
+        <DialogHeader className="bg-primary text-white p-6 rounded-t-[var(--radius)]">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-white/20">
+              <div className="p-2 rounded-[var(--radius)] bg-white/20">
                 <Stethoscope className="h-6 w-6 text-white" />
               </div>
               <div>

@@ -17,8 +17,8 @@ export default function WorkingHours({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 md:gap-4 mt-1.5 sm:mt-2 w-full">
         {Object.entries(availableTime).map(([day, times]) => (
           <div
-            key={day}
-            className="border rounded-lg p-2 sm:p-3 md:p-4 bg-muted/30 hover:bg-muted/50 transition-colors w-full max-w-full overflow-hidden">
+          key={day}
+          className="border rounded-[var(--radius)] p-2 sm:p-3 md:p-4 bg-muted/30 hover:bg-muted/50 transition-colors w-full max-w-full overflow-hidden">
             <div className="flex justify-between items-center mb-2 sm:mb-3 w-full">
               <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
                 <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary flex-shrink-0" />

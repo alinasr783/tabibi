@@ -148,14 +148,14 @@ export default function PlanConfirmation() {
         <div className="container mx-auto px-4 py-12">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
             <div className="animate-pulse">
-              <div className="h-8 bg-gray-200 rounded-lg w-48 mb-2"></div>
-              <div className="h-4 bg-gray-200 rounded-lg w-32"></div>
+              <div className="h-8 bg-gray-200 rounded-[var(--radius)] w-48 mb-2"></div>
+              <div className="h-4 bg-gray-200 rounded-[var(--radius)] w-32"></div>
             </div>
-            <div className="h-10 bg-gray-200 rounded-lg w-24"></div>
+            <div className="h-10 bg-gray-200 rounded-[var(--radius)] w-24"></div>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {[...Array(2)].map((_, index) => (
-              <Card key={index} className="rounded-2xl border-0 shadow-lg animate-pulse">
+              <Card key={index} className="rounded-[var(--radius)] border-0 shadow-lg animate-pulse">
                 <CardHeader className="pb-4 border-b border-gray-200">
                   <div className="h-6 bg-gray-200 rounded w-3/4 mb-2"></div>
                   <div className="h-4 bg-gray-200 rounded w-full"></div>
@@ -168,7 +168,7 @@ export default function PlanConfirmation() {
                   </div>
                 </CardContent>
                 <div className="p-6 pt-0">
-                  <div className="h-12 bg-gray-200 rounded-xl w-full"></div>
+                  <div className="h-12 bg-gray-200 rounded-[var(--radius)] w-full"></div>
                 </div>
               </Card>
             ))}
@@ -184,7 +184,7 @@ export default function PlanConfirmation() {
       <main className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/30" dir="rtl" lang="ar">
         <div className="container mx-auto px-4 py-12">
           <div className="text-center space-y-6">
-            <div className="bg-red-50 border border-red-200 rounded-2xl p-8 max-w-2xl mx-auto">
+            <div className="bg-red-50 border border-red-200 rounded-[var(--radius)] p-8 max-w-2xl mx-auto">
               <div className="text-red-700 flex flex-col items-center gap-4">
                 <AlertCircle className="w-12 h-12" />
                 <h2 className="text-2xl font-bold">حدث خطأ أثناء تحميل الخطة</h2>
@@ -220,7 +220,7 @@ export default function PlanConfirmation() {
         <div className="flex items-center justify-between gap-4 mb-8">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
-              <div className="bg-primary/10 p-2 rounded-lg">
+              <div className="bg-primary/10 p-2 rounded-[var(--radius)]">
                 <CreditCard className="w-6 h-6 text-primary" />
               </div>
              الاشتراك في الخطة
@@ -240,7 +240,7 @@ export default function PlanConfirmation() {
         </div>
 
         {/* Payment Gateway Integration Notice */}
-        <div className="mb-8 p-4 bg-blue-50 border border-blue-200 rounded-lg text-center">
+        <div className="mb-8 p-4 bg-blue-50 border border-blue-200 rounded-[var(--radius)] text-center">
           <p className="text-blue-800">
             <strong>ملاحظة:</strong> جارٍ التكامل مع بوابات الدفع. إذا كنت ترغب في الاشتراك الآن، 
             يرجى <a 
@@ -259,10 +259,10 @@ export default function PlanConfirmation() {
           {/* Left Column - Plan Details */}
           <div className="lg:col-span-2 space-y-6 order-2 lg:order-1">
             {/* Plan Overview Card */}
-            <Card className="rounded-2xl border-0 shadow-lg">
+            <Card className="rounded-[var(--radius)] border-0 shadow-lg">
               <CardHeader className="pb-4 border-b border-gray-200">
                 <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-3">
-                  <div className="bg-blue-100 p-2 rounded-lg">
+                  <div className="bg-blue-100 p-2 rounded-[var(--radius)]">
                     {getPlanIcon(plan.name)}
                   </div>
                   {plan.name}
@@ -271,7 +271,7 @@ export default function PlanConfirmation() {
               <CardContent className="p-6">
                 {/* Features Section */}
                 <div className="space-y-6">
-                  <div className="bg-blue-50 rounded-2xl p-6 border border-blue-200">
+                  <div className="bg-blue-50 rounded-[var(--radius)] p-6 border border-blue-200">
                     <h3 className="font-semibold text-gray-900 mb-4 text-lg flex items-center gap-2">
                       <CheckCircle className="w-5 h-5 text-blue-600" />
                       مميزات الخطة
@@ -290,7 +290,7 @@ export default function PlanConfirmation() {
 
                   {/* Plan Details */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                    <div className="bg-gray-50 rounded-[var(--radius)] p-4 border border-gray-200">
                       <h4 className="font-semibold text-gray-900 text-sm mb-3 flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-gray-400" />
                         مدة الاشتراك
@@ -303,7 +303,7 @@ export default function PlanConfirmation() {
                       </p>
                     </div>
 
-                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                    <div className="bg-gray-50 rounded-[var(--radius)] p-4 border border-gray-200">
                       <h4 className="font-semibold text-gray-900 text-sm mb-3 flex items-center gap-2">
                         <Shield className="w-4 h-4 text-gray-400" />
                         الحالة
@@ -322,10 +322,10 @@ export default function PlanConfirmation() {
             </Card>
 
             {/* Security Assurance */}
-            <Card className="rounded-2xl border-0 shadow-lg bg-green-50 border-green-200">
+            <Card className="rounded-[var(--radius)] border-0 shadow-lg bg-green-50 border-green-200">
               <CardContent className="p-6">
                 <div className="flex items-center gap-4">
-                  <div className="bg-green-100 p-3 rounded-xl">
+                  <div className="bg-green-100 p-3 rounded-[var(--radius)]">
                     <Shield className="w-6 h-6 text-green-600" />
                   </div>
                   <div>
@@ -342,10 +342,10 @@ export default function PlanConfirmation() {
           {/* Right Column - Payment Summary */}
           <div className="space-y-6 order-1 lg:order-2">
             {/* Payment Summary Card */}
-            <Card className="rounded-2xl border-0 shadow-lg sticky top-6">
+            <Card className="rounded-[var(--radius)] border-0 shadow-lg sticky top-6">
               <CardHeader className="pb-4 border-b border-gray-200">
                 <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-3">
-                  <div className="bg-blue-100 p-2 rounded-lg">
+                  <div className="bg-blue-100 p-2 rounded-[var(--radius)]">
                     <CreditCard className="w-5 h-5 text-blue-600" />
                   </div>
                   ملخص الدفع
@@ -361,7 +361,7 @@ export default function PlanConfirmation() {
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       onClick={() => setBillingPeriod('monthly')}
-                      className={`py-3 px-4 rounded-xl font-medium transition-all duration-200 border ${
+                      className={`py-3 px-4 rounded-[var(--radius)] font-medium transition-all duration-200 border ${
                         billingPeriod === 'monthly'
                           ? 'bg-primary text-white border-primary shadow-sm'
                           : 'bg-white text-gray-700 border-gray-300 hover:border-primary'
@@ -374,7 +374,7 @@ export default function PlanConfirmation() {
                     </button>
                     <button
                       onClick={() => setBillingPeriod('annual')}
-                      className={`relative py-3 px-4 rounded-xl font-medium transition-all duration-200 border ${
+                      className={`relative py-3 px-4 rounded-[var(--radius)] font-medium transition-all duration-200 border ${
                         billingPeriod === 'annual'
                           ? 'bg-primary text-white border-primary shadow-sm'
                           : 'bg-white text-gray-700 border-gray-300 hover:border-primary'
@@ -396,7 +396,7 @@ export default function PlanConfirmation() {
 
                 {/* Annual Savings Banner */}
                 {billingPeriod === 'annual' && (
-                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200">
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-[var(--radius)] p-4 border border-green-200">
                     <div className="flex items-start gap-3">
                       <div className="flex-shrink-0 w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
                         <Zap className="w-5 h-5 text-white" />

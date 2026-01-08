@@ -78,8 +78,8 @@ export default function SummaryCards({ filter, setFilter }) {
       <div
         className={`grid gap-3 ${
           isIncomeEnabled
-            ? "grid-cols-2 lg:grid-cols-5"
-            : "grid-cols-2 lg:grid-cols-4"
+            ? "grid-cols-2 lg:grid-cols-6"
+            : "grid-cols-2 lg:grid-cols-5"
         }`}>
         <Stat
           icon={CalendarDays}

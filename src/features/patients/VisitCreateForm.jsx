@@ -214,7 +214,7 @@ export default function VisitCreateForm({ patientId, patientPlanId: externalPati
                     </div>
 
                     {/* New medication input fields */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 rounded-lg bg-muted/30 border">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 rounded-[var(--radius)] bg-muted/30 border">
                         <div className="space-y-2">
                             <Label htmlFor="medicationName" className="text-xs">اسم الدواء</Label>
                             <Input
@@ -240,7 +240,7 @@ export default function VisitCreateForm({ patientId, patientPlanId: externalPati
                         <div className="space-y-2">
                             <h4 className="text-xs font-medium text-muted-foreground">الأدوية المضافة</h4>
                             {medications.map((med, index) => (
-                                <div key={index} className="flex items-start gap-2 p-3 rounded-lg bg-muted/50 border">
+                                <div key={index} className="flex items-start gap-2 p-3 rounded-[var(--radius)] bg-muted/50 border">
                                     <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                                         <span className="text-xs font-medium text-primary">{index + 1}</span>
                                     </div>
@@ -268,6 +268,7 @@ export default function VisitCreateForm({ patientId, patientPlanId: externalPati
                 <Button
                     type="button"
                     variant="outline"
+                    className="w-[25%]"
                     onClick={() => {
                         if (onCancel) {
                             onCancel()
@@ -278,7 +279,7 @@ export default function VisitCreateForm({ patientId, patientPlanId: externalPati
                 >
                     إلغاء
                 </Button>
-                <Button type="submit" disabled={isCreating}>
+                <Button type="submit" disabled={isCreating} className="w-[75%]">
                     {isCreating ? "جاري الحفظ..." : "حفظ الكشف"}
                 </Button>
             </div>

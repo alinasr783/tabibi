@@ -84,7 +84,7 @@ export default function PermissionGuard({ children, requiredPermission }) {
       return (
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center p-8 max-w-md">
-            <div className="bg-gray-200 border-2 border-dashed rounded-xl w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+            <div className="bg-gray-200 border-2 border-dashed rounded-[var(--radius)] w-16 h-16 mx-auto mb-4 flex items-center justify-center">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
@@ -93,7 +93,7 @@ export default function PermissionGuard({ children, requiredPermission }) {
             <p className="text-gray-600 mb-6">
               ليس لديك الصلاحيات اللازمة للوصول إلى هذا القسم. يرجى التواصل مع الطبيب لإعطاءك الصلاحيات المطلوبة.
             </p>
-            <div className="backdrop-blur-sm bg-white/30 p-6 rounded-lg border border-gray-200">
+            <div className="backdrop-blur-sm bg-white/30 p-6 rounded-[var(--radius)] border border-gray-200">
               <p className="text-sm text-gray-500">
                 سيتم إزالة الضبابية تلقائيًا بمجرد منحك الطبيب الصلاحيات المناسبة.
               </p>
@@ -120,7 +120,7 @@ export default function PermissionGuard({ children, requiredPermission }) {
         return (
           <div className="min-h-screen flex items-center justify-center">
             <div className="text-center p-8 max-w-md">
-              <div className="bg-gray-200 border-2 border-dashed rounded-xl w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+              <div className="bg-gray-200 border-2 border-dashed rounded-[var(--radius)] w-16 h-16 mx-auto mb-4 flex items-center justify-center">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
@@ -129,7 +129,7 @@ export default function PermissionGuard({ children, requiredPermission }) {
               <p className="text-gray-600 mb-6">
                 ليس لديك الصلاحيات اللازمة للوصول إلى هذا القسم.
               </p>
-              <div className="backdrop-blur-sm bg-white/30 p-6 rounded-lg border border-gray-200">
+              <div className="backdrop-blur-sm bg-white/30 p-6 rounded-[var(--radius)] border border-gray-200">
                 <p className="text-sm text-gray-500">
                   يرجى التواصل مع الطبيب لطلب الصلاحية: {requiredPermission}
                 </p>

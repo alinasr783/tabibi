@@ -297,7 +297,7 @@ export default function AppointmentsTable({
           {/* Header - اسم المريض والحالة */}
           <div className="flex items-start justify-between mb-3">
             <div className="flex items-center gap-3 flex-1">
-              <div className="w-12 h-12 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+              <div className="w-12 h-12 rounded-[var(--radius)] bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
                 <User className="w-6 h-6" />
               </div>
               <div className="flex-1 min-w-0">
@@ -412,7 +412,7 @@ export default function AppointmentsTable({
     const canGoForward = page < totalPages;
 
     return (
-      <div className="flex items-center justify-between mt-4 px-2 bg-card/50 rounded-lg p-3">
+      <div className="flex items-center justify-between mt-4 px-2 bg-card/50 rounded-[var(--radius)] p-3">
         <Button
           variant="outline"
           size="sm"

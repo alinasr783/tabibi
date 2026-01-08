@@ -34,6 +34,7 @@ export default function BookingPage() {
   const {
     register: registerPatient,
     handleSubmit: handleSubmitPatient,
+    control: controlPatient,
     formState: { errors: patientErrors },
     reset: resetPatient,
     setValue: setPatientValue,
@@ -167,7 +168,7 @@ export default function BookingPage() {
   if (!isOnlineBookingEnabled) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4" dir="rtl">
-        <div className="max-w-md w-full bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="max-w-md w-full bg-white rounded-[var(--radius)] shadow-sm border border-gray-200 p-6">
           <div className="text-center">
             <div className="w-12 h-12 mx-auto mb-4 bg-yellow-100 rounded-full flex items-center justify-center">
               <Shield className="w-6 h-6 text-yellow-600" />
@@ -189,7 +190,7 @@ export default function BookingPage() {
             )}
             <button
               onClick={() => window.history.back()}
-              className="w-full py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm"
+              className="w-full py-3 bg-gray-100 text-gray-700 rounded-[var(--radius)] hover:bg-gray-200 text-sm"
             >
               رجوع
             </button>
@@ -254,9 +255,9 @@ export default function BookingPage() {
         {/* Step 1: Patient Information */}
         {currentStep === 1 && (
           <div className="animate-in slide-in-from-left-10 duration-300">
-            <div className="bg-white rounded-xl border border-gray-200 p-5 mb-4">
+            <div className="bg-white rounded-[var(--radius)] border border-gray-200 p-5 mb-4">
               <div className="flex items-center gap-3 mb-5">
-                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                <div className="w-10 h-10 bg-blue-100 rounded-[var(--radius)] flex items-center justify-center">
                   <User className="w-5 h-5 text-blue-600" />
                 </div>
                 <div>
@@ -267,6 +268,7 @@ export default function BookingPage() {
               
               <PatientFormCard
                 register={registerPatient}
+                control={controlPatient}
                 errors={patientErrors}
                 onSubmit={handleSubmitPatient(handlePatientFormSubmit)}
                 isLoading={isCreatingPatient}
@@ -274,7 +276,7 @@ export default function BookingPage() {
               />
             </div>
 
-            <div className="bg-blue-50 rounded-xl border border-blue-200 p-4">
+            <div className="bg-blue-50 rounded-[var(--radius)] border border-blue-200 p-4">
               <div className="flex items-start gap-3">
                 <Shield className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
                 <div>
@@ -302,9 +304,9 @@ export default function BookingPage() {
               </button>
             </div>
 
-            <div className="bg-white rounded-xl border border-gray-200 p-5 mb-4">
+            <div className="bg-white rounded-[var(--radius)] border border-gray-200 p-5 mb-4">
               <div className="flex items-center gap-3 mb-5">
-                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                <div className="w-10 h-10 bg-green-100 rounded-[var(--radius)] flex items-center justify-center">
                   <Calendar className="w-5 h-5 text-green-600" />
                 </div>
                 <div>
@@ -333,7 +335,7 @@ export default function BookingPage() {
             </div>
 
             {clinic?.booking_price > 0 && (
-              <div className="bg-amber-50 rounded-xl border border-amber-200 p-4">
+              <div className="bg-amber-50 rounded-[var(--radius)] border border-amber-200 p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <CreditCard className="w-5 h-5 text-amber-600" />

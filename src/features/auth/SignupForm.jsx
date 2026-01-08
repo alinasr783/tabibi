@@ -631,16 +631,30 @@ export default function SignupForm() {
             <label htmlFor="role" className="text-sm font-medium">
               نوع المستخدم *
             </label>
-            <select
-              id="role"
-              {...register("role", { required: "لازم تختار نوع المستخدم" })}
-              onChange={handleRoleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">اختر نوع المستخدم</option>
-              <option value="doctor">طبيب</option>
-              <option value="secretary">سكرتير</option>
-            </select>
+            <Controller
+              control={control}
+              name="role"
+              rules={{ required: "لازم تختار نوع المستخدم" }}
+              render={({ field }) => (
+                <Select
+                  onValueChange={(val) => {
+                    field.onChange(val);
+                    setSelectedRole(val);
+                  }}
+                  defaultValue={field.value}
+                  value={field.value}
+                  dir="rtl"
+                >
+                  <SelectTrigger id="role" className="h-10 w-full justify-between">
+                    <SelectValue placeholder="اختر نوع المستخدم" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="doctor">طبيب</SelectItem>
+                    <SelectItem value="secretary">سكرتير</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            />
             {errors.role && (
               <p className="text-sm text-red-500">{errors.role.message}</p>
             )}
@@ -826,10 +840,10 @@ export default function SignupForm() {
       </form>
 
       <Dialog open={googleSignupState.isOpen} onOpenChange={(open) => setGoogleSignupState(prev => ({ ...prev, isOpen: open }))}>
-        <DialogContent className="sm:max-w-[600px] p-6 sm:p-10">
+        <DialogContent className="sm:max-w-[600px] p-6 sm:p-10 rounded-[var(--radius)]">
            <button 
              onClick={() => setGoogleSignupState(prev => ({ ...prev, isOpen: false }))}
-             className="absolute left-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
+             className="absolute left-4 top-4 rounded-[var(--radius)] opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
            >
              <X className="h-4 w-4" />
              <span className="sr-only">Close</span>
@@ -841,7 +855,7 @@ export default function SignupForm() {
            <div className="grid gap-6 py-4">
               <div className="grid grid-cols-2 gap-4">
                   <div 
-                    className={`cursor-pointer rounded-xl border-2 p-4 hover:border-primary hover:bg-primary/5 transition-all duration-200 flex flex-col items-center gap-3 text-center ${googleSignupState.role === 'doctor' ? 'border-primary bg-primary/10' : 'border-muted'}`}
+                    className={`cursor-pointer rounded-[var(--radius)] border-2 p-4 hover:border-primary hover:bg-primary/5 transition-all duration-200 flex flex-col items-center gap-3 text-center ${googleSignupState.role === 'doctor' ? 'border-primary bg-primary/10' : 'border-muted'}`}
                     onClick={() => setGoogleSignupState(prev => ({ ...prev, role: 'doctor' }))}
                   >
                     <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
@@ -854,7 +868,7 @@ export default function SignupForm() {
                   </div>
 
                   <div 
-                    className={`cursor-pointer rounded-xl border-2 p-4 hover:border-primary hover:bg-primary/5 transition-all duration-200 flex flex-col items-center gap-3 text-center ${googleSignupState.role === 'secretary' ? 'border-primary bg-primary/10' : 'border-muted'}`}
+                    className={`cursor-pointer rounded-[var(--radius)] border-2 p-4 hover:border-primary hover:bg-primary/5 transition-all duration-200 flex flex-col items-center gap-3 text-center ${googleSignupState.role === 'secretary' ? 'border-primary bg-primary/10' : 'border-muted'}`}
                     onClick={() => setGoogleSignupState(prev => ({ ...prev, role: 'secretary' }))}
                   >
                     <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">

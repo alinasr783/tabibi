@@ -4,7 +4,7 @@ export default function UserProfile() {
   const { user, isLoading } = useAuth()
 
   if (isLoading) {
-    return <div className="animate-pulse h-8 w-32 bg-gray-200 rounded"></div>
+    return <div className="animate-pulse h-8 w-32 bg-gray-200 rounded-[var(--radius)]"></div>
   }
 
   if (!user) {

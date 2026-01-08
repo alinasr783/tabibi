@@ -23,7 +23,7 @@ export default function SubscriptionExpiryPopup({ daysRemaining, expiryDate }) {
     return (
         <div className="fixed inset-0 flex items-center justify-center p-4 z-50" style={{ zIndex: 9999 }}>
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
-            <Card className="relative w-full max-w-md bg-card rounded-xl shadow-xl z-10">
+            <Card className="relative w-full max-w-md bg-card rounded-[var(--radius)] shadow-xl z-10">
                 <CardHeader className="text-center pb-2">
                     <div className="mx-auto bg-red-100 rounded-full w-16 h-16 flex items-center justify-center mb-4">
                         <AlertTriangle className="w-8 h-8 text-red-600" />
@@ -45,7 +45,7 @@ export default function SubscriptionExpiryPopup({ daysRemaining, expiryDate }) {
                     </p>
                     
                     {expiryDate && (
-                        <div className="bg-gray-50 rounded-lg p-3 flex items-center justify-center gap-2">
+                        <div className="bg-gray-50 rounded-[var(--radius)] p-3 flex items-center justify-center gap-2">
                             <Calendar className="w-4 h-4 text-gray-500" />
                             <span className="text-sm text-gray-700">
                                 تاريخ الانتهاء: {format(new Date(expiryDate), "dd MMMM yyyy", { locale: ar })}
@@ -53,7 +53,7 @@ export default function SubscriptionExpiryPopup({ daysRemaining, expiryDate }) {
                         </div>
                     )}
                     
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div className="bg-blue-50 border border-blue-200 rounded-[var(--radius)] p-3">
                         <p className="text-sm text-blue-700">
                             يرجى تجديد اشتراكك للوصول إلى هذه الصفحة والميزات الأخرى
                         </p>

@@ -37,7 +37,7 @@ export default function BookingSuccessCard({ onReset, appointmentId, clinic }) {
             ></div>
             <h2 className="text-xl font-bold text-gray-900 mb-2">كده خلصنا</h2>
             <p className="text-gray-600">حجزك اتبعت للعيادة ورقمك هو </p>
-            <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+            <div className="mt-4 p-3 bg-gray-50 rounded-[var(--radius)]">
               <p className="font-bold text-lg text-gray-900">{appointmentId || "قيد المعالجة"}</p>
             </div>
           </div>
@@ -45,8 +45,8 @@ export default function BookingSuccessCard({ onReset, appointmentId, clinic }) {
           {/* Clinic Info */}
           {clinic && (
             <div className="space-y-4 mb-8">
-              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-[var(--radius)]">
+                <div className="w-10 h-10 bg-gray-100 rounded-[var(--radius)] flex items-center justify-center">
                   <User className="w-5 h-5 text-gray-600" />
                 </div>
                 <div>
@@ -58,8 +58,8 @@ export default function BookingSuccessCard({ onReset, appointmentId, clinic }) {
               </div>
 
               {clinic.phone && (
-                <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
-                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-[var(--radius)]">
+                  <div className="w-10 h-10 bg-blue-100 rounded-[var(--radius)] flex items-center justify-center">
                     <Phone className="w-5 h-5 text-blue-600" />
                   </div>
                   <div>

@@ -23,7 +23,7 @@ export function DialogContent({children, className, dir}) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" dir={dir}>
       <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" />
       <div className={cn(
-        "relative z-10 bg-card shadow-xl flex flex-col p-4 sm:p-6",
+        "relative z-10 bg-card shadow-xl flex flex-col p-4 sm:p-6 rounded-[var(--radius)] w-[95vw] sm:w-full",
         className
       )}>
         {children}
@@ -38,7 +38,7 @@ export function DialogTitle({children, className}) {
 
 export function DialogFooter({children, className}) {
   return (
-    <div className={cn("p-6 pt-4 flex justify-end gap-2", className)}>
+    <div className={cn("p-6 pt-4 flex items-center gap-2 w-full", className)}>
       {children}
     </div>
   );

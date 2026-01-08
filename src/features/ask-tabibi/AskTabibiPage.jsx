@@ -96,7 +96,7 @@ function ChatMessage({ message, isStreaming = false, onAction, executeResults = 
       
       {/* Message Bubble */}
       <div className={cn(
-        "max-w-[82%] sm:max-w-[80%] rounded-2xl px-3 py-2 sm:px-4 sm:py-3",
+        "max-w-[82%] sm:max-w-[80%] rounded-[var(--radius)] px-3 py-2 sm:px-4 sm:py-3",
         isUser 
           ? "bg-primary text-primary-foreground rounded-tr-md" 
           : "bg-card border border-border/60 rounded-tl-md shadow-sm"
@@ -135,7 +135,7 @@ function TypingIndicator() {
       <div className="flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-secondary/20 text-primary">
         <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
       </div>
-      <div className="bg-card border border-border/60 rounded-2xl rounded-tl-md px-3 py-2.5 sm:px-4 sm:py-3 shadow-sm">
+      <div className="bg-card border border-border/60 rounded-[var(--radius)] rounded-tl-md px-3 py-2.5 sm:px-4 sm:py-3 shadow-sm">
         <div className="flex gap-1">
           <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
           <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
@@ -253,7 +253,7 @@ function ChatInput({ onSend, disabled, isStreaming, onStop }) {
           )}
         </AnimatePresence>
 
-        <div className="flex items-end gap-1.5 sm:gap-2 bg-card rounded-2xl border border-border/60 shadow-sm p-1.5 sm:p-2 px-2 sm:px-3 py-1.5 sm:py-2.5 w-[95%] mb-[8px]">
+        <div className="flex items-end gap-1.5 sm:gap-2 bg-card rounded-[var(--radius)] border border-border/60 shadow-sm p-1.5 sm:p-2 px-2 sm:px-3 py-1.5 sm:py-2.5 w-[95%] mb-[8px]">
           <textarea
             ref={textareaRef}
             value={message}
@@ -278,7 +278,7 @@ function ChatInput({ onSend, disabled, isStreaming, onStop }) {
               size="icon"
               variant="ghost"
               className={cn(
-                "h-8 w-8 sm:h-9 sm:w-9 rounded-xl flex-shrink-0 transition-all",
+                "h-8 w-8 sm:h-9 sm:w-9 rounded-[var(--radius)] flex-shrink-0 transition-all",
                 isListening 
                   ? "bg-red-500 hover:bg-red-600 text-white animate-pulse" 
                   : "hover:bg-muted text-muted-foreground"
@@ -299,7 +299,7 @@ function ChatInput({ onSend, disabled, isStreaming, onStop }) {
             disabled={!isStreaming && (!message.trim() || disabled)}
             size="icon"
             className={cn(
-              "h-8 w-8 sm:h-9 sm:w-9 rounded-xl flex-shrink-0 transition-all",
+              "h-8 w-8 sm:h-9 sm:w-9 rounded-[var(--radius)] flex-shrink-0 transition-all",
               isStreaming
                 ? "bg-red-500 hover:bg-red-600 text-white"
                 : message.trim() 

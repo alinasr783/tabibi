@@ -109,8 +109,8 @@ export default function SimpleDatePicker({ onDateChange, initialDate, error, ava
   }
 
   // Handle hour change
-  const handleHourChange = (e) => {
-    const newHour = parseInt(e.target.value)
+  const handleHourChange = (value) => {
+    const newHour = parseInt(value)
     setSelectedHour(newHour)
     // Combine date and time and notify parent
     const combinedDateTime = combineDateTime(selectedDate, newHour, selectedMinute, timePeriod)
@@ -118,8 +118,7 @@ export default function SimpleDatePicker({ onDateChange, initialDate, error, ava
   }
 
   // Handle minute change
-  const handleMinuteChange = (e) => {
-    const newMinute = e.target.value
+  const handleMinuteChange = (newMinute) => {
     setSelectedMinute(newMinute)
     // Combine date and time and notify parent
     const combinedDateTime = combineDateTime(selectedDate, selectedHour, newMinute, timePeriod)
@@ -174,11 +173,11 @@ export default function SimpleDatePicker({ onDateChange, initialDate, error, ava
       
       {/* Working Hours Information */}
       {isHoliday ? (
-        <div className="p-3 bg-red-100 text-red-800 rounded-md text-sm">
+        <div className="p-3 bg-red-100 text-red-800 rounded-[var(--radius)] text-sm">
           ⚠️ هذا اليوم إجازة، لا يمكن الحجز في هذا اليوم
         </div>
       ) : workingHoursInfo ? (
-        <div className="p-3 bg-blue-100 text-blue-800 rounded-md text-sm">
+        <div className="p-3 bg-blue-100 text-blue-800 rounded-[var(--radius)] text-sm">
           🕒 أوقات العمل لهذا اليوم: من {workingHoursInfo.start} إلى {workingHoursInfo.end}
         </div>
       ) : null}
@@ -190,7 +189,7 @@ export default function SimpleDatePicker({ onDateChange, initialDate, error, ava
             <div className="flex gap-2">
               <button
                 type="button"
-                className={`flex-1 py-2 px-4 rounded-md border transition-colors ${
+                className={`flex-1 py-2 px-4 rounded-[var(--radius)] border transition-colors ${
                   timePeriod === 'morning' 
                     ? 'bg-primary text-primary-foreground border-primary' 
                     : 'bg-muted border-border hover:bg-muted/80'
@@ -202,7 +201,7 @@ export default function SimpleDatePicker({ onDateChange, initialDate, error, ava
               </button>
               <button
                 type="button"
-                className={`flex-1 py-2 px-4 rounded-md border transition-colors ${
+                className={`flex-1 py-2 px-4 rounded-[var(--radius)] border transition-colors ${
                   timePeriod === 'evening' 
                     ? 'bg-primary text-primary-foreground border-primary' 
                     : 'bg-muted border-border hover:bg-muted/80'
@@ -219,44 +218,58 @@ export default function SimpleDatePicker({ onDateChange, initialDate, error, ava
             <Label>الوقت *</Label>
             <div className="flex gap-2 items-center">
               <div className="flex-1">
-                <select
-                  value={selectedHour}
-                  onChange={handleHourChange}
-                  className={`flex h-10 w-full rounded-[var(--radius)] border bg-background px-3 py-2 text-sm ${
-                    isTimeWithinWorkingHours(availableTime, selectedDate) 
-                      ? 'border-border' 
-                      : 'border-red-500'
-                  }`}
+                <Select
+                  value={selectedHour.toString()}
+                  onValueChange={handleHourChange}
                   disabled={isHoliday}
+                  dir="rtl"
                 >
-                  {hours.map(hour => (
-                    <option key={hour} value={hour}>{hour}</option>
-                  ))}
-                </select>
+                  <SelectTrigger 
+                    className={`h-10 w-full justify-between ${
+                      isTimeWithinWorkingHours(availableTime, selectedDate) 
+                        ? 'border-border' 
+                        : 'border-red-500'
+                    }`}
+                  >
+                    <SelectValue placeholder="الساعة" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {hours.map(hour => (
+                      <SelectItem key={hour} value={hour.toString()}>{hour}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <span className="text-muted-foreground">:</span>
               <div className="flex-1">
-                <select
+                <Select
                   value={selectedMinute}
-                  onChange={handleMinuteChange}
-                  className={`flex h-10 w-full rounded-[var(--radius)] border bg-background px-3 py-2 text-sm ${
-                    isTimeWithinWorkingHours(availableTime, selectedDate) 
-                      ? 'border-border' 
-                      : 'border-red-500'
-                  }`}
+                  onValueChange={handleMinuteChange}
                   disabled={isHoliday}
+                  dir="rtl"
                 >
-                  {minutes.map(minute => (
-                    <option key={minute} value={minute}>{minute}</option>
-                  ))}
-                </select>
+                  <SelectTrigger 
+                    className={`h-10 w-full justify-between ${
+                      isTimeWithinWorkingHours(availableTime, selectedDate) 
+                        ? 'border-border' 
+                        : 'border-red-500'
+                    }`}
+                  >
+                    <SelectValue placeholder="الدقيقة" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {minutes.map(minute => (
+                      <SelectItem key={minute} value={minute}>{minute}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             {!isTimeWithinWorkingHours(availableTime, selectedDate) && !isHoliday && (
               <p className="text-sm text-red-500">الوقت المحدد خارج أوقات العمل</p>
             )}
             <p className="text-xs text-muted-foreground">
-              اختر الساعة والدقيقة من القوائم المنسدلة
+              اختر الساعة والدقيقة من القوائم
             </p>
           </div>
         </>

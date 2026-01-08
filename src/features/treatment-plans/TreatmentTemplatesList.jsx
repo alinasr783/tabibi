@@ -20,7 +20,7 @@ function TreatmentTemplateItem({ template }) {
 
   return (
     <>
-      <Card className="border border-border rounded-xl overflow-hidden hover:shadow-md transition-shadow">
+      <Card className="border border-border rounded-[var(--radius)] overflow-hidden hover:shadow-md transition-shadow">
         <CardHeader className="pb-3 border-b border-border/50">
           <div className="flex justify-between items-start">
             <CardTitle className="text-lg md:text-xl font-bold text-foreground flex items-center gap-2">
@@ -102,7 +102,7 @@ function TreatmentTemplateItem({ template }) {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} className="w-[25%]">
               إلغاء
             </Button>
             <Button
@@ -112,6 +112,7 @@ function TreatmentTemplateItem({ template }) {
                 await deleteTemplate(template.id);
                 setIsDeleteDialogOpen(false);
               }}
+              className="w-[75%]"
             >
               حذف نهائيًا
             </Button>
@@ -124,7 +125,7 @@ function TreatmentTemplateItem({ template }) {
 
 function TreatmentTemplateSkeleton() {
   return (
-    <Card className="border border-gray-200 rounded-xl overflow-hidden">
+    <Card className="border border-gray-200 rounded-[var(--radius)] overflow-hidden">
       <CardHeader className="pb-3 bg-gradient-to-r from-blue-50 to-indigo-50">
         <div className="flex justify-between items-start">
           <SkeletonLine className="h-6 w-40" />
@@ -177,7 +178,7 @@ export default function TreatmentTemplatesList() {
           <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="بحث في الخطط العلاجية..."
-            className="pr-10 h-12 rounded-lg border-border"
+            className="pr-10 h-12 rounded-[var(--radius)] border-border"
             disabled
           />
         </div>
@@ -197,7 +198,7 @@ export default function TreatmentTemplatesList() {
           <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="بحث في الخطط العلاجية..."
-            className="pr-10 h-12 rounded-lg border-border"
+            className="pr-10 h-12 rounded-[var(--radius)] border-border"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -220,7 +221,7 @@ export default function TreatmentTemplatesList() {
           <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="بحث في الخطط العلاجية..."
-            className="pr-10 h-12 rounded-lg border-border"
+            className="pr-10 h-12 rounded-[var(--radius)] border-border"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -243,7 +244,7 @@ export default function TreatmentTemplatesList() {
         <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           placeholder="بحث في الخطط العلاجية..."
-          className="pr-10 h-12 rounded-lg border-border"
+          className="pr-10 h-12 rounded-[var(--radius)] border-border"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />

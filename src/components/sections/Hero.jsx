@@ -161,7 +161,7 @@ export default function Hero() {
             transition: { duration: 0.3 }
           }}
         >
-          <div className="aspect-[4/3] w-full overflow-hidden rounded-xl">
+          <div className="aspect-[4/3] w-full overflow-hidden rounded-[var(--radius)]">
             {/* Eagerly load the hero image with high priority */}
             <img 
               src="/hero-optimized.webp" 
