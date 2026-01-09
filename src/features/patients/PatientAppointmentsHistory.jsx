@@ -107,7 +107,7 @@ export default function PatientAppointmentsHistory({ appointments, isLoading, pa
       <AppointmentCreateDialog
         open={isCreateDialogOpen}
         onClose={() => setIsCreateDialogOpen(false)}
-        preSelectedPatientId={patientId}
+        initialPatient={{ id: patientId }}
       />
     </div>
   )

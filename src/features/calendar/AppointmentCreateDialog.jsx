@@ -21,7 +21,7 @@ import { Badge } from "../../components/ui/badge";
 import toast from "react-hot-toast";
 import { ScrollArea } from "../../components/ui/scroll-area";
 
-export default function AppointmentCreateDialog({ open, onClose }) {
+export default function AppointmentCreateDialog({ open, onClose, initialPatient }) {
   const {
     register,
     handleSubmit,
@@ -40,13 +40,20 @@ export default function AppointmentCreateDialog({ open, onClose }) {
   const { handleAppointmentSubmit, isPending } = useCreateAppointmentHandler();
   const { data: clinicData } = useClinic();
   const [patientSearch, setPatientSearch] = useState("");
-  const [selectedPatient, setSelectedPatient] = useState(null);
+  const [selectedPatient, setSelectedPatient] = useState(initialPatient || null);
   const [showPatientDialog, setShowPatientDialog] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(initialPatient ? 2 : 1);
   const [autoSelectEnabled, setAutoSelectEnabled] = useState(true);
   const { data: searchResults, isLoading: isSearching } = useSearchPatients(patientSearch);
+
+  useEffect(() => {
+    if (initialPatient && open) {
+        setSelectedPatient(initialPatient);
+        setStep(2);
+    }
+  }, [initialPatient, open]);
 
   const watchPrice = watch("price");
   const watchNotes = watch("notes");
@@ -54,11 +61,13 @@ export default function AppointmentCreateDialog({ open, onClose }) {
   // إعادة تعيين النموذج عند الإغلاق
   const handleClose = () => {
     reset();
-    setSelectedPatient(null);
+    if (!initialPatient) {
+        setSelectedPatient(null);
+        setStep(1);
+    }
     setPatientSearch("");
     setSelectedDate(null);
     setSelectedTime(null);
-    setStep(1);
     setAutoSelectEnabled(true); // Reset auto-select for next time
     onClose();
   };

@@ -179,6 +179,7 @@ CREATE TABLE public.patients (
   clinic_id uuid,
   age integer,
   updated_at timestamp with time zone DEFAULT now(),
+  age_unit text DEFAULT 'years'::text,
   CONSTRAINT patients_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.plan_pricing (
@@ -273,4 +274,27 @@ CREATE TABLE public.visits (
   patient_plan_id bigint,
   CONSTRAINT visits_pkey PRIMARY KEY (id),
   CONSTRAINT visits_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(id)
+);
+CREATE TABLE public.whatsapp_message_logs (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  clinic_id uuid NOT NULL,
+  appointment_id bigint,
+  patient_phone text,
+  message_type text CHECK (message_type = ANY (ARRAY['booking'::text, 'reminder'::text])),
+  status text CHECK (status = ANY (ARRAY['sent'::text, 'failed'::text, 'pending'::text])),
+  provider_message_id text,
+  error_message text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT whatsapp_message_logs_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.whatsapp_settings (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  clinic_id uuid NOT NULL UNIQUE,
+  enabled_immediate boolean DEFAULT true,
+  enabled_reminder boolean DEFAULT true,
+  reminder_offset_minutes integer DEFAULT 30 CHECK (reminder_offset_minutes >= 10 AND reminder_offset_minutes <= 720),
+  immediate_template text DEFAULT 'تم تأكيد حجزك في {clinic_name} يوم {date} الساعة {time}. من فضلك احضر قبل 10 دقائق.'::text,
+  reminder_template text DEFAULT 'باقي {offset} دقيقة على ميعادك في {clinic_name} الساعة {time}. نورتنا.'::text,
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT whatsapp_settings_pkey PRIMARY KEY (id)
 );

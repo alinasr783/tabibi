@@ -234,7 +234,8 @@ export default function OnlineBookingsTable({
       render: (appointment) => (
         <Button 
           variant="link" 
-          className="text-sm p-0 h-auto hover:text-primary"
+          dir="ltr"
+          className="text-sm p-0 h-auto hover:text-primary font-mono"
           onClick={() => handlePhoneClick(appointment.patient?.phone, appointment.patient?.name)}>
           {appointment.patient?.phone || "-"}
         </Button>
@@ -288,113 +289,119 @@ export default function OnlineBookingsTable({
   ];
 
   // Mobile Card Component for Online Bookings
-  const OnlineBookingCard = ({ appointment }) => {
+  const OnlineBookingCard = ({ appointment, className }) => {
     const status = appointment.status?.toLowerCase() || 'pending';
     const statusInfo = statusMap[status] || statusMap.pending;
     const StatusIcon = statusInfo.icon || Clock;
 
     return (
-      <div className="mb-4 pb-4 border-b border-border last:border-0 last:mb-0 last:pb-0">
-        <div className="p-1">
+      <div className={cn("relative group h-full", className)}>
+        <div className="flex flex-col h-full p-4 rounded-lg border bg-card hover:bg-accent/5 transition-colors shadow-sm">
           {/* Header - اسم المريض والحالة */}
           <div className="flex items-start justify-between mb-3">
-            <div className="flex items-center gap-3 flex-1">
-              <div className="w-12 h-12 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
-                <User className="w-6 h-6" />
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+                <User className="w-5 h-5" />
               </div>
               <div className="flex-1 min-w-0">
                 <Button 
                   variant="link" 
-                  className="font-bold text-lg p-0 h-auto text-right hover:text-primary"
+                  className="font-bold text-base p-0 h-auto text-foreground hover:text-primary justify-start"
                   onClick={() => navigate(`/patients/${appointment.patient?.id}`)}>
-                  {appointment.patient?.name || "مش محدد"}
+                  <span className="truncate">{appointment.patient?.name || "غير محدد"}</span>
                 </Button>
-                <Button 
-                  variant="link" 
-                  className="flex items-center gap-1.5 text-muted-foreground text-sm p-0 h-auto hover:text-primary"
-                  onClick={() => handlePhoneClick(appointment.patient?.phone, appointment.patient?.name)}>
-                  <span className="truncate">{appointment.patient?.phone || "-"}</span>
-                </Button>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <Button 
+                    variant="link" 
+                    className="flex items-center gap-1.5 text-muted-foreground text-xs p-0 h-auto hover:text-primary justify-start font-normal"
+                    onClick={() => handlePhoneClick(appointment.patient?.phone, appointment.patient?.name)}>
+                    <Phone className="w-3 h-3" />
+                    <span className="truncate font-mono" dir="ltr">{appointment.patient?.phone || "-"}</span>
+                  </Button>
+                </div>
               </div>
             </div>
-            <Badge variant={statusInfo.variant} className="gap-1.5 flex-shrink-0">
+            <Badge variant={statusInfo.variant} className="gap-1.5 flex-shrink-0 px-2 py-1 h-7">
               <StatusIcon className="w-3.5 h-3.5" />
               {statusInfo.label}
             </Badge>
           </div>
 
+          <div className="border-t border-border/50 my-3" />
+
           {/* معلومات الموعد */}
-          <div className="space-y-2.5 mb-4 p-3">
+          <div className="grid grid-cols-2 gap-3 mb-4 flex-1">
             <div className="flex items-center gap-2 text-sm">
-              <Calendar className="w-4 h-4 text-primary flex-shrink-0" />
+              <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
               <span className="font-medium text-foreground">
-                {appointment.date ? format(new Date(appointment.date), "dd/MM/yyyy", { locale: ar }) : "مش محدد"}
-              </span>
-              <span className="text-muted-foreground">•</span>
-              <Clock className="w-4 h-4 text-primary flex-shrink-0" />
-              <span className="font-medium text-foreground">
-                {appointment.date ? format(new Date(appointment.date), "hh:mm a", { locale: ar }) : "مش محدد"}
+                {appointment.date ? format(new Date(appointment.date), "dd/MM/yyyy", { locale: ar }) : "-"}
               </span>
             </div>
-            
+            <div className="flex items-center gap-2 text-sm">
+              <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+              <span className="font-medium text-foreground">
+                {appointment.date ? format(new Date(appointment.date), "hh:mm a", { locale: ar }) : "-"}
+              </span>
+            </div>
             {appointment.notes && (
-              <div className="flex items-start gap-2 text-sm">
-                <Tag className="w-4 h-4 text-purple-600 flex-shrink-0 mt-0.5" />
-                <span className="text-muted-foreground flex-1">{appointment.notes}</span>
+              <div className="col-span-2 flex items-start gap-2 text-sm bg-muted/30 p-2 rounded border border-border/50 h-fit">
+                <Tag className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 mt-0.5" />
+                <span className="text-muted-foreground text-xs leading-relaxed line-clamp-2">{appointment.notes}</span>
               </div>
             )}
             
-            <div className="flex items-center gap-2 text-sm">
-              <Receipt className="w-4 h-4 text-green-600 flex-shrink-0" />
-              <span className="font-bold text-foreground">
-                {appointment.price ? appointment.price.toFixed(2) : "0.00"} جنيه
+            <div className="col-span-2 flex items-center gap-2 text-sm mt-auto">
+              <Receipt className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+              <span className="font-medium text-foreground">
+                السعر: <span className="font-bold text-primary">{appointment.price ? appointment.price.toFixed(2) : "0.00"}</span> جنيه
               </span>
             </div>
           </div>
 
           {/* الأزرار */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 mt-auto pt-2 border-t border-border/50">
             <Button
               onClick={() => handleViewDetails(appointment.id)}
-              className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground h-10"
+              className="flex-1 h-9 text-xs font-medium"
+              variant="default"
               size="sm"
             >
-              <Eye className="w-4 h-4 ml-2" />
-              شوف التفاصيل
+              <Eye className="w-3.5 h-3.5 ml-2" />
+              عرض التفاصيل
             </Button>
             
             <Button
               variant="outline"
               size="sm"
-              className="h-10 px-3"
+              className="h-9 w-9 px-0"
               onClick={() => handleSendReminder(appointment)}
               disabled={!isWhatsAppEnabled}
-              title="ابعت تذكير واتساب"
+              title="إرسال تذكير واتساب"
             >
-              <MessageSquare className="w-4 h-4" />
+              <MessageSquare className="w-3.5 h-3.5" />
             </Button>
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-10 px-3">
-                  <MoreHorizontal className="w-4 h-4" />
+                <Button variant="outline" size="sm" className="h-9 w-9 px-0">
+                  <MoreHorizontal className="w-3.5 h-3.5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuContent align="end" className="w-48" dir="rtl">
                 <DropdownMenuItem onClick={() => handleStatusChange(appointment.id, "confirmed")}>
-                  <CheckCircle className="h-4 w-4 ml-2" />
+                  <CheckCircle className="h-4 w-4 ml-2 text-green-600" />
                   قبول (مؤكد)
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleStatusChange(appointment.id, "rejected")}>
-                  <XCircle className="h-4 w-4 ml-2" />
+                  <XCircle className="h-4 w-4 ml-2 text-red-600" />
                   رفض
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleStatusChange(appointment.id, "pending")}>
-                  <Clock className="h-4 w-4 ml-2" />
+                  <Clock className="h-4 w-4 ml-2 text-yellow-600" />
                   قيد الانتظار
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleStatusChange(appointment.id, "cancelled")}>
-                  <XCircle className="h-4 w-4 ml-2" />
+                  <XCircle className="h-4 w-4 ml-2 text-gray-600" />
                   ملغي
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -407,27 +414,19 @@ export default function OnlineBookingsTable({
 
   return (
     <>
-      {/* Mobile View - Cards */}
-      <div className="block md:hidden px-0">
+      {/* Universal Grid View (Mobile & Desktop) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 px-0">
         {appointments && appointments.length > 0 ? (
           appointments.map((appointment) => (
             <OnlineBookingCard key={appointment.id} appointment={appointment} />
           ))
         ) : (
-          <div className="text-center py-8 px-3">
-            <Calendar className="w-10 h-10 md:w-12 md:h-12 mx-auto text-muted-foreground/50 mb-3" />
-            <p className="text-muted-foreground text-sm">مفيش حجوزات جديدة</p>
+          <div className="col-span-full text-center py-12 px-3 border-2 border-dashed rounded-lg bg-muted/10">
+            <Calendar className="w-12 h-12 md:w-16 md:h-16 mx-auto text-muted-foreground/50 mb-4" />
+            <p className="text-muted-foreground text-lg font-medium">مفيش حجوزات جديدة</p>
+            <p className="text-muted-foreground/70 text-sm mt-1">الحجوزات الجديدة هتظهر هنا لما المرضى يحجزوا من خلال الرابط</p>
           </div>
         )}
-      </div>
-
-      {/* Desktop View - Table */}
-      <div className="hidden md:block">
-        <DataTable
-          columns={columns}
-          data={appointments ?? []}
-          emptyLabel="مفيش حجوزات جديدة"
-        />
       </div>
 
       {/* Contact Method Dialog */}

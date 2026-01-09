@@ -1,12 +1,13 @@
-import { Dialog, DialogHeader, DialogContent, DialogFooter } from "../../components/ui/dialog"
+import { Dialog, DialogHeader, DialogContent, DialogFooter, DialogTitle } from "../../components/ui/dialog"
 import { Button } from "../../components/ui/button"
 import { useForm } from "react-hook-form"
-import PatientForm from "./PatientForm"
+import PatientWizardForm from "./PatientWizardForm"
 import useUpdatePatient from "./useUpdatePatient"
 import toast from "react-hot-toast"
+import { uploadPatientAttachment } from "../../services/apiAttachments"
+import { X } from "lucide-react"
 
 export default function PatientEditDialog({ open, onClose, patient }) {
-  const { register, control, handleSubmit, formState: { errors } } = useForm()
   const { mutateAsync, isPending } = useUpdatePatient()
 
   // Helper to calculate age from DOB if age is missing
@@ -16,12 +17,12 @@ export default function PatientEditDialog({ open, onClose, patient }) {
     return Math.floor((new Date() - birthDate) / (365.25 * 24 * 60 * 60 * 1000));
   };
 
-  const formDefaultValues = {
+  const initialData = {
     ...patient,
     age: patient?.age ?? calculateAge(patient?.date_of_birth)
   };
 
-  async function onSubmit(values) {
+  async function onSubmit(values, attachments) {
     try {
       // Handle age and age_unit
       let age = null;
@@ -30,16 +31,28 @@ export default function PatientEditDialog({ open, onClose, patient }) {
       }
 
       const payload = {
-        name: values.name,
-        phone: values.phone || null,
-        gender: values.gender,
-        address: values.address || null,
+        ...values,
         age: age,
-        age_unit: values.age_unit || "years",
         date_of_birth: null, // Clear DOB to prioritize Age since we are editing Age
-        blood_type: values.blood_type || null,
       }
+      
       await mutateAsync({ id: patient.id, values: payload })
+
+      // Handle attachments if any
+      if (attachments && attachments.length > 0) {
+        const uploadPromises = attachments.map(file => 
+          uploadPatientAttachment({
+            patientId: patient.id,
+            clinicId: patient.clinic_id, // Assuming patient object has clinic_id
+            file: file,
+            category: 'initial_upload',
+            description: 'Uploaded during patient update'
+          })
+        );
+        
+        await Promise.all(uploadPromises);
+      }
+
       toast.success("تم تحديث بيانات المريض")
       onClose?.()
     } catch (e) {
@@ -49,18 +62,27 @@ export default function PatientEditDialog({ open, onClose, patient }) {
   }
 
   return (
-    <Dialog open={open} onClose={onClose}>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <h3 className="text-lg font-semibold">تعديل بيانات المريض</h3>
+    <Dialog open={open} onOpenChange={onClose} style={{ direction: 'rtl' }}>
+      <DialogContent className="sm:max-w-[700px] w-[95vw] max-h-[90vh] h-auto p-0 rounded-[var(--radius)] border-0 shadow-2xl overflow-hidden" dir="rtl">
+        <DialogHeader className="p-4 bg-white sticky top-0 z-10 border-b flex flex-row items-center justify-between">
+          <DialogTitle className="text-lg font-semibold">تعديل بيانات المريض</DialogTitle>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="h-8 w-8 rounded-[var(--radius)] hover:bg-gray-100"
+          >
+            <X className="w-4 h-4" />
+          </Button>
         </DialogHeader>
-        <form id="edit-patient-form" onSubmit={handleSubmit(onSubmit)}>
-          <PatientForm defaultValues={formDefaultValues} register={register} control={control} errors={errors} />
-        </form>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} className="w-[25%]">إلغاء</Button>
-          <Button form="edit-patient-form" type="submit" disabled={isPending} className="w-[75%]">حفظ</Button>
-        </DialogFooter>
+        <div className="flex-1 overflow-y-auto p-6 max-h-[calc(90vh-80px)]">
+          <PatientWizardForm 
+            initialData={initialData} 
+            onSubmit={onSubmit} 
+            isSubmitting={isPending}
+            onCancel={onClose}
+          />
+        </div>
       </DialogContent>
     </Dialog>
   )

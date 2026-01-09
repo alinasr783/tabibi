@@ -10,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "../../components/ui/card";
+import { ArrowRight, Check } from "lucide-react";
 
 export default function AppointmentFormCard({
   register,
@@ -242,12 +243,13 @@ export default function AppointmentFormCard({
               type="button"
               variant="outline"
               onClick={onChangePatient}
-              className="flex-1">
+              className="flex-1 gap-2">
+              <ArrowRight className="w-4 h-4" />
               السابق
             </Button>
             <Button
               type="submit"
-              className="flex-1"
+              className="flex-1 gap-2"
               disabled={
                 isLoading ||
                 !selectedDate ||
@@ -255,6 +257,7 @@ export default function AppointmentFormCard({
                 !isAppointmentFormValid(appointmentDate, clinic?.available_time)
               }>
               {isLoading ? "جاري الحجز..." : "حجز الموعد"}
+              {!isLoading && <Check className="w-4 h-4" />}
             </Button>
           </div>
         </form>

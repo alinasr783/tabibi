@@ -1,4 +1,4 @@
-import { ArrowLeft, Phone, Cake, Calendar, Wallet, User, MessageCircle, Edit, ClipboardList, Stethoscope, CreditCard } from "lucide-react";
+import { ArrowLeft, Phone, Cake, Calendar, Wallet, User, MessageCircle, Edit, ClipboardList, Stethoscope, CreditCard, FileText } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { Button } from "../../components/ui/button";
@@ -6,6 +6,8 @@ import { Card, CardContent } from "../../components/ui/card";
 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../components/ui/tabs";
 import PatientEditDialog from "./PatientEditDialog";
+import PatientProfileTab from "./PatientProfileTab";
+import PatientAttachmentsTab from "./PatientAttachmentsTab";
 import { SkeletonLine } from "../../components/ui/skeleton";
 import usePatient from "./usePatient";
 import usePatientAppointments from "../calendar/usePatientAppointments";
@@ -284,11 +286,19 @@ ${medicationsList}
           </div>
 
           {/* Tabs for Sections */}
-          <Tabs defaultValue="visits" className="w-full" style={{ direction: 'rtl' }}>
-            <TabsList className="w-full md:w-auto grid grid-cols-3 md:inline-flex h-auto p-1 bg-muted/50">
+          <Tabs defaultValue="profile" className="w-full" style={{ direction: 'rtl' }}>
+            <TabsList className="w-full md:w-auto grid grid-cols-5 md:inline-flex h-auto p-1 bg-muted/50">
+              <TabsTrigger value="profile" className="text-xs md:text-sm py-2 px-3 gap-1.5">
+                <User className="w-4 h-4" />
+                <span>الملف</span>
+              </TabsTrigger>
               <TabsTrigger value="visits" className="text-xs md:text-sm py-2 px-3 gap-1.5">
                 <Stethoscope className="w-4 h-4" />
                 <span>الكشوفات</span>
+              </TabsTrigger>
+              <TabsTrigger value="attachments" className="text-xs md:text-sm py-2 px-3 gap-1.5">
+                <FileText className="w-4 h-4" />
+                <span>الملف</span>
               </TabsTrigger>
               <TabsTrigger value="appointments" className="text-xs md:text-sm py-2 px-3 gap-1.5">
                 <Calendar className="w-4 h-4" />
@@ -299,6 +309,14 @@ ${medicationsList}
                 <span>الخطط</span>
               </TabsTrigger>
             </TabsList>
+
+            <TabsContent value="profile" className="mt-4">
+              <PatientProfileTab patient={patient} />
+            </TabsContent>
+
+            <TabsContent value="attachments" className="mt-4">
+              <PatientAttachmentsTab patientId={patientId} />
+            </TabsContent>
 
             <TabsContent value="visits" className="mt-4">
               <PatientVisitsTable 

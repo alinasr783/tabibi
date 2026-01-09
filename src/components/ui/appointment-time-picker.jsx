@@ -236,6 +236,7 @@ export default function AppointmentTimePicker({
         <div className="w-full overflow-x-auto">
           <Calendar
             mode="single"
+            locale={ar}
             selected={date}
             onSelect={handleDateSelect}
             className="w-full min-w-[280px]"

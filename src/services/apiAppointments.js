@@ -1,6 +1,7 @@
 import supabase from "./supabase"
 import { createPublicNotification } from "./apiNotifications"
 import { addToGoogleCalendar } from "./integrationService"
+import { sendWhatsappMessage } from "./apiWhatsapp"
 
 export async function getAppointments(search, page, pageSize, filters = {}) {
     // Get current user's clinic_id
@@ -253,6 +254,21 @@ export async function createAppointment(payload) {
     }
     // ----------------------------------------
 
+    // --- WhatsApp Integration Hook ---
+    try {
+        if (data && data.id) {
+            // Run in background (don't await strictly if we want speed, but awaiting ensures error logging)
+            sendWhatsappMessage({
+                clinicId: clinicUuid,
+                appointmentId: data.id,
+                type: 'booking'
+            }).catch(err => console.error("WhatsApp bg error:", err));
+        }
+    } catch (whatsappError) {
+        console.error("WhatsApp sending failed:", whatsappError);
+    }
+    // ---------------------------------
+
     return data
 }
 
@@ -370,6 +386,9 @@ export async function createAppointmentPublic(payload, clinicId) {
     }
     
     // Create notification for the new appointment
+    // COMMENTED OUT: The database trigger 'on_new_appointment' already creates a notification.
+    // Keeping this enabled causes duplicate notifications (Double Trigger).
+    /*
     try {
         await createPublicNotification({
             clinic_id: clinicIdString,
@@ -383,6 +402,21 @@ export async function createAppointmentPublic(payload, clinicId) {
         console.error("Error creating notification:", notificationError);
         // Don't throw error here as we still want to return the appointment data
     }
+    */
+
+    // --- WhatsApp Integration Hook ---
+    try {
+        if (data && data.id) {
+            sendWhatsappMessage({
+                clinicId: clinicIdString,
+                appointmentId: data.id,
+                type: 'booking'
+            }).catch(err => console.error("WhatsApp bg error:", err));
+        }
+    } catch (whatsappError) {
+        console.error("WhatsApp sending failed:", whatsappError);
+    }
+    // ---------------------------------
 
     return data
 }

@@ -7,7 +7,7 @@ import {
   User, 
   Phone, 
   AlertCircle,
-  ChevronLeft,
+  ChevronRight,
   Loader2,
   Shield,
   CreditCard
@@ -22,6 +22,7 @@ import { isAppointmentFormValid, validateWorkingHours } from "./bookingUtils";
 import useClinicById from "./useClinicById";
 import useCreateAppointmentPublic from "./useCreateAppointmentPublic";
 import usePatientHandling from "./usePatientHandling";
+import { useBookingAnalytics } from "./useBookingAnalytics";
 
 export default function BookingPage() {
   const { clinicId } = useParams();
@@ -31,6 +32,10 @@ export default function BookingPage() {
     isLoading: isClinicLoading,
     isError: isClinicError,
   } = useClinicById(clinicId);
+  
+  // Analytics Hook
+  const { saveDraft, checkBlocked, logConversion, logBlockedAttempt } = useBookingAnalytics(clinicId);
+
   const {
     register: registerPatient,
     handleSubmit: handleSubmitPatient,
@@ -38,6 +43,7 @@ export default function BookingPage() {
     formState: { errors: patientErrors },
     reset: resetPatient,
     setValue: setPatientValue,
+    watch: watchPatient,
   } = useForm();
   const {
     register,
@@ -60,6 +66,23 @@ export default function BookingPage() {
 
   const isOnlineBookingEnabled = clinic?.online_booking_enabled !== false;
 
+  // Watch form values for analytics
+  const patientValues = watchPatient();
+  const appointmentValues = watch();
+
+  // Debounced draft saving
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (currentStep === 1 && Object.keys(patientValues || {}).length > 0) {
+        saveDraft(1, patientValues);
+      } else if (currentStep === 2) {
+        saveDraft(2, { ...patientValues, ...appointmentValues, selectedDate, selectedTime });
+      }
+    }, 2000); // Save every 2 seconds of inactivity
+
+    return () => clearTimeout(timer);
+  }, [patientValues, appointmentValues, currentStep, selectedDate, selectedTime, saveDraft]);
+
   // Scroll to top when step changes
   useEffect(() => {
     if (currentStep === 2 && topRef.current) {
@@ -77,16 +100,33 @@ export default function BookingPage() {
 
   const handlePatientFormSubmit = async (data) => {
     try {
+      // Check blocked status first to prevent patient creation if blocked
+      const isBlocked = await checkBlocked(data.phone);
+      if (isBlocked) {
+        // Fake success for blocked users
+        const fakePatient = {
+          id: `blocked-${Date.now()}`,
+          ...data
+        };
+        setSelectedPatient(fakePatient);
+        setCurrentStep(2);
+        logBlockedAttempt(data.phone);
+        toast.success("تم حفظ بياناتك بنجاح");
+        return;
+      }
+
       const patient = await handlePatientSubmit(data, clinicId);
       setSelectedPatient(patient);
       setCurrentStep(2);
+      // Force save draft on step completion
+      saveDraft(2, { ...data, patientId: patient.id });
       toast.success("تم حفظ بياناتك بنجاح");
     } catch (error) {
       toast.error("مشكلة في حفظ بياناتك، حاول تاني");
     }
   };
 
-  const onSubmit = (data) => {
+  const onSubmit = async (data) => {
     if (!selectedPatient) {
       toast.error("محتاج تكمل بياناتك الأول!");
       return;
@@ -118,6 +158,18 @@ export default function BookingPage() {
       return;
     }
 
+    // Check blocked status
+    const isBlocked = await checkBlocked(selectedPatient.phone);
+    if (isBlocked) {
+        // Fake success
+        logBlockedAttempt(selectedPatient.phone);
+        setIsBookingComplete(true);
+        // We set a fake ID just for UI consistency if needed, or leave null
+        setAppointmentId("blocked-ref-" + Date.now()); 
+        reset();
+        return;
+    }
+
     createAppointment(
       {
         payload: {
@@ -131,6 +183,7 @@ export default function BookingPage() {
       },
       {
         onSuccess: (data) => {
+          logConversion();
           setIsBookingComplete(true);
           setAppointmentId(data.id);
           reset();
@@ -254,7 +307,7 @@ export default function BookingPage() {
 
         {/* Step 1: Patient Information */}
         {currentStep === 1 && (
-          <div className="animate-in slide-in-from-left-10 duration-300">
+          <div className="animate-in slide-in-from-right-10 duration-300">
             <div className="bg-white rounded-[var(--radius)] border border-gray-200 p-5 mb-4">
               <div className="flex items-center gap-3 mb-5">
                 <div className="w-10 h-10 bg-blue-100 rounded-[var(--radius)] flex items-center justify-center">
@@ -292,14 +345,14 @@ export default function BookingPage() {
 
         {/* Step 2: Appointment Details */}
         {currentStep === 2 && selectedPatient && (
-          <div className="animate-in slide-in-from-right-10 duration-300">
+          <div className="animate-in slide-in-from-left-10 duration-300">
             {/* Back Button - Aligned Left */}
             <div className="flex justify-start mb-4">
               <button
                 onClick={handleBackToPatient}
                 className="flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm"
               >
-                <ChevronLeft className="w-4 h-4" />
+                <ChevronRight className="w-4 h-4" />
                 تعديل البيانات الشخصية
               </button>
             </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Bell, Mail, Clock, Check, Loader2 } from "lucide-react";
+import { Bell, Mail, Clock, Check, Loader2, MessageSquare, Smartphone } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Card, CardContent } from "../../components/ui/card";
@@ -9,14 +9,29 @@ import {
   getDailyEmailSettings, 
   updateDailyEmailSettings 
 } from "../../services/apiUserPreferences";
+import { useUserPreferences, useUpdateUserPreferences } from "../../hooks/useUserPreferences";
+import { getMessagingInstance, getToken } from "../../lib/firebase";
+import supabase from "../../services/supabase";
 import { useAuth } from "../auth";
 import toast from "react-hot-toast";
 import { cn } from "../../lib/utils";
+import WhatsappSettings from "../clinic/WhatsappSettings";
 
 export default function NotificationsTab() {
   const { user } = useAuth();
+  const { data: preferences } = useUserPreferences();
+  const { mutate: updatePreferences } = useUpdateUserPreferences();
+  
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Push Notification State
+  const [pushLoading, setPushLoading] = useState(false);
+  const [permissionStatus, setPermissionStatus] = useState("default");
+
+  // Global preference for notifications
+  const pushEnabled = preferences?.notifications_enabled ?? false;
+
   const [settings, setSettings] = useState({
     enabled: false,
     time: "07:00",
@@ -29,6 +44,11 @@ export default function NotificationsTab() {
       try {
         const data = await getDailyEmailSettings();
         setSettings(data);
+        
+        // Check push notification status
+        if ('Notification' in window) {
+          setPermissionStatus(Notification.permission);
+        }
       } catch (error) {
         console.error("Error loading email settings:", error);
         toast.error("فشل في تحميل الإعدادات");
@@ -38,6 +58,109 @@ export default function NotificationsTab() {
     }
     loadSettings();
   }, []);
+
+  // Helper: Save token to DB
+  const saveTokenToDB = async (token) => {
+    try {
+      const { error } = await supabase
+        .from('fcm_tokens')
+        .upsert({ 
+          user_id: user.id, 
+          token: token,
+          device_type: 'web',
+          last_updated: new Date().toISOString()
+        }, { onConflict: 'user_id, token' });
+      
+      if (error) throw error;
+    } catch (error) {
+      console.error("Error saving FCM token:", error);
+    }
+  };
+
+  // Helper: Delete token from DB
+  const deleteTokenFromDB = async (token) => {
+    try {
+      const { error } = await supabase
+        .from('fcm_tokens')
+        .delete()
+        .eq('token', token)
+        .eq('user_id', user.id);
+        
+      if (error) throw error;
+    } catch (error) {
+      console.error("Error deleting FCM token:", error);
+    }
+  };
+
+  // Handle Push Toggle
+  const handlePushToggle = async (enabled) => {
+    if (!('Notification' in window)) {
+      toast.error("المتصفح لا يدعم الإشعارات");
+      return;
+    }
+
+    setPushLoading(true);
+    try {
+      if (enabled) {
+        // Enable
+        const permission = await Notification.requestPermission();
+        setPermissionStatus(permission);
+        
+        if (permission === 'granted') {
+          const messaging = await getMessagingInstance();
+          if (!messaging) {
+            toast.error("فشل تهيئة الإشعارات");
+            return;
+          }
+          
+          // Try getting token
+          // Note: If this fails with "missing required authentication credential",
+          // it means a Web Push Certificate (VAPID Key) needs to be generated in Firebase Console
+          let finalToken;
+          try {
+            finalToken = await getToken(messaging);
+          } catch (err) {
+            // Catch ALL errors during token retrieval (VAPID missing, network, etc)
+            console.warn("FCM Token Error. VAPID Key might be missing in Firebase Console.", err);
+            console.info("To fix: Go to Firebase Console -> Project Settings -> Cloud Messaging -> Web Configuration -> Generate Key Pair.");
+            
+            // Show friendly message to user
+            toast.error("عفواً، خدمة الإشعارات تحتاج إلى تفعيل من إعدادات النظام (VAPID Key). يرجى مراجعة الدعم الفني.");
+            return; // Stop execution, don't throw to outer catch
+          }
+          
+          if (finalToken) {
+            await saveTokenToDB(finalToken);
+            // Update global preference
+            updatePreferences({ notifications_enabled: true });
+            toast.success("تم تفعيل الإشعارات بنجاح");
+          } else {
+            toast.error("فشل الحصول على رمز الإشعارات");
+          }
+        } else {
+          // User denied permission
+          toast.error("يجب السماح الإشعارات من إعدادات المتصفح");
+        }
+      } else {
+        // Disable
+        const messaging = await getMessagingInstance();
+        if (messaging) {
+            const token = await getToken(messaging).catch(() => null);
+            if (token) {
+                await deleteTokenFromDB(token);
+            }
+        }
+        // Update global preference
+        updatePreferences({ notifications_enabled: false });
+        toast.success("تم إيقاف الإشعارات");
+      }
+    } catch (error) {
+      console.error("Error toggling push notifications:", error);
+      toast.error("حدث خطأ أثناء تغيير الإعدادات");
+    } finally {
+      setPushLoading(false);
+    }
+  };
 
   // Handle toggle change
   const handleToggle = async (enabled) => {
@@ -91,6 +214,58 @@ export default function NotificationsTab() {
 
   return (
     <div className="space-y-6">
+      {/* Push Notifications Section */}
+      <Card className="overflow-hidden">
+        <CardContent className="p-0">
+          {/* Header */}
+          <div className="p-4 sm:p-6 border-b border-border/50 bg-gradient-to-r from-blue-500/5 to-transparent">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-[var(--radius)] bg-blue-500/10">
+                <Smartphone className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground">إشعارات التطبيق</h3>
+                <p className="text-sm text-muted-foreground">استقبال تنبيهات بالحجوزات الجديدة على هذا الجهاز</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="p-4 sm:p-6 space-y-6">
+            <div className="flex items-center justify-between gap-4 p-4 rounded-[var(--radius)] bg-muted/30 border border-border/50">
+              <div className="flex items-center gap-3">
+                <Bell className={cn(
+                  "w-5 h-5 transition-colors",
+                  pushEnabled ? "text-primary" : "text-muted-foreground"
+                )} />
+                <div>
+                  <Label className="text-base font-medium">تفعيل الإشعارات</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {pushEnabled 
+                      ? "الإشعارات مفعلة على هذا المتصفح"
+                      : permissionStatus === 'denied' 
+                        ? "تم حظر الإشعارات من إعدادات المتصفح"
+                        : "استقبل تنبيه فوري عند وجود حجز جديد"
+                    }
+                  </p>
+                </div>
+              </div>
+              <Switch
+                checked={pushEnabled}
+                onCheckedChange={handlePushToggle}
+                disabled={pushLoading || permissionStatus === 'denied'}
+              />
+            </div>
+            
+            {permissionStatus === 'denied' && (
+               <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-100 rounded-md">
+                  تنبيه: لقد قمت بحظر الإشعارات سابقاً. لتفعيلها مرة أخرى، يرجى تغيير إعدادات الموقع في المتصفح (اضغط على علامة القفل بجوار الرابط).
+               </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Daily Email Section */}
       <Card className="overflow-hidden">
         <CardContent className="p-0">
@@ -185,17 +360,34 @@ export default function NotificationsTab() {
         </CardContent>
       </Card>
 
-      {/* Future: WhatsApp / SMS */}
-      <Card className="opacity-60">
-        <CardContent className="p-4 sm:p-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-[var(--radius)] bg-muted">
-              <Bell className="w-5 h-5 text-muted-foreground" />
+      {/* WhatsApp Settings */}
+      <Card className="overflow-hidden border border-border/50 shadow-sm">
+        <CardContent className="p-0">
+          {/* Header */}
+          <div className="p-4 sm:p-6 border-b border-border/50 bg-gradient-to-r from-green-500/5 to-transparent">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-[var(--radius)] bg-green-500/10">
+                <MessageSquare className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground">إشعارات الواتساب</h3>
+                <p className="text-sm text-muted-foreground">تخصيص رسائل الحجز والتذكير التلقائية</p>
+              </div>
             </div>
-            <div>
-              <h3 className="font-semibold text-foreground">إشعارات WhatsApp & SMS</h3>
-              <p className="text-sm text-muted-foreground">قريباً إن شاء الله...</p>
+          </div>
+
+          {/* Content */}
+          <div className="p-4 sm:p-6">
+            <div className="flex flex-col items-center justify-center py-8 text-center space-y-3">
+              <div className="bg-muted rounded-full p-3">
+                <Clock className="w-8 h-8 text-muted-foreground" />
+              </div>
+              <h4 className="text-lg font-medium">قريباً.. هذه الميزة قيد التطوير</h4>
+              <p className="text-muted-foreground max-w-sm">
+                نعمل حالياً على تحسين تجربة ربط الواتساب لتكون أكثر استقراراً وسهولة. انتظرونا في التحديث القادم!
+              </p>
             </div>
+            {/* <WhatsappSettings clinicId={user?.clinic_id} /> */}
           </div>
         </CardContent>
       </Card>

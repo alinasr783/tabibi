@@ -1,4 +1,4 @@
-import {ArrowRight} from "lucide-react";
+import {ArrowLeft} from "lucide-react";
 import {Label} from "../../components/ui/label";
 import {Input} from "../../components/ui/input";
 import {Button} from "../../components/ui/button";
@@ -139,7 +139,7 @@ export default function PatientFormCard({
           <div className="pt-2">
             <Button type="submit" disabled={isLoading} className="w-full">
               {isLoading ? "بنبعت للعيادة دلوقتي ..." : "كمل"}
-              <ArrowRight className="mr-2 h-4 w-4" />
+              <ArrowLeft className="mr-2 h-4 w-4" />
             </Button>
           </div>
         </form>

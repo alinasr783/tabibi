@@ -2,15 +2,23 @@ import { useEffect, useState } from 'react';
 import { getMessagingInstance, getToken } from '../lib/firebase';
 import supabase from '../services/supabase';
 import useUser from '../features/auth/useUser';
+import { useUserPreferences } from './useUserPreferences';
 
 const useFcmToken = () => {
   const [token, setToken] = useState(null);
   const [notificationPermissionStatus, setNotificationPermissionStatus] = useState('');
   const { data: user } = useUser();
+  const { data: preferences } = useUserPreferences();
 
   useEffect(() => {
     const retrieveToken = async () => {
       try {
+        // Check if notifications are enabled in user preferences
+        if (preferences?.notifications_enabled === false) {
+          console.log('Notifications disabled by user preference.');
+          return;
+        }
+
         if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
           const messaging = await getMessagingInstance();
           
@@ -54,7 +62,7 @@ const useFcmToken = () => {
     if (user) {
         retrieveToken();
     }
-  }, [user]);
+  }, [user, preferences]);
 
   const saveTokenToDatabase = async (token, userId) => {
     try {
