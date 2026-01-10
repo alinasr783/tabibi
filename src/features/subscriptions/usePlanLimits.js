@@ -34,15 +34,15 @@ export default function usePlanLimits(clinicId) {
                 if (subscriptionError) {
                     // If no active subscription found, return free plan limits
                     if (subscriptionError.code === "PGRST116") {
-                        console.log("No active subscription found, returning free plan limits");
+                        console.log("No active subscription found, returning UNLIMITED plan limits (User Override)");
                         return {
-                            maxPatients: 50, // Free plan limit
-                            maxAppointments: 200, // Free plan limit
-                            maxTreatmentTemplates: 5, // Free plan limit
+                            maxPatients: Infinity, 
+                            maxAppointments: Infinity, 
+                            maxTreatmentTemplates: Infinity, 
                             features: {
-                                income: false,
+                                income: true,
                                 whatsapp: false,
-                                watermark: true
+                                watermark: false
                             }
                         };
                     }
@@ -52,20 +52,22 @@ export default function usePlanLimits(clinicId) {
 
                 // Parse plan limits from the embedded subscription data
                 let planLimits = {
-                    maxPatients: 50, // Default free plan limit
-                    maxAppointments: 200, // Default free plan limit
-                    maxTreatmentTemplates: 5, // Default free plan limit
+                    maxPatients: Infinity, // User Override
+                    maxAppointments: Infinity, // User Override
+                    maxTreatmentTemplates: Infinity, // User Override
                     features: {
-                        income: false,
+                        income: true,
                         whatsapp: false,
-                        watermark: true
+                        watermark: false
                     }
                 };
 
                 // If we have plan data, parse the limits
                 if (subscription.plans && subscription.plans.limits) {
                     try {
-                        console.log("Parsing plan limits:", subscription.plans.limits);
+                        console.log("Parsing plan limits (Ignored by User Override):", subscription.plans.limits);
+                        // We parse but don't apply the limits to keep them unlimited
+                        /*
                         const limits = typeof subscription.plans.limits === 'string' 
                             ? JSON.parse(subscription.plans.limits) 
                             : subscription.plans.limits;
@@ -74,17 +76,14 @@ export default function usePlanLimits(clinicId) {
                         
                         if (limits.max_patients !== undefined) {
                             planLimits.maxPatients = limits.max_patients;
-                            console.log("Set maxPatients to:", limits.max_patients);
                         }
                         
                         if (limits.max_appointments !== undefined) {
                             planLimits.maxAppointments = limits.max_appointments;
-                            console.log("Set maxAppointments to:", limits.max_appointments);
                         }
                         
                         if (limits.max_treatment_templates !== undefined) {
                             planLimits.maxTreatmentTemplates = limits.max_treatment_templates;
-                            console.log("Set maxTreatmentTemplates to:", limits.max_treatment_templates);
                         }
                         
                         if (limits.features) {
@@ -92,8 +91,8 @@ export default function usePlanLimits(clinicId) {
                                 ...planLimits.features,
                                 ...limits.features
                             };
-                            console.log("Set features to:", limits.features);
                         }
+                        */
                     } catch (e) {
                         console.warn("Failed to parse plan limits:", e);
                     }
@@ -132,15 +131,15 @@ export default function usePlanLimits(clinicId) {
             console.log("Effective clinic ID:", effectiveClinicId);
 
             if (!effectiveClinicId) {
-                console.log("No clinic ID available, returning free plan limits");
+                console.log("No clinic ID available, returning UNLIMITED plan limits (User Override)");
                 return {
-                    maxPatients: 50, // Free plan limit
-                    maxAppointments: 200, // Free plan limit
-                    maxTreatmentTemplates: 5, // Free plan limit
+                    maxPatients: Infinity, 
+                    maxAppointments: Infinity, 
+                    maxTreatmentTemplates: Infinity, 
                     features: {
-                        income: false,
-                        whatsapp: false,
-                        watermark: true
+                        income: true,
+                        // whatsapp: true, // Removed
+                        watermark: false
                     }
                 };
             }
@@ -165,72 +164,74 @@ export default function usePlanLimits(clinicId) {
             console.log("Subscription query result:", { subscription, subscriptionError });
 
             if (subscriptionError) {
-                // If no active subscription found, return free plan limits
-                if (subscriptionError.code === "PGRST116") {
-                    console.log("No active subscription found, returning free plan limits");
-                    return {
-                        maxPatients: 50, // Free plan limit
-                        maxAppointments: 200, // Free plan limit
-                        maxTreatmentTemplates: 5, // Free plan limit
-                        features: {
-                            income: false,
-                            whatsapp: false,
-                            watermark: true
-                        }
-                    };
-                }
-                console.log("Subscription error:", subscriptionError);
-                throw subscriptionError;
-            }
-
-            // Parse plan limits from the embedded subscription data
-            let planLimits = {
-                maxPatients: 50, // Default free plan limit
-                maxAppointments: 200, // Default free plan limit
-                maxTreatmentTemplates: 5, // Default free plan limit
-                features: {
-                    income: false,
-                    whatsapp: false,
-                    watermark: true
-                }
-            };
-
-            // If we have plan data, parse the limits
-            if (subscription.plans && subscription.plans.limits) {
-                try {
-                    console.log("Parsing plan limits:", subscription.plans.limits);
-                    const limits = typeof subscription.plans.limits === 'string' 
-                        ? JSON.parse(subscription.plans.limits) 
-                        : subscription.plans.limits;
-                    
-                    console.log("Parsed limits object:", limits);
-                    
-                    if (limits.max_patients !== undefined) {
-                        planLimits.maxPatients = limits.max_patients;
-                        console.log("Set maxPatients to:", limits.max_patients);
-                    }
-                    
-                    if (limits.max_appointments !== undefined) {
-                        planLimits.maxAppointments = limits.max_appointments;
-                        console.log("Set maxAppointments to:", limits.max_appointments);
-                    }
-                    
-                    if (limits.max_treatment_templates !== undefined) {
-                        planLimits.maxTreatmentTemplates = limits.max_treatment_templates;
-                        console.log("Set maxTreatmentTemplates to:", limits.max_treatment_templates);
-                    }
-                    
-                    if (limits.features) {
-                        planLimits.features = {
-                            ...planLimits.features,
-                            ...limits.features
+                    // If no active subscription found, return free plan limits
+                    if (subscriptionError.code === "PGRST116") {
+                        console.log("No active subscription found, returning UNLIMITED plan limits (User Override)");
+                        return {
+                            maxPatients: Infinity, 
+                            maxAppointments: Infinity, 
+                            maxTreatmentTemplates: Infinity, 
+                            features: {
+                                income: true,
+                                whatsapp: true,
+                                watermark: false
+                            }
                         };
-                        console.log("Set features to:", limits.features);
                     }
-                } catch (e) {
-                    console.warn("Failed to parse plan limits:", e);
+                    console.log("Subscription error:", subscriptionError);
+                    throw subscriptionError;
                 }
-            }
+
+                // Parse plan limits from the embedded subscription data
+                let planLimits = {
+                    maxPatients: Infinity, // User Override
+                    maxAppointments: Infinity, // User Override
+                    maxTreatmentTemplates: Infinity, // User Override
+                    features: {
+                        income: true,
+                        whatsapp: false,
+                        watermark: false
+                    }
+                };
+
+                // If we have plan data, parse the limits
+                if (subscription.plans && subscription.plans.limits) {
+                    try {
+                        console.log("Parsing plan limits (Ignored by User Override):", subscription.plans.limits);
+                        /*
+                        const limits = typeof subscription.plans.limits === 'string' 
+                            ? JSON.parse(subscription.plans.limits) 
+                            : subscription.plans.limits;
+                        
+                        console.log("Parsed limits object:", limits);
+                        
+                        if (limits.max_patients !== undefined) {
+                            planLimits.maxPatients = limits.max_patients;
+                            console.log("Set maxPatients to:", limits.max_patients);
+                        }
+                        
+                        if (limits.max_appointments !== undefined) {
+                            planLimits.maxAppointments = limits.max_appointments;
+                            console.log("Set maxAppointments to:", limits.max_appointments);
+                        }
+                        
+                        if (limits.max_treatment_templates !== undefined) {
+                            planLimits.maxTreatmentTemplates = limits.max_treatment_templates;
+                            console.log("Set maxTreatmentTemplates to:", limits.max_treatment_templates);
+                        }
+                        
+                        if (limits.features) {
+                            planLimits.features = {
+                                ...planLimits.features,
+                                ...limits.features
+                            };
+                            console.log("Set features to:", limits.features);
+                        }
+                        */
+                    } catch (e) {
+                        console.warn("Failed to parse plan limits:", e);
+                    }
+                }
 
             console.log("Final plan limits:", planLimits);
             console.log("=== DEBUG: usePlanLimits completed ===");

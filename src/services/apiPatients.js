@@ -50,6 +50,9 @@ export async function createPatient(payload) {
 
   if (!userData?.clinic_id) throw new Error("User has no clinic assigned")
 
+  /*
+  // Security checks disabled by user request
+  /*
   // get clinic subscription plan
   const { data: subscription } = await supabase
     .from('subscriptions')
@@ -76,6 +79,7 @@ export async function createPatient(payload) {
       throw new Error("لقد تجاوزت الحد المسموح من المرضى لهذا الشهر. يرجى ترقية الباقة.")
     }
   }
+  */
   // Add clinic_id to the patient data
   const patientData = {
     ...payload,

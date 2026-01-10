@@ -15,7 +15,6 @@ import supabase from "../../services/supabase";
 import { useAuth } from "../auth";
 import toast from "react-hot-toast";
 import { cn } from "../../lib/utils";
-import WhatsappSettings from "../clinic/WhatsappSettings";
 
 export default function NotificationsTab() {
   const { user } = useAuth();
@@ -315,18 +314,18 @@ export default function NotificationsTab() {
                   <Clock className="w-4 h-4 text-muted-foreground" />
                   وقت الإرسال
                 </Label>
-                <div className="flex gap-3">
+                <div className="flex gap-3 w-full">
                   <Input
                     type="time"
                     value={settings.time}
                     onChange={(e) => handleTimeChange(e.target.value)}
-                    className="max-w-[150px]"
+                    className="w-[75%]"
                   />
                   <Button
                     variant="outline"
                     onClick={handleSaveTime}
                     disabled={isSaving}
-                    className="gap-2"
+                    className="w-[25%] gap-2"
                   >
                     {isSaving ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -360,37 +359,7 @@ export default function NotificationsTab() {
         </CardContent>
       </Card>
 
-      {/* WhatsApp Settings */}
-      <Card className="overflow-hidden border border-border/50 shadow-sm">
-        <CardContent className="p-0">
-          {/* Header */}
-          <div className="p-4 sm:p-6 border-b border-border/50 bg-gradient-to-r from-green-500/5 to-transparent">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-[var(--radius)] bg-green-500/10">
-                <MessageSquare className="w-5 h-5 text-green-600" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-foreground">إشعارات الواتساب</h3>
-                <p className="text-sm text-muted-foreground">تخصيص رسائل الحجز والتذكير التلقائية</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Content */}
-          <div className="p-4 sm:p-6">
-            <div className="flex flex-col items-center justify-center py-8 text-center space-y-3">
-              <div className="bg-muted rounded-full p-3">
-                <Clock className="w-8 h-8 text-muted-foreground" />
-              </div>
-              <h4 className="text-lg font-medium">قريباً.. هذه الميزة قيد التطوير</h4>
-              <p className="text-muted-foreground max-w-sm">
-                نعمل حالياً على تحسين تجربة ربط الواتساب لتكون أكثر استقراراً وسهولة. انتظرونا في التحديث القادم!
-              </p>
-            </div>
-            {/* <WhatsappSettings clinicId={user?.clinic_id} /> */}
-          </div>
-        </CardContent>
-      </Card>
+      {/* WhatsApp Settings Removed */}
     </div>
   );
 }

@@ -13,11 +13,12 @@ export default function SubscriptionExpiryPopup({ daysRemaining, expiryDate }) {
     };
     
     const handleContactSupport = () => {
-        // Open WhatsApp with a predefined message
-        const phoneNumber = "+201234567890"; // Replace with actual support number
-        const message = "مرحبًا، أحتاج إلى المساعدة بشأن تجديد اشتراكي في نظام طبيبي.";
-        const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
-        window.open(whatsappUrl, "_blank");
+        // WhatsApp support removed per user request
+        // const phoneNumber = "+201234567890"; 
+        // const message = "مرحبًا، أحتاج إلى المساعدة بشأن تجديد اشتراكي في نظام طبيبي.";
+        // const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+        // window.open(whatsappUrl, "_blank");
+        alert("يرجى التواصل مع الدعم الفني.");
     };
     
     return (
@@ -67,15 +68,6 @@ export default function SubscriptionExpiryPopup({ daysRemaining, expiryDate }) {
                     >
                         <RefreshCw className="w-4 h-4 ml-2" />
                         تجديد الاشتراك
-                    </Button>
-                    
-                    <Button 
-                        onClick={handleContactSupport}
-                        variant="outline"
-                        className="w-full border-gray-300 hover:bg-gray-50"
-                    >
-                        <MessageCircle className="w-4 h-4 ml-2" />
-                        تواصل مع الدعم via واتساب
                     </Button>
                 </CardFooter>
             </Card>

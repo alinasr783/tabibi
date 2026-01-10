@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
-import { Check, X, User, Calendar, Clock, Phone, Tag, MessageSquare, Eye, MoreHorizontal, CheckCircle, XCircle, Receipt } from "lucide-react";
+import { Check, X, User, Calendar, Clock, Phone, Tag, Eye, MoreHorizontal, CheckCircle, XCircle, Receipt } from "lucide-react";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
@@ -23,7 +23,6 @@ import toast from "react-hot-toast";
 import { cn } from "../../lib/utils";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
-import usePlan from "../auth/usePlan";
 
 const statusMap = {
   pending: { label: "جديد", variant: "warning", icon: Clock },
@@ -40,7 +39,6 @@ export default function OnlineBookingsTable({
 }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const { data: planData } = usePlan();
   const [showContactDialog, setShowContactDialog] = useState(false);
   const [selectedPhone, setSelectedPhone] = useState("");
   const [selectedPatientName, setSelectedPatientName] = useState("");
@@ -112,55 +110,6 @@ export default function OnlineBookingsTable({
     navigate(`/appointments/${appointmentId}`);
   };
 
-  // Check if WhatsApp feature is enabled in the plan
-  const isWhatsAppEnabled = planData?.plans?.limits?.features?.whatsapp === true;
-
-  const formatPhoneNumberForWhatsApp = (phone) => {
-    if (!phone) return "";
-
-    let formattedPhone = phone.replace(/\D/g, "");
-
-    if (formattedPhone.startsWith("0")) {
-      formattedPhone = "20" + formattedPhone.substring(1);
-    }
-
-    if (!formattedPhone.startsWith("20")) {
-      formattedPhone = "20" + formattedPhone;
-    }
-
-    return formattedPhone;
-  };
-
-  const generateReminderMessage = (patientName, appointmentDate) => {
-    const formattedDate = format(new Date(appointmentDate), "dd/MM/yyyy", {
-      locale: ar,
-    });
-    const formattedTime = format(new Date(appointmentDate), "hh:mm a", {
-      locale: ar,
-    });
-
-    return `مرحباً ${patientName}، هذا تذكير بموعدك في العيادة بتاريخ ${formattedDate} الساعة ${formattedTime}. نرجو الحضور قبل الموعد بـ15 دقيقة.`;
-  };
-
-  const handleSendReminder = (appointment) => {
-    if (!isWhatsAppEnabled) {
-      toast.error("ميزة الواتساب غير متوفرة في خطتك الحالية");
-      return;
-    }
-
-    const formattedPhone = formatPhoneNumberForWhatsApp(appointment.patient?.phone);
-
-    if (!formattedPhone) {
-      toast.error("رقم الهاتف غير صحيح");
-      return;
-    }
-
-    const message = generateReminderMessage(appointment.patient?.name, appointment.date);
-    const encodedMessage = encodeURIComponent(message);
-    const whatsappUrl = `https://wa.me/${formattedPhone}?text=${encodedMessage}`;
-    window.open(whatsappUrl, "_blank");
-  };
-
   const handlePhoneClick = (phone, patientName) => {
     if (!phone) return;
     setSelectedPhone(phone);
@@ -170,12 +119,6 @@ export default function OnlineBookingsTable({
 
   const handleCall = () => {
     window.location.href = `tel:${selectedPhone}`;
-    setShowContactDialog(false);
-  };
-
-  const handleWhatsApp = () => {
-    const cleanPhone = selectedPhone.replace(/\D/g, '');
-    window.open(`https://wa.me/${cleanPhone}`, '_blank');
     setShowContactDialog(false);
   };
 
@@ -295,10 +238,10 @@ export default function OnlineBookingsTable({
     const StatusIcon = statusInfo.icon || Clock;
 
     return (
-      <div className={cn("relative group h-full", className)}>
+      <div className={cn("relative group h-full", className)} style={{direction: 'rtl'}}>
         <div className="flex flex-col h-full p-4 rounded-lg border bg-card hover:bg-accent/5 transition-colors shadow-sm">
           {/* Header - اسم المريض والحالة */}
-          <div className="flex items-start justify-between mb-3">
+          <div className="flex items-start justify-between mb-3" style={{direction: 'rtl'}}>
             <div className="flex items-center gap-3 flex-1 min-w-0">
               <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
                 <User className="w-5 h-5" />
@@ -370,17 +313,6 @@ export default function OnlineBookingsTable({
               عرض التفاصيل
             </Button>
             
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-9 w-9 px-0"
-              onClick={() => handleSendReminder(appointment)}
-              disabled={!isWhatsAppEnabled}
-              title="إرسال تذكير واتساب"
-            >
-              <MessageSquare className="w-3.5 h-3.5" />
-            </Button>
-            
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="h-9 w-9 px-0">
@@ -447,21 +379,13 @@ export default function OnlineBookingsTable({
               <p className="text-sm text-muted-foreground mt-1">اختار طريقة الاتصال</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3">
               <Button
                 onClick={handleCall}
                 className="h-20 flex-col gap-2 bg-blue-500 hover:bg-blue-600 text-white"
               >
                 <Phone className="w-6 h-6" />
                 <span className="font-bold">مكالمة</span>
-              </Button>
-              
-              <Button
-                onClick={handleWhatsApp}
-                className="h-20 flex-col gap-2 bg-green-500 hover:bg-green-600 text-white"
-              >
-                <MessageSquare className="w-6 h-6" />
-                <span className="font-bold">واتساب</span>
               </Button>
             </div>
           </div>

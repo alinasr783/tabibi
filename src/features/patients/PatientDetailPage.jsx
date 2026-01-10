@@ -68,73 +68,9 @@ export default function PatientDetailPage() {
       patientAgeUnit = patient.age_unit === 'months' ? 'شهر' : patient.age_unit === 'days' ? 'يوم' : 'سنة';
   }
 
-  // Share latest prescription via WhatsApp
   const shareLatestPrescription = () => {
-    // Find the latest visit with medications
-    const latestVisitWithMedications = visits?.find(visit => 
-      visit.medications && Array.isArray(visit.medications) && visit.medications.length > 0
-    );
-
-    if (!latestVisitWithMedications) {
-      alert("لا توجد وصفة طبية متاحة للمشاركة");
-      return;
-    }
-
-    // Get patient phone number
-    const phoneNumber = patient?.phone?.replace(/\D/g, '');
-    if (!phoneNumber) {
-      alert("رقم هاتف المريض غير متوفر");
-      return;
-    }
-
-    // Format phone number for WhatsApp (assuming Egyptian numbers)
-    let formattedPhone = phoneNumber;
-    if (formattedPhone.startsWith("0")) {
-      formattedPhone = "2" + formattedPhone;
-    } else if (!formattedPhone.startsWith("20")) {
-      formattedPhone = "20" + formattedPhone;
-    }
-
-    // Create medications list
-    let medicationsList = "";
-    if (
-      latestVisitWithMedications.medications &&
-      Array.isArray(latestVisitWithMedications.medications) &&
-      latestVisitWithMedications.medications.length > 0
-    ) {
-      medicationsList = latestVisitWithMedications.medications
-        .map(
-          (med, index) =>
-            `${index + 1}. ${med.name || ""}\n   ${med.using || ""}`
-        )
-        .join("\n\n");
-    } else {
-      medicationsList = "لا توجد أدوية محددة";
-    }
-
-    // Create WhatsApp message
-    const message = `*مرحباً ${patient?.name || 'سيد/سيدة'}*
-
-نرجو منك الالتزام بالتعليمات التالية:
-
-${medicationsList}
-
-*تاريخ الزيارة:* ${
-      latestVisitWithMedications.created_at
-        ? new Date(latestVisitWithMedications.created_at).toLocaleDateString("ar-EG")
-        : "غير محدد"
-    }
-
-نشكرك على ثقتك بعيادتنا!`;
-
-    // Encode message for URL
-    const encodedMessage = encodeURIComponent(message);
-
-    // Create WhatsApp URL
-    const whatsappUrl = `https://wa.me/${formattedPhone}?text=${encodedMessage}`;
-
-    // Open WhatsApp in new tab
-    window.open(whatsappUrl, "_blank");
+    // WhatsApp integration removed per user request
+    toast.error("تم إيقاف خدمة واتساب حالياً");
   };
 
   return (
@@ -217,19 +153,6 @@ ${medicationsList}
                 <Edit className="w-4 h-4" />
                 تعديل
               </Button>
-              
-              {patient?.phone && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={shareLatestPrescription}
-                  className="gap-1.5"
-                  disabled={!patient}  // Disable if patient data is not loaded
-                >
-                  <MessageCircle className="w-4 h-4" />
-                  واتساب
-                </Button>
-              )}
               
               <Button
                 variant="ghost"

@@ -223,7 +223,7 @@ export async function getCurrentUser() {
             console.log("getCurrentUser: Creating user data promise");
             const { data: userData, error: userError } = await supabase
                 .from("users")
-                .select("user_id, email, name, phone, role, clinic_id, permissions")
+                .select("user_id, email, name, phone, role, clinic_id, permissions, avatar_url, bio, education, certificates")
                 .eq("user_id", session.user.id)
                 .single();
             
@@ -551,7 +551,7 @@ export async function updateSecretaryPermissions(secretaryId, permissions) {
     return data
 }
 
-export async function updateProfile({ name, phone, email }) {
+export async function updateProfile({ name, phone, email, avatar_url, bio, education, certificates }) {
     // Get current user session
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) throw new Error("Not authenticated")
@@ -568,14 +568,23 @@ export async function updateProfile({ name, phone, email }) {
 
     if (authError) throw authError
 
+    // Prepare updates object
+    const updates = {
+        name,
+        phone,
+        email
+    }
+    
+    // Add optional fields if they are provided
+    if (avatar_url !== undefined) updates.avatar_url = avatar_url
+    if (bio !== undefined) updates.bio = bio
+    if (education !== undefined) updates.education = education
+    if (certificates !== undefined) updates.certificates = certificates
+
     // Update user in users table
     const { data, error: userError } = await supabase
         .from("users")
-        .update({
-            name,
-            phone,
-            email
-        })
+        .update(updates)
         .eq("user_id", userId)
         .select()
         .single()

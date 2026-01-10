@@ -15,6 +15,8 @@ import {
   Clock,
   MessageCircleQuestion,
   Share2,
+  Zap,
+  LayoutGrid,
 } from "lucide-react";
 import { NavLink, Outlet, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../features/auth/AuthContext";
@@ -45,6 +47,8 @@ const NAV_ITEMS_CONFIG = [
   { id: 'integrations', to: "/integrations", icon: Share2, label: "التكاملات", permissionKey: "settings" },
   { id: 'settings', to: "/settings", icon: Settings, label: "الإعدادات", permissionKey: "settings" },
   { id: 'ask-tabibi', to: "/ask-tabibi", icon: MessageCircleQuestion, label: " Tabibi AI ", permissionKey: "dashboard" },
+  { id: 'tabibi-apps', to: "/tabibi-apps", icon: Zap, label: "Tabibi Apps", permissionKey: "dashboard" },
+  { id: 'my-apps', to: "/my-apps", icon: LayoutGrid, label: "تطبيقاتي", permissionKey: "dashboard" },
 ];
 
 function NavItem({ to, icon: Icon, label, isVisible = true, onClick, badgeCount }) {
@@ -261,12 +265,15 @@ export default function DoctorLayout() {
     };
   }, []);
 
+  // Check if current page is Tabibi App Details (needs full width control)
+  const isAppDetails = /^\/tabibi-apps\/\d+$/.test(location.pathname);
+
   return (
     <DndProvider backend={TouchBackend} options={{ enableMouseEvents: true, delayTouchStart: 300 }}>
       <div dir="rtl" className="flex h-screen">
         {/* Floating Mobile menu button - Always visible and floating on small screens at the top */}
         <button
-          className="md:hidden fixed top-6 left-6 z-50 p-3 rounded-full bg-primary text-primary-foreground shadow-lg menu-button"
+          className="md:hidden fixed top-6 left-6 z-[9999] p-3 rounded-full bg-primary text-primary-foreground shadow-lg menu-button"
           onClick={() => {
             // Prevent synchronous layout thrash during React commit
             requestAnimationFrame(() => setIsSidebarOpen((v) => !v));
@@ -277,14 +284,14 @@ export default function DoctorLayout() {
         {/* Sidebar overlay for mobile */}
         {isSidebarOpen && (
           <div
-            className="fixed inset-0 bg-black/50 z-40 md:hidden"
+            className="fixed inset-0 bg-black/50 z-[9998] md:hidden"
             onClick={() => setIsSidebarOpen(false)}
           />
         )}
 
         {/* Sidebar */}
         <aside
-          className={`sidebar fixed top-0 left-0 w-64 transform transition-transform duration-300 ease-in-out z-50
+          className={`sidebar fixed top-0 left-0 w-64 transform transition-transform duration-300 ease-in-out z-[9999]
             ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} 
             md:translate-x-0 md:static md:flex md:w-56 lg:w-60 xl:w-64 flex-shrink-0 flex-col border-e border-border bg-card h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]`}>
           <Link
@@ -329,8 +336,8 @@ export default function DoctorLayout() {
           </div>
         </aside>
         <div className="flex-1 md:mr-0 lg:mr-0 xl:mr-0 flex flex-col min-h-0">
-          <main className="flex-1 overflow-y-auto py-6 mt-0 md:mt-0">
-            <div className="container">
+          <main className={`flex-1 overflow-y-auto ${isAppDetails ? '' : 'py-6'} mt-0 md:mt-0`}>
+            <div className={isAppDetails ? "" : "container"}>
               <Outlet />
             </div>
           </main>

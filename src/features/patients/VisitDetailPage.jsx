@@ -5,7 +5,6 @@ import {
     Calendar,
     Edit,
     FileText,
-    MessageCircle,
     Pill,
     Printer,
     Stethoscope,
@@ -42,10 +41,6 @@ export default function VisitDetailPage() {
   const {data: planData} = usePlan();
   const navigate = useNavigate();
   const {mutate: updateVisit, isPending: isUpdating} = useUpdateVisit();
-  const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
-  const [whatsappNumber, setWhatsappNumber] = useState("");
-  const [isFeatureRestrictedModalOpen, setIsFeatureRestrictedModalOpen] =
-    useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDiagnosisEditModalOpen, setIsDiagnosisEditModalOpen] = useState(false);
   const [isNotesEditModalOpen, setIsNotesEditModalOpen] = useState(false);
@@ -55,10 +50,6 @@ export default function VisitDetailPage() {
     notes: "",
     medications: [],
   });
-
-  // Check if WhatsApp feature is enabled in the plan
-  const isWhatsAppEnabled =
-    planData?.plans?.limits?.features?.whatsapp === true;
 
   // Initialize edit data when visit loads
   useEffect(() => {
@@ -229,7 +220,6 @@ export default function VisitDetailPage() {
           user.name,
           clinic.name,
           clinic.address,
-          false, // shareViaWhatsApp
           planData // Pass plan data for watermark feature
         );
       } catch (error) {
@@ -244,78 +234,7 @@ export default function VisitDetailPage() {
     }
   };
 
-  const openWhatsAppModal = () => {
-    // If WhatsApp is not enabled in the plan, show a modal and return
-    if (!isWhatsAppEnabled) {
-      setIsFeatureRestrictedModalOpen(true);
-      return;
-    }
 
-    // Pre-fill with patient's phone number if available
-    if (visit && visit.patient?.phone) {
-      setWhatsappNumber(visit.patient.phone);
-    }
-    setIsWhatsAppModalOpen(true);
-  };
-
-  const handleWhatsAppShare = () => {
-    if (!visit) {
-      alert("لا توجد بيانات الكشف لمشاركتها");
-      return;
-    }
-
-    // Format phone number for WhatsApp (remove any non-digit characters and add country code if needed)
-    let formattedPhone = whatsappNumber.replace(/\D/g, "");
-
-    // Assuming Egyptian phone numbers, add country code if not present
-    if (formattedPhone.startsWith("0")) {
-      formattedPhone = "2" + formattedPhone;
-    } else if (!formattedPhone.startsWith("20")) {
-      formattedPhone = "20" + formattedPhone;
-    }
-
-    // Create formatted medications list
-    let medicationsList = "";
-    if (
-      visit.medications &&
-      Array.isArray(visit.medications) &&
-      visit.medications.length > 0
-    ) {
-      medicationsList = visit.medications
-        .map(
-          (med, index) =>
-            `${index + 1}. ${med.name || ""}\n   ${med.using || ""}`
-        )
-        .join("\n\n");
-    } else {
-      medicationsList = "لا توجد أدوية محددة";
-    }
-
-    // Create WhatsApp message with only medications and welcome message
-    const message = `*مرحباً بك في عيادة ${clinic?.name || "الطبيب"}*
-        
-نرجو منك الالتزام بالتعليمات التالية:
-
-${medicationsList}
-
-*تاريخ الزيارة:* ${
-      visit.created_at
-        ? new Date(visit.created_at).toLocaleDateString("ar-EG")
-        : "غير محدد"
-    }
-
-نشكرك على ثقتك بعيادتنا!`;
-
-    // Encode message for URL
-    const encodedMessage = encodeURIComponent(message);
-
-    // Create WhatsApp URL
-    const whatsappUrl = `https://wa.me/${formattedPhone}?text=${encodedMessage}`;
-
-    // Close modal and open WhatsApp in new tab
-    setIsWhatsAppModalOpen(false);
-    window.open(whatsappUrl, "_blank");
-  };
 
   if (isLoading) {
     return (
@@ -394,10 +313,6 @@ ${medicationsList}
           </Button>
           {visit?.medications && visit.medications.length > 0 && (
             <>
-              <Button variant="outline" size="sm" onClick={openWhatsAppModal} className="gap-1.5">
-                <MessageCircle className="w-4 h-4" />
-                واتساب
-              </Button>
               <Button variant="outline" size="sm" onClick={handleGeneratePdf} className="gap-1.5">
                 <Printer className="w-4 h-4" />
                 طباعة
@@ -481,57 +396,7 @@ ${medicationsList}
         </CardContent>
       </Card>
 
-      {/* WhatsApp Modal */}
-      <Dialog open={isWhatsAppModalOpen} onOpenChange={setIsWhatsAppModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>إرسال عبر واتساب</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="phone">رقم الهاتف</Label>
-              <Input
-                id="phone"
-                value={whatsappNumber}
-                onChange={(e) => setWhatsappNumber(e.target.value)}
-                placeholder="01xxxxxxxxx"
-                className="text-left"
-                dir="ltr"
-              />
-              {visit?.patient?.phone && (
-                <p className="text-xs text-muted-foreground">
-                  رقم المريض: {visit.patient.phone}
-                </p>
-              )}
-            </div>
-          </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setIsWhatsAppModalOpen(false)} className="w-[25%]">
-              إلغاء
-            </Button>
-            <Button onClick={handleWhatsAppShare} disabled={!whatsappNumber.trim()} className="w-[75%]">
-              إرسال
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* Feature Restricted Modal */}
-      <Dialog open={isFeatureRestrictedModalOpen} onOpenChange={setIsFeatureRestrictedModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>ميزة غير متاحة</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground py-4">
-            خطتك الحالية مش بتدعم الواتساب. لو عايز الميزة دي، رقي خطتك.
-          </p>
-          <DialogFooter>
-            <Button onClick={() => setIsFeatureRestrictedModalOpen(false)}>
-              تمام
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Diagnosis Edit Modal */}
       <Dialog open={isDiagnosisEditModalOpen} onOpenChange={setIsDiagnosisEditModalOpen}>

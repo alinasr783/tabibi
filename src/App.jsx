@@ -36,6 +36,10 @@ import WorkMode from "./pages/WorkMode";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import Finance from "./pages/Finance";
+import TabibiApps from "./pages/TabibiApps";
+import TabibiAppDetailsWrapper from "./pages/TabibiAppDetailsWrapper";
+import MyAppsPage from "./features/my-apps/MyAppsPage";
+import MyAppViewer from "./features/my-apps/MyAppViewer";
 import { AskTabibiPage } from "./ai/ui";
 import OfflineIndicator from "./components/OfflineIndicator";
 import { OfflineProvider } from "./features/offline-mode/OfflineContext";
@@ -69,6 +73,9 @@ const MemoizedWorkMode = memo(WorkMode);
 const MemoizedPrivacyPolicy = memo(PrivacyPolicy);
 const MemoizedTermsOfService = memo(TermsOfService);
 const MemoizedFinance = memo(Finance);
+const MemoizedTabibiApps = memo(TabibiApps);
+const MemoizedMyAppsPage = memo(MyAppsPage);
+const MemoizedMyAppViewer = memo(MyAppViewer);
 const MemoizedAskTabibi = memo(AskTabibiPage);
 
 function AppRoutes() {
@@ -279,6 +286,38 @@ function AppRoutes() {
           element={
             <PermissionGuard requiredPermission="dashboard">
               <MemoizedAskTabibi />
+            </PermissionGuard>
+          }
+        />
+        <Route
+          path="/tabibi-apps"
+          element={
+            <PermissionGuard requiredPermission="dashboard">
+              <MemoizedTabibiApps />
+            </PermissionGuard>
+          }
+        />
+        <Route
+          path="/tabibi-apps/:appId"
+          element={
+            <PermissionGuard requiredPermission="dashboard">
+              <TabibiAppDetailsWrapper />
+            </PermissionGuard>
+          }
+        />
+        <Route
+          path="/my-apps"
+          element={
+            <PermissionGuard requiredPermission="dashboard">
+              <MemoizedMyAppsPage />
+            </PermissionGuard>
+          }
+        />
+        <Route
+          path="/my-apps/:appKey"
+          element={
+            <PermissionGuard requiredPermission="dashboard">
+              <MemoizedMyAppViewer />
             </PermissionGuard>
           }
         />

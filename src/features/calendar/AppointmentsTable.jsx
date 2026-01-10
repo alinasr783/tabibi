@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
-import { Bell, Eye, MoreHorizontal, Clock, Calendar, Phone, MessageSquare, User, Receipt, Tag, Download, ChevronLeft, ChevronRight, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { Bell, Eye, MoreHorizontal, Clock, Calendar, Phone, User, Receipt, Tag, Download, ChevronLeft, ChevronRight, CheckCircle, XCircle, AlertCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
@@ -41,7 +41,6 @@ export default function AppointmentsTable({
   fullWidth = false,
 }) {
   const queryClient = useQueryClient();
-  const { data: planData } = usePlan();
   const navigate = useNavigate();
   const [showContactDialog, setShowContactDialog] = useState(false);
   const [selectedPhone, setSelectedPhone] = useState("");
@@ -74,61 +73,6 @@ export default function AppointmentsTable({
   const handleCall = () => {
     window.location.href = `tel:${selectedPhone}`;
     setShowContactDialog(false);
-  };
-
-  const handleWhatsApp = () => {
-    const cleanPhone = selectedPhone.replace(/\D/g, '');
-    window.open(`https://wa.me/${cleanPhone}`, '_blank');
-    setShowContactDialog(false);
-  };
-
-  // Check if WhatsApp feature is enabled in the plan
-  const isWhatsAppEnabled = planData?.plans?.limits?.features?.whatsapp === true;
-
-  const formatPhoneNumberForWhatsApp = (phone) => {
-    if (!phone) return "";
-
-    let formattedPhone = phone.replace(/\D/g, "");
-
-    if (formattedPhone.startsWith("0")) {
-      formattedPhone = "20" + formattedPhone.substring(1);
-    }
-
-    if (!formattedPhone.startsWith("20")) {
-      formattedPhone = "20" + formattedPhone;
-    }
-
-    return formattedPhone;
-  };
-
-  const generateReminderMessage = (patientName, appointmentDate) => {
-    const formattedDate = format(new Date(appointmentDate), "dd/MM/yyyy", {
-      locale: ar,
-    });
-    const formattedTime = format(new Date(appointmentDate), "hh:mm a", {
-      locale: ar,
-    });
-
-    return `مرحباً ${patientName}، هذا تذكير بموعدك في العيادة بتاريخ ${formattedDate} الساعة ${formattedTime}. نرجو الحضور قبل الموعد بـ15 دقيقة.`;
-  };
-
-  const handleSendReminder = (appointment) => {
-    if (!isWhatsAppEnabled) {
-      toast.error("ميزة الواتساب غير متوفرة في خطتك الحالية");
-      return;
-    }
-
-    const formattedPhone = formatPhoneNumberForWhatsApp(appointment.patient?.phone);
-
-    if (!formattedPhone) {
-      toast.error("رقم الهاتف غير صحيح");
-      return;
-    }
-
-    const message = generateReminderMessage(appointment.patient?.name, appointment.date);
-    const encodedMessage = encodeURIComponent(message);
-    const whatsappUrl = `https://wa.me/${formattedPhone}?text=${encodedMessage}`;
-    window.open(whatsappUrl, "_blank");
   };
 
   const handleViewDetails = (appointmentId) => {
@@ -232,17 +176,6 @@ export default function AppointmentsTable({
             title="عرض تفاصيل الحجز"
           >
             <Eye className="h-4 w-4" />
-          </Button>
-          
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 w-8 p-0 rounded-full"
-            onClick={() => handleSendReminder(appointment)}
-            title="إرسال تذكير عبر الواتساب"
-            disabled={!isWhatsAppEnabled}
-          >
-            <Bell className="h-4 w-4" />
           </Button>
           
           <DropdownMenu>
@@ -361,17 +294,6 @@ export default function AppointmentsTable({
               شوف التفاصيل
             </Button>
             
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-10 px-3"
-              onClick={() => handleSendReminder(appointment)}
-              disabled={!isWhatsAppEnabled}
-              title="ابعت تذكير واتساب"
-            >
-              <MessageSquare className="w-4 h-4" />
-            </Button>
-            
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="h-10 px-3">
@@ -483,21 +405,13 @@ export default function AppointmentsTable({
               <p className="text-sm text-muted-foreground mt-1">اختار طريقة الاتصال</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3">
               <Button
                 onClick={handleCall}
                 className="h-20 flex-col gap-2 bg-blue-500 hover:bg-blue-600 text-white"
               >
                 <Phone className="w-6 h-6" />
                 <span className="font-bold">مكالمة</span>
-              </Button>
-              
-              <Button
-                onClick={handleWhatsApp}
-                className="h-20 flex-col gap-2 bg-green-500 hover:bg-green-600 text-white"
-              >
-                <MessageSquare className="w-6 h-6" />
-                <span className="font-bold">واتساب</span>
               </Button>
             </div>
           </div>

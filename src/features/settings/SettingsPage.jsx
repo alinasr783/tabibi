@@ -1,12 +1,11 @@
 import { Key, User, Settings, Palette, Bell } from "lucide-react";
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader } from "../../components/ui/card";
+import { useEffect } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import ChangePasswordTab from "./ChangePasswordTab";
 import PersonalInfoTab from "./PersonalInfoTab";
 import NotificationsTab from "./NotificationsTab";
 import { PersonalizationSettings } from "../user-preferences/PersonalizationSettings";
 import { useLocation } from "react-router-dom";
-import { cn } from "../../lib/utils";
 
 const tabs = [
   { id: "personal", label: "بياناتك", fullLabel: "بياناتك الشخصية", icon: User },
@@ -16,7 +15,6 @@ const tabs = [
 ];
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState("personal");
   const location = useLocation();
   
   // Apply scroll to top on route changes
@@ -37,41 +35,42 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <Card className="bg-card/70 overflow-hidden">
-        <CardHeader className="p-0">
-          {/* Scrollable tabs on mobile */}
-          <div className="flex overflow-x-auto scrollbar-hide border-b border-border">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              
-              return (
-                <button
-                  key={tab.id}
-                  className={cn(
-                    "flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0",
-                    activeTab === tab.id
-                      ? "text-primary border-b-2 border-primary bg-primary/5"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                  onClick={() => setActiveTab(tab.id)}
-                >
-                  <Icon className="w-4 h-4" />
+      <Tabs defaultValue="personal" className="w-full" style={{ direction: 'rtl' }}>
+        <TabsList className="grid grid-cols-2 md:grid-cols-4 w-full h-auto p-1 sm:p-1.5 bg-muted/50 rounded-[var(--radius)]">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <TabsTrigger 
+                key={tab.id}
+                value={tab.id} 
+                className="text-xs sm:text-sm py-2.5 sm:py-3 px-2 data-[state=active]:bg-background rounded-[var(--radius)] transition-all duration-200"
+              >
+                <div className="flex items-center justify-center gap-1.5 sm:gap-2">
+                  <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
                   <span className="sm:hidden">{tab.label}</span>
                   <span className="hidden sm:inline">{tab.fullLabel}</span>
-                </button>
-              );
-            })}
-          </div>
-        </CardHeader>
-        <CardContent className="p-3 sm:p-4 md:p-6">
-          <div className="mt-2 sm:mt-4">
-            {activeTab === "personal" && <PersonalInfoTab />}
-            {activeTab === "password" && <ChangePasswordTab />}
-            {activeTab === "personalization" && <PersonalizationSettings />}
-            {activeTab === "notifications" && <NotificationsTab />}
-          </div>
-        </CardContent>
-      </Card>
+                </div>
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
+
+        <TabsContent value="personal" className="mt-4 sm:mt-6">
+          <PersonalInfoTab />
+        </TabsContent>
+
+        <TabsContent value="password" className="mt-4 sm:mt-6">
+          <ChangePasswordTab />
+        </TabsContent>
+
+        <TabsContent value="personalization" className="mt-4 sm:mt-6">
+          <PersonalizationSettings />
+        </TabsContent>
+
+        <TabsContent value="notifications" className="mt-4 sm:mt-6">
+          <NotificationsTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

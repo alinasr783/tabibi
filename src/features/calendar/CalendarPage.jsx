@@ -76,9 +76,15 @@ export default function CalendarPage() {
     refetch: refetchTodayStats 
   } = useAppointments("", 1, 2000, todayFilter)
 
+  // Fetch total completed appointments
+  const { 
+    data: totalCompletedData,
+    refetch: refetchTotalCompleted 
+  } = useAppointments("", 1, 1, { status: "completed" })
+
   const handleRefresh = async () => {
     setIsRefreshing(true)
-    await Promise.all([refetchUpcoming(), refetchAll(), refetchTodayStats()])
+    await Promise.all([refetchUpcoming(), refetchAll(), refetchTodayStats(), refetchTotalCompleted()])
     setTimeout(() => setIsRefreshing(false), 500)
   }
 
@@ -88,18 +94,16 @@ export default function CalendarPage() {
       refetchUpcoming()
       refetchAll()
       refetchTodayStats()
+      refetchTotalCompleted()
     }, 10 * 60 * 1000)
     return () => clearInterval(interval)
-  }, [refetchUpcoming, refetchAll, refetchTodayStats])
+  }, [refetchUpcoming, refetchAll, refetchTodayStats, refetchTotalCompleted])
 
   // Stats calculations
   const todayAppointments = todayStatsData?.data || []
   
-  const completedToday = todayAppointments.filter(a => {
-    const status = a.status?.toLowerCase()?.trim();
-    return ['completed', 'done', 'finish', 'finished'].includes(status);
-  }).length
-
+  // Removed completedToday calculation from today's appointments as we now fetch total completed
+  
   const pendingToday = todayAppointments.filter(a => {
     const status = a.status?.toLowerCase()?.trim();
     return ['pending', 'confirmed'].includes(status);
@@ -107,7 +111,7 @@ export default function CalendarPage() {
   
   const stats = {
     today: todayStatsData?.count || 0,
-    completedToday,
+    completedToday: totalCompletedData?.count || 0,
     pendingToday,
     upcoming: upcomingData?.count || 0,
     total: allData?.count || 0

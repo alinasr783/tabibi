@@ -15,12 +15,10 @@ import {
   CheckCircle,
   XCircle,
   Clock3,
-  MessageSquare,
   Download,
   Printer,
   Save,
   Loader2,
-  Send,
   Users,
   Activity,
   Pill,
@@ -76,7 +74,6 @@ export default function AppointmentDetailPage() {
   const [selectedPhone, setSelectedPhone] = useState("");
   const [selectedPatientName, setSelectedPatientName] = useState("");
   const [medications, setMedications] = useState([]);
-  const [whatsappMedications, setWhatsappMedications] = useState([]);
   
   // Add optimistic status state for instant UI updates
   const [optimisticStatus, setOptimisticStatus] = useState(null);
@@ -229,89 +226,12 @@ export default function AppointmentDetailPage() {
     setShowContactDialog(false);
   };
 
-  const handleWhatsApp = () => {
-    const cleanPhone = selectedPhone.replace(/\D/g, '');
-    window.open(`https://wa.me/${cleanPhone}`, '_blank');
-    setShowContactDialog(false);
-  };
-
-  const handleCreatePrescription = () => {
-    setShowPrescriptionDialog(false);
-    setWhatsappMedications([...medications]);
-    setMedications([]);
-    alert("تم كتابة الروشتة بنجاح!");
-  };
-
   const handlePrescriptionDialogOpen = () => {
     // Initialize with one empty medication when opening the dialog
     if (medications.length === 0) {
       setMedications([{ name: '', using: '' }]);
     }
     setShowPrescriptionDialog(true);
-  };
-
-  const handleSharePrescriptionWhatsApp = () => {
-    const phoneNumber = appointment?.patient?.phone?.replace(/\D/g, '');
-    if (!phoneNumber) {
-      alert("رقم تليفون المريض مش موجود");
-      return;
-    }
-    
-    let message = `السلام عليكم يا ${appointment?.patient?.name || 'دكتور/ة'},
-
-ده الروشتة بتاعتك من د. ${appointment?.doctor?.name || 'الدكتور'}:
-
-`;
-
-    const medicationsToUse = whatsappMedications.length > 0 ? whatsappMedications : medications;
-
-    if (medicationsToUse && medicationsToUse.length > 0) {
-      medicationsToUse.forEach((med, index) => {
-        if (med.name && med.name.trim() !== '') {
-          message += `${index + 1}. ${med.name}
-   ${med.using || 'حسب تعليمات الدكتور'}
-
-`;
-        }
-      });
-    } else {
-      message += `مفيش أدوية متكتبة
-
-`;
-    }
-    
-    message += `تاريخ الروشتة: ${format(new Date(), "d MMMM yyyy", {locale: ar})}
-
-خلي بالك تاخد الأدوية بالظبط زي ما الدكتور قال.
-
-شكراً ليك.`;
-    
-    const encodedMessage = encodeURIComponent(message);
-    const whatsappUrl = `https://wa.me/+2${phoneNumber}?text=${encodedMessage}`;
-    window.open(whatsappUrl, '_blank');
-  };
-
-  const handleSendReminder = () => {
-    const phoneNumber = appointment?.patient?.phone?.replace(/\D/g, '');
-    if (!phoneNumber) {
-      alert("رقم التليفون مش موجود");
-      return;
-    }
-    
-    const appointmentDate = format(new Date(appointment?.date), "EEEE، d MMMM yyyy - hh:mm a", {locale: ar});
-    const doctorName = appointment?.doctor?.name || "الدكتور";
-    
-    const message = `أهلاً يا ${appointment?.patient?.name || 'دكتور/ة'},
-
-ده تذكير بميعادك مع ${doctorName} يوم ${appointmentDate}.
-
-ياريت تيجي قبل الميعاد بـ 10 دقايق.
-
-شكراً ليك!`;
-    
-    const encodedMessage = encodeURIComponent(message);
-    const whatsappUrl = `https://wa.me/+2${phoneNumber}?text=${encodedMessage}`;
-    window.open(whatsappUrl, '_blank');
   };
 
   const formatDate = (dateString) => {
@@ -469,14 +389,6 @@ export default function AppointmentDetailPage() {
                 variant="outline" 
                 size="sm"
                 className="justify-start gap-2 text-sm h-9" 
-                onClick={handleSendReminder}>
-                <Send className="size-3.5" />
-                ابعت تذكير واتساب
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm"
-                className="justify-start gap-2 text-sm h-9" 
                 onClick={handlePrescriptionDialogOpen}>
                 <Pill className="size-3.5" />
                 اكتب روشتة
@@ -588,15 +500,6 @@ export default function AppointmentDetailPage() {
                     <FileText className="size-5 text-primary" />
                     الملاحظات والتشخيص
                   </CardTitle>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    className="gap-1.5 text-xs h-8" 
-                    onClick={handleSharePrescriptionWhatsApp}>
-                    <MessageSquare className="size-3.5" />
-                    <span className="hidden sm:inline">بعت الروشتة</span>
-                    <span className="sm:hidden">واتساب</span>
-                  </Button>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -910,21 +813,13 @@ export default function AppointmentDetailPage() {
               <p className="text-sm text-muted-foreground mt-1">اختار طريقة الاتصال</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3">
               <Button
                 onClick={handleCall}
                 className="h-20 flex-col gap-2 bg-blue-500 hover:bg-blue-600 text-white"
               >
                 <Phone className="w-6 h-6" />
                 <span className="font-bold">مكالمة</span>
-              </Button>
-              
-              <Button
-                onClick={handleWhatsApp}
-                className="h-20 flex-col gap-2 bg-green-500 hover:bg-green-600 text-white"
-              >
-                <MessageSquare className="w-6 h-6" />
-                <span className="font-bold">واتساب</span>
               </Button>
             </div>
           </div>

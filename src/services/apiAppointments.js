@@ -1,7 +1,6 @@
 import supabase from "./supabase"
 import { createPublicNotification } from "./apiNotifications"
 import { addToGoogleCalendar } from "./integrationService"
-import { sendWhatsappMessage } from "./apiWhatsapp"
 
 export async function getAppointments(search, page, pageSize, filters = {}) {
     // Get current user's clinic_id
@@ -183,7 +182,9 @@ export async function createAppointment(payload) {
     // The clinic_id in users table is the UUID for the clinics table
     const clinicUuid = userData.clinic_id
 
-    // Check plan limits
+    /* 
+    // Check plan limits - DISABLED by user request
+    /*
     const { data: clinicData } = await supabase
         .from("clinics")
         .select("current_plan")
@@ -217,7 +218,8 @@ export async function createAppointment(payload) {
             throw new Error("لقد تجاوزت الحد المسموح من المواعيد لهذا الشهر. يرجى ترقية الباقة.")
         }
     }
-
+    */
+    
     // Add clinic_id to the appointment data (UUID type for appointments table)
     const appointmentData = {
         ...payload,
@@ -254,19 +256,7 @@ export async function createAppointment(payload) {
     }
     // ----------------------------------------
 
-    // --- WhatsApp Integration Hook ---
-    try {
-        if (data && data.id) {
-            // Run in background (don't await strictly if we want speed, but awaiting ensures error logging)
-            sendWhatsappMessage({
-                clinicId: clinicUuid,
-                appointmentId: data.id,
-                type: 'booking'
-            }).catch(err => console.error("WhatsApp bg error:", err));
-        }
-    } catch (whatsappError) {
-        console.error("WhatsApp sending failed:", whatsappError);
-    }
+    // --- WhatsApp Integration Hook Removed ---
     // ---------------------------------
 
     return data
@@ -404,18 +394,7 @@ export async function createAppointmentPublic(payload, clinicId) {
     }
     */
 
-    // --- WhatsApp Integration Hook ---
-    try {
-        if (data && data.id) {
-            sendWhatsappMessage({
-                clinicId: clinicIdString,
-                appointmentId: data.id,
-                type: 'booking'
-            }).catch(err => console.error("WhatsApp bg error:", err));
-        }
-    } catch (whatsappError) {
-        console.error("WhatsApp sending failed:", whatsappError);
-    }
+    // --- WhatsApp Integration Hook Removed ---
     // ---------------------------------
 
     return data

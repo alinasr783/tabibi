@@ -584,15 +584,17 @@ async function getWorkModeData() {
     const clinicId = userData?.clinic_id;
     if (!clinicId) return null;
 
-    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
 
     // Get today's appointments by status
     const { data: appointments } = await supabase
       .from('appointments')
       .select('id, status, date, from, patient:patients(name, phone)')
       .eq('clinic_id', clinicId)
-      .gte('date', today + 'T00:00:00')
-      .lte('date', today + 'T23:59:59')
+      .gte('date', startOfDay.toISOString())
+      .lte('date', endOfDay.toISOString())
       .order('date', { ascending: true });
 
     const pending = (appointments || []).filter(a => a.status === 'pending');

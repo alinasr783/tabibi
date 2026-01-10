@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
 import { Clock, User, RefreshCw, ArrowLeft, Check, X, AlertCircle, Eye, Calendar as CalendarIcon, Phone } from "lucide-react";
-import { format } from "date-fns";
+import { format, isSameDay } from "date-fns";
 import { ar } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
 import useAppointments from "./useAppointments";
@@ -31,12 +31,15 @@ export default function WorkModePage() {
   const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
 
-  // Fetch all appointments (including online bookings)
+  // Fetch appointments for today
+  // Use stable date string for query key to avoid infinite loops
+  const dateFilter = useMemo(() => ({ date: new Date() }), [new Date().toDateString()]);
+  
   const { 
     data: appointmentsData, 
     isLoading, 
     refetch 
-  } = useAppointments("", 1, 1000);
+  } = useAppointments("", 1, 1000, dateFilter);
 
   const { mutate: updateStatus } = useMutation({
     mutationFn: ({ id, status }) => updateAppointment(id, { status }),
@@ -76,11 +79,10 @@ export default function WorkModePage() {
   }, [refetch]);
 
   // Filter appointments to show only pending, confirmed, and in_progress for today from all sources
-  const today = new Date().toISOString().split('T')[0];
-  const filteredAppointments = appointmentsData?.items?.filter(appointment => 
+  const filteredAppointments = appointmentsData?.data?.filter(appointment => 
     (appointment.status === "pending" || appointment.status === "confirmed" || appointment.status === "in_progress") &&
     appointment.date &&
-    appointment.date.startsWith(today)
+    isSameDay(new Date(appointment.date), new Date())
   ) || [];
 
   // Sort appointments by date (earliest first)

@@ -7,7 +7,6 @@ import useClinicSecretaries from "./useClinicSecretaries"
 import useUpdateClinic from "./useUpdateClinic"
 import ClinicInfoForm from "./ClinicInfoForm"
 import SecretsSection from "./SecretsSection"
-import WhatsappSettings from "./WhatsappSettings"
 import { initializeAvailableTime } from "./clinicUtils"
 import { Settings, Users, Info, ExternalLink, MessageSquare } from "lucide-react"
 import { Button } from "../../components/ui/button"
@@ -165,15 +164,6 @@ export default function ClinicPage() {
                 <span>الموظفين</span>
               </div>
             </TabsTrigger>
-            <TabsTrigger 
-              value="whatsapp" 
-              className="text-xs sm:text-sm py-2.5 sm:py-3 px-2 data-[state=active]:bg-background rounded-[var(--radius)] transition-all duration-200"
-            >
-              <div className="flex items-center justify-center gap-1.5 sm:gap-2">
-                <MessageSquare className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
-                <span>الواتساب</span>
-              </div>
-            </TabsTrigger>
           </TabsList>
           
           <TabsContent value="clinic-info" className="mt-4 sm:mt-6">
@@ -231,30 +221,6 @@ export default function ClinicPage() {
                 isLoading={isSecretariesLoading}
                 isError={isSecretariesError}
               />
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="whatsapp" className="mt-4 sm:mt-6">
-            <Card className="bg-card/70 w-full overflow-hidden border border-border/50 shadow-sm rounded-[var(--radius)]">
-              <div className="border-b border-border/50 p-3 sm:p-4 md:p-6">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="p-1.5 sm:p-2 rounded-[var(--radius)] bg-primary/10 text-primary flex-shrink-0">
-                    <MessageSquare className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 flex-shrink-0" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h2 className="text-base sm:text-lg md:text-lg font-bold text-foreground leading-tight">
-                      إعدادات الواتساب
-                    </h2>
-                    <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-                      تخصيص رسائل الحجز والتذكير
-                    </p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="p-3 sm:p-4 md:p-6">
-                <WhatsappSettings clinicId={user?.clinic_id} />
-              </div>
             </Card>
           </TabsContent>
         </Tabs>

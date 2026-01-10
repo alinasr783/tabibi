@@ -108,12 +108,19 @@ export default function PlanConfirmation() {
         localStorage.setItem('pending_discount_id', discount.appliedDiscount.id.toString());
       }
       
-      // Show message to contact sales
-      toast.error("لتفعيل الاشتراك، يرجى التواصل مع فريق المبيعات عبر واتساب")
-      
-      // Optionally open WhatsApp automatically
-      const whatsappMessage = `أود الاشتراك في خطة "${plan?.name}" لفترة ${billingPeriod === 'annual' ? 'سنوية' : 'شهرية'} - السعر النهائي: ${formatCurrency(finalPrice)}`;
-      window.open(`https://wa.me/201158954215?text=${encodeURIComponent(whatsappMessage)}`, '_blank');
+      if (billingPeriod === 'annual') {
+        // Manual confirmation for annual
+        // Removed WhatsApp link per user request
+        alert("يرجى التواصل مع الدعم الفني لتفعيل الاشتراك السنوي.");
+      } else {
+        // Show message to contact sales
+        // WhatsApp link removed per user request
+        toast.error("لتفعيل الاشتراك، يرجى التواصل مع الدعم الفني")
+        
+        // Optionally open WhatsApp automatically - REMOVED
+        // const whatsappMessage = `أود الاشتراك في خطة "${plan?.name}" لفترة ${billingPeriod === 'annual' ? 'سنوية' : 'شهرية'} - السعر النهائي: ${formatCurrency(finalPrice)}`;
+        // window.open(`https://wa.me/201158954215?text=${encodeURIComponent(whatsappMessage)}`, '_blank');
+      }
     }
 
     /* COMMENTED OUT - Subscription activation now requires payment or 100% discount
@@ -243,14 +250,7 @@ export default function PlanConfirmation() {
         <div className="mb-8 p-4 bg-blue-50 border border-blue-200 rounded-[var(--radius)] text-center">
           <p className="text-blue-800">
             <strong>ملاحظة:</strong> جارٍ التكامل مع بوابات الدفع. إذا كنت ترغب في الاشتراك الآن، 
-            يرجى <a 
-              href={`https://wa.me/201158954215?text=${encodeURIComponent(`أود الاشتراك في خطة "${plan?.name}" لفترة ${billingPeriod === 'annual' ? 'سنوية' : 'شهرية'} - السعر النهائي: ${formatCurrency(finalPrice)}`)}`} 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              className="underline hover:text-blue-600"
-            >
-              التواصل مع فريق المبيعات
-            </a> 
+            يرجى التواصل مع فريق المبيعات
             وسوف يقوم فريقنا بتفعيل الاشتراك لك.
           </p>
         </div>
@@ -501,6 +501,8 @@ export default function PlanConfirmation() {
                     )}
                   </Button>
                   
+                  {/* WhatsApp Sales Button - Removed per user request */}
+                  {/* 
                   <Button
                     variant="outline"
                     onClick={() => {
@@ -513,6 +515,7 @@ export default function PlanConfirmation() {
                     <Smartphone className="w-4 h-4 ml-2" />
                     التواصل مع المبيعات عبر واتساب
                   </Button>
+                  */}
                 </div>
 
                 {/* Important Notes */}

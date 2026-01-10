@@ -256,12 +256,6 @@ export default async function generatePrescriptionPdfNew(visit, doctorName, clin
       </html>
     `;
 
-    if (shareViaWhatsApp) {
-      // Return blob for WhatsApp sharing
-      const blob = new Blob([printContent], { type: 'text/html;charset=utf-8' });
-      return { blob, content: printContent };
-    }
-
     // Create hidden iframe for printing
     const iframe = document.createElement('iframe');
     iframe.style.position = 'absolute';

@@ -140,9 +140,10 @@ export async function getTodayAppointments() {
 
     const clinicId = userData.clinic_id
 
-    // Get today's date in the local timezone
-    const today = new Date()
-    const todayString = today.toISOString().split('T')[0]
+    // Get today's date range in the local timezone converted to UTC for DB query
+    const now = new Date()
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0)
+    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
 
     // Get all appointments with patient info for today
     const { data: appointments, error } = await supabase
@@ -154,8 +155,8 @@ export async function getTodayAppointments() {
             patient:patients(name)
         `)
         .eq("clinic_id", clinicId)
-        .gte("date", todayString + "T00:00:00")
-        .lte("date", todayString + "T23:59:59")
+        .gte("date", startOfDay.toISOString())
+        .lte("date", endOfDay.toISOString())
         .order("date", { ascending: true })
         .limit(5)
 

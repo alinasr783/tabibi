@@ -1,4 +1,4 @@
-import { Search, Plus, X, Users, Calendar } from "lucide-react";
+import { Search, Plus, X, Users, Calendar, Filter, RefreshCw } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
@@ -20,10 +20,18 @@ export default function PatientsPage() {
   const [open, setOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [clinicId, setClinicId] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const navigate = useNavigate();
 
   const { data, isLoading, refetch } = usePatients(query, page);
   const { data: genderStats } = usePatientStats();
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await refetch();
+    setTimeout(() => setIsRefreshing(false), 500);
+  };
 
   // Get current user's clinic_id for patient creation
   useEffect(() => {
@@ -81,29 +89,23 @@ export default function PatientsPage() {
   };
 
   return (
-    <div className="space-y-6 p-4 md:p-6 bg-background min-h-screen pb-20 md:pb-0" dir="rtl">
-      {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-[var(--radius)] bg-primary/10 text-primary">
-            <Users className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">المرضى</h1>
-            <p className="text-sm text-muted-foreground">{todaysPatients} مريض جديد اليوم</p>
+    <div className="min-h-screen bg-background p-4 md:p-6 pb-20 md:pb-0" dir="rtl">
+      <div className="max-w-[1920px] mx-auto">
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-[var(--radius)] bg-primary/10 text-primary">
+              <Users className="w-6 h-6" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">المرضى</h1>
+              <p className="text-sm text-muted-foreground">{todaysPatients} مريض جديد اليوم</p>
+            </div>
           </div>
         </div>
-        <Button
-          onClick={() => setOpen(true)}
-          className="bg-primary hover:bg-primary/90 text-primary-foreground"
-        >
-          <Plus className="w-4 h-4 ml-2" />
-          مريض جديد
-        </Button>
-      </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <Card className="bg-card/70">
           <CardContent className="flex items-center gap-3 py-3">
             <div className="size-8 rounded-[calc(var(--radius)-4px)] bg-primary/10 text-primary grid place-items-center">
@@ -153,40 +155,33 @@ export default function PatientsPage() {
         </Card>
       </div>
 
-      {/* Search and Filters Bar */}
-      <Card className="bg-card/70 border-0 shadow-none">
-        <CardContent className="p-4">
-          <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
-            {/* Search Input */}
-            <div className="relative flex-1 w-full lg:w-auto">
-              <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input
-                className="pr-10 h-11 text-base"
-                placeholder="دور على المريض بالاسم، الموبايل أو ID"
-                value={query}
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  setPage(1);
-                }}
-              />
-            </div>
-            
-            <div className="flex flex-wrap gap-2">
-              {(query) && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-9 text-red-500 hover:text-red-700 hover:bg-red-50/50 gap-2"
-                  onClick={handleResetFilters}
-                >
-                  <X className="h-4 w-4" />
-                  امسح كله
-                </Button>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Quick Actions Bar - Mobile Optimized */}
+      <div className="mb-4">
+        {/* Search */}
+        <div className="relative mb-3">
+          <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 md:w-5 md:h-5" />
+          <Input
+            className="w-full pr-10 h-10 md:h-11 bg-background border-border focus:border-primary text-sm md:text-base"
+            placeholder="دور على المريض بالاسم، الموبايل أو ID"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setPage(1);
+            }}
+          />
+        </div>
+        
+        {/* Action Buttons - Mobile Grid */}
+        <div className="grid grid-cols-2 md:flex gap-2">
+          <Button
+            onClick={() => setOpen(true)}
+            className="h-10 md:h-11 bg-primary hover:bg-primary/90 text-primary-foreground text-sm md:text-base col-span-2 md:col-span-1"
+          >
+            <Plus className="w-4 h-4 md:w-5 md:h-5 ml-2" />
+            مريض جديد
+          </Button>
+        </div>
+      </div>
 
       {/* Patients Table */}
       <Card className="bg-card/70">
@@ -212,6 +207,7 @@ export default function PatientsPage() {
         onPatientCreated={handlePatientCreated}
         clinicId={clinicId}
       />
+      </div>
     </div>
   );
 }
