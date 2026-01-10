@@ -40,6 +40,7 @@ import TabibiApps from "./pages/TabibiApps";
 import TabibiAppDetailsWrapper from "./pages/TabibiAppDetailsWrapper";
 import MyAppsPage from "./features/my-apps/MyAppsPage";
 import MyAppViewer from "./features/my-apps/MyAppViewer";
+import DoctorProfilePage from "./pages/DoctorProfilePage";
 import { AskTabibiPage } from "./ai/ui";
 import OfflineIndicator from "./components/OfflineIndicator";
 import { OfflineProvider } from "./features/offline-mode/OfflineContext";
@@ -76,6 +77,7 @@ const MemoizedFinance = memo(Finance);
 const MemoizedTabibiApps = memo(TabibiApps);
 const MemoizedMyAppsPage = memo(MyAppsPage);
 const MemoizedMyAppViewer = memo(MyAppViewer);
+const MemoizedDoctorProfilePage = memo(DoctorProfilePage);
 const MemoizedAskTabibi = memo(AskTabibiPage);
 
 function AppRoutes() {
@@ -323,6 +325,7 @@ function AppRoutes() {
         />
       </Route>
       <Route path="/booking/:clinicId" element={<MemoizedBooking />} />
+      <Route path="/doctor-profile/:clinicId" element={<MemoizedDoctorProfilePage />} />
     </Routes>
   );
 }

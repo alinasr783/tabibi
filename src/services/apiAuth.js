@@ -551,10 +551,10 @@ export async function updateSecretaryPermissions(secretaryId, permissions) {
     return data
 }
 
-export async function updateProfile({ name, phone, email, avatar_url, bio, education, certificates }) {
+export async function updateProfile({ name, phone, email, avatar_url, bio, education, certificates, specialty, banner_url }) {
     // Get current user session
     const { data: { session } } = await supabase.auth.getSession()
-    if (!session) throw new Error("Not authenticated")
+    if (!session) throw new Error("جلسة المصادقة مفقودة! برجاء تسجيل الدخول مرة أخرى.")
 
     const userId = session.user.id
 
@@ -580,6 +580,8 @@ export async function updateProfile({ name, phone, email, avatar_url, bio, educa
     if (bio !== undefined) updates.bio = bio
     if (education !== undefined) updates.education = education
     if (certificates !== undefined) updates.certificates = certificates
+    if (specialty !== undefined) updates.specialty = specialty
+    if (banner_url !== undefined) updates.banner_url = banner_url
 
     // Update user in users table
     const { data, error: userError } = await supabase

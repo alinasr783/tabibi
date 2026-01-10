@@ -35,15 +35,18 @@ export default function PersonalInfoTab() {
     name: "",
     email: "",
     phone: "",
+    specialty: "",
     clinicName: "",
     clinicAddress: "",
     bio: "",
     education: [],
     certificates: [],
-    avatar_url: ""
+    avatar_url: "",
+    banner_url: ""
   });
 
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
   const [uploadingCertificate, setUploadingCertificate] = useState(false);
 
   useEffect(() => {
@@ -53,10 +56,12 @@ export default function PersonalInfoTab() {
         name: user.name || "",
         email: user.email || "",
         phone: user.phone || "",
+        specialty: user.specialty || "",
         bio: user.bio || "",
         education: Array.isArray(user.education) ? user.education : [],
         certificates: Array.isArray(user.certificates) ? user.certificates : [],
-        avatar_url: user.avatar_url || ""
+        avatar_url: user.avatar_url || "",
+        banner_url: user.banner_url || ""
       }));
     }
   }, [user]);
@@ -105,6 +110,35 @@ export default function PersonalInfoTab() {
       toast.error("فشل رفع الصورة: " + error.message);
     } finally {
       setUploadingAvatar(false);
+    }
+  };
+
+  const handleBannerUpload = async (e) => {
+    try {
+      setUploadingBanner(true);
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `banner-${Math.random()}.${fileExt}`;
+      const filePath = `${user.user_id}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('doctor-profiles')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('doctor-profiles')
+        .getPublicUrl(filePath);
+
+      setFormData(prev => ({ ...prev, banner_url: publicUrl }));
+      toast.success("تم رفع صورة البانر بنجاح");
+    } catch (error) {
+      toast.error("فشل رفع البانر: " + error.message);
+    } finally {
+      setUploadingBanner(false);
     }
   };
 
@@ -182,8 +216,10 @@ export default function PersonalInfoTab() {
       phone: formData.phone,
       bio: formData.bio,
       avatar_url: formData.avatar_url,
+      banner_url: formData.banner_url,
       education: formData.education,
-      certificates: formData.certificates
+      certificates: formData.certificates,
+      specialty: formData.specialty
     });
     
     // Update clinic if doctor and fields are changed
@@ -210,45 +246,92 @@ export default function PersonalInfoTab() {
         <CardContent className="p-4 sm:p-6">
           <form onSubmit={handleSubmit} className="space-y-6">
             
-            {/* Avatar Section */}
-            <div className="flex flex-col items-center sm:flex-row sm:items-start gap-6 pb-6 border-b">
-              <div className="relative group">
-                <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden border-2 border-muted bg-muted flex items-center justify-center">
-                  {formData.avatar_url ? (
-                    <img 
-                      src={formData.avatar_url} 
-                      alt="Profile" 
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <User className="w-12 h-12 text-muted-foreground" />
-                  )}
-                  {uploadingAvatar && (
-                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                      <Loader2 className="w-6 h-6 text-white animate-spin" />
+            {/* Images Section */}
+            <div className="space-y-6 pb-6 border-b">
+              <div className="grid gap-6 md:grid-cols-2">
+                {/* Avatar */}
+                <div className="flex flex-col items-center gap-4 p-4 border rounded-lg bg-muted/10">
+                  <div className="relative group">
+                    <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-muted bg-muted flex items-center justify-center">
+                      {formData.avatar_url ? (
+                        <img 
+                          src={formData.avatar_url} 
+                          alt="Profile" 
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <User className="w-10 h-10 text-muted-foreground" />
+                      )}
+                      {uploadingAvatar && (
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                          <Loader2 className="w-5 h-5 text-white animate-spin" />
+                        </div>
+                      )}
                     </div>
-                  )}
+                    <Label 
+                      htmlFor="avatar-upload" 
+                      className="absolute bottom-0 right-0 p-1.5 bg-primary text-primary-foreground rounded-full cursor-pointer hover:bg-primary/90 transition-colors shadow-sm"
+                    >
+                      <Upload className="w-3 h-3" />
+                    </Label>
+                    <Input
+                      id="avatar-upload"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleAvatarUpload}
+                      disabled={uploadingAvatar}
+                    />
+                  </div>
+                  <div className="text-center space-y-1">
+                    <h3 className="font-medium text-sm">الصورة الشخصية</h3>
+                    <p className="text-xs text-muted-foreground">JPG, PNG</p>
+                  </div>
                 </div>
-                <Label 
-                  htmlFor="avatar-upload" 
-                  className="absolute bottom-0 right-0 p-2 bg-primary text-primary-foreground rounded-full cursor-pointer hover:bg-primary/90 transition-colors shadow-sm"
-                >
-                  <Upload className="w-4 h-4" />
-                </Label>
-                <Input
-                  id="avatar-upload"
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleAvatarUpload}
-                  disabled={uploadingAvatar}
-                />
-              </div>
-              <div className="flex-1 space-y-1 text-center sm:text-right">
-                <h3 className="font-medium">الصورة الشخصية</h3>
-                <p className="text-sm text-muted-foreground">
-                  اختر صورة واضحة تظهر وجهك بشكل جيد. الصيغ المدعومة: JPG, PNG.
-                </p>
+
+                {/* Banner */}
+                <div className="flex flex-col items-center gap-4 p-4 border rounded-lg bg-muted/10">
+                  <div className="relative group w-full h-24 rounded-md overflow-hidden border-2 border-muted bg-muted flex items-center justify-center">
+                    {formData.banner_url ? (
+                      <img 
+                        src={formData.banner_url} 
+                        alt="Banner" 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                        <span className="text-xs">لا يوجد غلاف</span>
+                      </div>
+                    )}
+                    {uploadingBanner && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                        <Loader2 className="w-5 h-5 text-white animate-spin" />
+                      </div>
+                    )}
+                    
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20">
+                        <Label 
+                        htmlFor="banner-upload" 
+                        className="cursor-pointer bg-black/60 text-white px-3 py-1.5 rounded-full text-xs flex items-center gap-2 hover:bg-black/80 transition-colors"
+                        >
+                        <Upload className="w-3 h-3" />
+                        رفع غلاف
+                        </Label>
+                    </div>
+                    <Input
+                      id="banner-upload"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleBannerUpload}
+                      disabled={uploadingBanner}
+                    />
+                  </div>
+                  <div className="text-center space-y-1">
+                    <h3 className="font-medium text-sm">صورة الغلاف (Banner)</h3>
+                    <p className="text-xs text-muted-foreground">مستحسن: 1200x400</p>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -275,6 +358,18 @@ export default function PersonalInfoTab() {
                   value={formData.phone}
                   onChange={handleChange}
                   placeholder="أدخل رقم هاتفك"
+                  className="text-sm"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="specialty" className="text-sm">التخصص</Label>
+                <Input
+                  id="specialty"
+                  name="specialty"
+                  value={formData.specialty}
+                  onChange={handleChange}
+                  placeholder="مثال: استشاري طب وجراحة العيون"
                   className="text-sm"
                 />
               </div>
