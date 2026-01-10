@@ -365,6 +365,7 @@ CREATE TABLE IF NOT EXISTS public.tabibi_apps (
   images jsonb DEFAULT '[]'::jsonb,
   component_key text UNIQUE, -- Key to map to frontend component
   component_code text, -- Optional: If we ever store code directly (User request)
+  preview_link text, -- Link to preview the app before buying
   is_active boolean DEFAULT true
 );
 
