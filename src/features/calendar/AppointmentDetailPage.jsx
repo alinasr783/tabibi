@@ -234,6 +234,36 @@ export default function AppointmentDetailPage() {
     setShowPrescriptionDialog(true);
   };
 
+  const handleCreatePrescription = async () => {
+    try {
+      const validMedications = medications.filter(m => m.name.trim() !== '');
+      if (validMedications.length === 0) {
+        // You might want to show a toast here instead of alert
+        alert("من فضلك اكتب دواء واحد على الأقل");
+        return;
+      }
+
+      await generatePrescriptionPdfNew(
+        {
+            patient: appointment?.patient,
+            doctor: appointment?.doctor,
+            date: new Date(),
+            medications: validMedications,
+            diagnosis: editData.diagnosis // Add diagnosis if available
+        },
+        appointment?.doctor?.name || "د. طبيبي", // Fallback doctor name
+        "عيادة طبيبي", // Fallback clinic name - ideally this comes from settings
+        "العنوان", // Fallback address
+        false // shareViaWhatsApp
+      );
+      
+      setShowPrescriptionDialog(false);
+    } catch (error) {
+      console.error("Error generating prescription:", error);
+      alert("حصل مشكلة وأحنا بنعمل الروشتة");
+    }
+  };
+
   const formatDate = (dateString) => {
     if (!dateString) return "-";
     try {

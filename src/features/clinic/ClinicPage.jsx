@@ -8,9 +8,10 @@ import useUpdateClinic from "./useUpdateClinic"
 import ClinicInfoForm from "./ClinicInfoForm"
 import SecretsSection from "./SecretsSection"
 import { initializeAvailableTime } from "./clinicUtils"
-import { Settings, Users, Info, ExternalLink, MessageSquare } from "lucide-react"
+import { Settings, Users, Info, ExternalLink, MessageSquare, Wallet } from "lucide-react"
 import { Button } from "../../components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs"
+import ClinicWalletTab from "./ClinicWalletTab"
 
 export default function ClinicPage() {
   const navigate = useNavigate()
@@ -124,7 +125,7 @@ export default function ClinicPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-3 sm:p-4 md:p-6 pb-20 md:pb-6 w-full max-w-full overflow-x-hidden" dir="rtl">
+    <div className="min-h-screen bg-background p-2 sm:p-4 md:p-6 pb-20 md:pb-6 w-full max-w-full overflow-x-hidden" dir="rtl">
       <div className="max-w-4xl mx-auto w-full" style={{ direction: 'rtl' }}>
         {/* Header */}
         <div className="mb-4 sm:mb-5 md:mb-6">
@@ -145,7 +146,7 @@ export default function ClinicPage() {
 
         {/* Tabs Navigation */}
         <Tabs defaultValue="clinic-info" className="w-full mb-4 sm:mb-6" style={{ direction: 'rtl' }}>
-          <TabsList className="grid grid-cols-2 w-full h-auto p-1 sm:p-1.5 bg-muted/50 rounded-[var(--radius)]">
+          <TabsList className="grid grid-cols-3 w-full h-auto p-1 sm:p-1.5 bg-muted/50 rounded-[var(--radius)]">
             <TabsTrigger 
               value="clinic-info" 
               className="text-xs sm:text-sm py-2.5 sm:py-3 px-2 data-[state=active]:bg-background rounded-[var(--radius)] transition-all duration-200"
@@ -162,6 +163,15 @@ export default function ClinicPage() {
               <div className="flex items-center justify-center gap-1.5 sm:gap-2">
                 <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
                 <span>الموظفين</span>
+              </div>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="wallet" 
+              className="text-xs sm:text-sm py-2.5 sm:py-3 px-2 data-[state=active]:bg-background rounded-[var(--radius)] transition-all duration-200"
+            >
+              <div className="flex items-center justify-center gap-1.5 sm:gap-2">
+                <Wallet className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                <span>رصيدك</span>
               </div>
             </TabsTrigger>
           </TabsList>
@@ -222,6 +232,10 @@ export default function ClinicPage() {
                 isError={isSecretariesError}
               />
             </Card>
+          </TabsContent>
+
+          <TabsContent value="wallet" className="mt-4 sm:mt-6">
+            <ClinicWalletTab />
           </TabsContent>
         </Tabs>
 

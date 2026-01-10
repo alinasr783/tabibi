@@ -32,7 +32,7 @@ export default function PatientProfileTab({ patient }) {
     <div className="space-y-6" dir="rtl">
       {/* Personal Information */}
       <Card className="relative group">
-        <div className="absolute top-4 left-4 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute top-4 left-4 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
             <Button variant="ghost" size="sm" onClick={() => setEditingSection('personal')}>
                 <Edit className="w-4 h-4 text-muted-foreground" />
             </Button>
@@ -57,7 +57,7 @@ export default function PatientProfileTab({ patient }) {
 
       {/* Medical Profile */}
       <Card className="relative group">
-        <div className="absolute top-4 left-4 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute top-4 left-4 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
             <Button variant="ghost" size="sm" onClick={() => setEditingSection('medical')}>
                 <Edit className="w-4 h-4 text-muted-foreground" />
             </Button>
@@ -147,7 +147,7 @@ export default function PatientProfileTab({ patient }) {
 
       {/* Insurance Information */}
       <Card className="relative group">
-        <div className="absolute top-4 left-4 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute top-4 left-4 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
             <Button variant="ghost" size="sm" onClick={() => setEditingSection('insurance')}>
                 <Edit className="w-4 h-4 text-muted-foreground" />
             </Button>

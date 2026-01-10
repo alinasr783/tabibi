@@ -1,6 +1,21 @@
 -- WARNING: This schema is for context only and is not meant to be run.
 -- Table order and constraints may not be valid for execution.
 
+CREATE TABLE public.app_subscriptions (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  clinic_id uuid NOT NULL,
+  app_id bigint,
+  status text DEFAULT 'active'::text CHECK (status = ANY (ARRAY['active'::text, 'expired'::text, 'cancelled'::text, 'past_due'::text])),
+  current_period_start timestamp with time zone DEFAULT now(),
+  current_period_end timestamp with time zone,
+  billing_period text,
+  amount numeric,
+  auto_renew boolean DEFAULT true,
+  CONSTRAINT app_subscriptions_pkey PRIMARY KEY (id),
+  CONSTRAINT app_subscriptions_app_id_fkey FOREIGN KEY (app_id) REFERENCES public.tabibi_apps(id)
+);
 CREATE TABLE public.appointments (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
@@ -14,6 +29,46 @@ CREATE TABLE public.appointments (
   age bigint,
   CONSTRAINT appointments_pkey PRIMARY KEY (id),
   CONSTRAINT appointment_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(id)
+);
+CREATE TABLE public.blocked_phones (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  clinic_id uuid NOT NULL,
+  phone_number text NOT NULL,
+  reason text,
+  created_at timestamp with time zone DEFAULT now(),
+  created_by uuid,
+  CONSTRAINT blocked_phones_pkey PRIMARY KEY (id),
+  CONSTRAINT blocked_phones_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id)
+);
+CREATE TABLE public.booking_analytics (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  clinic_id uuid NOT NULL,
+  visitor_id text,
+  ip_address text,
+  country text,
+  city text,
+  device_type text,
+  browser text,
+  event_type text CHECK (event_type = ANY (ARRAY['view'::text, 'conversion'::text, 'blocked_attempt'::text])),
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT booking_analytics_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.booking_drafts (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  clinic_id uuid NOT NULL,
+  visitor_id text,
+  session_id text,
+  current_step integer,
+  patient_name text,
+  patient_phone text,
+  selected_date text,
+  selected_time text,
+  form_data jsonb,
+  ip_address text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  status text DEFAULT 'in_progress'::text CHECK (status = ANY (ARRAY['in_progress'::text, 'completed'::text, 'abandoned'::text])),
+  CONSTRAINT booking_drafts_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.chat_conversations (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -34,6 +89,15 @@ CREATE TABLE public.chat_messages (
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT chat_messages_pkey PRIMARY KEY (id),
   CONSTRAINT chat_messages_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.chat_conversations(id)
+);
+CREATE TABLE public.clinic_wallets (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  clinic_id uuid NOT NULL UNIQUE,
+  balance numeric NOT NULL DEFAULT 0.00,
+  currency text DEFAULT 'EGP'::text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT clinic_wallets_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.clinics (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
@@ -130,6 +194,8 @@ CREATE TABLE public.integrations (
   refresh_token text,
   expires_at timestamp with time zone,
   scope text,
+  token_type text,
+  id_token text,
   is_active boolean DEFAULT true,
   settings jsonb DEFAULT '{}'::jsonb,
   metadata jsonb DEFAULT '{}'::jsonb,
@@ -151,6 +217,19 @@ CREATE TABLE public.notifications (
   appointment_id bigint,
   patient_id bigint,
   CONSTRAINT notifications_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.patient_attachments (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone DEFAULT now(),
+  patient_id bigint,
+  clinic_id uuid,
+  file_name text,
+  file_url text NOT NULL,
+  file_type text,
+  category text,
+  description text,
+  CONSTRAINT patient_attachments_pkey PRIMARY KEY (id),
+  CONSTRAINT patient_attachments_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(id)
 );
 CREATE TABLE public.patient_plans (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
@@ -180,6 +259,12 @@ CREATE TABLE public.patients (
   age integer,
   updated_at timestamp with time zone DEFAULT now(),
   age_unit text DEFAULT 'years'::text,
+  job text,
+  marital_status text,
+  email text,
+  notes text,
+  medical_history jsonb DEFAULT '{}'::jsonb,
+  insurance_info jsonb DEFAULT '{}'::jsonb,
   CONSTRAINT patients_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.plan_pricing (
@@ -213,6 +298,23 @@ CREATE TABLE public.subscriptions (
   clinic_id uuid,
   CONSTRAINT subscriptions_pkey PRIMARY KEY (id),
   CONSTRAINT subscriptions_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES public.plans(id)
+);
+CREATE TABLE public.tabibi_apps (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  title text NOT NULL,
+  short_description text,
+  full_description text,
+  price numeric DEFAULT 0,
+  billing_period text DEFAULT 'monthly'::text CHECK (billing_period = ANY (ARRAY['monthly'::text, 'yearly'::text, 'one_time'::text])),
+  image_url text,
+  category text,
+  features jsonb DEFAULT '[]'::jsonb,
+  screenshots jsonb DEFAULT '[]'::jsonb,
+  component_key text UNIQUE,
+  is_active boolean DEFAULT true,
+  color text,
+  CONSTRAINT tabibi_apps_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.treatment_templates (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
@@ -261,6 +363,10 @@ CREATE TABLE public.users (
   clinic_id uuid,
   auth_uid uuid,
   clinic_id_bigint bigint,
+  avatar_url text,
+  bio text,
+  education jsonb DEFAULT '[]'::jsonb,
+  certificates jsonb DEFAULT '[]'::jsonb,
   CONSTRAINT users_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.visits (
@@ -275,26 +381,16 @@ CREATE TABLE public.visits (
   CONSTRAINT visits_pkey PRIMARY KEY (id),
   CONSTRAINT visits_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(id)
 );
-CREATE TABLE public.whatsapp_message_logs (
+CREATE TABLE public.wallet_transactions (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
-  clinic_id uuid NOT NULL,
-  appointment_id bigint,
-  patient_phone text,
-  message_type text CHECK (message_type = ANY (ARRAY['booking'::text, 'reminder'::text])),
-  status text CHECK (status = ANY (ARRAY['sent'::text, 'failed'::text, 'pending'::text])),
-  provider_message_id text,
-  error_message text,
+  wallet_id uuid NOT NULL,
+  amount numeric NOT NULL,
+  type text NOT NULL CHECK (type = ANY (ARRAY['deposit'::text, 'payment'::text, 'refund'::text, 'adjustment'::text, 'bonus'::text])),
+  description text,
+  reference_type text,
+  reference_id text,
+  status text DEFAULT 'completed'::text CHECK (status = ANY (ARRAY['pending'::text, 'completed'::text, 'failed'::text, 'cancelled'::text])),
   created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT whatsapp_message_logs_pkey PRIMARY KEY (id)
-);
-CREATE TABLE public.whatsapp_settings (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  clinic_id uuid NOT NULL UNIQUE,
-  enabled_immediate boolean DEFAULT true,
-  enabled_reminder boolean DEFAULT true,
-  reminder_offset_minutes integer DEFAULT 30 CHECK (reminder_offset_minutes >= 10 AND reminder_offset_minutes <= 720),
-  immediate_template text DEFAULT 'تم تأكيد حجزك في {clinic_name} يوم {date} الساعة {time}. من فضلك احضر قبل 10 دقائق.'::text,
-  reminder_template text DEFAULT 'باقي {offset} دقيقة على ميعادك في {clinic_name} الساعة {time}. نورتنا.'::text,
-  updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT whatsapp_settings_pkey PRIMARY KEY (id)
+  CONSTRAINT wallet_transactions_pkey PRIMARY KEY (id),
+  CONSTRAINT wallet_transactions_wallet_id_fkey FOREIGN KEY (wallet_id) REFERENCES public.clinic_wallets(id)
 );
