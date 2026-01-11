@@ -50,18 +50,10 @@ export default function AppActionBar({ app, isInstalled, installMutation, uninst
             </Button>
           ) : (
             <Button 
-              className="flex-[2] md:w-auto md:min-w-[200px]"
-              onClick={() => installMutation.mutate()}
-              disabled={installMutation.isLoading}
+              className="flex-[2] md:w-auto md:min-w-[200px] bg-green-600 hover:bg-green-700"
+              onClick={() => window.open('https://wa.me/201000000000?text=' + encodeURIComponent(`مرحباً، أود تفعيل تطبيق ${app.title}`), '_blank')}
             >
-              {installMutation.isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  جاري التفعيل...
-                </>
-              ) : (
-                `تفعيل التطبيق (${formatCurrency(app.price)})`
-              )}
+              تواصل مع الدعم للتفعيل
             </Button>
           )}
         </div>

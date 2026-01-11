@@ -177,12 +177,22 @@ export default function TabibiProfileApp() {
         .from('doctor-profiles')
         .getPublicUrl(filePath);
 
+      // IMPORTANT: Update database immediately to persist the change
+      const updateField = type === 'banner' ? 'banner_url' : 'avatar_url';
+      
+      const { error: dbError } = await supabase
+        .from('users')
+        .update({ [updateField]: publicUrl })
+        .eq('user_id', user.user_id);
+
+      if (dbError) throw dbError;
+
       setFormData(prev => ({ 
         ...prev, 
-        [type === 'banner' ? 'banner_url' : 'avatar_url']: publicUrl 
+        [updateField]: publicUrl 
       }));
       
-      toast.success(type === 'banner' ? "تم رفع الغلاف بنجاح" : "تم رفع الصورة الشخصية بنجاح");
+      toast.success(type === 'banner' ? "تم رفع الغلاف وحفظه بنجاح" : "تم رفع الصورة وحفظها بنجاح");
 
     } catch (error) {
       console.error(error);
@@ -234,9 +244,18 @@ export default function TabibiProfileApp() {
         .from('doctor-profiles')
         .getPublicUrl(filePath);
 
+      const newCertificates = [...formData.certificates, { name: file.name, url: publicUrl }];
+
+      const { error: dbError } = await supabase
+        .from('users')
+        .update({ certificates: newCertificates })
+        .eq('user_id', user.user_id);
+
+      if (dbError) throw dbError;
+
       setFormData(prev => ({ 
         ...prev, 
-        certificates: [...prev.certificates, { name: file.name, url: publicUrl }]
+        certificates: newCertificates
       }));
       
       toast.success("تم رفع الشهادة بنجاح");
@@ -596,8 +615,8 @@ export default function TabibiProfileApp() {
                       <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center flex-shrink-0 text-primary">
                         <FileText className="h-4 w-4" />
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate" title={cert.name}>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate max-w-[150px] sm:max-w-[200px]" title={cert.name}>
                           {cert.name}
                         </p>
                         <a 

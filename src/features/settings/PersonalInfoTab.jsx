@@ -505,7 +505,7 @@ export default function PersonalInfoTab() {
                       <FileText className="w-5 h-5 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate" title={cert.name}>
+                      <p className="text-sm font-medium truncate max-w-[150px] sm:max-w-[200px]" title={cert.name}>
                         {cert.name}
                       </p>
                       <a 

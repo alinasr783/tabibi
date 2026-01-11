@@ -223,7 +223,7 @@ export async function getCurrentUser() {
             console.log("getCurrentUser: Creating user data promise");
             const { data: userData, error: userError } = await supabase
                 .from("users")
-                .select("user_id, email, name, phone, role, clinic_id, permissions, avatar_url, bio, education, certificates")
+                .select("user_id, email, name, phone, role, clinic_id, permissions, avatar_url, banner_url, bio, education, certificates, specialty")
                 .eq("user_id", session.user.id)
                 .single();
             
