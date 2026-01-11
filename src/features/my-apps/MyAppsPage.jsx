@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { getInstalledApps } from "../../services/apiTabibiApps";
 import useClinic from "../auth/useClinic";
-import { Loader2, Zap, ExternalLink } from "lucide-react";
+import { Loader2, Zap } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { APPS_ICON_REGISTRY } from "../tabibi-tools/appsRegistry.jsx";
@@ -81,19 +81,6 @@ export default function MyAppsPage() {
                   <span className={`text-xs px-2 py-1 rounded-full ${app.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
                     {app.status === 'active' ? 'مفعل' : 'غير مفعل'}
                   </span>
-                  
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(`/tabibi-apps/${app.id}`);
-                    }}
-                    title="إعدادات التطبيق"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                  </Button>
                 </div>
               </div>
             </div>
