@@ -13,6 +13,7 @@ const PainSolution = lazy(() => import("../components/sections/PainSolution"));
 const Pricing = lazy(() => import("../components/sections/Pricing"));
 const Testimonials = lazy(() => import("../components/sections/Testimonials"));
 const FAQ = lazy(() => import("../components/sections/FAQ"));
+const BlogSection = lazy(() => import("../components/sections/BlogSection"));
 const CTA = lazy(() => import("../components/sections/CTA"));
 
 // Loading skeletons for lazy components
@@ -241,6 +242,12 @@ export default function Landing() {
         <motion.div variants={fadeInUp}>
           <Suspense fallback={<SectionSkeleton />}>
             <FAQ />
+          </Suspense>
+        </motion.div>
+        
+        <motion.div variants={fadeInUp}>
+          <Suspense fallback={<SectionSkeleton />}>
+            <BlogSection />
           </Suspense>
         </motion.div>
         

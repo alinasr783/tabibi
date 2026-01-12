@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { Button } from "../../components/ui/button";
-import { Switch } from "../../components/ui/switch";
-import { Input } from "../../components/ui/input";
-import { Label } from "../../components/ui/label";
-import { Badge } from "../../components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
+import { Button } from "../../../components/ui/button";
+import { Switch } from "../../../components/ui/switch";
+import { Input } from "../../../components/ui/input";
+import { Label } from "../../../components/ui/label";
+import { Badge } from "../../../components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui/tabs";
 import { 
   Copy, 
   ExternalLink, 
@@ -21,18 +21,18 @@ import {
   FileX,
   Ban
 } from "lucide-react";
-import useClinic from "../auth/useClinic";
-import useUpdateClinic from "../clinic/useUpdateClinic";
+import useClinic from "../../auth/useClinic";
+import useUpdateClinic from "../../clinic/useUpdateClinic";
 import toast from "react-hot-toast";
 import QRCode from "react-qr-code";
-import { useOnlineBookings } from "./useOnlineBookings";
-import OnlineBookingsTable from "./OnlineBookingsTable";
-import useScrollToTop from "../../hooks/useScrollToTop";
-import AnalyticsDashboard from "./components/AnalyticsDashboard";
-import DraftsTable from "./components/DraftsTable";
-import BlockedNumbersManager from "./components/BlockedNumbersManager";
+import { useOnlineBookings } from "../useOnlineBookings";
+import OnlineBookingsTable from "../OnlineBookingsTable";
+import useScrollToTop from "../../../hooks/useScrollToTop";
+import AnalyticsDashboard from "../components/AnalyticsDashboard";
+import DraftsTable from "../components/DraftsTable";
+import BlockedNumbersManager from "../components/BlockedNumbersManager";
 
-export default function OnlineBookingControlPanel() {
+export default function AdvancedOnlineBooking() {
   useScrollToTop();
   const { data: clinic, isLoading: isClinicLoading, isError, error } = useClinic();
   const { mutate: updateClinic, isPending: isUpdating } = useUpdateClinic();
@@ -146,7 +146,7 @@ export default function OnlineBookingControlPanel() {
     return (
       <div className="space-y-8" dir="rtl">
         <div className="space-y-3">
-          <h1 className="text-2xl font-bold">إدارة الحجز الإلكتروني</h1>
+          <h1 className="text-2xl font-bold">إدارة الحجز الإلكتروني المتطور</h1>
           <p className="text-sm text-muted-foreground">
             إدارة إعدادات الحجز الإلكتروني وعرض الطلبات الواردة
           </p>
@@ -182,8 +182,8 @@ export default function OnlineBookingControlPanel() {
           <Globe className="w-5 h-5 md:w-6 md:h-6" />
         </div>
         <div style={{direction: 'rtl'}}>
-          <h1 className="text-xl md:text-2xl font-bold text-foreground">الحجز ع النت</h1>
-          <p className="text-xs md:text-sm text-muted-foreground">تحكم في إعدادات الحجز من النت</p>
+          <h1 className="text-xl md:text-2xl font-bold text-foreground">الحجز الإلكتروني المتطور</h1>
+          <p className="text-xs md:text-sm text-muted-foreground">تحكم كامل في إعدادات الحجز والإحصائيات</p>
         </div>
       </div>
       
@@ -199,6 +199,15 @@ export default function OnlineBookingControlPanel() {
                     {bookings.filter(b => b.status === 'pending').length}
                 </Badge>
             )}
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="text-xs md:text-sm py-2 px-1 md:px-3 gap-1 md:gap-2">
+            <span className="truncate">الإحصائيات</span>
+          </TabsTrigger>
+          <TabsTrigger value="lost-leads" className="text-xs md:text-sm py-2 px-1 md:px-3 gap-1 md:gap-2">
+            <span className="truncate">غير مكتملة</span>
+          </TabsTrigger>
+          <TabsTrigger value="blocked" className="text-xs md:text-sm py-2 px-1 md:px-3 gap-1 md:gap-2">
+            <span className="truncate">الحظر</span>
           </TabsTrigger>
         </TabsList>
 
@@ -384,6 +393,18 @@ export default function OnlineBookingControlPanel() {
                 )}
                 </CardContent>
             </Card>
+        </TabsContent>
+
+        <TabsContent value="analytics">
+            <AnalyticsDashboard clinicId={clinic?.clinic_uuid} />
+        </TabsContent>
+
+        <TabsContent value="lost-leads">
+            <DraftsTable clinicId={clinic?.clinic_uuid} />
+        </TabsContent>
+
+        <TabsContent value="blocked">
+            <BlockedNumbersManager clinicId={clinic?.clinic_uuid} />
         </TabsContent>
       </Tabs>
     </div>

@@ -4,16 +4,19 @@ import {
   BarChart3, 
   Globe, 
   ShieldCheck,
-  UserCircle 
+  UserCircle,
+  Calendar
 } from "lucide-react";
 
 // Import real components
 import AskTabibiPage from "../ask-tabibi/AskTabibiPage"; 
 import TabibiProfileApp from "./apps/tabibi-profile/TabibiProfileApp";
+import AdvancedOnlineBooking from "../online-booking/apps/AdvancedOnlineBooking";
 
 export const APPS_COMPONENT_REGISTRY = {
   'ai_assistant': AskTabibiPage,
-  'tabibi_profile': TabibiProfileApp
+  'tabibi_profile': TabibiProfileApp,
+  'advanced_online_booking': AdvancedOnlineBooking
 };
 
 export const APPS_ICON_REGISTRY = {
@@ -22,5 +25,6 @@ export const APPS_ICON_REGISTRY = {
   'BarChart3': BarChart3,
   'Globe': Globe,
   'ShieldCheck': ShieldCheck,
-  'UserCircle': UserCircle
+  'UserCircle': UserCircle,
+  'Calendar': Calendar
 };

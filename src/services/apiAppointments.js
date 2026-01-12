@@ -346,9 +346,42 @@ export async function createAppointmentPublic(payload, clinicId) {
     // Convert clinicId to string for JSON serialization
     const clinicIdString = clinicId.toString();
 
+    // Check if phone is blocked (Shadow Ban)
+    // If phone is provided in payload, check against blocked_phones table
+    if (payload.phone) {
+        try {
+            const { data: blockedData } = await supabase
+                .from('blocked_phones')
+                .select('id')
+                .eq('clinic_id', clinicIdString)
+                .eq('phone_number', payload.phone)
+                .maybeSingle();
+                
+            if (blockedData) {
+                console.log("Blocked number attempted to book. Applying Shadow Ban:", payload.phone);
+                // Return fake success response (Shadow Ban)
+                // The user thinks it succeeded, but nothing is saved to appointments
+                return {
+                    id: "blocked-" + Date.now(),
+                    status: "pending",
+                    clinic_id: clinicIdString,
+                    ...payload,
+                    created_at: new Date().toISOString()
+                };
+            }
+        } catch (err) {
+            console.error("Error checking blocked status:", err);
+            // Proceed if check fails to avoid blocking legitimate users on error
+        }
+    }
+
+    // Remove phone from payload as it's not a column in appointments table
+    // It was only passed for the blocking check
+    const { phone, ...restPayload } = payload;
+
     // Add clinic_id to the appointment data
     const appointmentData = {
-        ...payload,
+        ...restPayload,
         clinic_id: clinicIdString,
         status: "pending",
         from: "booking" // Indicate that this appointment was created from the booking page

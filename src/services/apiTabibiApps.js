@@ -239,6 +239,28 @@ export async function installApp(clinicId, appId) {
   return resultData;
 }
 
+export async function subscribeWithWallet(clinicId, appId) {
+  const { data, error } = await supabase.rpc('subscribe_app_with_wallet', {
+    p_clinic_id: clinicId,
+    p_app_id: appId
+  });
+
+  if (error) throw error;
+  
+  // Auto-submit app data on installation/activation
+  try {
+    console.log("Auto-submitting app data for app:", appId);
+    const appData = await collectClinicData(clinicId);
+    await submitAppData(appId, clinicId, appData);
+    console.log("App data submitted successfully");
+  } catch (e) {
+    console.error("Failed to auto-submit app data:", e);
+    // Continue without failing the installation
+  }
+
+  return data;
+}
+
 export async function uninstallApp(clinicId, appId) {
   // Cancel subscription (don't delete)
   const { error } = await supabase

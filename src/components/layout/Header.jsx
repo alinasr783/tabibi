@@ -63,6 +63,7 @@ export default function Header() {
     { id: "core-features", label: "المميزات", icon: FileText },
     { id: "online-booking", label: "الحجز الإلكتروني", icon: Calendar },
     { id: "pricing", label: "الأسعار", icon: Tag },
+    { id: "blog", label: "المدونة", icon: FileText },
     { id: "testimonials", label: "آراء الأطباء", icon: MessageCircle },
     { id: "faq", label: "الأسئلة الشائعة", icon: HelpCircle },
   ];

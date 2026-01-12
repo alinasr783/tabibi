@@ -165,7 +165,7 @@ export default function Hero() {
             {/* Eagerly load the hero image with high priority */}
             <img 
               src="/hero-optimized.webp" 
-              alt="Tabibi - إدارة العيادات" 
+              alt="واجهة برنامج Tabibi لإدارة العيادات وتنظيم المواعيد" 
               className="w-full h-full object-contain"
               loading="eager"
               fetchPriority="high"

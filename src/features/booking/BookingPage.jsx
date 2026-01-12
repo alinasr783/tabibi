@@ -177,6 +177,7 @@ export default function BookingPage() {
           notes: data.notes || "",
           price: clinic?.booking_price || 0,
           patient_id: selectedPatient.id,
+          phone: selectedPatient.phone, // Pass phone for backend blocking check
           from: "booking"
         },
         clinicId: clinicId,

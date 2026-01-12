@@ -103,7 +103,7 @@ export default function Testimonials() {
                     </div>
                     
                     <div className="pt-4 border-t border-gray-100">
-                      <p className="font-semibold text-gray-900">{testimonial.name}</p>
+                      <h3 className="font-semibold text-gray-900">{testimonial.name}</h3>
                       <p className="text-sm text-gray-600">{testimonial.role}</p>
                       <p className="text-xs text-gray-500">{testimonial.clinic}</p>
                     </div>

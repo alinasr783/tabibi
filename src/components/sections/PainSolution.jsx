@@ -95,7 +95,7 @@ export default function PainSolution() {
                             <div className="w-2 h-2 rounded-full bg-red-400"></div>
                             المشكلة
                           </div>
-                          <p className="font-medium text-gray-900">{item.problem}</p>
+                          <h3 className="font-medium text-gray-900">{item.problem}</h3>
                         </div>
                         
                         <div className="pt-4 border-t border-gray-100">

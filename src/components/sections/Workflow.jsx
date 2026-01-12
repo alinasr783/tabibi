@@ -11,7 +11,7 @@ export default function Workflow() {
     <section id="workflow" className="container py-20">
       <Card>
         <CardHeader className="text-center">
-          <h3 className="text-2xl font-bold">سير عمل بسيط</h3>
+          <h2 className="text-2xl font-bold">سير عمل بسيط</h2>
           <p className="text-muted-foreground">من الاستقبال إلى الفوترة بخطوات واضحة.</p>
         </CardHeader>
         <CardContent className="grid md:grid-cols-3 gap-6">

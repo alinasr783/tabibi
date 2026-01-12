@@ -41,6 +41,8 @@ import TabibiAppDetailsWrapper from "./pages/TabibiAppDetailsWrapper";
 import MyAppsPage from "./features/my-apps/MyAppsPage";
 import MyAppViewer from "./features/my-apps/MyAppViewer";
 import DoctorProfilePage from "./pages/DoctorProfilePage";
+import BlogPage from "./pages/BlogPage";
+import ArticlePage from "./pages/ArticlePage";
 import { AskTabibiPage } from "./ai/ui";
 import OfflineIndicator from "./components/OfflineIndicator";
 import { OfflineProvider } from "./features/offline-mode/OfflineContext";
@@ -79,6 +81,8 @@ const MemoizedMyAppsPage = memo(MyAppsPage);
 const MemoizedMyAppViewer = memo(MyAppViewer);
 const MemoizedDoctorProfilePage = memo(DoctorProfilePage);
 const MemoizedAskTabibi = memo(AskTabibiPage);
+const MemoizedBlogPage = memo(BlogPage);
+const MemoizedArticlePage = memo(ArticlePage);
 
 function AppRoutes() {
   // Auto scroll to top when route changes
@@ -87,6 +91,8 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<MemoizedLanding />} />
+      <Route path="/blog" element={<MemoizedBlogPage />} />
+      <Route path="/blog/:slug" element={<MemoizedArticlePage />} />
       <Route path="/privacy-policy" element={<MemoizedPrivacyPolicy />} />
       <Route path="/terms-of-service" element={<MemoizedTermsOfService />} />
       <Route

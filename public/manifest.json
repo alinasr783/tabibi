@@ -2,7 +2,7 @@
   "gcm_sender_id": "103953800507",
   "name": "Tabibi - نظام إدارة العيادات",
   "short_name": "Tabibi",
-  "description": "نظام شامل لإدارة العيادات والمراكز الطبية",
+  "description": "Tabibi هو منصة متكاملة لإدارة العيادات والمراكز الطبية، تساعد الأطباء على تنظيم المواعيد، إدارة ملفات المرضى، وتحسين سير العمل بسهولة.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
