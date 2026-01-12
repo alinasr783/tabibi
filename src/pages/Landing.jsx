@@ -8,6 +8,9 @@ import Hero from "../components/sections/Hero";
 
 // Lazy load all sections
 const CoreFeatures = lazy(() => import("../components/sections/CoreFeatures"));
+const TabibiAI = lazy(() => import("../components/sections/TabibiAI"));
+const TabibiAppsSection = lazy(() => import("../components/sections/TabibiAppsSection"));
+const IntegrationsSection = lazy(() => import("../components/sections/IntegrationsSection"));
 const OnlineBooking = lazy(() => import("../components/sections/OnlineBooking"));
 const PainSolution = lazy(() => import("../components/sections/PainSolution"));
 const Pricing = lazy(() => import("../components/sections/Pricing"));
@@ -183,15 +186,15 @@ export default function Landing() {
       <Helmet>
         <title>تابيبي — نظام إدارة العيادات والمواعيد</title>
         <meta name="description" content="تابيبي نظام عربي لإدارة العيادات: حجز مواعيد، ملف طبي، فواتير، وتقارير." />
-        <link rel="canonical" href="https://tabibi.app/" />
+        <link rel="canonical" href="https://tabibi.site/" />
         <meta property="og:title" content="تابيبي — نظام إدارة العيادات والمواعيد" />
         <meta property="og:description" content="تابيبي نظام عربي لإدارة العيادات: حجز مواعيد، ملف طبي، فواتير، وتقارير." />
-        <meta property="og:image" content="https://tabibi.app/hero-optimized.webp" />
-        <meta property="og:url" content="https://tabibi.app/" />
+        <meta property="og:image" content="https://tabibi.site/hero-optimized.webp" />
+        <meta property="og:url" content="https://tabibi.site/" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="تابيبي — نظام إدارة العيادات والمواعيد" />
         <meta name="twitter:description" content="تابيبي نظام عربي لإدارة العيادات: حجز مواعيد، ملف طبي، فواتير، وتقارير." />
-        <meta name="twitter:image" content="https://tabibi.app/hero-optimized.webp" />
+        <meta name="twitter:image" content="https://tabibi.site/hero-optimized.webp" />
       </Helmet>
 
       <div className="pointer-events-none fixed inset-0 -z-10 opacity-70">
@@ -214,13 +217,31 @@ export default function Landing() {
       >
         <motion.div variants={fadeInUp}>
           <Suspense fallback={<SectionSkeleton />}>
+            <TabibiAI />
+          </Suspense>
+        </motion.div>
+
+        <motion.div variants={fadeInUp}>
+          <Suspense fallback={<SectionSkeleton />}>
             <CoreFeatures />
           </Suspense>
         </motion.div>
         
         <motion.div variants={fadeInUp}>
           <Suspense fallback={<SectionSkeleton />}>
+            <TabibiAppsSection />
+          </Suspense>
+        </motion.div>
+        
+        <motion.div variants={fadeInUp}>
+          <Suspense fallback={<SectionSkeleton />}>
             <OnlineBooking />
+          </Suspense>
+        </motion.div>
+        
+        <motion.div variants={fadeInUp}>
+          <Suspense fallback={<SectionSkeleton />}>
+            <IntegrationsSection />
           </Suspense>
         </motion.div>
         

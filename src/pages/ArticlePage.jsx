@@ -99,13 +99,13 @@ export default function ArticlePage() {
         <title>{article.meta_title || `${article.title} - مدونة طبيبي`}</title>
         <meta name="description" content={article.meta_description || article.excerpt} />
         {article.keywords && <meta name="keywords" content={Array.isArray(article.keywords) ? article.keywords.join(', ') : article.keywords} />}
-        <link rel="canonical" href={`https://tabibi.app/blog/${article.slug}`} />
+        <link rel="canonical" href={`https://tabibi.site/blog/${article.slug}`} />
         
         {/* Open Graph */}
         <meta property="og:title" content={article.meta_title || article.title} />
         <meta property="og:description" content={article.meta_description || article.excerpt} />
         <meta property="og:image" content={article.featured_image} />
-        <meta property="og:url" content={`https://tabibi.app/blog/${article.slug}`} />
+        <meta property="og:url" content={`https://tabibi.site/blog/${article.slug}`} />
         <meta property="og:type" content="article" />
         <meta property="article:published_time" content={article.published_at} />
         <meta property="article:author" content={article.author_name} />
@@ -134,7 +134,7 @@ export default function ArticlePage() {
               "name": "Tabibi",
               "logo": {
                 "@type": "ImageObject",
-                "url": "https://tabibi.app/logo.jpeg"
+                "url": "https://tabibi.site/logo.jpeg"
               }
             },
             "description": article.excerpt

@@ -1,3 +1,3 @@
 User-agent: *
 Allow: /
-Sitemap: https://tabibi.app/sitemap.xml
+Sitemap: https://tabibi.site/sitemap.xml

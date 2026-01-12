@@ -28,7 +28,7 @@ if (isDevelopment) {
   });
 } else {
   // Production mode - implement caching logic
-  const CACHE_NAME = 'tabibi-offline-v3'; // Updated cache version
+  const CACHE_NAME = 'tabibi-offline-v4'; // Updated cache version
   const urlsToCache = [
     '/',
     '/index.html',
@@ -74,6 +74,22 @@ if (isDevelopment) {
       caches.open(CACHE_NAME).then((cache) => {
         return cache.match(event.request).then((response) => {
           const fetchPromise = fetch(event.request).then((networkResponse) => {
+            // Check if we received a valid response
+            if (!networkResponse || networkResponse.status !== 200) {
+              return networkResponse;
+            }
+
+            // SAFETY CHECK: Do not cache if it's an HTML response for a non-HTML request (JS/CSS)
+            // This prevents caching the fallback index.html for missing assets which causes MIME type errors
+            const contentType = networkResponse.headers.get('content-type');
+            const requestUrl = new URL(event.request.url);
+            
+            if (contentType && contentType.includes('text/html') && 
+                (requestUrl.pathname.match(/\.(js|css|json|png|jpg|jpeg|svg|ico)$/i))) {
+                // This is likely a 404 handled by SPA fallback - DO NOT CACHE
+                return networkResponse;
+            }
+
             // Update cache with fresh response
             cache.put(event.request, networkResponse.clone());
             return networkResponse;
