@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import supabase from '../services/supabase';
 import { Calendar, User, ArrowLeft, Search } from 'lucide-react';
 import Header from '../components/layout/Header';
@@ -69,6 +70,14 @@ export default function BlogPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col" style={{direction: "rtl"}}>
+      <Helmet>
+        <title>مدونة طبيبي - مقالات ونصائح لإدارة العيادات الطبية</title>
+        <meta name="description" content="اقرأ أحدث المقالات والنصائح حول إدارة العيادات الطبية، التحول الرقمي، وتحسين تجربة المرضى في مصر. مدونة طبيبي هي دليلك للنجاح." />
+        <link rel="canonical" href="https://tabibi.app/blog" />
+        <meta property="og:title" content="مدونة طبيبي - مقالات ونصائح لإدارة العيادات الطبية" />
+        <meta property="og:description" content="اقرأ أحدث المقالات والنصائح حول إدارة العيادات الطبية، التحول الرقمي، وتحسين تجربة المرضى في مصر." />
+        <meta property="og:url" content="https://tabibi.app/blog" />
+      </Helmet>
       <Header />
       <main className="flex-grow pt-24 pb-12">
         <div className="container">

@@ -1,10 +1,10 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { motion, useAnimation, useInView } from "framer-motion";
+import { Helmet } from "react-helmet-async";
 import Footer from "../components/layout/Footer";
 import Header from "../components/layout/Header";
 import Hero from "../components/sections/Hero";
-import usePageMeta from "../hooks/usePageMeta";
 
 // Lazy load all sections
 const CoreFeatures = lazy(() => import("../components/sections/CoreFeatures"));
@@ -164,17 +164,6 @@ export default function Landing() {
     setTimeout(tryScroll, 50);
   }, [location]);
 
-  // Set SEO meta for the landing page
-  usePageMeta({
-    title: "تابيبي — نظام إدارة العيادات والمواعيد",
-    description:
-      "تابيبي نظام عربي لإدارة العيادات: حجز مواعيد، ملف طبي، فواتير، وتقارير.",
-    url: typeof window !== "undefined" ? window.location.href : "/",
-    canonical:
-      typeof window !== "undefined" ? window.location.href.split("#")[0] : "/",
-    image: "/hero-optimized.webp",
-  });
-
   const fadeInUp = {
     hidden: { opacity: 0, y: 30 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.6 } }
@@ -191,6 +180,20 @@ export default function Landing() {
   return (
     // Make sure the main container allows normal scrolling and accounts for fixed header
     <div dir="rtl" className="min-h-svh bg-background relative">
+      <Helmet>
+        <title>تابيبي — نظام إدارة العيادات والمواعيد</title>
+        <meta name="description" content="تابيبي نظام عربي لإدارة العيادات: حجز مواعيد، ملف طبي، فواتير، وتقارير." />
+        <link rel="canonical" href="https://tabibi.app/" />
+        <meta property="og:title" content="تابيبي — نظام إدارة العيادات والمواعيد" />
+        <meta property="og:description" content="تابيبي نظام عربي لإدارة العيادات: حجز مواعيد، ملف طبي، فواتير، وتقارير." />
+        <meta property="og:image" content="https://tabibi.app/hero-optimized.webp" />
+        <meta property="og:url" content="https://tabibi.app/" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="تابيبي — نظام إدارة العيادات والمواعيد" />
+        <meta name="twitter:description" content="تابيبي نظام عربي لإدارة العيادات: حجز مواعيد، ملف طبي، فواتير، وتقارير." />
+        <meta name="twitter:image" content="https://tabibi.app/hero-optimized.webp" />
+      </Helmet>
+
       <div className="pointer-events-none fixed inset-0 -z-10 opacity-70">
         <div className="absolute -top-24 start-1/2 -translate-x-1/2 size-[40rem] rounded-full bg-primary/20 blur-3xl" />
         <div className="absolute top-1/3 end-0 size-[24rem] rounded-full bg-secondary/20 blur-3xl" />

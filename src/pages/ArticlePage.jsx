@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import supabase from '../services/supabase';
 import { Calendar, User, Share2, Facebook, Twitter, Linkedin } from 'lucide-react';
 import Header from '../components/layout/Header';
@@ -94,6 +95,52 @@ export default function ArticlePage() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
+      <Helmet>
+        <title>{article.meta_title || `${article.title} - مدونة طبيبي`}</title>
+        <meta name="description" content={article.meta_description || article.excerpt} />
+        {article.keywords && <meta name="keywords" content={Array.isArray(article.keywords) ? article.keywords.join(', ') : article.keywords} />}
+        <link rel="canonical" href={`https://tabibi.app/blog/${article.slug}`} />
+        
+        {/* Open Graph */}
+        <meta property="og:title" content={article.meta_title || article.title} />
+        <meta property="og:description" content={article.meta_description || article.excerpt} />
+        <meta property="og:image" content={article.featured_image} />
+        <meta property="og:url" content={`https://tabibi.app/blog/${article.slug}`} />
+        <meta property="og:type" content="article" />
+        <meta property="article:published_time" content={article.published_at} />
+        <meta property="article:author" content={article.author_name} />
+        
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={article.meta_title || article.title} />
+        <meta name="twitter:description" content={article.meta_description || article.excerpt} />
+        <meta name="twitter:image" content={article.featured_image} />
+        
+        {/* Structured Data */}
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BlogPosting",
+            "headline": article.title,
+            "image": article.featured_image,
+            "datePublished": article.published_at,
+            "dateModified": article.updated_at || article.published_at,
+            "author": {
+              "@type": "Person",
+              "name": article.author_name
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Tabibi",
+              "logo": {
+                "@type": "ImageObject",
+                "url": "https://tabibi.app/logo.jpeg"
+              }
+            },
+            "description": article.excerpt
+          })}
+        </script>
+      </Helmet>
       <Header />
       <main className="flex-grow pt-24 pb-12">
         {/* Hero Image */}
