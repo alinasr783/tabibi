@@ -154,8 +154,10 @@ export default function Hero() {
         </motion.div>
         
         <motion.div 
-          variants={item} 
           className="relative"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
           whileHover={{ 
             scale: 1.02,
             transition: { duration: 0.3 }
@@ -169,6 +171,9 @@ export default function Hero() {
               className="w-full h-full object-contain"
               loading="eager"
               fetchPriority="high"
+              width="800"
+              height="600"
+              decoding="async"
             />
           </div>
           <motion.div 

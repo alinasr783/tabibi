@@ -111,6 +111,10 @@ export default function BlogPage() {
                                     src={article.featured_image} 
                                     alt={article.title}
                                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                    loading="lazy"
+                                    width="800"
+                                    height="450"
+                                    decoding="async"
                                 />
                             </Link>
                             <div className="p-6 flex flex-col flex-grow">

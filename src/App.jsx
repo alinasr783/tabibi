@@ -1,10 +1,11 @@
-import { memo } from "react";
+import { memo, useEffect } from "react";
 import { Toaster } from "react-hot-toast";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import DoctorLayout from "./components/layout/DoctorLayout";
 import { AuthProviderWrapper } from "./features/auth/AuthProviderWrapper";
 import { UserPreferencesProvider } from "./features/user-preferences/UserPreferencesProvider";
 import AutoPaymentRecorder from "./features/finance/AutoPaymentRecorder";
+import { initAnalytics } from "./lib/firebase";
 import PermissionGuard from "./features/auth/PermissionGuard";
 import ProtectedRoute from "./features/auth/ProtectedRoute";
 import PublicRoute from "./features/auth/PublicRoute";
@@ -337,6 +338,11 @@ function AppRoutes() {
 }
 
 function App() {
+  useEffect(() => {
+    // Initialize analytics only on client side
+    initAnalytics();
+  }, []);
+
   return (
     <BrowserRouter>
       <AuthProviderWrapper>

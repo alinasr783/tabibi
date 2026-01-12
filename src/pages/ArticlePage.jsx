@@ -150,6 +150,11 @@ export default function ArticlePage() {
                 src={article.featured_image} 
                 alt={article.title}
                 className="w-full h-full object-cover"
+                loading="eager"
+                fetchPriority="high"
+                width="1200"
+                height="400"
+                decoding="async"
             />
             <div className="absolute inset-0 z-20 container flex items-end pb-12" style={{direction : "rtl"}}>
                 <div className="text-white max-w-3xl">

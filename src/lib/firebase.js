@@ -1,7 +1,7 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import { getMessaging, getToken, onMessage, isSupported } from "firebase/messaging";
-import { getAnalytics } from "firebase/analytics";
+// import { getAnalytics } from "firebase/analytics"; // Lazy loaded
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -16,7 +16,19 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+// const analytics = getAnalytics(app); // Lazy loaded
+
+// Lazy load analytics
+export const initAnalytics = async () => {
+  if (typeof window !== 'undefined') {
+    try {
+      const { getAnalytics } = await import("firebase/analytics");
+      return getAnalytics(app);
+    } catch (error) {
+      console.error("Failed to initialize Firebase Analytics", error);
+    }
+  }
+};
 
 let messaging = null;
 

@@ -1,5 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { getClinicById } from "../services/apiClinic";
 import { Button } from "../components/ui/button";
 import { Loader2 } from "lucide-react";
@@ -139,7 +140,6 @@ export default function DoctorProfilePage() {
           background-size: 30px;
           background-repeat: repeat;
         }
-        .material-symbols-outlined { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
         .glass-panel {
           background: rgba(255, 255, 255, 0.15);
           backdrop-filter: blur(3px);
@@ -174,7 +174,7 @@ export default function DoctorProfilePage() {
               <div className="glass-panel rounded-xl p-3 flex-1 mb-1">
                 <div className="flex items-center gap-2">
                   <h1 className="text-xl font-amiri font-bold text-white">{doctor.name}</h1>
-                  <span className="material-symbols-outlined text-white text-lg">verified</span>
+                  <BadgeCheck className="text-white w-5 h-5" />
                 </div>
                 <p className="text-white/90 text-sm font-body-sans font-medium">{doctor.specialty}</p>
               </div>
@@ -195,7 +195,7 @@ export default function DoctorProfilePage() {
                 <p className="text-[10px] text-white/80 font-body-sans mb-1">التقييم</p>
                 <div className="flex items-center justify-center gap-1">
                   <span className="text-sm font-body-sans font-semibold text-white">{stats.rating}</span>
-                  <span className="material-symbols-outlined text-white text-xs">star</span>
+                  <Star className="text-white w-3 h-3 fill-current" />
                 </div>
               </div>
             </div>
@@ -211,7 +211,7 @@ export default function DoctorProfilePage() {
             }}
             className="flex-1 bg-[#0A1F44]/10 text-[#0A1F44] rounded-xl py-3 flex flex-col items-center gap-1 transition-all hover:bg-[#0A1F44]/20 active:scale-95"
           >
-            <span className="material-symbols-outlined text-xl">call</span>
+            <Phone className="w-5 h-5" />
             <span className="text-xs font-body-sans font-semibold">اتصال</span>
           </button>
           <button 
@@ -221,7 +221,7 @@ export default function DoctorProfilePage() {
             }}
             className="flex-1 bg-[#0A1F44]/10 text-[#0A1F44] rounded-xl py-3 flex flex-col items-center gap-1 transition-all hover:bg-[#0A1F44]/20 active:scale-95"
           >
-            <span className="material-symbols-outlined text-xl">chat</span>
+            <MessageCircle className="w-5 h-5" />
             <span className="text-xs font-body-sans font-semibold">رسالة</span>
           </button>
           <button 
@@ -247,7 +247,7 @@ export default function DoctorProfilePage() {
              }}
             className="flex-1 bg-gray-100 text-gray-600 rounded-xl py-3 flex flex-col items-center gap-1 transition-all hover:bg-gray-200 active:scale-95"
           >
-            <span className="material-symbols-outlined text-xl">share</span>
+            <Share2 className="w-5 h-5" />
             <span className="text-xs font-body-sans font-semibold">مشاركة</span>
           </button>
         </div>
@@ -316,7 +316,7 @@ export default function DoctorProfilePage() {
         {/* Bio and Education */}
         <div className="bg-white rounded-2xl p-5 card-shadow-elegant border border-[#E0E0E0]">
           <h3 className="font-heading-serif font-bold text-base text-[#0A1F44] mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-xl text-[#C8A155]">person</span>
+            <User className="w-5 h-5 text-[#C8A155]" />
             النبذة المهنية
           </h3>
           <p className="text-sm text-gray-600 leading-relaxed mb-6">
@@ -324,7 +324,7 @@ export default function DoctorProfilePage() {
           </p>
           
           <h3 className="font-heading-serif font-bold text-base text-[#0A1F44] mb-4 flex items-center gap-2 border-t border-[#E0E0E0] pt-5">
-            <span className="material-symbols-outlined text-xl text-[#C8A155]">school</span>
+            <GraduationCap className="w-5 h-5 text-[#C8A155]" />
             المؤهلات العلمية
           </h3>
           <div className="space-y-4">
@@ -344,7 +344,7 @@ export default function DoctorProfilePage() {
           </div>
 
           <h3 className="font-heading-serif font-bold text-base text-[#0A1F44] mb-4 flex items-center gap-2 border-t border-[#E0E0E0] pt-5 mt-5">
-            <span className="material-symbols-outlined text-xl text-[#C8A155]">workspace_premium</span>
+            <Award className="w-5 h-5 text-[#C8A155]" />
             الشهادات والتراخيص
           </h3>
           <div className="grid grid-cols-2 gap-3">
