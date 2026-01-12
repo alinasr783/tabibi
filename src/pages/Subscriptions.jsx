@@ -143,7 +143,7 @@ export default function Subscriptions() {
   // Get available upgrade plans (higher than current)
   const upgradePlans = allPlans?.filter(plan => {
     if (!currentPlan) return true;
-    return plan.price > (currentPlan.price || 0);
+    return Number(plan.price) > Number(currentPlan.price || 0);
   }) || [];
   
   console.log("Upgrade plans:", upgradePlans);
@@ -231,8 +231,8 @@ export default function Subscriptions() {
   }
 
   return (
-    <main className="min-h-screen bg-background p-4 md:p-6" dir="rtl" lang="ar">
-      <div className="container mx-auto">
+    <main className="min-h-screen bg-background p-2 md:p-4" dir="rtl" lang="ar">
+      <div className="w-full max-w-[98%] mx-auto">
         {/* Header */}
         <div className="mb-6">
           <div className="flex items-center gap-3 mb-2">
@@ -462,62 +462,56 @@ export default function Subscriptions() {
             </section>
             
             {/* Available Plans */}
-            <div id="available-plans" className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-foreground">خطط الاشتراك المتاحة</h2>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {allPlans?.map((plan) => (
-                  <Card 
-                    key={plan.id} 
-                    className={`rounded-[var(--radius)] overflow-hidden transition-all duration-300 hover:shadow-lg ${
-                      currentPlan?.id === plan.id 
-                        ? "border-primary ring-1 ring-primary" 
-                        : "bg-card/70"
-                    }`}
-                  >
-                    <CardHeader className="pb-4">
-                      <div className="flex justify-between items-start">
-                        <div className="bg-primary/10 p-2 rounded-[var(--radius)] mb-3">
-                          <Zap className="w-5 h-5 text-primary" />
-                        </div>
-                        {currentPlan?.id === plan.id && (
-                          <Badge className="bg-primary">باقتك الحالية</Badge>
-                        )}
-                      </div>
-                      <CardTitle className="text-xl font-bold">{plan.name}</CardTitle>
-                      <div className="flex items-baseline gap-1 mt-2">
-                        <span className="text-2xl font-bold">{formatCurrency(plan.price)}</span>
-                        <span className="text-sm text-muted-foreground">/ {plan.billing_period === 'annual' ? 'سنة' : 'شهر'}</span>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="p-6 pt-0">
-                      <p className="text-sm text-muted-foreground mb-6 line-clamp-2">
-                        {plan.description}
-                      </p>
-                      
-                      <div className="space-y-3 mb-6">
-                        {(typeof plan.features === 'string' ? JSON.parse(plan.features) : plan.features)?.slice(0, 4).map((feature, i) => (
-                          <div key={i} className="flex items-start gap-2">
-                            <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
-                            <span className="text-sm text-muted-foreground">{feature}</span>
+            {upgradePlans.length > 0 && (
+              <div id="available-plans" className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-bold text-foreground">خطط الاشتراك المتاحة</h2>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {upgradePlans.map((plan) => (
+                    <Card 
+                      key={plan.id} 
+                      className="rounded-[var(--radius)] overflow-hidden transition-all duration-300 hover:shadow-lg bg-card/70"
+                    >
+                      <CardHeader className="pb-4">
+                        <div className="flex justify-between items-start">
+                          <div className="bg-primary/10 p-2 rounded-[var(--radius)] mb-3">
+                            <Zap className="w-5 h-5 text-primary" />
                           </div>
-                        ))}
-                      </div>
-                      
-                      <Button 
-                        className={`w-full rounded-[var(--radius)] ${currentPlan?.id === plan.id ? "bg-muted text-muted-foreground hover:bg-muted/80" : ""}`}
-                        disabled={currentPlan?.id === plan.id}
-                        onClick={() => handleSwitchPlan(plan.id)}
-                      >
-                        {currentPlan?.id === plan.id ? "مشترك بالفعل" : "اشترك الآن"}
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
+                        </div>
+                        <CardTitle className="text-xl font-bold">{plan.name}</CardTitle>
+                        <div className="flex items-baseline gap-1 mt-2">
+                          <span className="text-2xl font-bold">{formatCurrency(plan.price)}</span>
+                          <span className="text-sm text-muted-foreground">/ {plan.billing_period === 'annual' ? 'سنة' : 'شهر'}</span>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-6 pt-0">
+                        <p className="text-sm text-muted-foreground mb-6 line-clamp-2">
+                          {plan.description}
+                        </p>
+                        
+                        <div className="space-y-3 mb-6">
+                          {(typeof plan.features === 'string' ? JSON.parse(plan.features) : plan.features)?.slice(0, 4).map((feature, i) => (
+                            <div key={i} className="flex items-start gap-2">
+                              <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+                              <span className="text-sm text-muted-foreground">{feature}</span>
+                            </div>
+                          ))}
+                        </div>
+                        
+                        <Button 
+                          className="w-full rounded-[var(--radius)]"
+                          onClick={() => handleSwitchPlan(plan.id)}
+                        >
+                          اشترك الآن
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </>
         )}
       </div>
