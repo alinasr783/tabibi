@@ -13,7 +13,7 @@ export async function getApps() {
 
 export async function incrementAppViews(appId) {
   // Try to use the RPC function first (atomic increment)
-  const { error } = await supabase.rpc('increment_app_views', { app_uuid: appId });
+  const { error } = await supabase.rpc('increment_app_views', { app_uuid: parseInt(appId) });
 
   if (error) {
     // Fallback: Client-side increment if RPC fails (e.g. function missing)
@@ -88,6 +88,31 @@ async function collectClinicData(clinicId) {
     
   if (clinicError) throw clinicError;
 
+  // Transform working hours from English/Clinic format to Arabic/App format
+  const dayMapping = {
+    saturday: "السبت",
+    sunday: "الأحد",
+    monday: "الإثنين",
+    tuesday: "الثلاثاء",
+    wednesday: "الأربعاء",
+    thursday: "الخميس",
+    friday: "الجمعة"
+  };
+
+  const workingHours = {};
+  if (clinicData.available_time) {
+    Object.entries(clinicData.available_time).forEach(([engDay, schedule]) => {
+      const arDay = dayMapping[engDay.toLowerCase()];
+      if (arDay) {
+        workingHours[arDay] = {
+          from: schedule.start,
+          to: schedule.end,
+          active: !schedule.off
+        };
+      }
+    });
+  }
+
   // Format data to match schema
   return {
     doctor_name: userData.name,
@@ -102,7 +127,7 @@ async function collectClinicData(clinicId) {
     clinic_name: clinicData.name,
     address: clinicData.address,
     consultation_fee: clinicData.booking_price,
-    working_hours: clinicData.available_time
+    working_hours: workingHours
   };
 }
 
