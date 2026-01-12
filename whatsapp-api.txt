@@ -1,0 +1,452 @@
+GET
+List Instances
+List all instances accessible by the token owner.
+
+Endpoint
+https://api.message-pro.com/api/v2/instances
+Request Headers
+Header	Required	Description
+token	Yes	API token (header).
+GET
+Instance Details
+Get instance details by unique name (route param).
+
+Endpoint
+https://api.message-pro.com/api/v2/instances/{instance_id}
+Request Headers
+Header	Required	Description
+token	Yes	API token (header).
+GET
+Instance Status
+Get current status for an instance.
+
+Endpoint
+https://api.message-pro.com/api/v2/instances/{instance_id}/status
+Request Headers
+Header	Required	Description
+token	Yes	API token (header).
+POST
+Start Instance
+Start a session for an instance.
+
+Endpoint
+https://api.message-pro.com/api/v2/instances/{instance_id}/start
+Request Headers
+Header	Required	Description
+token	Yes	API token (header).
+Content-Type	Yes	application/json
+POST
+Restart Instance
+Restart a running session.
+
+Endpoint
+https://api.message-pro.com/api/v2/instances/{instance_id}/restart
+Request Headers
+Header	Required	Description
+token	Yes	API token (header).
+Content-Type	Yes	application/json
+POST
+Logout Instance
+Logout the current session (back to QR).
+
+Endpoint
+https://api.message-pro.com/api/v2/instances/{instance_id}/logout
+Request Headers
+Header	Required	Description
+token	Yes	API token (header).
+Content-Type	Yes	application/json
+POST
+Troubleshoot Instance
+Reset and recreate a new session.
+
+Endpoint
+https://api.message-pro.com/api/v2/instances/{instance_id}/troubleshoot
+Request Headers
+Header	Required	Description
+token	Yes	API token (header).
+Content-Type	Yes	application/json
+GET
+Get QR Code
+Fetch QR code to authenticate.
+
+Endpoint
+https://api.message-pro.com/api/v2/instances/{instance_id}/qr-code
+Request Headers
+Header	Required	Description
+token	Yes	API token (header).
+GET
+Get Screenshot
+Fetch a live screenshot of the WA session (if supported).
+
+Endpoint
+https://api.message-pro.com/api/v2/instances/{instance_id}/screenshot
+Request Headers
+Header	Required	Description
+token	Yes	API token (header).
+GET
+Get Queue Settings
+Get message queue settings for the instance.
+
+Endpoint
+https://api.message-pro.com/api/v2/instances/{instance_id}/queue-settings
+Request Headers
+Header	Required	Description
+token	Yes	API token (header).
+PUT
+Update Queue Settings
+Update message queue settings (rate/delay/etc.).
+
+Endpoint
+https://api.message-pro.com/api/v2/instances/{instance_id}/queue-settings
+Request Headers
+Header	Required	Description
+token	Yes	API token (header).
+Content-Type	Yes	application/json
+POST
+Send Message
+Send a text message.
+
+Endpoint
+https://api.message-pro.com/api/v2/{instance_id}/send-message
+Request Headers
+Header	Required	Description
+token	Yes	API token (header).
+Content-Type	Yes	application/json
+Request Body Parameters
+Field	Required	Description
+chat_id	Yes	Recipient chat id.
+text	Yes	Message text (max 4096 chars).
+priority	No	Queue priority (min 0).
+send_at	No	Schedule send time (ISO 8601).
+POST
+Retry All Messages
+Retry all failed messages for the instance.
+
+Endpoint
+https://api.message-pro.com/api/v2/{instance_id}/messages/retry-all
+Request Headers
+Header	Required	Description
+token	Yes	API token (header).
+Content-Type	Yes	application/json
+Request Body Parameters
+Field	Required	Description
+start_date	No	Retry failed messages since this date.
+last_message	No	If true, only last failed message per chat.
+POST
+Retry Message
+Retry a single failed message.
+
+Endpoint
+https://api.message-pro.com/api/v2/{instance_id}/messages/{message_id}/retry
+Request Headers
+Header	Required	Description
+token	Yes	API token (header).
+Content-Type	Yes	application/json
+GET
+List Messages
+List sent/queued messages (with filters/pagination).
+
+Endpoint
+https://api.message-pro.com/api/v2/{instance_id}/messages
+Request Headers
+Header	Required	Description
+token	Yes	API token (header).
+GET
+Message Details
+Get a single message details by ID.
+
+Endpoint
+https://api.message-pro.com/api/v2/{instance_id}/messages/{message_id}
+Request Headers
+Header	Required	Description
+token	Yes	API token (header).
+POST
+Send Image
+Send an image to a chat.
+
+Endpoint
+https://api.message-pro.com/api/v2/{instance_id}/send-image
+Request Headers
+Header	Required	Description
+token	Yes	API token (header).
+Content-Type	Yes	multipart/form-data
+Request Body Parameters
+Field	Required	Description
+chat_id	Yes	Recipient chat id.
+caption	No	Optional caption (max 2000).
+priority	No	Queue priority (min 0).
+send_at	No	Schedule send time (ISO 8601).
+media	Yes	Image file upload.
+POST
+Send File
+Send a document file.
+
+Endpoint
+https://api.message-pro.com/api/v2/{instance_id}/send-file
+Request Headers
+Header	Required	Description
+token	Yes	API token (header).
+Content-Type	Yes	multipart/form-data
+Request Body Parameters
+Field	Required	Description
+chat_id	Yes	Recipient chat id.
+caption	No	Optional caption (max 2000).
+priority	No	Queue priority (min 0).
+send_at	No	Schedule send time (ISO 8601).
+media	Yes	Document file upload.
+POST
+Send Video
+Send a video file.
+
+Endpoint
+https://api.message-pro.com/api/v2/{instance_id}/send-video
+Request Headers
+Header	Required	Description
+token	Yes	API token (header).
+Content-Type	Yes	multipart/form-data
+Request Body Parameters
+Field	Required	Description
+chat_id	Yes	Recipient chat id.
+caption	No	Optional caption (max 2000).
+priority	No	Queue priority (min 0).
+send_at	No	Schedule send time (ISO 8601).
+media	Yes	Video file upload.
+POST
+Send List Message
+Send an interactive list message.
+
+Endpoint
+https://api.message-pro.com/api/v2/{instance_id}/send-list
+Request Headers
+Header	Required	Description
+token	Yes	API token (header).
+Content-Type	Yes	application/json
+Request Body Parameters
+Field	Required	Description
+chat_id	Yes	Recipient chat id (max 100).
+reply_to	No	Optional message id to reply to.
+priority	No	Queue priority (min 0).
+send_at	No	Schedule send time (ISO 8601).
+interactive	Yes	Interactive list payload.
+interactive.title	Yes	List title (max 60).
+interactive.description	No	List description (max 1024).
+interactive.footer	No	List footer (max 60).
+interactive.button	Yes	Button label (max 20).
+interactive.sections	Yes	List sections (min 1).
+interactive.sections.*.title	No	Section title (max 60).
+interactive.sections.*.rows	Yes	Section rows (min 1).
+interactive.sections.*.rows.*.title	Yes	Row title (max 60).
+interactive.sections.*.rows.*.rowId	Yes	Row id (max 200).
+interactive.sections.*.rows.*.description	No	Row description (max 1024).
+GET
+List Campaigns
+List user campaigns (multi-instance).
+
+Endpoint
+https://api.message-pro.com/api/v2/campaigns
+Request Headers
+Header	Required	Description
+token	Yes	API token (header).
+POST
+Create Campaign
+Create/init a new campaign with multiple instances.
+
+Endpoint
+https://api.message-pro.com/api/v2/campaigns
+Request Headers
+Header	Required	Description
+token	Yes	API token (header).
+Content-Type	Yes	application/json
+Request Body Parameters
+Field	Required	Description
+instance_uns	Yes	Instance unique names (min 1).
+instance_uns.*	Yes	Instance unique name.
+media	No	Optional media file (max ~200MB).
+media_type	No	Media type: image|video|document|audio.
+default_message	No	Default message text.
+PATCH
+Update Delay
+Update per-message delay for a campaign.
+
+Endpoint
+https://api.message-pro.com/api/v2/campaigns/{campaign}/delay
+Request Headers
+Header	Required	Description
+token	Yes	API token (header).
+Content-Type	Yes	application/json
+Request Body Parameters
+Field	Required	Description
+wait_between_messages_from	Yes	Min delay between messages (sec).
+wait_between_messages_to	Yes	Max delay between messages (sec).
+sleep_after_from	Yes	Min messages before sleep.
+sleep_after_to	Yes	Max messages before sleep.
+sleep_time_from	Yes	Min sleep time (sec).
+sleep_time_to	Yes	Max sleep time (sec).
+GET
+Show Delay
+Show current delay settings.
+
+Endpoint
+https://api.message-pro.com/api/v2/campaigns/{campaign}/delay
+Request Headers
+Header	Required	Description
+token	Yes	API token (header).
+PATCH
+Mark as Finished
+Mark campaign as finished.
+
+Endpoint
+https://api.message-pro.com/api/v2/campaigns/{campaign}/finish
+Request Headers
+Header	Required	Description
+token	Yes	API token (header).
+Content-Type	Yes	application/json
+POST
+Copy Campaign
+Duplicate a campaign.
+
+Endpoint
+https://api.message-pro.com/api/v2/campaigns/{campaign}/copy
+Request Headers
+Header	Required	Description
+token	Yes	API token (header).
+Content-Type	Yes	application/json
+GET
+List Campaign Messages
+List campaign messages.
+
+Endpoint
+https://api.message-pro.com/api/v2/campaigns/{campaign}/messages
+Request Headers
+Header	Required	Description
+token	Yes	API token (header).
+GET
+Campaign Stats
+Aggregate stats for campaign messages.
+
+Endpoint
+https://api.message-pro.com/api/v2/campaigns/{campaign}/messages/stats
+Request Headers
+Header	Required	Description
+token	Yes	API token (header).
+GET
+Queue Snapshot
+Queued campaign messages snapshot.
+
+Endpoint
+https://api.message-pro.com/api/v2/campaigns/{campaign}/messages/queue
+Request Headers
+Header	Required	Description
+token	Yes	API token (header).
+GET
+Done Snapshot
+Sent/Done campaign messages snapshot.
+
+Endpoint
+https://api.message-pro.com/api/v2/campaigns/{campaign}/messages/done
+Request Headers
+Header	Required	Description
+token	Yes	API token (header).
+POST
+Bulk Add Messages
+Bulk add campaign messages.
+
+Endpoint
+https://api.message-pro.com/api/v2/campaigns/{campaign}/messages
+Request Headers
+Header	Required	Description
+token	Yes	API token (header).
+Content-Type	Yes	application/json
+Request Body Parameters
+Field	Required	Description
+messages	Yes	Messages array (min 1).
+messages.*.phone_number	Yes	Recipient phone number (max 30).
+messages.*.text	No	Message text (max 5000).
+messages.*.vars	No	Optional template vars.
+DELETE
+Bulk Delete Messages
+Bulk delete campaign messages.
+
+Endpoint
+https://api.message-pro.com/api/v2/campaigns/{campaign}/messages
+Request Headers
+Header	Required	Description
+token	Yes	API token (header).
+Request Body Parameters
+Field	Required	Description
+ids	Yes	Message IDs to delete (min 1).
+ids.*	Yes	Message ID.
+POST
+Start Campaign
+Start campaign processing.
+
+Endpoint
+https://api.message-pro.com/api/v2/campaigns/{campaign}/start
+Request Headers
+Header	Required	Description
+token	Yes	API token (header).
+Content-Type	Yes	application/json
+POST
+Schedule Campaign
+Schedule campaign to run at a later time.
+
+Endpoint
+https://api.message-pro.com/api/v2/campaigns/{campaign}/schedule
+Request Headers
+Header	Required	Description
+token	Yes	API token (header).
+Content-Type	Yes	application/json
+Request Body Parameters
+Field	Required	Description
+schedule_date	Yes	Schedule datetime (must be in the future).
+DELETE
+Unschedule Campaign
+Remove scheduled run.
+
+Endpoint
+https://api.message-pro.com/api/v2/campaigns/{campaign}/schedule
+Request Headers
+Header	Required	Description
+token	Yes	API token (header).
+POST
+Pause Campaign
+Pause campaign execution.
+
+Endpoint
+https://api.message-pro.com/api/v2/campaigns/{campaign}/pause
+Request Headers
+Header	Required	Description
+token	Yes	API token (header).
+Content-Type	Yes	application/json
+POST
+Reset Failed
+Reset failed messages for reprocessing.
+
+Endpoint
+https://api.message-pro.com/api/v2/campaigns/{campaign}/reset-failed
+Request Headers
+Header	Required	Description
+token	Yes	API token (header).
+Content-Type	Yes	application/json
+GET
+Get chat id by LID
+Resolve a WhatsApp LID to phone/chat id (pn).
+
+Important Note
+Returns lid and pn.
+
+Endpoint
+https://api.message-pro.com/api/v2/api/v2/{instance_id}/lids/{lid}
+Request Headers
+Header	Required	Description
+token	Yes	API token
+GET
+Get LID by phone/chat id
+Resolve a phone/chat id (pn) to its LID.
+
+Important Note
+Returns lid and pn.
+
+Endpoint
+https://api.message-pro.com/api/v2/api/v2/{instance_id}/lids/pn/{phoneNumber}
+Request Headers

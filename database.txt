@@ -1,6 +1,33 @@
 -- WARNING: This schema is for context only and is not meant to be run.
 -- Table order and constraints may not be valid for execution.
 
+CREATE TABLE public.app_data_submissions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  app_id bigint NOT NULL,
+  clinic_id uuid,
+  submission_type text NOT NULL,
+  data jsonb NOT NULL DEFAULT '{}'::jsonb,
+  status text DEFAULT 'new'::text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT app_data_submissions_pkey PRIMARY KEY (id),
+  CONSTRAINT app_data_submissions_app_id_fkey FOREIGN KEY (app_id) REFERENCES public.tabibi_apps(id),
+  CONSTRAINT app_data_submissions_clinic_id_fkey FOREIGN KEY (clinic_id) REFERENCES public.clinics(clinic_uuid)
+);
+CREATE TABLE public.app_developers (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL UNIQUE,
+  name text NOT NULL,
+  company_name text,
+  email text NOT NULL,
+  phone text,
+  website text,
+  status text DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'approved'::text, 'suspended'::text])),
+  api_key text UNIQUE,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT app_developers_pkey PRIMARY KEY (id),
+  CONSTRAINT app_developers_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
 CREATE TABLE public.app_subscriptions (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   created_at timestamp with time zone DEFAULT now(),
@@ -107,7 +134,7 @@ CREATE TABLE public.clinics (
   booking_price integer,
   available_time jsonb,
   current_plan text,
-  clinic_uuid uuid DEFAULT gen_random_uuid(),
+  clinic_uuid uuid DEFAULT gen_random_uuid() UNIQUE,
   online_booking_enabled boolean DEFAULT true,
   clinic_id_bigint bigint,
   CONSTRAINT clinics_pkey PRIMARY KEY (id),
@@ -314,7 +341,11 @@ CREATE TABLE public.tabibi_apps (
   component_key text UNIQUE,
   is_active boolean DEFAULT true,
   color text,
-  CONSTRAINT tabibi_apps_pkey PRIMARY KEY (id)
+  preview_link text,
+  developer_id uuid,
+  submission_schema jsonb DEFAULT '{}'::jsonb,
+  CONSTRAINT tabibi_apps_pkey PRIMARY KEY (id),
+  CONSTRAINT tabibi_apps_developer_id_fkey FOREIGN KEY (developer_id) REFERENCES public.app_developers(id)
 );
 CREATE TABLE public.treatment_templates (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
@@ -367,6 +398,8 @@ CREATE TABLE public.users (
   bio text,
   education jsonb DEFAULT '[]'::jsonb,
   certificates jsonb DEFAULT '[]'::jsonb,
+  specialty text,
+  banner_url text,
   CONSTRAINT users_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.visits (

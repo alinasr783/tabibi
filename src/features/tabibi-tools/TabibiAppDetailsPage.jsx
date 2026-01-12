@@ -2,9 +2,10 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getAppById, getInstalledApps, installApp, uninstallApp } from "../../services/apiTabibiApps";
+import { getAppById, getInstalledApps, installApp, uninstallApp, incrementAppViews } from "../../services/apiTabibiApps";
 import useClinic from "../auth/useClinic";
 import { toast } from "react-hot-toast";
+import { useEffect } from "react";
 
 import AppHeader from "./components/AppHeader";
 import AppHero from "./components/AppHero";
@@ -19,6 +20,12 @@ export default function TabibiAppDetailsPage() {
   const queryClient = useQueryClient();
   const { data: clinic } = useClinic();
   const clinicId = clinic?.clinic_uuid;
+
+  useEffect(() => {
+    if (appId) {
+      incrementAppViews(appId);
+    }
+  }, [appId]);
 
   const { data: app, isLoading: isLoadingApp } = useQuery({
     queryKey: ['tabibi_app', appId],

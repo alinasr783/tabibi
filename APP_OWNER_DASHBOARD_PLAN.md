@@ -151,3 +151,80 @@ ADD CONSTRAINT tabibi_apps_developer_id_fkey FOREIGN KEY (developer_id) REFERENC
 4.  **المرحلة الرابعة: النشر (Deployment)**
     *   رفع المشروع على Vercel/Netlify.
     *   ربط النطاق `app_builder.tabibi.site`.
+
+---
+
+## 7. دليل الاتصال مع Supabase (Supabase Integration Guide)
+
+للتواصل مع قاعدة البيانات والخدمات الخلفية، نستخدم مكتبة `@supabase/supabase-js`. فيما يلي كيفية إعدادها واستخدامها داخل مشروع الـ App Builder.
+
+### أ. تثبيت وإعداد العميل (Setup & Configuration)
+
+أولاً، تأكد من تثبيت المكتبة:
+```bash
+npm install @supabase/supabase-js
+```
+
+ثم قم بإنشاء ملف `src/services/supabase.js`:
+```javascript
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+```
+
+### ب. المصادقة (Authentication)
+
+**تسجيل الدخول (Login):**
+```javascript
+const { data, error } = await supabase.auth.signInWithPassword({
+  email: 'developer@example.com',
+  password: 'password123',
+});
+```
+
+**تسجيل الخروج (Logout):**
+```javascript
+await supabase.auth.signOut();
+```
+
+**الحصول على المستخدم الحالي (Get Current User):**
+```javascript
+const { data: { user } } = await supabase.auth.getUser();
+```
+
+### ج. التعامل مع البيانات (Data Operations)
+
+**جلب بيانات المطور (Fetch Developer Profile):**
+```javascript
+const { data, error } = await supabase
+  .from('app_developers')
+  .select('*')
+  .eq('user_id', user.id)
+  .single();
+```
+
+**جلب تطبيقات المطور (Fetch My Apps):**
+```javascript
+const { data, error } = await supabase
+  .from('tabibi_apps')
+  .select('*')
+  .eq('developer_id', developerId);
+```
+
+**إرسال بيانات جديدة (Insert Data):**
+```javascript
+const { data, error } = await supabase
+  .from('tabibi_apps')
+  .insert([
+    { title: 'New App', description: '...', developer_id: developerId }
+  ])
+  .select();
+```
+
+### د. نصائح هامة (Best Practices)
+1.  **حماية البيانات (RLS):** تأكد دائماً من تفعيل Row Level Security على الجداول لضمان أن المطور يرى بياناته فقط.
+2.  **إدارة الحالة (State Management):** استخدم `useEffect` لجلب البيانات عند تحميل الصفحة، وقم بتخزينها في `useState`.
+3.  **معالجة الأخطاء (Error Handling):** دائماً تحقق من وجود `error` بعد كل عملية طلب من Supabase واعرض رسالة مناسبة للمستخدم.
