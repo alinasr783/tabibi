@@ -1,10 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import { motion, useScroll, useSpring } from "framer-motion";
 import { Stethoscope, Menu, X, Calendar, FileText, Tag, MessageCircle, HelpCircle, User } from "lucide-react";
 import { Button } from "../ui/button";
 import { useAuth } from "../../features/auth/AuthContext";
 
 export default function Header() {
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, {
+    stiffness: 100,
+    damping: 30,
+    restDelta: 0.001
+  });
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user, logout, isLoading } = useAuth();
   const navigate = useNavigate();
@@ -78,10 +85,10 @@ export default function Header() {
     >
       {/* Progress bar for scroll indicator with physics-based animation */}
       <div className="absolute bottom-0 left-0 w-full h-1 bg-muted/30">
-        <div 
-          className="h-full bg-primary transition-all duration-700 ease-in-out"
-          id="scroll-progress"
-        ></div>
+        <motion.div 
+          className="h-full bg-primary origin-left"
+          style={{ scaleX }}
+        />
       </div>
       
       <div className="container flex h-16 items-center justify-between">

@@ -75,8 +75,8 @@ export default function Hero() {
             {isLoading ? (
               // Show loading state
               <div className="flex gap-4">
-                <div className="h-12 w-40 bg-gray-200 rounded animate-pulse"></div>
-                <div className="h-12 w-40 bg-gray-200 rounded animate-pulse"></div>
+                <div className="h-10 w-32 bg-gray-200 rounded animate-pulse"></div>
+                <div className="h-10 w-48 bg-gray-200 rounded animate-pulse"></div>
               </div>
             ) : user ? (
               // If user is authenticated, show "الدخول" button
@@ -174,6 +174,7 @@ export default function Hero() {
               width="800"
               height="600"
               decoding="async"
+              sizes="(max-width: 768px) 100vw, 50vw"
             />
           </div>
           <motion.div 

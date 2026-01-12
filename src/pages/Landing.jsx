@@ -5,10 +5,10 @@ import { Helmet } from "react-helmet-async";
 import Footer from "../components/layout/Footer";
 import Header from "../components/layout/Header";
 import Hero from "../components/sections/Hero";
+import TabibiAI from "../components/sections/TabibiAI";
+import CoreFeatures from "../components/sections/CoreFeatures";
 
-// Lazy load all sections
-const CoreFeatures = lazy(() => import("../components/sections/CoreFeatures"));
-const TabibiAI = lazy(() => import("../components/sections/TabibiAI"));
+// Lazy load remaining sections
 const TabibiAppsSection = lazy(() => import("../components/sections/TabibiAppsSection"));
 const IntegrationsSection = lazy(() => import("../components/sections/IntegrationsSection"));
 const OnlineBooking = lazy(() => import("../components/sections/OnlineBooking"));
@@ -83,69 +83,8 @@ function AnimatedSection({ children, id, className = "" }) {
 
 export default function Landing() {
   const location = useLocation();
-  const [scrollProgress, setScrollProgress] = useState(0);
-  const lastScrollY = useRef(0);
-  const scrollVelocity = useRef(0);
 
-  // Handle scroll progress indicator with physics-based animation
-  useEffect(() => {
-    let ticking = false;
-    
-    const handleScroll = () => {
-      if (!ticking) {
-        requestAnimationFrame(() => {
-          const scrollTop = window.scrollY;
-          const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-          const scrolled = (scrollTop / docHeight) * 100;
-          
-          // Calculate scroll velocity for physics-based animation
-          scrollVelocity.current = scrollTop - lastScrollY.current;
-          lastScrollY.current = scrollTop;
-          
-          // Apply easing based on scroll velocity for more natural feel
-          const easedProgress = calculateEasedProgress(scrolled, scrollVelocity.current);
-          setScrollProgress(easedProgress);
-          
-          // Update the progress bar
-          const progressBar = document.getElementById('scroll-progress');
-          if (progressBar) {
-            progressBar.style.width = `${easedProgress}%`;
-            
-            // Add physics-based easing for smoother animation
-            progressBar.style.transitionTimingFunction = getPhysicsEasing(scrollVelocity.current);
-          }
-          
-          ticking = false;
-        });
-        ticking = true;
-      }
-    };
-
-    // Physics-based easing function
-    const getPhysicsEasing = (velocity) => {
-      // Slower scroll = more elastic feel, faster scroll = more momentum
-      const speed = Math.abs(velocity);
-      if (speed < 2) return 'cubic-bezier(0.34, 1.56, 0.64, 1)'; // Elastic start/end
-      if (speed < 5) return 'cubic-bezier(0.25, 0.46, 0.45, 0.94)'; // Smooth
-      return 'cubic-bezier(0.4, 0, 0.2, 1)'; // Momentum-based
-    };
-
-    // Easing function for progress based on velocity
-    const calculateEasedProgress = (progress, velocity) => {
-      const speed = Math.abs(velocity);
-      // Add slight anticipation at start and overshoot at end for natural feel
-      if (progress < 10) {
-        return progress * (1 + (speed / 100)); // Anticipation at start
-      } else if (progress > 90) {
-        return progress * (1 - (speed / 500)); // Ease out at end
-      }
-      return progress;
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
+  // Scroll to hash on load/change
   useEffect(() => {
     if (!location.hash) return;
 
@@ -216,15 +155,11 @@ export default function Landing() {
         variants={staggerContainer}
       >
         <motion.div variants={fadeInUp}>
-          <Suspense fallback={<SectionSkeleton />}>
-            <TabibiAI />
-          </Suspense>
+          <TabibiAI />
         </motion.div>
 
         <motion.div variants={fadeInUp}>
-          <Suspense fallback={<SectionSkeleton />}>
-            <CoreFeatures />
-          </Suspense>
+          <CoreFeatures />
         </motion.div>
         
         <motion.div variants={fadeInUp}>
