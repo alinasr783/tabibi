@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { getClinicById } from "../services/apiClinic";
 import { Button } from "../components/ui/button";
-import { Loader2, CheckCircle, Star, Share2, GraduationCap, Award, MapPin, Phone, MessageCircle, User, Building2, DollarSign, Clock } from "lucide-react";
+import { Loader2, CheckCircle, BadgeCheck, Star, Share2, GraduationCap, Award, MapPin, Phone, MessageCircle, User, Building2, DollarSign, Clock } from "lucide-react";
 import supabase from "../services/supabase";
 import { useAuth } from "../features/auth/AuthContext";
 
@@ -174,7 +174,7 @@ export default function DoctorProfilePage() {
               <div className="glass-panel rounded-xl p-3 flex-1 mb-1">
                 <div className="flex items-center gap-2">
                   <h1 className="text-2xl font-amiri font-bold text-white drop-shadow-md">{doctor.name}</h1>
-                  <CheckCircle className="text-white w-6 h-6 drop-shadow-sm" />
+                  <BadgeCheck className="text-[#1877F2] w-6 h-6 drop-shadow-sm" fill="#C8A155" />
                 </div>
                 <p className="text-white text-base font-body-sans font-semibold drop-shadow-sm">{doctor.specialty}</p>
               </div>
