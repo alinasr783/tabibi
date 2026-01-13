@@ -28,6 +28,7 @@ import { getPlanIcon } from '@/lib/planUtils.jsx'
 import { formatCurrency } from '@/lib/utils'
 import { DiscountCodeInput, useDiscountCode } from '@/features/discount-code'
 import usePricingPlan from '@/features/settings/usePricingPlan'
+import { initiatePayment } from '@/services/easykashService'
 
 export default function PlanConfirmation() {
   const { planId } = useParams()
@@ -39,10 +40,11 @@ export default function PlanConfirmation() {
   
   const [billingPeriod, setBillingPeriod] = useState('monthly')
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
+  const [isPaymentLoading, setIsPaymentLoading] = useState(false)
   const discount = useDiscountCode(plan?.price || 0, planId, billingPeriod)
   
   const isLoading = isPlanLoading
-  const isSubmitting = isCreating
+  const isSubmitting = isCreating || isPaymentLoading
 
   // Calculate pricing with discount
   const monthlyPrice = plan?.price || 0
@@ -100,26 +102,39 @@ export default function PlanConfirmation() {
           if (discount.appliedDiscount) {
             discount.confirmDiscountUsage();
           }
+          toast.success("تم تفعيل الاشتراك المجاني بنجاح!");
         }
       })
     } else {
-      // For paid subscriptions, save discount ID for later use after payment
+      // For paid subscriptions, proceed with EasyKash payment
       if (discount.appliedDiscount?.id) {
         localStorage.setItem('pending_discount_id', discount.appliedDiscount.id.toString());
       }
       
-      if (billingPeriod === 'annual') {
-        // Manual confirmation for annual
-        // Removed WhatsApp link per user request
-        alert("يرجى التواصل مع الدعم الفني لتفعيل الاشتراك السنوي.");
-      } else {
-        // Show message to contact sales
-        // WhatsApp link removed per user request
-        toast.error("لتفعيل الاشتراك، يرجى التواصل مع الدعم الفني")
+      try {
+        setIsPaymentLoading(true);
+        const paymentUrl = await initiatePayment({
+          amount: finalPrice,
+          type: 'subscription',
+          metadata: {
+            planId: plan.id,
+            billingPeriod,
+            discountId: discount.appliedDiscount?.id
+          },
+          buyer: {
+            email: user.email,
+            name: user.name,
+            mobile: user.phone
+          }
+        });
         
-        // Optionally open WhatsApp automatically - REMOVED
-        // const whatsappMessage = `أود الاشتراك في خطة "${plan?.name}" لفترة ${billingPeriod === 'annual' ? 'سنوية' : 'شهرية'} - السعر النهائي: ${formatCurrency(finalPrice)}`;
-        // window.open(`https://wa.me/201158954215?text=${encodeURIComponent(whatsappMessage)}`, '_blank');
+        // Redirect to EasyKash payment page
+        window.location.href = paymentUrl;
+        
+      } catch (error) {
+        console.error("Payment Error:", error);
+        toast.error(error.message || "حدث خطأ أثناء الانتقال لصفحة الدفع");
+        setIsPaymentLoading(false);
       }
     }
 
@@ -246,12 +261,10 @@ export default function PlanConfirmation() {
           </Button>
         </div>
 
-        {/* Payment Gateway Integration Notice */}
-        <div className="mb-8 p-4 bg-blue-50 border border-blue-200 rounded-[var(--radius)] text-center">
-          <p className="text-blue-800">
-            <strong>ملاحظة:</strong> جارٍ التكامل مع بوابات الدفع. إذا كنت ترغب في الاشتراك الآن، 
-            يرجى التواصل مع فريق المبيعات
-            وسوف يقوم فريقنا بتفعيل الاشتراك لك.
+        {/* Payment Gateway Integration Notice - Updated */}
+        <div className="mb-8 p-4 bg-green-50 border border-green-200 rounded-[var(--radius)] text-center">
+          <p className="text-green-800">
+            <strong>متاح الآن:</strong> يمكنك الدفع بأمان باستخدام البطاقات البنكية، المحافظ الإلكترونية، أو فوري.
           </p>
         </div>
 

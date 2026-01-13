@@ -19,6 +19,8 @@ export default function useLastMonthBookings() {
         setLoading(true);
         setError(null);
 
+        console.log("Fetching bookings for clinic:", user.clinic_id);
+
         // Calculate date for last 30 days
         const today = new Date();
         const thirtyDaysAgo = new Date(today);
@@ -27,10 +29,11 @@ export default function useLastMonthBookings() {
         const { count, error } = await supabase
           .from("appointments")
           .select("*", { count: "exact", head: true })
-          .eq("clinic_id", user.clinic_id)
-          .eq("from", "booking")
-          .gte("created_at", thirtyDaysAgo.toISOString())
-          .lte("created_at", today.toISOString());
+          .eq("clinic_id", user.clinic_id.toString());
+          // .eq("from", "booking"); // Removed temporarily for debugging
+          // Removed date filter to show all online bookings
+          // .gte("created_at", thirtyDaysAgo.toISOString())
+          // .lte("created_at", today.toISOString());
 
         if (error) throw error;
 

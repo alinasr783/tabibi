@@ -19,6 +19,8 @@ import {
   Phone
 } from 'lucide-react';
 
+import supabase from '@/services/supabase';
+
 export default function PaymentCallback() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -29,8 +31,89 @@ export default function PaymentCallback() {
   useEffect(() => {
     const processPaymentCallback = async () => {
       try {
+        // 1. Identify Provider and Status
+        // EasyKash params: status (PAID/FAILED), easykashRef, customerReference
+        // Paymob/Other params: success, id, amount_cents, ...
+        
+        const ekStatus = searchParams.get('status'); // EasyKash
+        const ekRef = searchParams.get('easykashRef');
+        const ekCustomerRef = searchParams.get('customerReference');
+        
+        const isEasyKash = ekStatus && ekRef;
+
+        if (isEasyKash) {
+            console.log("EasyKash Callback:", { ekStatus, ekRef, ekCustomerRef });
+            
+            if (ekStatus === 'PAID') {
+                // Verify against Supabase Transaction
+                // Since Webhook might be slow, we might need to update manually if local dev
+                // OR poll for status. For now, let's assume success if status is PAID
+                // and try to fulfill subscription.
+                
+                const planId = localStorage.getItem('pending_subscription_plan_id');
+                const billingPeriod = localStorage.getItem('pending_subscription_billing_period');
+                const amount = localStorage.getItem('pending_subscription_amount');
+                const discountId = localStorage.getItem('pending_discount_id');
+                
+                // Double check if transaction exists and update it if needed (Client-side fallback)
+                if (ekCustomerRef) {
+                    const { data: tx } = await supabase
+                        .from('transactions')
+                        .select('status')
+                        .eq('reference_number', parseInt(ekCustomerRef))
+                        .single();
+                        
+                    if (tx && tx.status !== 'completed') {
+                         // Update manually (only for dev/if webhook fails)
+                         await supabase.from('transactions')
+                            .update({ 
+                                status: 'completed', 
+                                easykash_ref: ekRef 
+                            })
+                            .eq('reference_number', parseInt(ekCustomerRef));
+                    }
+                }
+
+                if (planId) {
+                    await createSubscription({
+                        clinicId: user.clinic_id,
+                        planId,
+                        billingPeriod: billingPeriod || 'monthly',
+                        amount: parseFloat(amount) || 0
+                    });
+
+                    if (discountId) {
+                        await incrementDiscountUsage(parseInt(discountId));
+                    }
+
+                    setStatus('success');
+                    setPaymentData({
+                        amount: amount,
+                        transactionId: ekRef,
+                        paymentMethod: 'EasyKash'
+                    });
+                    toast.success("تم تفعيل الاشتراك بنجاح!");
+                    
+                    // Clear storage
+                    localStorage.removeItem('pending_subscription_plan_id');
+                    localStorage.removeItem('pending_subscription_billing_period');
+                    localStorage.removeItem('pending_subscription_amount');
+                    localStorage.removeItem('pending_discount_id');
+                } else {
+                    // Maybe it was already processed or just a wallet top-up?
+                    setStatus('success');
+                }
+            } else {
+                setStatus('failed');
+                toast.error("فشلت عملية الدفع");
+            }
+            return;
+        }
+
+        // ... Existing Logic for other providers ...
         // Extract payment data from URL parameters
         const success = searchParams.get('success') === 'true';
+
         const id = searchParams.get('id');
         const amount_cents = parseInt(searchParams.get('amount_cents')) || 0;
         const source_data = {

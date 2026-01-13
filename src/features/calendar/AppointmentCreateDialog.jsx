@@ -51,7 +51,10 @@ export default function AppointmentCreateDialog({ open, onClose, initialPatient 
   useEffect(() => {
     if (initialPatient && open) {
         setSelectedPatient(initialPatient);
-        setStep(2);
+        // Don't skip to step 2, let user pick date first
+        setStep(1);
+        // Disable auto-select so user can choose explicitly
+        setAutoSelectEnabled(false);
     }
   }, [initialPatient, open]);
 

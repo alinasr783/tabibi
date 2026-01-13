@@ -255,6 +255,7 @@ export default function PatientDetailPage() {
                 appointments={appointments} 
                 isLoading={isAppointmentsLoading}
                 patientId={patientId}
+                patient={patient}
               />
             </TabsContent>
 

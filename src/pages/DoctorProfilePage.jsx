@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { getClinicById } from "../services/apiClinic";
 import { Button } from "../components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, CheckCircle, Star, Share2, GraduationCap, Award, MapPin, Phone, MessageCircle, User, Building2, DollarSign, Clock } from "lucide-react";
 import supabase from "../services/supabase";
 import { useAuth } from "../features/auth/AuthContext";
 
@@ -80,6 +80,7 @@ export default function DoctorProfilePage() {
   });
 
   // Scroll to top on mount
+  // Fixed BadgeCheck reference error - Force Update
   if (!isLoading && profile) {
     window.scrollTo(0, 0);
   }
@@ -131,7 +132,6 @@ export default function DoctorProfilePage() {
     <div className="min-h-[100dvh] bg-[#F8F8F8] font-[Cairo] text-[#333333] pb-24" dir="rtl">
       {/* Styles for this page specifically */}
       <style>{`
-        .font-heading-serif { font-family: 'Playfair Display', serif; }
         .font-body-sans { font-family: 'Cairo', sans-serif; }
         .font-amiri { font-family: 'Amiri', serif; }
         .card-shadow-elegant { box-shadow: 0 4px 20px -5px rgba(0, 0, 0, 0.08); }
@@ -173,29 +173,29 @@ export default function DoctorProfilePage() {
               
               <div className="glass-panel rounded-xl p-3 flex-1 mb-1">
                 <div className="flex items-center gap-2">
-                  <h1 className="text-xl font-amiri font-bold text-white">{doctor.name}</h1>
-                  <BadgeCheck className="text-white w-5 h-5" />
+                  <h1 className="text-2xl font-amiri font-bold text-white drop-shadow-md">{doctor.name}</h1>
+                  <CheckCircle className="text-white w-6 h-6 drop-shadow-sm" />
                 </div>
-                <p className="text-white/90 text-sm font-body-sans font-medium">{doctor.specialty}</p>
+                <p className="text-white text-base font-body-sans font-semibold drop-shadow-sm">{doctor.specialty}</p>
               </div>
             </div>
             
             <div className="glass-panel rounded-xl p-3 grid grid-cols-3 gap-2">
               <div className="text-center">
-                <p className="text-[10px] text-white/80 font-body-sans mb-1">الموعد القادم</p>
-                <p className="text-sm font-body-sans font-semibold text-white">
+                <p className="text-xs text-white/90 font-amiri font-bold mb-1">الموعد القادم</p>
+                <p className="text-lg font-amiri font-bold text-white drop-shadow-sm">
                     {isOpenNow() ? "مفتوح الآن" : "مغلق"}
                 </p>
               </div>
               <div className="text-center border-x border-white/20">
-                <p className="text-[10px] text-white/80 font-body-sans mb-1">مواعيد (30 يوم)</p>
-                <p className="text-sm font-body-sans font-semibold text-white">{stats.bookingsLastMonth}</p>
+                <p className="text-xs text-white/90 font-amiri font-bold mb-1">مواعيد (30 يوم)</p>
+                <p className="text-lg font-amiri font-bold text-white drop-shadow-sm">{stats.bookingsLastMonth}</p>
               </div>
               <div className="text-center">
-                <p className="text-[10px] text-white/80 font-body-sans mb-1">التقييم</p>
+                <p className="text-xs text-white/90 font-amiri font-bold mb-1">التقييم</p>
                 <div className="flex items-center justify-center gap-1">
-                  <span className="text-sm font-body-sans font-semibold text-white">{stats.rating}</span>
-                  <Star className="text-white w-3 h-3 fill-current" />
+                  <span className="text-lg font-amiri font-bold text-white drop-shadow-sm">{stats.rating}</span>
+                  <Star className="text-white w-4 h-4 fill-current drop-shadow-sm" />
                 </div>
               </div>
             </div>
@@ -254,14 +254,14 @@ export default function DoctorProfilePage() {
 
         {/* Clinic Details */}
         <div className="bg-white rounded-2xl p-5 card-shadow-elegant border border-[#E0E0E0]">
-          <h3 className="font-heading-serif font-bold text-base text-[#0A1F44] mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-xl text-[#C8A155]">home_health</span>
+          <h3 className="font-amiri font-bold text-xl text-[#0A1F44] mb-4 flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-[#C8A155]" />
             تفاصيل العيادة
           </h3>
           <div className="space-y-4">
             <div className="flex items-start gap-3">
               <div className="bg-[#C8A155]/10 p-2 rounded-lg text-[#C8A155]">
-                <span className="material-symbols-outlined text-xl">location_on</span>
+                <MapPin className="w-5 h-5" />
               </div>
               <div>
                 <p className="text-sm font-body-sans font-bold">{profile.name}</p>
@@ -271,7 +271,7 @@ export default function DoctorProfilePage() {
             </div>
             <div className="flex items-center gap-3">
               <div className="bg-[#C8A155]/10 p-2 rounded-lg text-[#C8A155]">
-                <span className="material-symbols-outlined text-xl">payments</span>
+                <DollarSign className="w-5 h-5" />
               </div>
               <div>
                 <p className="text-sm font-body-sans font-bold">{profile.booking_price ? `${profile.booking_price} ج.م` : "مجاناً"}</p>
@@ -284,8 +284,8 @@ export default function DoctorProfilePage() {
         {/* Working Hours */}
         <div className="bg-white rounded-2xl p-5 card-shadow-elegant border border-[#E0E0E0]">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-heading-serif font-bold text-base text-[#0A1F44] flex items-center gap-2">
-              <span className="material-symbols-outlined text-xl text-[#C8A155]">schedule</span>
+            <h3 className="font-amiri font-bold text-xl text-[#0A1F44] flex items-center gap-2">
+              <Clock className="w-5 h-5 text-[#C8A155]" />
               أوقات العمل
             </h3>
             <span className={`text-xs font-body-sans font-semibold ${isOpenNow() ? "text-green-600 bg-green-50" : "text-red-600 bg-red-50"} px-3 py-1 rounded-full`}>
@@ -315,7 +315,7 @@ export default function DoctorProfilePage() {
 
         {/* Bio and Education */}
         <div className="bg-white rounded-2xl p-5 card-shadow-elegant border border-[#E0E0E0]">
-          <h3 className="font-heading-serif font-bold text-base text-[#0A1F44] mb-4 flex items-center gap-2">
+          <h3 className="font-amiri font-bold text-xl text-[#0A1F44] mb-4 flex items-center gap-2">
             <User className="w-5 h-5 text-[#C8A155]" />
             النبذة المهنية
           </h3>
@@ -323,7 +323,7 @@ export default function DoctorProfilePage() {
             {doctor.bio || "لا توجد نبذة تعريفية"}
           </p>
           
-          <h3 className="font-heading-serif font-bold text-base text-[#0A1F44] mb-4 flex items-center gap-2 border-t border-[#E0E0E0] pt-5">
+          <h3 className="font-amiri font-bold text-xl text-[#0A1F44] mb-4 flex items-center gap-2 border-t border-[#E0E0E0] pt-5">
             <GraduationCap className="w-5 h-5 text-[#C8A155]" />
             المؤهلات العلمية
           </h3>
@@ -343,7 +343,7 @@ export default function DoctorProfilePage() {
              )}
           </div>
 
-          <h3 className="font-heading-serif font-bold text-base text-[#0A1F44] mb-4 flex items-center gap-2 border-t border-[#E0E0E0] pt-5 mt-5">
+          <h3 className="font-amiri font-bold text-xl text-[#0A1F44] mb-4 flex items-center gap-2 border-t border-[#E0E0E0] pt-5 mt-5">
             <Award className="w-5 h-5 text-[#C8A155]" />
             الشهادات والتراخيص
           </h3>
@@ -381,7 +381,7 @@ export default function DoctorProfilePage() {
         {/* Fixed Booking Button */}
         <div className="fixed bottom-0 left-0 right-0 p-4 pb-6 bg-white border-t border-[#E0E0E0] z-50 safe-area-bottom">
             <Button 
-            className="w-full h-12 text-lg rounded-xl bg-[#0A1F44] hover:bg-[#0A1F44]/90 text-white font-bold flex items-center justify-center gap-2 transition-all font-body-sans shadow-none mb-2" 
+            className="w-full h-12 text-lg rounded-xl bg-[#0A1F44] hover:bg-[#0A1F44]/90 text-white font-bold flex items-center justify-center gap-2 transition-all font-amiri shadow-none mb-2" 
             onClick={() => navigate(`/booking/${clinicId}`)}
             >
             احجز موعد الآن

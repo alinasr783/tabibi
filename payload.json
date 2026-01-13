@@ -1,0 +1,10 @@
+{
+    "amount": 10,
+    "currency": "EGP",
+    "paymentOptions": [2, 4, 5],
+    "name": "Test User",
+    "email": "test@example.com",
+    "mobile": "01000000000",
+    "redirectUrl": "https://google.com",
+    "customerReference": 123456
+}

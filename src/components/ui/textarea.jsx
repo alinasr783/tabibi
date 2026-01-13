@@ -1,6 +1,7 @@
+import * as React from "react"
 import { cn } from "../../lib/utils"
 
-export function Textarea({ className, ...props }) {
+const Textarea = React.forwardRef(({ className, ...props }, ref) => {
   return (
     <textarea
       style={{ direction: 'rtl' }}
@@ -12,7 +13,11 @@ export function Textarea({ className, ...props }) {
         "disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-muted",
         className
       )}
+      ref={ref}
       {...props}
     />
   )
-}
+})
+Textarea.displayName = "Textarea"
+
+export { Textarea }

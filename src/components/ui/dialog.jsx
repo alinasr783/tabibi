@@ -36,6 +36,10 @@ export function DialogTitle({children, className}) {
   return <h1 className={cn("text-lg font-semibold leading-none tracking-tight text-foreground", className)}>{children}</h1>;
 }
 
+export function DialogDescription({children, className}) {
+  return <p className={cn("text-sm text-muted-foreground", className)}>{children}</p>;
+}
+
 export function DialogFooter({children, className}) {
   return (
     <div className={cn("p-6 pt-4 flex items-center gap-2 w-full", className)}>

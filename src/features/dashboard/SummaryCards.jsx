@@ -12,7 +12,7 @@ import {formatCurrency} from "../../lib/utils";
 import useDashboardStats from "./useDashboardStats";
 import useFilteredPatientStats from "./useFilteredPatientStats";
 import usePlan from "../auth/usePlan";
-import useLastMonthBookings from "./useLastMonthBookings";
+import useSubscriptionUsage from "../subscriptions/useSubscriptionUsage";
 import { useNavigate } from "react-router-dom";
 
 function Stat({icon: Icon, label, value, isLoading, onClick}) {
@@ -44,8 +44,7 @@ export default function SummaryCards({ filter, setFilter }) {
   const {data: planData} = usePlan();
   const {data: filteredStats, isLoading: isFilteredLoading} =
     useFilteredPatientStats(filter);
-  const {count: lastMonthBookings, loading: isLastMonthBookingsLoading} = 
-    useLastMonthBookings();
+  const { data: usageStats, isLoading: isUsageLoading } = useSubscriptionUsage();
 
   // Check if income feature is enabled in the plan
   // By default, show income for all plans (set to true)
@@ -117,8 +116,8 @@ export default function SummaryCards({ filter, setFilter }) {
         <Stat
           icon={CalendarDays}
           label="الحجوزات الإلكترونية"
-          value={lastMonthBookings || 0}
-          isLoading={isLoading || isLastMonthBookingsLoading}
+          value={usageStats?.onlineAppointments || 0}
+          isLoading={isLoading || isUsageLoading}
           onClick={() => navigate('/online-booking')}
         />
         {isIncomeEnabled && (

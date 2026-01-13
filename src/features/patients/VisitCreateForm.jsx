@@ -160,11 +160,16 @@ export default function VisitCreateForm({ patientId, patientPlanId: externalPati
                                 </>
                             ) : (
                                 <SelectItem value="no-plans" disabled>
-                                    مفيش خطط علاجية
+                                    لا توجد خطط علاجية مضافة لهذا المريض
                                 </SelectItem>
                             )}
                         </SelectContent>
                     </Select>
+                    {(!patientPlans || patientPlans.length === 0) && (
+                        <p className="text-xs text-muted-foreground mt-1.5 px-1">
+                            * لإضافة خطة علاجية للمريض، يرجى الانتقال إلى تبويب "الخطط" في ملف المريض.
+                        </p>
+                    )}
                 </div>
                 
                 <div className="space-y-2">

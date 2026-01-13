@@ -1,19 +1,57 @@
-import { Wallet, CreditCard, AppWindow, TrendingUp, Calendar, AlertCircle, Plus, History, Check, Zap } from "lucide-react";
+import { useState } from "react";
+import { Wallet, CreditCard, AppWindow, TrendingUp, Calendar, AlertCircle, Plus, History, Check, Zap, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { Separator } from "../../components/ui/separator";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../../components/ui/dialog";
+import { Input } from "../../components/ui/input";
+import { Label } from "../../components/ui/label";
 import usePlan from "../auth/usePlan";
 import useInstalledApps from "./useInstalledApps";
 import useWallet from "./useWallet";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 import { Skeleton } from "../../components/ui/skeleton";
+import { initiatePayment } from "@/services/easykashService";
+import { toast } from "react-hot-toast";
+import { useAuth } from "@/features/auth/AuthContext";
 
 export default function ClinicWalletTab() {
   const { data: planData, isLoading } = usePlan();
   const { data: installedApps, isLoading: isAppsLoading } = useInstalledApps();
   const { wallet, transactions, isLoading: isWalletLoading } = useWallet();
+  const { user } = useAuth();
+  
+  const [isTopUpOpen, setIsTopUpOpen] = useState(false);
+  const [topUpAmount, setTopUpAmount] = useState("");
+  const [isPaymentLoading, setIsPaymentLoading] = useState(false);
+
+  const handleTopUp = async () => {
+    if (!topUpAmount || isNaN(topUpAmount) || parseFloat(topUpAmount) <= 0) {
+      toast.error("يرجى إدخال مبلغ صحيح");
+      return;
+    }
+
+    try {
+      setIsPaymentLoading(true);
+      const paymentUrl = await initiatePayment({
+        amount: parseFloat(topUpAmount),
+        type: 'wallet',
+        buyer: {
+          email: user?.email,
+          name: user?.name,
+          mobile: user?.phone
+        }
+      });
+      
+      window.location.href = paymentUrl;
+    } catch (error) {
+      console.error("Top-up Error:", error);
+      toast.error(error.message || "حدث خطأ أثناء بدء عملية الشحن");
+      setIsPaymentLoading(false);
+    }
+  };
   
   const walletBalance = wallet?.balance || 0;
   
@@ -60,12 +98,52 @@ export default function ClinicWalletTab() {
               <span className="text-3xl font-bold text-foreground">{walletBalance.toFixed(2)}</span>
               <span className="text-sm font-medium text-muted-foreground">جنيه</span>
             </div>
-            <Button className="w-full gap-2" size="sm">
+            <Button className="w-full gap-2" size="sm" onClick={() => setIsTopUpOpen(true)}>
               <Plus className="w-4 h-4" />
               شحن الرصيد
             </Button>
           </CardContent>
         </Card>
+
+        {/* Top Up Dialog */}
+        <Dialog open={isTopUpOpen} onOpenChange={setIsTopUpOpen}>
+          <DialogContent className="sm:max-w-[425px]" dir="rtl">
+            <DialogHeader>
+              <DialogTitle>شحن المحفظة</DialogTitle>
+              <DialogDescription>
+                أدخل المبلغ الذي تود إضافته إلى محفظتك.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="amount">المبلغ (جنيه)</Label>
+                <Input
+                  id="amount"
+                  type="number"
+                  min="1"
+                  placeholder="0.00"
+                  value={topUpAmount}
+                  onChange={(e) => setTopUpAmount(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsTopUpOpen(false)}>
+                إلغاء
+              </Button>
+              <Button onClick={handleTopUp} disabled={isPaymentLoading}>
+                {isPaymentLoading ? (
+                  <>
+                    <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                    جاري التحويل...
+                  </>
+                ) : (
+                  "تأكيد الدفع"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Current Plan Card */}
         <Card>

@@ -20,7 +20,7 @@ const statusConfig = {
   cancelled: { label: "ملغي", className: "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200" },
 }
 
-export default function PatientAppointmentsHistory({ appointments, isLoading, patientId }) {
+export default function PatientAppointmentsHistory({ appointments, isLoading, patientId, patient }) {
   const navigate = useNavigate()
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   
@@ -107,7 +107,7 @@ export default function PatientAppointmentsHistory({ appointments, isLoading, pa
       <AppointmentCreateDialog
         open={isCreateDialogOpen}
         onClose={() => setIsCreateDialogOpen(false)}
-        initialPatient={{ id: patientId }}
+        initialPatient={patient}
       />
     </div>
   )

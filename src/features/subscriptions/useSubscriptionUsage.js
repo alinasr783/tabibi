@@ -163,38 +163,36 @@ export default function useSubscriptionUsage(clinicId) {
                 endOfMonth: endOfMonth.toISOString()
             });
             
-            // Get total monthly appointments
-            console.log("Fetching monthly appointments for clinic_id:", effectiveClinicId);
-            const { count: monthlyAppointments, error: appointmentsError } = await supabase
+            // Get all appointments for the current month
+            console.log("Fetching monthly appointments data for clinic_id:", effectiveClinicId);
+            const { data: monthAppointments, error: appointmentsError } = await supabase
                 .from("appointments")
-                .select("*", { count: "exact", head: true })
+                .select("*")
                 .eq("clinic_id", effectiveClinicId)
                 .gte("date", startOfMonth.toISOString())
                 .lte("date", endOfMonth.toISOString());
 
-            console.log("Monthly appointments result:", { monthlyAppointments, appointmentsError });
+            console.log("Monthly appointments data:", monthAppointments);
+            
+            if (monthAppointments && monthAppointments.length > 0) {
+                console.log("First appointment keys:", Object.keys(monthAppointments[0]));
+                console.log("Unique 'from' values:", [...new Set(monthAppointments.map(a => a.from))]);
+                console.log("Unique 'source' values (if any):", [...new Set(monthAppointments.map(a => a.source))]);
+            }
 
             if (appointmentsError) {
                 console.log("Monthly appointments error:", appointmentsError);
                 throw appointmentsError;
             }
 
-            // Get online booking appointments for the current month
-            console.log("Fetching online appointments for clinic_id:", effectiveClinicId);
-            const { count: onlineAppointments, error: onlineAppointmentsError } = await supabase
-                .from("appointments")
-                .select("*", { count: "exact", head: true })
-                .eq("clinic_id", effectiveClinicId)
-                .eq("from", "booking") // Changed from "source" to "from" based on schema
-                .gte("date", startOfMonth.toISOString())
-                .lte("date", endOfMonth.toISOString());
+            const monthlyAppointments = monthAppointments.length;
+            // Check both 'from' and 'source' fields and be case-insensitive
+            const onlineAppointments = monthAppointments.filter(app => {
+                const source = app.from || app.source;
+                return source && String(source).toLowerCase() === 'booking';
+            }).length;
 
-            console.log("Online appointments result:", { onlineAppointments, onlineAppointmentsError });
-
-            if (onlineAppointmentsError) {
-                console.log("Online appointments error:", onlineAppointmentsError);
-                throw onlineAppointmentsError;
-            }
+            console.log("Calculated stats:", { monthlyAppointments, onlineAppointments });
 
             // Get clinic booking appointments for the current month
             const clinicAppointments = monthlyAppointments - onlineAppointments;

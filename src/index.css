@@ -90,6 +90,7 @@
   --color-info-foreground: hsl(var(--info-foreground));
   --radius: 0.5rem;
   --font-sans: Tajawal;
+  --font-amiri: Amiri;
 }
 
 html,

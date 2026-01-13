@@ -188,19 +188,19 @@ export default function OnlineBookingControlPanel() {
       </div>
       
       <Tabs defaultValue="settings" className="w-full" style={{direction: 'rtl'}}>
-        <TabsList className="w-full md:w-auto grid grid-cols-5 md:inline-flex h-auto p-1 bg-muted/50 mb-6" style={{direction: 'rtl'}}>
-          <TabsTrigger value="settings" className="text-xs md:text-sm py-2 px-1 md:px-3 gap-1 md:gap-2">
-            <span className="truncate">الإعدادات</span>
-          </TabsTrigger>
-          <TabsTrigger value="bookings" className="text-xs md:text-sm py-2 px-1 md:px-3 gap-1 md:gap-2 relative">
-            <span className="truncate">الحجوزات</span>
-            {bookings?.filter(b => b.status === 'pending').length > 0 && (
-                <Badge variant="destructive" className="absolute -top-1 -left-1 px-1 h-4 min-w-[16px] flex items-center justify-center text-[10px] rounded-full">
-                    {bookings.filter(b => b.status === 'pending').length}
-                </Badge>
-            )}
-          </TabsTrigger>
-        </TabsList>
+        <TabsList className="w-full grid grid-cols-2 h-auto p-1 bg-muted/50 mb-6" style={{direction: 'rtl'}}>
+                    <TabsTrigger value="settings" className="text-sm py-2 gap-2">
+                        <span className="truncate">الإعدادات</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="bookings" className="text-sm py-2 gap-2 relative">
+                        <span className="truncate">الحجوزات</span>
+                        {bookings?.filter(b => b.status === 'pending').length > 0 && (
+                            <Badge variant="destructive" className="absolute -top-1 -left-1 px-1 h-4 min-w-[16px] flex items-center justify-center text-[10px] rounded-full">
+                                {bookings.filter(b => b.status === 'pending').length}
+                            </Badge>
+                        )}
+                    </TabsTrigger>
+                </TabsList>
 
         <TabsContent value="settings" className="space-y-6">
             {/* Online Booking Status Card */}

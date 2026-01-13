@@ -94,6 +94,9 @@ async function main() {
   // Run the pricing plans migration
   await runMigration('add-pricing-plans.sql');
   
+  // Run the transactions table migration
+  await runMigration('supabase/migrations/20240320_create_transactions_table.sql');
+  
   console.log('All migrations completed!');
 }
 

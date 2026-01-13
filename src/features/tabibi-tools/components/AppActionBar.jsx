@@ -1,16 +1,46 @@
+import { useState } from "react";
 import { Button } from "../../../components/ui/button";
-import { Loader2, Eye, Wallet } from "lucide-react";
+import { Loader2, Eye, Wallet, CreditCard, Phone } from "lucide-react";
 import { formatCurrency } from "../../../lib/utils";
 import useWallet from "../../clinic/useWallet";
 import useClinic from "../../auth/useClinic";
 import { subscribeWithWallet } from "../../../services/apiTabibiApps";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
+import { initiatePayment } from "../../../services/easykashService";
+import { useAuth } from "../../../features/auth/AuthContext";
 
 export default function AppActionBar({ app, isInstalled, uninstallMutation }) {
   const { data: clinic } = useClinic();
   const { wallet, isLoading: isWalletLoading } = useWallet();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [isPaymentLoading, setIsPaymentLoading] = useState(false);
+
+  const handleOnlinePayment = async () => {
+    try {
+      setIsPaymentLoading(true);
+      const paymentUrl = await initiatePayment({
+        amount: app.price,
+        type: 'app_purchase',
+        metadata: {
+          app_id: app.id,
+          app_name: app.title
+        },
+        buyer: {
+          email: user?.email,
+          name: user?.name,
+          mobile: user?.phone
+        }
+      });
+      
+      window.location.href = paymentUrl;
+    } catch (error) {
+      console.error("App Payment Error:", error);
+      toast.error(error.message || "حدث خطأ أثناء بدء عملية الدفع");
+      setIsPaymentLoading(false);
+    }
+  };
 
   const subscribeMutation = useMutation({
     mutationFn: () => subscribeWithWallet(clinic?.clinic_uuid, app.id),
@@ -69,19 +99,14 @@ export default function AppActionBar({ app, isInstalled, uninstallMutation }) {
 
           {isInstalled ? (
             <Button 
-              variant="destructive" 
-              className="flex-[2] md:w-auto md:min-w-[200px]"
-              onClick={() => uninstallMutation.mutate()}
-              disabled={uninstallMutation.isLoading}
+                variant="outline" 
+                className="flex-[2] md:w-auto md:min-w-[200px] gap-2 border-primary/20 hover:bg-primary/5"
+                onClick={() => {
+                    window.open("https://wa.me/201158954215", "_blank");
+                }}
             >
-              {uninstallMutation.isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  جاري الإلغاء...
-                </>
-              ) : (
-                "إلغاء التفعيل"
-              )}
+                <Phone className="w-4 h-4 text-primary" />
+                تواصل مع الدعم
             </Button>
           ) : (
             <>
@@ -105,10 +130,21 @@ export default function AppActionBar({ app, isInstalled, uninstallMutation }) {
                 </Button>
               ) : (
                 <Button 
-                  className="flex-[2] md:w-auto md:min-w-[200px] bg-green-600 hover:bg-green-700"
-                  onClick={() => window.open('https://wa.me/201000000000?text=' + encodeURIComponent(`مرحباً، أود تفعيل تطبيق ${app.title}`), '_blank')}
+                  className="flex-[2] md:w-auto md:min-w-[200px] bg-green-600 hover:bg-green-700 gap-2"
+                  onClick={handleOnlinePayment}
+                  disabled={isPaymentLoading}
                 >
-                  تواصل مع الدعم للتفعيل
+                  {isPaymentLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      جاري التحويل...
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="w-4 h-4" />
+                      ادفع اونلاين
+                    </>
+                  )}
                 </Button>
               )}
             </>

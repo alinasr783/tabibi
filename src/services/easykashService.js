@@ -1,0 +1,121 @@
+import supabase from './supabase';
+
+/**
+ * Initiates a payment process with EasyKash via Supabase Edge Function
+ * @param {Object} params
+ * @param {number} params.amount - Amount in EGP
+ * @param {string} params.type - 'subscription', 'wallet', 'app_purchase'
+ * @param {Object} params.metadata - Additional data (planId, appId, etc.)
+ * @param {Object} params.buyer - { name, email, mobile } (Optional, useful if we want to pass to Edge Function)
+ * @returns {Promise<string>} - The redirect URL
+ */
+export async function initiatePayment({ amount, type = 'subscription', metadata = {}, buyer = {} }) {
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) throw new Error("يجب تسجيل الدخول أولاً");
+        const user = session.user;
+
+        // First try to find clinic_id from users table
+        let { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('clinic_id')
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+        if (userError) {
+             console.error("Error fetching user data:", userError);
+             throw new Error("حدث خطأ أثناء البحث عن بيانات المستخدم");
+        }
+        
+        if (!userData || !userData.clinic_id) {
+             throw new Error("لم يتم العثور على عيادة مرتبطة بهذا الحساب");
+        }
+
+        const clinicId = userData.clinic_id; // This is the UUID of the clinic
+
+        // Prepare payload for Edge Function
+        const payload = {
+            amount,
+            currency: 'EGP',
+            user_id: user.id,
+            clinic_id: clinicId,
+            redirect_url: `${window.location.origin}/payment/callback`,
+            metadata: {
+                ...metadata,
+                type, // subscription, wallet, app_purchase
+                buyer_name: buyer.name,
+                buyer_email: buyer.email,
+                buyer_mobile: buyer.mobile
+            }
+        };
+
+        // Call the Edge Function using direct fetch to bypass potential SDK auth issues
+        console.log("Invoking Edge Function: create-payment-link");
+        console.log("Payload:", JSON.stringify(payload, null, 2));
+
+        const functionUrl = 'https://hvbjysojjrdkszuvczbc.supabase.co/functions/v1/create-payment-link';
+        
+        const response = await fetch(functionUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify(payload)
+        });
+
+        let data;
+        const responseText = await response.text();
+        
+        try {
+            data = JSON.parse(responseText);
+        } catch (e) {
+            console.error("Non-JSON response:", responseText);
+            throw new Error("استجابة غير صالحة من الخادم");
+        }
+
+        if (!response.ok) {
+            console.error("Edge Function Error:", data);
+            const errorMessage = data.error || data.message || "فشل في الاتصال بخدمة الدفع";
+            throw new Error(errorMessage);
+        }
+        console.log("Edge Function Response Data:", data);
+
+        // Check for URL in different possible fields (depending on API version)
+        let paymentUrl = data.url || data.link || (data.data && data.data.url);
+
+        if (!paymentUrl) {
+            console.error("Missing URL in response:", data);
+            throw new Error("لم يتم استلام رابط الدفع من الخادم. تفاصيل الاستجابة: " + JSON.stringify(data));
+        }
+
+        // Ensure URL has protocol
+        if (!paymentUrl.startsWith('http')) {
+            if (paymentUrl.startsWith('/')) {
+                // If relative, assume it's meant to be on EasyKash domain (though Edge Function should have fixed this)
+                // But if it slipped through, it's safer to error out than redirect to 404
+                console.warn("Received relative URL:", paymentUrl);
+                paymentUrl = `https://www.easykash.net${paymentUrl}`;
+            } else {
+                 paymentUrl = `https://${paymentUrl}`;
+            }
+        }
+
+        return paymentUrl;
+
+    } catch (error) {
+        console.error("Payment initiation error:", error);
+        throw error;
+    }
+}
+
+/**
+ * Verifies a payment status
+ * @param {string} transactionRef - EasyKash Reference
+ * @returns {Promise<Object>}
+ */
+export async function verifyPayment(transactionRef) {
+    // Placeholder - verification happens via Webhook or Callback page logic
+    return { status: 'success' }; 
+}
+

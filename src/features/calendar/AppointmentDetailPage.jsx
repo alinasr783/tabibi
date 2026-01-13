@@ -24,7 +24,6 @@ import {
   Pill,
   Plus,
   X,
-  BadgeCheck,
   Ban,
   PlayCircle,
   Info,
@@ -110,7 +109,7 @@ export default function AppointmentDetailPage() {
     completed: {
       label: "خلص", 
       variant: "default", 
-      icon: BadgeCheck, 
+      icon: CheckCircle, 
       color: "text-blue-600",
       bg: "bg-blue-50",
       border: "border-blue-200"
