@@ -1,15 +1,6 @@
 import supabase from './supabase';
 
-/**
- * Initiates a payment process with EasyKash via Supabase Edge Function
- * @param {Object} params
- * @param {number} params.amount - Amount in EGP
- * @param {string} params.type - 'subscription', 'wallet', 'app_purchase'
- * @param {Object} params.metadata - Additional data (planId, appId, etc.)
- * @param {Object} params.buyer - { name, email, mobile } (Optional, useful if we want to pass to Edge Function)
- * @returns {Promise<string>} - The redirect URL
- */
-export async function initiatePayment({ amount, type = 'subscription', metadata = {}, buyer = {} }) {
+export async function initiatePayment({ amount, type = 'subscription', metadata = {}, buyer = {}, paymentMethod = 'card' }) {
     try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) throw new Error("يجب تسجيل الدخول أولاً");
@@ -31,18 +22,18 @@ export async function initiatePayment({ amount, type = 'subscription', metadata 
              throw new Error("لم يتم العثور على عيادة مرتبطة بهذا الحساب");
         }
 
-        const clinicId = userData.clinic_id; // This is the UUID of the clinic
+        const clinicId = userData.clinic_id;
 
-        // Prepare payload for Edge Function
         const payload = {
             amount,
             currency: 'EGP',
             user_id: user.id,
             clinic_id: clinicId,
             redirect_url: `${window.location.origin}/payment/callback`,
+            payment_method: paymentMethod,
             metadata: {
                 ...metadata,
-                type, // subscription, wallet, app_purchase
+                type,
                 buyer_name: buyer.name,
                 buyer_email: buyer.email,
                 buyer_mobile: buyer.mobile
@@ -69,7 +60,7 @@ export async function initiatePayment({ amount, type = 'subscription', metadata 
         
         try {
             data = JSON.parse(responseText);
-        } catch (e) {
+        } catch {
             console.error("Non-JSON response:", responseText);
             throw new Error("استجابة غير صالحة من الخادم");
         }
@@ -110,12 +101,10 @@ export async function initiatePayment({ amount, type = 'subscription', metadata 
 }
 
 /**
- * Verifies a payment status
- * @param {string} transactionRef - EasyKash Reference
+ * Verifies a payment status (placeholder - handled via webhook/callback)
  * @returns {Promise<Object>}
  */
-export async function verifyPayment(transactionRef) {
+export async function verifyPayment() {
     // Placeholder - verification happens via Webhook or Callback page logic
     return { status: 'success' }; 
 }
-

@@ -26,6 +26,7 @@ export default function ClinicWalletTab() {
   const [isTopUpOpen, setIsTopUpOpen] = useState(false);
   const [topUpAmount, setTopUpAmount] = useState("");
   const [isPaymentLoading, setIsPaymentLoading] = useState(false);
+  const [topUpPaymentMethod, setTopUpPaymentMethod] = useState('card');
 
   const handleTopUp = async () => {
     if (!topUpAmount || isNaN(topUpAmount) || parseFloat(topUpAmount) <= 0) {
@@ -42,8 +43,10 @@ export default function ClinicWalletTab() {
           email: user?.email,
           name: user?.name,
           mobile: user?.phone
-        }
+        },
+        paymentMethod: topUpPaymentMethod
       });
+      localStorage.setItem('pending_payment_method', topUpPaymentMethod);
       
       window.location.href = paymentUrl;
     } catch (error) {
@@ -54,7 +57,10 @@ export default function ClinicWalletTab() {
   };
   
   const walletBalance = wallet?.balance || 0;
-  
+  const topUpAmountNumber = parseFloat(topUpAmount) || 0;
+  const hasValidTopUpAmount = !isNaN(topUpAmountNumber) && topUpAmountNumber > 0;
+  const expectedBalanceAfterTopUp = walletBalance + (hasValidTopUpAmount ? topUpAmountNumber : 0);
+
   const activeApps = installedApps || [];
 
   if (isLoading || isAppsLoading || isWalletLoading) {
@@ -115,6 +121,22 @@ export default function ClinicWalletTab() {
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
+              <div className="bg-primary/5 border border-primary/10 rounded-[var(--radius)] p-3 text-sm space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">رصيدك الحالي</span>
+                  <span className="font-semibold text-foreground">
+                    {walletBalance.toFixed(2)} جنيه
+                  </span>
+                </div>
+                {hasValidTopUpAmount && (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">الرصيد بعد الشحن</span>
+                    <span className="font-semibold text-primary">
+                      {expectedBalanceAfterTopUp.toFixed(2)} جنيه
+                    </span>
+                  </div>
+                )}
+              </div>
               <div className="grid gap-2">
                 <Label htmlFor="amount">المبلغ (جنيه)</Label>
                 <Input
@@ -126,12 +148,63 @@ export default function ClinicWalletTab() {
                   onChange={(e) => setTopUpAmount(e.target.value)}
                 />
               </div>
+              <div className="grid gap-2">
+                <Label>طريقة الدفع</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTopUpPaymentMethod('card')}
+                    className={`py-2 px-3 rounded-[var(--radius)] text-xs font-medium flex flex-col items-center gap-1 border transition-all ${
+                      topUpPaymentMethod === 'card'
+                        ? 'bg-primary text-white border-primary shadow-sm'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-primary'
+                    }`}
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    <span>بطاقة</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTopUpPaymentMethod('wallet')}
+                    className={`py-2 px-3 rounded-[var(--radius)] text-xs font-medium flex flex-col items-center gap-1 border transition-all ${
+                      topUpPaymentMethod === 'wallet'
+                        ? 'bg-primary text-white border-primary shadow-sm'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-primary'
+                    }`}
+                  >
+                    <Wallet className="w-4 h-4" />
+                    <span>محفظة</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTopUpPaymentMethod('fawry')}
+                    className={`py-2 px-3 rounded-[var(--radius)] text-xs font-medium flex flex-col items-center gap-1 border transition-all ${
+                      topUpPaymentMethod === 'fawry'
+                        ? 'bg-primary text-white border-primary shadow-sm'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-primary'
+                    }`}
+                  >
+                    <Zap className="w-4 h-4" />
+                    <span>فوري</span>
+                  </button>
+                </div>
+              </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsTopUpOpen(false)}>
+            <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-between gap-2 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsTopUpOpen(false)}
+                fullWidth={true}
+                className="sm:w-auto"
+              >
                 إلغاء
               </Button>
-              <Button onClick={handleTopUp} disabled={isPaymentLoading}>
+              <Button
+                onClick={handleTopUp}
+                disabled={isPaymentLoading}
+                fullWidth={true}
+                className="sm:w-auto"
+              >
                 {isPaymentLoading ? (
                   <>
                     <Loader2 className="ml-2 h-4 w-4 animate-spin" />

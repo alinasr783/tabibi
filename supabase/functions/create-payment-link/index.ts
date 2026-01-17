@@ -16,6 +16,21 @@ function normalizeEgyptMobile(mobile: string | undefined): string {
   return '01000000000'
 }
 
+function mapPaymentMethodToOptions(method: string | undefined): number[] {
+  if (!method) return [2, 4, 5]
+  switch (method) {
+    case 'card':
+      return [2]
+    case 'wallet':
+      return [4]
+    case 'cash':
+    case 'fawry':
+      return [5]
+    default:
+      return [2, 4, 5]
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -25,8 +40,7 @@ serve(async (req) => {
   try {
     console.log("Function invoked");
 
-    // 1. Get request body
-    const { amount, currency, metadata, user_id, clinic_id, redirect_url } = await req.json()
+    const { amount, currency, metadata, user_id, clinic_id, redirect_url, payment_method } = await req.json()
     console.log(`Parsed body for user: ${user_id}, amount: ${amount}`);
     
     if (!amount || !user_id) {
@@ -69,25 +83,23 @@ serve(async (req) => {
 
     console.log('Transaction created:', transaction.id, transaction.reference_number)
 
-    // Use the hardcoded key directly to avoid Environment Variable issues
-    const easykashToken = '3qjfyybxg9iw5lft'; 
+    const easykashToken = '3qjfyybxg9iw5lft'
     
     if (!easykashToken) {
-        throw new Error('Server misconfiguration: Missing EASYKASH_API_KEY')
+      throw new Error('Server misconfiguration: Missing EASYKASH_API_KEY')
     }
-    // Log token prefix for debugging
-    console.log(`Using EasyKash Token: ${easykashToken}`);
+    console.log(`Using EasyKash Token: ${easykashToken}`)
 
     const easykashPayload = {
-      amount: Number(amount), // Ensure number
+      amount: Number(amount),
       currency: currency || 'EGP',
-      paymentOptions: [2, 4, 5], // Card, Wallet, Fawry
-      cashExpiry: 12, // 12 hours
+      paymentOptions: mapPaymentMethodToOptions(payment_method),
+      cashExpiry: 12,
       name: metadata?.buyer_name || 'Tabibi User',
       email: metadata?.buyer_email || 'no-email@tabibi.net',
       mobile: normalizeEgyptMobile(metadata?.buyer_mobile),
       redirectUrl: redirect_url,
-      customerReference: Number(transaction.reference_number) || Date.now(), // Fallback to timestamp if ref is missing/NaN
+      customerReference: Number(transaction.reference_number) || Date.now(),
     }
 
     console.log('Payload:', JSON.stringify(easykashPayload))

@@ -35,14 +35,16 @@ export default function PaymentCallback() {
         // EasyKash redirect params: status (PAID/FAILED), providerRefNum, customerReference
         // Paymob/Other params: success, id, amount_cents, ...
         
-        const ekStatus = searchParams.get('status'); // EasyKash
+        const ekStatus = searchParams.get('status');
         const ekRef = searchParams.get('easykashRef') || searchParams.get('providerRefNum');
         const ekCustomerRef = searchParams.get('customerReference');
+        const ekVoucher = searchParams.get('voucher');
         
         const isEasyKash = ekStatus && ekCustomerRef;
 
         if (isEasyKash) {
-            console.log("EasyKash Callback:", { ekStatus, ekRef, ekCustomerRef });
+            const pendingMethod = localStorage.getItem('pending_payment_method');
+            console.log("EasyKash Callback:", { ekStatus, ekRef, ekCustomerRef, ekVoucher });
             
             if (ekStatus === 'PAID') {
                 // Verify against Supabase Transaction
@@ -90,7 +92,7 @@ export default function PaymentCallback() {
                     setPaymentData({
                         amount: amount,
                         transactionId: ekRef,
-                        paymentMethod: 'EasyKash'
+                        paymentMethod: pendingMethod || 'card'
                     });
                     toast.success("تم تفعيل الاشتراك بنجاح!");
                     
@@ -99,10 +101,19 @@ export default function PaymentCallback() {
                     localStorage.removeItem('pending_subscription_billing_period');
                     localStorage.removeItem('pending_subscription_amount');
                     localStorage.removeItem('pending_discount_id');
+                    localStorage.removeItem('pending_payment_method');
                 } else {
                     // Maybe it was already processed or just a wallet top-up?
                     setStatus('success');
                 }
+            } else if (ekStatus === 'PENDING') {
+                setStatus('pending');
+                setPaymentData({
+                    voucher: ekVoucher,
+                    transactionId: ekRef,
+                    paymentMethod: pendingMethod || 'card'
+                });
+                toast("عملية الدفع قيد الانتظار. في حالة فوري، استخدم كود الدفع لإتمام العملية.");
             } else {
                 setStatus('failed');
                 toast.error("فشلت عملية الدفع");
@@ -197,6 +208,163 @@ export default function PaymentCallback() {
     navigate("/pricing");
   };
 
+  const handleRefreshPending = async () => {
+    try {
+      const ekCustomerRef = searchParams.get('customerReference');
+      const ekStatus = searchParams.get('status');
+      const ekRef = searchParams.get('easykashRef') || searchParams.get('providerRefNum');
+      const ekVoucher = searchParams.get('voucher');
+
+      console.log('EasyKash Refresh:', {
+        ekStatus,
+        ekRef,
+        ekCustomerRef,
+        ekVoucher
+      });
+      if (!ekCustomerRef) {
+        toast.error("لا يمكن تحديد رقم العملية لتحديث الحالة");
+        return;
+      }
+
+      const { data: tx, error } = await supabase
+        .from('transactions')
+        .select('status, type, amount, metadata, easykash_ref')
+        .eq('reference_number', parseInt(ekCustomerRef))
+        .single();
+
+      console.log('Refresh pending transaction:', tx);
+
+      if (error || !tx) {
+        toast.error("تعذر العثور على عملية الدفع في النظام");
+        return;
+      }
+
+      if (tx.status !== 'completed') {
+        await supabase
+          .from('transactions')
+          .update({
+            status: 'completed',
+            easykash_ref: ekRef
+          })
+          .eq('reference_number', parseInt(ekCustomerRef));
+      }
+
+      const pendingMethod = localStorage.getItem('pending_payment_method');
+
+      if (tx.type === 'subscription') {
+        const planIdLocal = localStorage.getItem('pending_subscription_plan_id');
+        const billingPeriodLocal = localStorage.getItem('pending_subscription_billing_period');
+        const amountLocal = localStorage.getItem('pending_subscription_amount');
+        const discountIdLocal = localStorage.getItem('pending_discount_id');
+
+        const planId = planIdLocal || tx.metadata?.planId;
+        const billingPeriod = billingPeriodLocal || tx.metadata?.billingPeriod || 'monthly';
+        const amount = amountLocal ? parseFloat(amountLocal) : tx.amount || 0;
+        const discountId = discountIdLocal || tx.metadata?.discountId;
+
+        if (planId && user?.clinic_id) {
+          await createSubscription({
+            clinicId: user.clinic_id,
+            planId,
+            billingPeriod,
+            amount
+          });
+
+          if (discountId) {
+            await incrementDiscountUsage(parseInt(discountId));
+          }
+
+          setStatus('success');
+          setPaymentData({
+            amount,
+            transactionId: tx.easykash_ref || '',
+            paymentMethod: pendingMethod || 'card'
+          });
+          toast.success("تم تفعيل الاشتراك بعد تأكيد الدفع!");
+
+          localStorage.removeItem('pending_subscription_plan_id');
+          localStorage.removeItem('pending_subscription_billing_period');
+          localStorage.removeItem('pending_subscription_amount');
+          localStorage.removeItem('pending_discount_id');
+          localStorage.removeItem('pending_payment_method');
+        } else {
+          setStatus('success');
+          setPaymentData({
+            amount: tx.amount || 0,
+            transactionId: tx.easykash_ref || '',
+            paymentMethod: pendingMethod || 'card'
+          });
+          toast.success("تم تأكيد الدفع.");
+        }
+      } else {
+        try {
+          if (tx.type === 'wallet' && user?.clinic_id && tx.amount) {
+            const referenceId = ekRef || ekCustomerRef;
+
+            const { data: wallet } = await supabase
+              .from('clinic_wallets')
+              .select('id, balance')
+              .eq('clinic_id', user.clinic_id)
+              .maybeSingle();
+
+            let walletId = wallet?.id;
+            let currentBalance = Number(wallet?.balance || 0);
+
+            if (!walletId) {
+              const { data: newWallet } = await supabase
+                .from('clinic_wallets')
+                .insert({ clinic_id: user.clinic_id, balance: 0 })
+                .select('id, balance')
+                .single();
+
+              walletId = newWallet?.id;
+              currentBalance = Number(newWallet?.balance || 0);
+            }
+
+            if (walletId && referenceId) {
+              const { data: existingTx } = await supabase
+                .from('wallet_transactions')
+                .select('id')
+                .eq('reference_type', 'wallet')
+                .eq('reference_id', String(referenceId))
+                .maybeSingle();
+
+              if (!existingTx) {
+                await supabase
+                  .from('clinic_wallets')
+                  .update({ balance: currentBalance + Number(tx.amount) })
+                  .eq('id', walletId);
+
+                await supabase.from('wallet_transactions').insert({
+                  wallet_id: walletId,
+                  amount: Number(tx.amount),
+                  type: 'deposit',
+                  description: 'شحن المحفظة عبر EasyKash',
+                  reference_type: 'wallet',
+                  reference_id: String(referenceId),
+                  status: 'completed'
+                });
+              }
+            }
+          }
+        } catch (walletError) {
+          console.error('Wallet top-up apply error:', walletError);
+        }
+
+        setStatus('success');
+        setPaymentData({
+          amount: tx.amount || 0,
+          transactionId: tx.easykash_ref || '',
+          paymentMethod: pendingMethod || 'card'
+        });
+        toast.success("تم تأكيد الدفع.");
+      }
+    } catch (error) {
+      console.error('Refresh pending payment error:', error);
+      toast.error("فشل في تحديث حالة الدفع، يرجى المحاولة مرة أخرى.");
+    }
+  };
+
   // Get payment method icon and name
   const getPaymentMethodInfo = (methodType) => {
     switch(methodType) {
@@ -262,6 +430,62 @@ export default function PaymentCallback() {
                 <div className="h-2 w-2 bg-blue-600 rounded-full"></div>
                 <div className="h-2 w-2 bg-blue-600 rounded-full"></div>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (status === 'pending') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/30 flex items-center justify-center p-4" dir="rtl" lang="ar">
+        <Card className="w-full max-w-md rounded-[var(--radius)] border-0 shadow-lg">
+          <CardHeader className="text-center pb-4">
+            <div className="mx-auto bg-yellow-100 p-4 rounded-full w-16 h-16 flex items-center justify-center mb-4">
+              <Loader className="w-8 h-8 text-yellow-600 animate-spin" />
+            </div>
+            <CardTitle className="text-xl font-bold text-gray-900">
+              عملية الدفع قيد الانتظار
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-center space-y-5">
+            <p className="text-gray-600">
+              عملية الدفع ما زالت قيد الانتظار. في حالة اختيار الدفع عن طريق فوري أو كاش، يجب إتمام الدفع باستخدام كود العملية ثم سيتم تحديث الاشتراك أو رصيد المحفظة تلقائياً.
+            </p>
+            {paymentData?.voucher && (
+              <div className="bg-yellow-50 rounded-[var(--radius)] p-4 border border-yellow-200 text-center sm:text-left">
+                <p className="text-sm text-gray-700 mb-1">كود الدفع (فوري):</p>
+                <p className="font-mono text-lg font-bold text-yellow-800">
+                  {paymentData.voucher}
+                </p>
+                <p className="text-[11px] sm:text-xs text-yellow-700 mt-2">
+                  احتفظ بهذا الكود، وشاركه مع موظف الدفع في فوري عند السداد.
+                </p>
+              </div>
+            )}
+            <div className="bg-gray-50 border border-dashed border-gray-200 rounded-[var(--radius)] p-3 text-xs text-gray-600 space-y-1">
+              <p>
+                لو أتممت الدفع بالفعل، انتظر دقيقة ثم اضغط على زر "تحديث حالة الدفع".
+              </p>
+              <p>
+                لو ما تمش التحديث فوراً، برجاء المحاولة بعد دقيقة.
+              </p>
+            </div>
+            <div className="pt-2 space-y-2">
+              <Button 
+                onClick={handleRefreshPending}
+                fullWidth={true}
+              >
+                تحديث حالة الدفع
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={handleReturnToDashboard}
+                fullWidth={true}
+              >
+                العودة للوحة التحكم
+              </Button>
             </div>
           </CardContent>
         </Card>

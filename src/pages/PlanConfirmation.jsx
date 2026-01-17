@@ -41,6 +41,7 @@ export default function PlanConfirmation() {
   const [billingPeriod, setBillingPeriod] = useState('monthly')
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const [isPaymentLoading, setIsPaymentLoading] = useState(false)
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('card')
   const discount = useDiscountCode(plan?.price || 0, planId, billingPeriod)
   
   const isLoading = isPlanLoading
@@ -111,6 +112,7 @@ export default function PlanConfirmation() {
       localStorage.setItem('pending_subscription_plan_id', plan.id.toString());
       localStorage.setItem('pending_subscription_billing_period', billingPeriod);
       localStorage.setItem('pending_subscription_amount', finalPrice.toString());
+      localStorage.setItem('pending_payment_method', paymentMethod);
 
       if (discount.appliedDiscount?.id) {
         localStorage.setItem('pending_discount_id', discount.appliedDiscount.id.toString());
@@ -130,7 +132,8 @@ export default function PlanConfirmation() {
             email: user.email,
             name: user.name,
             mobile: user.phone
-          }
+          },
+          paymentMethod
         });
         
         // Redirect to EasyKash payment page
@@ -497,12 +500,52 @@ export default function PlanConfirmation() {
                   </div>
                 </div>
 
-                {/* Payment Method Selection - Hidden as requested */}
+                <div className="space-y-3">
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <CreditCard className="w-4 h-4 text-gray-400" />
+                    طريقة الدفع
+                  </label>
+                  <div className="grid grid-cols-3 gap-3">
+                    <button
+                      onClick={() => setSelectedPaymentMethod('card')}
+                      className={`py-2 px-3 rounded-[var(--radius)] text-xs sm:text-sm font-medium flex flex-col items-center gap-1 border transition-all ${
+                        selectedPaymentMethod === 'card'
+                          ? 'bg-primary text-white border-primary shadow-sm'
+                          : 'bg-white text-gray-700 border-gray-300 hover:border-primary'
+                      }`}
+                    >
+                      <CreditCard className="w-4 h-4" />
+                      <span>بطاقة بنكية</span>
+                    </button>
+                    <button
+                      onClick={() => setSelectedPaymentMethod('wallet')}
+                      className={`py-2 px-3 rounded-[var(--radius)] text-xs sm:text-sm font-medium flex flex-col items-center gap-1 border transition-all ${
+                        selectedPaymentMethod === 'wallet'
+                          ? 'bg-primary text-white border-primary shadow-sm'
+                          : 'bg-white text-gray-700 border-gray-300 hover:border-primary'
+                      }`}
+                    >
+                      <Wallet className="w-4 h-4" />
+                      <span>محفظة موبايل</span>
+                    </button>
+                    <button
+                      onClick={() => setSelectedPaymentMethod('fawry')}
+                      className={`py-2 px-3 rounded-[var(--radius)] text-xs sm:text-sm font-medium flex flex-col items-center gap-1 border transition-all ${
+                        selectedPaymentMethod === 'fawry'
+                          ? 'bg-primary text-white border-primary shadow-sm'
+                          : 'bg-white text-gray-700 border-gray-300 hover:border-primary'
+                      }`}
+                    >
+                      <Zap className="w-4 h-4" />
+                      <span>فوري كاش</span>
+                    </button>
+                  </div>
+                </div>
 
                 {/* Payment Buttons */}
                 <div className="space-y-3">
                   <Button
-                    onClick={() => handleConfirmSubscription('card')}
+                    onClick={() => handleConfirmSubscription(selectedPaymentMethod)}
                     className="w-full bg-primary hover:bg-primary/90 text-white py-3"
                     disabled={isSubmitting}
                   >
