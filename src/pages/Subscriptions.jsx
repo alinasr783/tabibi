@@ -73,14 +73,13 @@ export default function Subscriptions() {
     }
   }, [isLoading, isUserLoading, user, planData, allPlans, patientCount, usageStats, planLimits]);
 
-  // Get current plan details
   const currentPlan = planData?.plans;
+  const currentPlanId = planData?.plan_id;
   const isFreePlan = !currentPlan || currentPlan.name === "Free" || currentPlan.name === "باقة مجانية";
   const hasNoSubscription = !planData;  
   console.log("Current plan:", currentPlan);
   console.log("Is free plan:", isFreePlan);
   
-  // Get subscription details
   const subscriptionStartDate = planData?.current_period_start;
   const subscriptionEndDate = planData?.current_period_end;
   const billingPeriod = planData?.billing_period || "monthly";
@@ -89,7 +88,6 @@ export default function Subscriptions() {
   console.log("Subscription end date:", subscriptionEndDate);
   console.log("Billing period:", billingPeriod);
   
-  // Calculate days remaining
   let daysRemaining = null;
   if (subscriptionEndDate) {
     const today = new Date();
@@ -98,6 +96,8 @@ export default function Subscriptions() {
     daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     console.log("Days remaining:", daysRemaining);
   }
+
+  const isExpired = !hasNoSubscription && !isFreePlan && daysRemaining !== null && daysRemaining < 0;
 
   // Get plan limits from the new hook or fallback to embedded data
   let patientLimit = 50;
@@ -152,10 +152,14 @@ export default function Subscriptions() {
   const isHighestPlan = allPlans && currentPlan && 
     currentPlan.price === Math.max(...allPlans.map(p => p.price));
 
-  // Handle plan switching
   const handleSwitchPlan = (planId) => {
     console.log("Switching to plan:", planId);
     navigate(`/plan/${planId}`);
+  };
+
+  const handleRenewCurrentPlan = () => {
+    if (!currentPlanId) return;
+    navigate(`/plan/${currentPlanId}`);
   };
 
   // Handle billing period toggle
@@ -304,8 +308,11 @@ export default function Subscriptions() {
                     </div>
                     
                     {!hasNoSubscription && !isFreePlan && (
-                      <Badge variant="default" className="px-3 py-1 text-xs">
-                        نشط
+                      <Badge
+                        variant={isExpired ? "destructive" : "default"}
+                        className="px-3 py-1 text-xs flex items-center gap-1"
+                      >
+                        {isExpired ? "منتهي" : "نشط"}
                       </Badge>
                     )}
                   </div>
@@ -368,10 +375,9 @@ export default function Subscriptions() {
                           </div>
                         </div>
                         
-                        {/* Expiry Date */}
                         {!isFreePlan && subscriptionEndDate && (
                           <div className="p-3 rounded-[var(--radius)] border border-border/50 bg-muted/20">
-                            <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-2 mb-1">
                               <CalendarDays className="w-4 h-4 text-primary" />
                               <p className="text-xs text-muted-foreground">الانتهاء</p>
                             </div>
@@ -380,13 +386,32 @@ export default function Subscriptions() {
                             </p>
                             {daysRemaining !== null && (
                               <p className="text-xs text-muted-foreground mt-1">
-                                {daysRemaining} {daysRemaining === 1 ? "يوم" : "أيام"} متبقية
+                                {daysRemaining > 0
+                                  ? `${daysRemaining} ${daysRemaining === 1 ? "يوم" : "أيام"} متبقية`
+                                  : daysRemaining === 0
+                                  ? "ينتهي اليوم"
+                                  : `انتهت منذ ${Math.abs(daysRemaining)} يوم${Math.abs(daysRemaining) === 1 ? "" : "ا"}`}
                               </p>
                             )}
                           </div>
                         )}
                       </div>
                       
+                      {isExpired && (
+                        <div className="p-3 rounded-[var(--radius)] border border-red-200 bg-red-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                          <div className="text-sm text-red-700">
+                            انتهت صلاحية اشتراكك. قم بتجديد الباقة للاستمرار في استخدام النظام بدون انقطاع.
+                          </div>
+                          <Button
+                            onClick={handleRenewCurrentPlan}
+                            className="w-full sm:w-auto rounded-[var(--radius)] bg-red-600 hover:bg-red-700"
+                          >
+                            <RotateCcw className="w-4 h-4 ml-2" />
+                            تجديد الباقة
+                          </Button>
+                        </div>
+                      )}
+
                       {/* Usage Stats */}
                       <div className="space-y-4">
                         <div className="p-4 rounded-[var(--radius)] border border-border/50 bg-muted/20">
