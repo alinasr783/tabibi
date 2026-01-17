@@ -107,6 +107,11 @@ export default function PlanConfirmation() {
       })
     } else {
       // For paid subscriptions, proceed with EasyKash payment
+      // Save pending subscription data so we can activate after callback
+      localStorage.setItem('pending_subscription_plan_id', plan.id.toString());
+      localStorage.setItem('pending_subscription_billing_period', billingPeriod);
+      localStorage.setItem('pending_subscription_amount', finalPrice.toString());
+
       if (discount.appliedDiscount?.id) {
         localStorage.setItem('pending_discount_id', discount.appliedDiscount.id.toString());
       }

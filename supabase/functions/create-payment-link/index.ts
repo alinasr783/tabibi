@@ -133,7 +133,7 @@ serve(async (req) => {
                 }
             );
         } else if (data.responseCode !== 200 && data.status !== 'success') {
-            const msg = data.message || data.error || 'Unknown EasyKash Error';
+            const msg = data.message || data.error || text || 'Unknown EasyKash Error';
             throw new Error(msg);
         } else {
                 // Unexpected structure

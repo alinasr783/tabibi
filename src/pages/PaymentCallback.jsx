@@ -32,14 +32,14 @@ export default function PaymentCallback() {
     const processPaymentCallback = async () => {
       try {
         // 1. Identify Provider and Status
-        // EasyKash params: status (PAID/FAILED), easykashRef, customerReference
+        // EasyKash redirect params: status (PAID/FAILED), providerRefNum, customerReference
         // Paymob/Other params: success, id, amount_cents, ...
         
         const ekStatus = searchParams.get('status'); // EasyKash
-        const ekRef = searchParams.get('easykashRef');
+        const ekRef = searchParams.get('easykashRef') || searchParams.get('providerRefNum');
         const ekCustomerRef = searchParams.get('customerReference');
         
-        const isEasyKash = ekStatus && ekRef;
+        const isEasyKash = ekStatus && ekCustomerRef;
 
         if (isEasyKash) {
             console.log("EasyKash Callback:", { ekStatus, ekRef, ekCustomerRef });
