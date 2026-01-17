@@ -6,6 +6,16 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+function normalizeEgyptMobile(mobile: string | undefined): string {
+  if (!mobile) return '01000000000'
+  let digits = mobile.replace(/\D/g, '')
+  if (digits.startsWith('00')) digits = digits.slice(2)
+  if (digits.startsWith('20')) digits = digits.slice(2)
+  if (digits.length === 10 && digits.startsWith('1')) digits = '0' + digits
+  if (digits.length === 11 && digits.startsWith('01')) return digits
+  return '01000000000'
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -75,7 +85,7 @@ serve(async (req) => {
       cashExpiry: 12, // 12 hours
       name: metadata?.buyer_name || 'Tabibi User',
       email: metadata?.buyer_email || 'no-email@tabibi.net',
-      mobile: metadata?.buyer_mobile || '01000000000',
+      mobile: normalizeEgyptMobile(metadata?.buyer_mobile),
       redirectUrl: redirect_url,
       customerReference: Number(transaction.reference_number) || Date.now(), // Fallback to timestamp if ref is missing/NaN
     }
