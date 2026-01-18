@@ -72,7 +72,22 @@ export async function initiatePayment({ amount, type = 'subscription', metadata 
         }
         console.log("Edge Function Response Data:", data);
 
-        // Check for URL in different possible fields (depending on API version)
+        const isVoucherLike =
+            data &&
+            (data.voucher || (data.data && data.data.voucher));
+
+        if (paymentMethod === 'fawry' && isVoucherLike) {
+            const voucherData = data.data || data;
+            return {
+                type: 'voucher',
+                voucher: voucherData.voucher,
+                easykashRef: voucherData.easykashRef || voucherData.easyKashRef || null,
+                expiryDate: voucherData.expiryDate || null,
+                provider: voucherData.provider || null,
+                customerReference: voucherData.customerReference || voucherData.reference_number || null
+            };
+        }
+
         let paymentUrl = data.url || data.link || (data.data && data.data.url);
 
         if (!paymentUrl) {
@@ -80,11 +95,8 @@ export async function initiatePayment({ amount, type = 'subscription', metadata 
             throw new Error("لم يتم استلام رابط الدفع من الخادم. تفاصيل الاستجابة: " + JSON.stringify(data));
         }
 
-        // Ensure URL has protocol
         if (!paymentUrl.startsWith('http')) {
             if (paymentUrl.startsWith('/')) {
-                // If relative, assume it's meant to be on EasyKash domain (though Edge Function should have fixed this)
-                // But if it slipped through, it's safer to error out than redirect to 404
                 console.warn("Received relative URL:", paymentUrl);
                 paymentUrl = `https://www.easykash.net${paymentUrl}`;
             } else {

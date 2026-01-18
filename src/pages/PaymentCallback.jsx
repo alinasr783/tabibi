@@ -377,6 +377,13 @@ export default function PaymentCallback() {
           bgColorClass: 'bg-blue-100',
           textColorClass: 'text-blue-600'
         };
+      case 'fawry':
+        return {
+          icon: <Zap className="w-5 h-5" />,
+          name: 'دفع فوري',
+          bgColorClass: 'bg-yellow-100',
+          textColorClass: 'text-yellow-600'
+        };
       case 'wallet':
         return {
           icon: <Wallet className="w-5 h-5" />,
@@ -454,12 +461,30 @@ export default function PaymentCallback() {
               عملية الدفع ما زالت قيد الانتظار. في حالة اختيار الدفع عن طريق فوري أو كاش، يجب إتمام الدفع باستخدام كود العملية ثم سيتم تحديث الاشتراك أو رصيد المحفظة تلقائياً.
             </p>
             {paymentData?.voucher && (
-              <div className="bg-yellow-50 rounded-[var(--radius)] p-4 border border-yellow-200 text-center sm:text-left">
-                <p className="text-sm text-gray-700 mb-1">كود الدفع (فوري):</p>
-                <p className="font-mono text-lg font-bold text-yellow-800">
-                  {paymentData.voucher}
-                </p>
-                <p className="text-[11px] sm:text-xs text-yellow-700 mt-2">
+              <div className="bg-yellow-50 rounded-[var(--radius)] p-4 border border-yellow-200 text-center sm:text-left space-y-2">
+                <p className="text-sm text-gray-700">كود الدفع (فوري):</p>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                  <p className="flex-1 font-mono text-lg font-bold text-yellow-800 break-all bg-white/70 rounded-[var(--radius)] px-3 py-2 text-center sm:text-left">
+                    {paymentData.voucher}
+                  </p>
+                  <Button
+                    variant="outline"
+                    fullWidth={true}
+                    className="sm:w-auto text-xs sm:text-sm border-yellow-400 text-yellow-800 hover:bg-yellow-100"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(paymentData.voucher);
+                        toast.success("تم نسخ كود فوري");
+                      } catch (error) {
+                        console.error('Copy voucher error:', error);
+                        toast.error("تعذر نسخ الكود، انسخه يدويًا لو سمحت");
+                      }
+                    }}
+                  >
+                    نسخ الكود
+                  </Button>
+                </div>
+                <p className="text-[11px] sm:text-xs text-yellow-700">
                   احتفظ بهذا الكود، وشاركه مع موظف الدفع في فوري عند السداد.
                 </p>
               </div>

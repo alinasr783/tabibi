@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "../../../components/ui/button";
-import { Loader2, Eye, Wallet, CreditCard, Phone } from "lucide-react";
+import { Loader2, Eye, Wallet, CreditCard, Phone, Zap } from "lucide-react";
 import { formatCurrency } from "../../../lib/utils";
 import useWallet from "../../clinic/useWallet";
 import useClinic from "../../auth/useClinic";
@@ -16,11 +16,12 @@ export default function AppActionBar({ app, isInstalled, uninstallMutation }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [isPaymentLoading, setIsPaymentLoading] = useState(false);
+  const [onlinePaymentMethod, setOnlinePaymentMethod] = useState("card");
 
   const handleOnlinePayment = async () => {
     try {
       setIsPaymentLoading(true);
-      const paymentUrl = await initiatePayment({
+      const result = await initiatePayment({
         amount: app.price,
         type: 'app_purchase',
         metadata: {
@@ -31,10 +32,22 @@ export default function AppActionBar({ app, isInstalled, uninstallMutation }) {
           email: user?.email,
           name: user?.name,
           mobile: user?.phone
-        }
+        },
+        paymentMethod: onlinePaymentMethod
       });
+      localStorage.setItem('pending_payment_method', onlinePaymentMethod);
       
-      window.location.href = paymentUrl;
+      if (typeof result === 'string') {
+        window.location.href = result;
+      } else if (result && result.type === 'voucher') {
+        const params = new URLSearchParams();
+        params.set('status', 'PENDING');
+        if (result.easykashRef) params.set('providerRefNum', String(result.easykashRef));
+        if (result.customerReference) params.set('customerReference', String(result.customerReference));
+        if (result.voucher) params.set('voucher', String(result.voucher));
+
+        window.location.href = `/payment/callback?${params.toString()}`;
+      }
     } catch (error) {
       console.error("App Payment Error:", error);
       toast.error(error.message || "حدث خطأ أثناء بدء عملية الدفع");
@@ -129,23 +142,63 @@ export default function AppActionBar({ app, isInstalled, uninstallMutation }) {
                   )}
                 </Button>
               ) : (
-                <Button 
-                  className="flex-[2] md:w-auto md:min-w-[200px] bg-green-600 hover:bg-green-700 gap-2"
-                  onClick={handleOnlinePayment}
-                  disabled={isPaymentLoading}
-                >
-                  {isPaymentLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      جاري التحويل...
-                    </>
-                  ) : (
-                    <>
+                <div className="flex flex-col gap-2 flex-[2] md:w-auto md:min-w-[260px]">
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setOnlinePaymentMethod('card')}
+                      className={`py-2 px-3 rounded-[var(--radius)] text-[11px] md:text-xs font-medium flex flex-col items-center gap-1 border transition-all ${
+                        onlinePaymentMethod === 'card'
+                          ? 'bg-primary text-white border-primary shadow-sm'
+                          : 'bg-white text-gray-700 border-gray-300 hover:border-primary'
+                      }`}
+                    >
                       <CreditCard className="w-4 h-4" />
-                      ادفع اونلاين
-                    </>
-                  )}
-                </Button>
+                      <span>بطاقة</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setOnlinePaymentMethod('wallet')}
+                      className={`py-2 px-3 rounded-[var(--radius)] text-[11px] md:text-xs font-medium flex flex-col items-center gap-1 border transition-all ${
+                        onlinePaymentMethod === 'wallet'
+                          ? 'bg-primary text-white border-primary shadow-sm'
+                          : 'bg-white text-gray-700 border-gray-300 hover:border-primary'
+                      }`}
+                    >
+                      <Wallet className="w-4 h-4" />
+                      <span>محفظة</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setOnlinePaymentMethod('fawry')}
+                      className={`py-2 px-3 rounded-[var(--radius)] text-[11px] md:text-xs font-medium flex flex-col items-center gap-1 border transition-all ${
+                        onlinePaymentMethod === 'fawry'
+                          ? 'bg-primary text-white border-primary shadow-sm'
+                          : 'bg-white text-gray-700 border-gray-300 hover:border-primary'
+                      }`}
+                    >
+                      <Zap className="w-4 h-4" />
+                      <span>فوري</span>
+                    </button>
+                  </div>
+                  <Button 
+                    className="w-full bg-green-600 hover:bg-green-700 gap-2"
+                    onClick={handleOnlinePayment}
+                    disabled={isPaymentLoading}
+                  >
+                    {isPaymentLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        جاري التحويل...
+                      </>
+                    ) : (
+                      <>
+                        <CreditCard className="w-4 h-4" />
+                        ادفع اونلاين
+                      </>
+                    )}
+                  </Button>
+                </div>
               )}
             </>
           )}

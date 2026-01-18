@@ -120,7 +120,7 @@ export default function PlanConfirmation() {
       
       try {
         setIsPaymentLoading(true);
-        const paymentUrl = await initiatePayment({
+        const result = await initiatePayment({
           amount: finalPrice,
           type: 'subscription',
           metadata: {
@@ -135,10 +135,19 @@ export default function PlanConfirmation() {
           },
           paymentMethod
         });
-        
-        // Redirect to EasyKash payment page
-        window.location.href = paymentUrl;
-        
+
+        if (typeof result === 'string') {
+          window.location.href = result;
+        } else if (result && result.type === 'voucher') {
+          const params = new URLSearchParams();
+          params.set('status', 'PENDING');
+          if (result.easykashRef) params.set('providerRefNum', String(result.easykashRef));
+          if (result.customerReference) params.set('customerReference', String(result.customerReference));
+          if (result.voucher) params.set('voucher', String(result.voucher));
+
+          window.location.href = `/payment/callback?${params.toString()}`;
+        }
+
       } catch (error) {
         console.error("Payment Error:", error);
         toast.error(error.message || "حدث خطأ أثناء الانتقال لصفحة الدفع");
@@ -505,7 +514,7 @@ export default function PlanConfirmation() {
                     <CreditCard className="w-4 h-4 text-gray-400" />
                     طريقة الدفع
                   </label>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <button
                       onClick={() => setSelectedPaymentMethod('card')}
                       className={`py-2 px-3 rounded-[var(--radius)] text-xs sm:text-sm font-medium flex flex-col items-center gap-1 border transition-all ${

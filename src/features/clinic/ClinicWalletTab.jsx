@@ -36,7 +36,7 @@ export default function ClinicWalletTab() {
 
     try {
       setIsPaymentLoading(true);
-      const paymentUrl = await initiatePayment({
+      const result = await initiatePayment({
         amount: parseFloat(topUpAmount),
         type: 'wallet',
         buyer: {
@@ -47,8 +47,18 @@ export default function ClinicWalletTab() {
         paymentMethod: topUpPaymentMethod
       });
       localStorage.setItem('pending_payment_method', topUpPaymentMethod);
-      
-      window.location.href = paymentUrl;
+
+      if (typeof result === 'string') {
+        window.location.href = result;
+      } else if (result && result.type === 'voucher') {
+        const params = new URLSearchParams();
+        params.set('status', 'PENDING');
+        if (result.easykashRef) params.set('providerRefNum', String(result.easykashRef));
+        if (result.customerReference) params.set('customerReference', String(result.customerReference));
+        if (result.voucher) params.set('voucher', String(result.voucher));
+
+        window.location.href = `/payment/callback?${params.toString()}`;
+      }
     } catch (error) {
       console.error("Top-up Error:", error);
       toast.error(error.message || "حدث خطأ أثناء بدء عملية الشحن");
@@ -117,7 +127,7 @@ export default function ClinicWalletTab() {
             <DialogHeader>
               <DialogTitle>شحن المحفظة</DialogTitle>
               <DialogDescription>
-                أدخل المبلغ الذي تود إضافته إلى محفظتك.
+                اختر المبلغ المناسب لشحن محفظتك، ويمكنك تعديل القيمة يدويًا في أي وقت.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
@@ -139,14 +149,35 @@ export default function ClinicWalletTab() {
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="amount">المبلغ (جنيه)</Label>
-                <Input
-                  id="amount"
-                  type="number"
-                  min="1"
-                  placeholder="0.00"
-                  value={topUpAmount}
-                  onChange={(e) => setTopUpAmount(e.target.value)}
-                />
+                <div className="flex flex-col gap-2">
+                  <Input
+                    id="amount"
+                    type="number"
+                    min="1"
+                    placeholder="0.00"
+                    value={topUpAmount}
+                    onChange={(e) => setTopUpAmount(e.target.value)}
+                  />
+                  <div className="grid grid-cols-3 gap-2">
+                    {[200, 500, 1000].map((value) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setTopUpAmount(String(value))}
+                        className={`py-2 px-3 rounded-[var(--radius)] text-xs font-medium border transition-all ${
+                          Number(topUpAmount) === value
+                            ? 'bg-primary text-white border-primary shadow-sm'
+                            : 'bg-white text-gray-700 border-gray-300 hover:border-primary'
+                        }`}
+                      >
+                        {value.toLocaleString('ar-EG')} ج
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    يمكنك تعديل المبلغ في أي وقت، وسيتم استخدامه لشحن رصيد تطبيقاتك واشتراكك.
+                  </p>
+                </div>
               </div>
               <div className="grid gap-2">
                 <Label>طريقة الدفع</Label>
