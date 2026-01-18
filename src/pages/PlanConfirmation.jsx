@@ -42,6 +42,8 @@ export default function PlanConfirmation() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const [isPaymentLoading, setIsPaymentLoading] = useState(false)
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('card')
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
+  const [paymentUrl, setPaymentUrl] = useState(null)
   const discount = useDiscountCode(plan?.price || 0, planId, billingPeriod)
   
   const isLoading = isPlanLoading
@@ -136,16 +138,20 @@ export default function PlanConfirmation() {
           paymentMethod
         });
 
-        if (typeof result === 'string') {
-          window.location.href = result;
-        } else if (result && result.type === 'voucher') {
+        if (result && result.type === 'voucher') {
           const params = new URLSearchParams();
           params.set('status', 'PENDING');
           if (result.easykashRef) params.set('providerRefNum', String(result.easykashRef));
           if (result.customerReference) params.set('customerReference', String(result.customerReference));
           if (result.voucher) params.set('voucher', String(result.voucher));
+          if (result.expiryDate) params.set('expiryDate', String(result.expiryDate));
 
           window.location.href = `/payment/callback?${params.toString()}`;
+        } else if (result && result.type === 'redirect' && result.url) {
+          setIsPaymentLoading(false);
+          window.location.href = result.url;
+        } else if (typeof result === 'string') {
+          window.location.href = result;
         }
 
       } catch (error) {
@@ -514,7 +520,7 @@ export default function PlanConfirmation() {
                     <CreditCard className="w-4 h-4 text-gray-400" />
                     طريقة الدفع
                   </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     <button
                       onClick={() => setSelectedPaymentMethod('card')}
                       className={`py-2 px-3 rounded-[var(--radius)] text-xs sm:text-sm font-medium flex flex-col items-center gap-1 border transition-all ${
@@ -612,6 +618,59 @@ export default function PlanConfirmation() {
             </Card>
           </div>
         </div>
+        {/* Payment Modal */}
+        <Dialog
+          open={isPaymentModalOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              setIsPaymentModalOpen(false)
+              setPaymentUrl(null)
+            }
+          }}
+        >
+          <DialogContent className="sm:max-w-[480px] md:max-w-[640px]" dir="rtl">
+            <DialogHeader>
+              <DialogTitle className="text-center text-lg">إتمام الدفع أونلاين</DialogTitle>
+            </DialogHeader>
+            <div className="mt-4">
+              {paymentUrl && (
+                <div className="w-full rounded-[var(--radius)] border border-gray-200 overflow-hidden bg-gray-50">
+                  <iframe
+                    src={paymentUrl}
+                    title="صفحة الدفع"
+                    className="w-full h-[420px]"
+                    allow="payment *; fullscreen"
+                  />
+                </div>
+              )}
+            </div>
+            <DialogFooter className="pt-2">
+              <div className="flex w-full gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsPaymentModalOpen(false)
+                    setPaymentUrl(null)
+                  }}
+                  className="w-1/4 min-w-[80px]"
+                >
+                  إلغاء
+                </Button>
+                {paymentUrl && (
+                  <Button
+                    onClick={() => {
+                      window.location.href = paymentUrl
+                    }}
+                    className="flex-1"
+                  >
+                    فتح صفحة الدفع كاملة
+                  </Button>
+                )}
+              </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* Auth Requirement Modal */}
         <Dialog open={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)}>
           <DialogContent className="sm:max-w-md" dir="rtl">

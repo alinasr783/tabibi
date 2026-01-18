@@ -26,7 +26,6 @@ export default function ClinicWalletTab() {
   const [isTopUpOpen, setIsTopUpOpen] = useState(false);
   const [topUpAmount, setTopUpAmount] = useState("");
   const [isPaymentLoading, setIsPaymentLoading] = useState(false);
-  const [topUpPaymentMethod, setTopUpPaymentMethod] = useState('card');
 
   const handleTopUp = async () => {
     if (!topUpAmount || isNaN(topUpAmount) || parseFloat(topUpAmount) <= 0) {
@@ -43,21 +42,24 @@ export default function ClinicWalletTab() {
           email: user?.email,
           name: user?.name,
           mobile: user?.phone
-        },
-        paymentMethod: topUpPaymentMethod
+        }
       });
-      localStorage.setItem('pending_payment_method', topUpPaymentMethod);
+      
 
-      if (typeof result === 'string') {
-        window.location.href = result;
-      } else if (result && result.type === 'voucher') {
+      if (result && result.type === 'voucher') {
         const params = new URLSearchParams();
         params.set('status', 'PENDING');
         if (result.easykashRef) params.set('providerRefNum', String(result.easykashRef));
         if (result.customerReference) params.set('customerReference', String(result.customerReference));
         if (result.voucher) params.set('voucher', String(result.voucher));
+        if (result.expiryDate) params.set('expiryDate', String(result.expiryDate));
 
         window.location.href = `/payment/callback?${params.toString()}`;
+      } else if (result && result.type === 'redirect' && result.url) {
+        setIsPaymentLoading(false);
+        window.location.href = result.url;
+      } else if (typeof result === 'string') {
+        window.location.href = result;
       }
     } catch (error) {
       console.error("Top-up Error:", error);
@@ -158,93 +160,34 @@ export default function ClinicWalletTab() {
                     value={topUpAmount}
                     onChange={(e) => setTopUpAmount(e.target.value)}
                   />
-                  <div className="grid grid-cols-3 gap-2">
-                    {[200, 500, 1000].map((value) => (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => setTopUpAmount(String(value))}
-                        className={`py-2 px-3 rounded-[var(--radius)] text-xs font-medium border transition-all ${
-                          Number(topUpAmount) === value
-                            ? 'bg-primary text-white border-primary shadow-sm'
-                            : 'bg-white text-gray-700 border-gray-300 hover:border-primary'
-                        }`}
-                      >
-                        {value.toLocaleString('ar-EG')} ج
-                      </button>
-                    ))}
-                  </div>
-                  <p className="text-[11px] text-muted-foreground">
-                    يمكنك تعديل المبلغ في أي وقت، وسيتم استخدامه لشحن رصيد تطبيقاتك واشتراكك.
-                  </p>
                 </div>
               </div>
-              <div className="grid gap-2">
-                <Label>طريقة الدفع</Label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setTopUpPaymentMethod('card')}
-                    className={`py-2 px-3 rounded-[var(--radius)] text-xs font-medium flex flex-col items-center gap-1 border transition-all ${
-                      topUpPaymentMethod === 'card'
-                        ? 'bg-primary text-white border-primary shadow-sm'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-primary'
-                    }`}
-                  >
-                    <CreditCard className="w-4 h-4" />
-                    <span>بطاقة</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTopUpPaymentMethod('wallet')}
-                    className={`py-2 px-3 rounded-[var(--radius)] text-xs font-medium flex flex-col items-center gap-1 border transition-all ${
-                      topUpPaymentMethod === 'wallet'
-                        ? 'bg-primary text-white border-primary shadow-sm'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-primary'
-                    }`}
-                  >
-                    <Wallet className="w-4 h-4" />
-                    <span>محفظة</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTopUpPaymentMethod('fawry')}
-                    className={`py-2 px-3 rounded-[var(--radius)] text-xs font-medium flex flex-col items-center gap-1 border transition-all ${
-                      topUpPaymentMethod === 'fawry'
-                        ? 'bg-primary text-white border-primary shadow-sm'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-primary'
-                    }`}
-                  >
-                    <Zap className="w-4 h-4" />
-                    <span>فوري</span>
-                  </button>
-                </div>
-              </div>
+              
             </div>
-            <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-between gap-2 pt-2">
-              <Button
-                variant="outline"
-                onClick={() => setIsTopUpOpen(false)}
-                fullWidth={true}
-                className="sm:w-auto"
-              >
-                إلغاء
-              </Button>
-              <Button
-                onClick={handleTopUp}
-                disabled={isPaymentLoading}
-                fullWidth={true}
-                className="sm:w-auto"
-              >
-                {isPaymentLoading ? (
-                  <>
-                    <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-                    جاري التحويل...
-                  </>
-                ) : (
-                  "تأكيد الدفع"
-                )}
-              </Button>
+            <DialogFooter className="pt-2">
+              <div className="flex w-full gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsTopUpOpen(false)}
+                  className="w-1/4 min-w-[80px]"
+                >
+                  إلغاء
+                </Button>
+                <Button
+                  onClick={handleTopUp}
+                  disabled={isPaymentLoading}
+                  className="flex-1"
+                >
+                  {isPaymentLoading ? (
+                    <>
+                      <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                      جاري التحويل...
+                    </>
+                  ) : (
+                    "تأكيد الدفع"
+                  )}
+                </Button>
+              </div>
             </DialogFooter>
           </DialogContent>
         </Dialog>

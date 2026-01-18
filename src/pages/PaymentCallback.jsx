@@ -45,6 +45,7 @@ export default function PaymentCallback() {
         if (isEasyKash) {
             const pendingMethod = localStorage.getItem('pending_payment_method');
             console.log("EasyKash Callback:", { ekStatus, ekRef, ekCustomerRef, ekVoucher });
+            const ekExpiry = searchParams.get('expiryDate');
             
             if (ekStatus === 'PAID') {
                 // Verify against Supabase Transaction
@@ -111,7 +112,8 @@ export default function PaymentCallback() {
                 setPaymentData({
                     voucher: ekVoucher,
                     transactionId: ekRef,
-                    paymentMethod: pendingMethod || 'card'
+                    paymentMethod: pendingMethod || 'card',
+                    expiryDate: ekExpiry || null
                 });
                 toast("عملية الدفع قيد الانتظار. في حالة فوري، استخدم كود الدفع لإتمام العملية.");
             } else {
@@ -484,6 +486,11 @@ export default function PaymentCallback() {
                     نسخ الكود
                   </Button>
                 </div>
+                {paymentData?.expiryDate && (
+                  <p className="text-[11px] sm:text-xs text-yellow-700">
+                    ينتهي صلاحية الكود في: {paymentData.expiryDate}
+                  </p>
+                )}
                 <p className="text-[11px] sm:text-xs text-yellow-700">
                   احتفظ بهذا الكود، وشاركه مع موظف الدفع في فوري عند السداد.
                 </p>

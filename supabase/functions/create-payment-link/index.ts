@@ -90,6 +90,73 @@ serve(async (req) => {
     }
     console.log(`Using EasyKash Token: ${easykashToken}`)
 
+    const normalizedMobile = normalizeEgyptMobile(metadata?.buyer_mobile)
+    const customerReference = Number(transaction.reference_number) || Date.now()
+
+    if (payment_method === 'fawry' || payment_method === 'cash') {
+      const cashPayload = {
+        payerEmail: metadata?.buyer_email || 'no-email@tabibi.net',
+        payerMobile: normalizedMobile,
+        amount: Number(amount),
+        expiryDuration: 48,
+        apiKey: easykashToken,
+        VoucherData: metadata?.type === 'wallet' ? 'شحن رصيد محفظة طبيبي' : 'دفع اشتراك طبيبي',
+        payerName: metadata?.buyer_name || 'Tabibi User',
+        type: 'in',
+        customerReference,
+      }
+
+      console.log('EasyKash Cash Payload:', JSON.stringify(cashPayload))
+
+      const cashEndpoint = 'https://back.easykash.net/api/cash-api/create'
+      console.log(`Attempting EasyKash Cash API at: ${cashEndpoint}`)
+
+      try {
+        const response = await fetch(cashEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(cashPayload),
+        })
+
+        const text = await response.text()
+        console.log(`EasyKash Cash Response Status: ${response.status}`)
+        console.log(`EasyKash Cash Response Body: ${text}`)
+
+        let data: any
+        try {
+          data = JSON.parse(text)
+        } catch (e) {
+          throw new Error(`Invalid Cash JSON: ${text.substring(0, 100)}...`)
+        }
+
+        if (!response.ok) {
+          const msg = data.message || data.error || text || 'Unknown EasyKash Cash Error'
+          throw new Error(msg)
+        }
+
+        const voucherData = {
+          voucher: data.voucher,
+          expiryDate: data.expiryDate,
+          provider: data.provider,
+          easykashRef: data.easykashRef,
+          customerReference,
+        }
+
+        return new Response(
+          JSON.stringify(voucherData),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200,
+          },
+        )
+      } catch (err: any) {
+        console.error('EasyKash Cash Request Failed:', err.message)
+        throw new Error(`EasyKash Cash API Error: ${err.message}`)
+      }
+    }
+
     const easykashPayload = {
       amount: Number(amount),
       currency: currency || 'EGP',
@@ -97,18 +164,16 @@ serve(async (req) => {
       cashExpiry: 12,
       name: metadata?.buyer_name || 'Tabibi User',
       email: metadata?.buyer_email || 'no-email@tabibi.net',
-      mobile: normalizeEgyptMobile(metadata?.buyer_mobile),
+      mobile: normalizedMobile,
       redirectUrl: redirect_url,
-      customerReference: Number(transaction.reference_number) || Date.now(),
+      customerReference,
     }
 
     console.log('Payload:', JSON.stringify(easykashPayload))
 
-    // 4. Call EasyKash API (Direct Pay V1)
-    // Documentation: https://back.easykash.net/api/directpayv1/pay
-    const endpoint = 'https://back.easykash.net/api/directpayv1/pay';
+    const endpoint = 'https://back.easykash.net/api/directpayv1/pay'
     
-    console.log(`Attempting EasyKash API at: ${endpoint}`);
+    console.log(`Attempting EasyKash API at: ${endpoint}`)
     
     try {
         const response = await fetch(endpoint, {
@@ -118,29 +183,28 @@ serve(async (req) => {
                 'authorization': easykashToken
             },
             body: JSON.stringify(easykashPayload)
-        });
+        })
 
-        const contentType = response.headers.get('content-type') || '';
-        const text = await response.text();
+        const contentType = response.headers.get('content-type') || ''
+        const text = await response.text()
         
-        console.log(`EasyKash Response Status: ${response.status}`);
-        console.log(`EasyKash Response Body: ${text}`);
+        console.log(`EasyKash Response Status: ${response.status}`)
+        console.log(`EasyKash Response Body: ${text}`)
 
-        let data;
+        let data
         try {
                 if (contentType.includes('text/html') || text.trim().startsWith('<')) {
-                    throw new Error(`EasyKash returned HTML (Status: ${response.status})`);
+                    throw new Error(`EasyKash returned HTML (Status: ${response.status})`)
                 }
-                data = JSON.parse(text);
+                data = JSON.parse(text)
         } catch (e) {
-                throw new Error(`Invalid JSON: ${text.substring(0, 100)}...`);
+                throw new Error(`Invalid JSON: ${text.substring(0, 100)}...`)
         }
 
         if (data.redirectUrl) {
-            // Success!
-            let paymentUrl = data.redirectUrl;
+            let paymentUrl = String(data.redirectUrl).trim().replace(/`/g, "")
             if (paymentUrl.startsWith('/')) {
-                paymentUrl = `https://www.easykash.net${paymentUrl}`;
+                paymentUrl = `https://www.easykash.net${paymentUrl}`
             }
 
             return new Response(
@@ -153,18 +217,17 @@ serve(async (req) => {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
                     status: 200 
                 }
-            );
+            )
         } else if (data.responseCode !== 200 && data.status !== 'success') {
-            const msg = data.message || data.error || text || 'Unknown EasyKash Error';
-            throw new Error(msg);
+            const msg = data.message || data.error || text || 'Unknown EasyKash Error'
+            throw new Error(msg)
         } else {
-                // Unexpected structure
-                throw new Error(`Unexpected response structure: ${JSON.stringify(data)}`);
+                throw new Error(`Unexpected response structure: ${JSON.stringify(data)}`)
         }
 
-    } catch (err) {
-        console.error('EasyKash Request Failed:', err.message);
-        throw new Error(`EasyKash API Error: ${err.message}`);
+    } catch (err: any) {
+        console.error('EasyKash Request Failed:', err.message)
+        throw new Error(`EasyKash API Error: ${err.message}`)
     }
 
   } catch (error) {

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button } from "../../../components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../../../components/ui/dialog";
 import { Loader2, Eye, Wallet, CreditCard, Phone, Zap } from "lucide-react";
 import { formatCurrency } from "../../../lib/utils";
 import useWallet from "../../clinic/useWallet";
@@ -17,6 +18,8 @@ export default function AppActionBar({ app, isInstalled, uninstallMutation }) {
   const queryClient = useQueryClient();
   const [isPaymentLoading, setIsPaymentLoading] = useState(false);
   const [onlinePaymentMethod, setOnlinePaymentMethod] = useState("card");
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [paymentUrl, setPaymentUrl] = useState(null);
 
   const handleOnlinePayment = async () => {
     try {
@@ -37,16 +40,20 @@ export default function AppActionBar({ app, isInstalled, uninstallMutation }) {
       });
       localStorage.setItem('pending_payment_method', onlinePaymentMethod);
       
-      if (typeof result === 'string') {
-        window.location.href = result;
-      } else if (result && result.type === 'voucher') {
+      if (result && result.type === 'voucher') {
         const params = new URLSearchParams();
         params.set('status', 'PENDING');
         if (result.easykashRef) params.set('providerRefNum', String(result.easykashRef));
         if (result.customerReference) params.set('customerReference', String(result.customerReference));
         if (result.voucher) params.set('voucher', String(result.voucher));
+        if (result.expiryDate) params.set('expiryDate', String(result.expiryDate));
 
         window.location.href = `/payment/callback?${params.toString()}`;
+      } else if (result && result.type === 'redirect' && result.url) {
+        setIsPaymentLoading(false);
+        window.location.href = result.url;
+      } else if (typeof result === 'string') {
+        window.location.href = result;
       }
     } catch (error) {
       console.error("App Payment Error:", error);
@@ -91,14 +98,15 @@ export default function AppActionBar({ app, isInstalled, uninstallMutation }) {
   const canAfford = walletBalance >= app.price;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 w-full bg-background border-t z-50 md:pl-72 pb-[24px] md:pb-0">
-      <div className="max-w-4xl mx-auto p-4 flex items-center justify-between gap-4">
-        <div className="hidden md:block">
-          <p className="font-bold">{app.title}</p>
-          <p className="text-xs text-muted-foreground">{formatCurrency(app.price)} / {getBillingPeriodLabel(app.billing_period)}</p>
-        </div>
+    <div>
+      <div className="fixed bottom-0 left-0 right-0 w-full bg-background border-t z-50 md:pl-72 pb-[24px] md:pb-0">
+        <div className="max-w-4xl mx-auto p-4 flex items-center justify-between gap-4">
+          <div className="hidden md:block">
+            <p className="font-bold">{app.title}</p>
+            <p className="text-xs text-muted-foreground">{formatCurrency(app.price)} / {getBillingPeriodLabel(app.billing_period)}</p>
+          </div>
         
-        <div className="flex items-center gap-2 w-full md:w-auto">
+          <div className="flex items-center gap-2 w-full md:w-auto">
           {app.preview_link && (
             <Button 
               variant="outline"
@@ -202,8 +210,62 @@ export default function AppActionBar({ app, isInstalled, uninstallMutation }) {
               )}
             </>
           )}
+          </div>
         </div>
       </div>
+
+      <Dialog
+        open={isPaymentModalOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsPaymentModalOpen(false);
+            setPaymentUrl(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[480px] md:max-w-[640px]" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-center text-lg">إتمام الدفع لتفعيل التطبيق</DialogTitle>
+            <DialogDescription className="text-center text-sm text-muted-foreground">
+              يمكنك إتمام عملية الدفع دون مغادرة طبيبي.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4">
+            {paymentUrl && (
+              <div className="w-full rounded-[var(--radius)] border border-gray-200 overflow-hidden bg-gray-50">
+                <iframe
+                  src={paymentUrl}
+                  title="صفحة الدفع"
+                  className="w-full h-[420px]"
+                  allow="payment *; fullscreen"
+                />
+              </div>
+            )}
+          </div>
+          <DialogFooter className="flex-col sm:flex-row sm:justify-between gap-2 mt-4">
+            <Button
+              variant="outline"
+              fullWidth={true}
+              onClick={() => {
+                setIsPaymentModalOpen(false);
+                setPaymentUrl(null);
+              }}
+            >
+              إغلاق نافذة الدفع
+            </Button>
+            {paymentUrl && (
+              <Button
+                fullWidth={true}
+                onClick={() => {
+                  window.location.href = paymentUrl;
+                }}
+              >
+                فتح صفحة الدفع كاملة
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

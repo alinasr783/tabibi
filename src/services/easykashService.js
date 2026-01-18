@@ -1,6 +1,6 @@
 import supabase from './supabase';
 
-export async function initiatePayment({ amount, type = 'subscription', metadata = {}, buyer = {}, paymentMethod = 'card' }) {
+export async function initiatePayment({ amount, type = 'subscription', metadata = {}, buyer = {}, paymentMethod } = {}) {
     try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) throw new Error("يجب تسجيل الدخول أولاً");
@@ -40,35 +40,15 @@ export async function initiatePayment({ amount, type = 'subscription', metadata 
             }
         };
 
-        // Call the Edge Function using direct fetch to bypass potential SDK auth issues
         console.log("Invoking Edge Function: create-payment-link");
         console.log("Payload:", JSON.stringify(payload, null, 2));
 
-        const functionUrl = 'https://hvbjysojjrdkszuvczbc.supabase.co/functions/v1/create-payment-link';
-        
-        const response = await fetch(functionUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${session.access_token}`
-            },
-            body: JSON.stringify(payload)
+        const { data, error } = await supabase.functions.invoke('create-payment-link', {
+            body: payload
         });
-
-        let data;
-        const responseText = await response.text();
-        
-        try {
-            data = JSON.parse(responseText);
-        } catch {
-            console.error("Non-JSON response:", responseText);
-            throw new Error("استجابة غير صالحة من الخادم");
-        }
-
-        if (!response.ok) {
-            console.error("Edge Function Error:", data);
-            const errorMessage = data.error || data.message || "فشل في الاتصال بخدمة الدفع";
-            throw new Error(errorMessage);
+        if (error) {
+            console.error("Edge Function Error:", error);
+            throw new Error(error.message || "فشل في الاتصال بخدمة الدفع");
         }
         console.log("Edge Function Response Data:", data);
 
@@ -95,6 +75,10 @@ export async function initiatePayment({ amount, type = 'subscription', metadata 
             throw new Error("لم يتم استلام رابط الدفع من الخادم. تفاصيل الاستجابة: " + JSON.stringify(data));
         }
 
+        if (typeof paymentUrl === 'string') {
+            paymentUrl = paymentUrl.trim().replace(/`/g, "");
+        }
+
         if (!paymentUrl.startsWith('http')) {
             if (paymentUrl.startsWith('/')) {
                 console.warn("Received relative URL:", paymentUrl);
@@ -104,7 +88,12 @@ export async function initiatePayment({ amount, type = 'subscription', metadata 
             }
         }
 
-        return paymentUrl;
+        return {
+            type: 'redirect',
+            url: paymentUrl,
+            transactionId: data.transactionId || (data.data && data.data.transactionId) || null,
+            referenceNumber: data.referenceNumber || (data.data && data.data.referenceNumber) || null
+        };
 
     } catch (error) {
         console.error("Payment initiation error:", error);
