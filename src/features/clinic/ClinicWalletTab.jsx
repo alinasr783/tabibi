@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Wallet, CreditCard, AppWindow, TrendingUp, Calendar, AlertCircle, Plus, History, Check, Zap, Loader2 } from "lucide-react";
+import { Wallet, CreditCard, AppWindow, TrendingUp, Calendar, AlertCircle, Plus, History, Check, Zap, Loader2, MessageCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
@@ -165,27 +165,37 @@ export default function ClinicWalletTab() {
               
             </div>
             <DialogFooter className="pt-2">
-              <div className="flex w-full gap-2">
+              <div className="flex flex-col w-full gap-2">
+                <div className="flex w-full gap-2">
+                  <Button
+                    onClick={handleTopUp}
+                    disabled={isPaymentLoading}
+                    className="w-3/4"
+                  >
+                    {isPaymentLoading ? (
+                      <>
+                        <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                        جاري التحويل...
+                      </>
+                    ) : (
+                      "تأكيد الدفع"
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsTopUpOpen(false)}
+                    className="w-1/4"
+                  >
+                    إلغاء
+                  </Button>
+                </div>
                 <Button
-                  variant="outline"
-                  onClick={() => setIsTopUpOpen(false)}
-                  className="w-1/4 min-w-[80px]"
+                  variant="secondary"
+                  onClick={() => window.open("https://wa.me/+201158954215", "_blank")}
+                  className="w-full gap-2"
                 >
-                  إلغاء
-                </Button>
-                <Button
-                  onClick={handleTopUp}
-                  disabled={isPaymentLoading}
-                  className="flex-1"
-                >
-                  {isPaymentLoading ? (
-                    <>
-                      <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-                      جاري التحويل...
-                    </>
-                  ) : (
-                    "تأكيد الدفع"
-                  )}
+                  <MessageCircle className="w-4 h-4" />
+                  شحن عبر تواصل مع فريق الدعم
                 </Button>
               </div>
             </DialogFooter>
@@ -214,10 +224,18 @@ export default function ClinicWalletTab() {
                 {currentPlan ? "نشطة" : "مجانية"}
               </Badge>
             </div>
-            <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center justify-between text-sm mb-4">
               <span className="text-muted-foreground">قيمة الاشتراك:</span>
               <span className="font-bold">{planPrice} جنيه / {frequencyLabel}</span>
             </div>
+            <Button 
+              variant="outline" 
+              className="w-full gap-2"
+              onClick={() => window.open("https://wa.me/+201158954215", "_blank")}
+            >
+              <MessageCircle className="w-4 h-4" />
+              تجديد الباقة عبر فريق الدعم
+            </Button>
           </CardContent>
         </Card>
 
@@ -311,19 +329,26 @@ export default function ClinicWalletTab() {
           {transactions.length > 0 ? (
             <div className="space-y-4">
               {transactions.map((tx) => (
-                <div key={tx.id} className="flex items-center justify-between p-4 border rounded-lg bg-card/50">
-                  <div className="flex items-center gap-3">
+                <div
+                  key={tx.id}
+                  className="flex items-center justify-between gap-3 p-4 border rounded-lg bg-card/50"
+                >
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
                     <div className={`p-2 rounded-lg ${tx.amount > 0 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
                       {tx.amount > 0 ? <TrendingUp className="w-5 h-5" /> : <CreditCard className="w-5 h-5" />}
                     </div>
-                    <div>
-                      <h4 className="font-bold">{tx.description}</h4>
-                      <p className="text-sm text-muted-foreground">
+                    <div className="min-w-0">
+                      <h4 className="font-bold text-sm line-clamp-1 sm:line-clamp-2 break-words">
+                        {tx.description}
+                      </h4>
+                      <p className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap">
                         {format(new Date(tx.created_at), "d MMMM", { locale: ar })}
                       </p>
                     </div>
                   </div>
-                  <div className={`font-bold ${tx.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <div
+                    className={`font-bold text-sm sm:text-base text-nowrap shrink-0 ${tx.amount > 0 ? 'text-green-600' : 'text-red-600'}`}
+                  >
                     {tx.amount > 0 ? '+' : ''}{tx.amount} ج
                   </div>
                 </div>

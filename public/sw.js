@@ -64,38 +64,57 @@ if (isDevelopment) {
       return;
     }
     
-    // Skip caching for excluded paths
     if (isExcludedPath(event.request.url)) {
       return;
     }
-    
-    // Implement stale-while-revalidate strategy for better cache invalidation
+
+    const request = event.request;
+
+    if (
+      request.mode === 'navigate' ||
+      (request.headers.get('accept') || '').includes('text/html')
+    ) {
+      event.respondWith(
+        fetch(request)
+          .then((networkResponse) => {
+            if (!networkResponse || networkResponse.status !== 200) {
+              return caches.match(request).then((cachedResponse) => cachedResponse || networkResponse);
+            }
+
+            const responseClone = networkResponse.clone();
+
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, responseClone);
+            });
+
+            return networkResponse;
+          })
+          .catch(() => caches.match(request).then((cachedResponse) => cachedResponse || caches.match('/index.html')))
+      );
+
+      return;
+    }
+
     event.respondWith(
       caches.open(CACHE_NAME).then((cache) => {
-        return cache.match(event.request).then((response) => {
-          const fetchPromise = fetch(event.request).then((networkResponse) => {
-            // Check if we received a valid response
+        return cache.match(request).then((response) => {
+          const fetchPromise = fetch(request).then((networkResponse) => {
             if (!networkResponse || networkResponse.status !== 200) {
               return networkResponse;
             }
 
-            // SAFETY CHECK: Do not cache if it's an HTML response for a non-HTML request (JS/CSS)
-            // This prevents caching the fallback index.html for missing assets which causes MIME type errors
             const contentType = networkResponse.headers.get('content-type');
-            const requestUrl = new URL(event.request.url);
+            const requestUrl = new URL(request.url);
             
             if (contentType && contentType.includes('text/html') && 
                 (requestUrl.pathname.match(/\.(js|css|json|png|jpg|jpeg|svg|ico)$/i))) {
-                // This is likely a 404 handled by SPA fallback - DO NOT CACHE
                 return networkResponse;
             }
 
-            // Update cache with fresh response
-            cache.put(event.request, networkResponse.clone());
+            cache.put(request, networkResponse.clone());
             return networkResponse;
           });
           
-          // Return cached response if available, otherwise wait for network
           return response || fetchPromise;
         });
       })

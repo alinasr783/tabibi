@@ -15,7 +15,8 @@ import {
   Wallet,
   Smartphone,
   Phone,
-  Star
+  Star,
+  MessageCircle
 } from 'lucide-react'
 import { Button } from '../components/ui/button.jsx'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card.jsx'
@@ -285,9 +286,9 @@ export default function PlanConfirmation() {
         </div>
 
         {/* Payment Gateway Integration Notice - Updated */}
-        <div className="mb-8 p-4 bg-green-50 border border-green-200 rounded-[var(--radius)] text-center">
-          <p className="text-green-800">
-            <strong>متاح الآن:</strong> يمكنك الدفع بأمان باستخدام البطاقات البنكية، المحافظ الإلكترونية، أو فوري.
+        <div className="mb-8 p-4 bg-blue-50 border border-blue-200 rounded-[var(--radius)] text-center">
+          <p className="text-blue-800">
+            <strong>متاح الآن:</strong> يمكنك الدفع بأمان باستخدام البطاقات البنكية أو فوري، أو التواصل مع الدعم للمساعدة.
           </p>
         </div>
 
@@ -515,52 +516,10 @@ export default function PlanConfirmation() {
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                    <CreditCard className="w-4 h-4 text-gray-400" />
-                    طريقة الدفع
-                  </label>
-                  <div className="grid grid-cols-3 gap-3">
-                    <button
-                      onClick={() => setSelectedPaymentMethod('card')}
-                      className={`py-2 px-3 rounded-[var(--radius)] text-xs sm:text-sm font-medium flex flex-col items-center gap-1 border transition-all ${
-                        selectedPaymentMethod === 'card'
-                          ? 'bg-primary text-white border-primary shadow-sm'
-                          : 'bg-white text-gray-700 border-gray-300 hover:border-primary'
-                      }`}
-                    >
-                      <CreditCard className="w-4 h-4" />
-                      <span>بطاقة بنكية</span>
-                    </button>
-                    <button
-                      onClick={() => setSelectedPaymentMethod('wallet')}
-                      className={`py-2 px-3 rounded-[var(--radius)] text-xs sm:text-sm font-medium flex flex-col items-center gap-1 border transition-all ${
-                        selectedPaymentMethod === 'wallet'
-                          ? 'bg-primary text-white border-primary shadow-sm'
-                          : 'bg-white text-gray-700 border-gray-300 hover:border-primary'
-                      }`}
-                    >
-                      <Wallet className="w-4 h-4" />
-                      <span>محفظة موبايل</span>
-                    </button>
-                    <button
-                      onClick={() => setSelectedPaymentMethod('fawry')}
-                      className={`py-2 px-3 rounded-[var(--radius)] text-xs sm:text-sm font-medium flex flex-col items-center gap-1 border transition-all ${
-                        selectedPaymentMethod === 'fawry'
-                          ? 'bg-primary text-white border-primary shadow-sm'
-                          : 'bg-white text-gray-700 border-gray-300 hover:border-primary'
-                      }`}
-                    >
-                      <Zap className="w-4 h-4" />
-                      <span>فوري كاش</span>
-                    </button>
-                  </div>
-                </div>
-
                 {/* Payment Buttons */}
                 <div className="space-y-3">
                   <Button
-                    onClick={() => handleConfirmSubscription(selectedPaymentMethod)}
+                    onClick={() => handleConfirmSubscription('card')}
                     className="w-full bg-primary hover:bg-primary/90 text-white py-3"
                     disabled={isSubmitting}
                   >
@@ -572,26 +531,31 @@ export default function PlanConfirmation() {
                     ) : (
                       <>
                         <CreditCard className="w-4 h-4 ml-2" />
-                        تأكيد الاشتراك
+                        تأكيد الاشتراك والدفع
                       </>
                     )}
                   </Button>
-                  
-                  {/* WhatsApp Sales Button - Removed per user request */}
-                  {/* 
+
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t border-gray-300" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-white px-2 text-gray-500">أو</span>
+                    </div>
+                  </div>
+
                   <Button
-                    variant="outline"
+                    variant="secondary"
                     onClick={() => {
-                      // Open WhatsApp with plan details
-                      const whatsappMessage = `أود الاشتراك في خطة "${plan?.name}" لفترة ${billingPeriod === 'annual' ? 'سنوية' : 'شهرية'} - السعر النهائي: ${formatCurrency(finalPrice)}`;
-                      window.open(`https://wa.me/201158954215?text=${encodeURIComponent(whatsappMessage)}`, '_blank');
+                      const whatsappMessage = `مرحباً، أود الاشتراك في خطة "${plan?.name}"\nالمدة: ${billingPeriod === 'annual' ? 'سنوي (12 شهر)' : 'شهري'}\nالسعر النهائي: ${formatCurrency(finalPrice)}`;
+                      window.open(`https://wa.me/+201158954215?text=${encodeURIComponent(whatsappMessage)}`, '_blank');
                     }}
-                    className="w-full border-gray-300 hover:bg-gray-50 py-3"
+                    className="w-full gap-2 border border-gray-200"
                   >
-                    <Smartphone className="w-4 h-4 ml-2" />
-                    التواصل مع المبيعات عبر واتساب
+                    <MessageCircle className="w-5 h-5" />
+                    الاشتراك عبر تواصل مع فريق الدعم
                   </Button>
-                  */}
                 </div>
 
                 {/* Important Notes */}

@@ -42,7 +42,7 @@ export function DialogDescription({children, className}) {
 
 export function DialogFooter({children, className}) {
   return (
-    <div className={cn("p-6 pt-4 flex items-center gap-2 w-full", className)}>
+    <div className={cn("flex items-center gap-2 w-full mt-4", className)}>
       {children}
     </div>
   );
