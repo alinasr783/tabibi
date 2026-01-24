@@ -13,6 +13,13 @@ import {
   DropdownMenuTrigger,
 } from "../../components/ui/dropdown-menu";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -39,6 +46,10 @@ export default function AppointmentsTable({
   pageSize,
   onPageChange,
   fullWidth = false,
+  onLoadMore,
+  hasMore = false,
+  isLoadingMore = false,
+  onAppointmentUpdated,
 }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -48,13 +59,44 @@ export default function AppointmentsTable({
 
   const { mutate: updateStatus } = useMutation({
     mutationFn: ({ id, status }) => updateAppointment(id, { status }),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["appointments"] });
+    onMutate: async ({ id, status }) => {
+      // Optimistic Update: تحديث الواجهة فوراً قبل استجابة السيرفر
+      if (onAppointmentUpdated) {
+        onAppointmentUpdated({ id, status });
+      }
+    },
+    onSuccess: (data, variables) => {
+      // تحديث البيانات في الكاش دون إعادة تحميل القائمة (للحفاظ على الترتيب)
+      queryClient.setQueriesData({ queryKey: ["appointments"] }, (oldData) => {
+        if (!oldData || !oldData.data) return oldData;
+        return {
+          ...oldData,
+          data: oldData.data.map((item) =>
+            item.id === variables.id
+              ? { ...item, status: variables.status }
+              : item
+          ),
+        };
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["appointment", variables.id] }); // تحديث صفحة التفاصيل
       queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
+      
+      // تحديث القائمة بالبيانات المؤكدة من السيرفر
+      if (onAppointmentUpdated) {
+        onAppointmentUpdated(data);
+      }
+
       const statusLabel = statusMap[variables.status]?.label || variables.status;
       toast.success(`تم تغيير حالة الحجز إلى: ${statusLabel}`);
     },
-    onError: (err) => {
+    onError: (err, variables, context) => {
+      // في حالة الخطأ، نعيد تحميل البيانات الأصلية
+      // queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      
+      // Revert optimistic update if needed, but for now we just show error
+      // Ideally we should rollback the cache update here
+      
       toast.error(err.message || "فشل في تحديث حالة الحجز");
     },
   });
@@ -218,113 +260,6 @@ export default function AppointmentsTable({
     );
   }
 
-  // Mobile Card Component
-  const AppointmentCard = ({ appointment }) => {
-    const status = appointment.status?.toLowerCase() || 'pending';
-    const statusInfo = statusMap[status] || statusMap.pending;
-    const StatusIcon = statusInfo.icon;
-
-    return (
-      <div className="mb-4 pb-4 border-b border-border last:border-0 last:mb-0 last:pb-0">
-        <div className="p-1">
-          {/* Header - اسم المريض والحالة */}
-          <div className="flex items-start justify-between mb-3">
-            <div className="flex items-center gap-3 flex-1">
-              <div className="w-12 h-12 rounded-[var(--radius)] bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
-                <User className="w-6 h-6" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <Button 
-                  variant="link" 
-                  className="font-bold text-lg p-0 h-auto text-right hover:text-primary"
-                  onClick={() => navigate(`/patients/${appointment.patient?.id}`)}>
-                  {appointment.patient?.name || "مش محدد"}
-                </Button>
-                <Button 
-                  variant="link" 
-                  className="flex items-center gap-1.5 text-muted-foreground text-sm p-0 h-auto hover:text-primary"
-                  onClick={() => handlePhoneClick(appointment.patient?.phone, appointment.patient?.name)}>
-                  <span className="truncate">{appointment.patient?.phone || "-"}</span>
-                </Button>
-              </div>
-            </div>
-            <Badge variant={statusInfo.variant} className="gap-1.5 flex-shrink-0">
-              <StatusIcon className="w-3.5 h-3.5" />
-              {statusInfo.label}
-            </Badge>
-          </div>
-
-          {/* معلومات الموعد */}
-          <div className="space-y-2.5 mb-4 p-3">
-            <div className="flex items-center gap-2 text-sm">
-              <Calendar className="w-4 h-4 text-primary flex-shrink-0" />
-              <span className="font-medium text-foreground">
-                {appointment.date ? format(new Date(appointment.date), "dd/MM/yyyy", { locale: ar }) : "مش محدد"}
-              </span>
-              <span className="text-muted-foreground">•</span>
-              <Clock className="w-4 h-4 text-primary flex-shrink-0" />
-              <span className="font-medium text-foreground">
-                {appointment.date ? format(new Date(appointment.date), "hh:mm a", { locale: ar }) : "مش محدد"}
-              </span>
-            </div>
-            
-            {appointment.notes && (
-              <div className="flex items-start gap-2 text-sm">
-                <Tag className="w-4 h-4 text-purple-600 flex-shrink-0 mt-0.5" />
-                <span className="text-muted-foreground flex-1">{appointment.notes}</span>
-              </div>
-            )}
-            
-            <div className="flex items-center gap-2 text-sm">
-              <Receipt className="w-4 h-4 text-green-600 flex-shrink-0" />
-              <span className="font-bold text-foreground">
-                {appointment.price ? appointment.price.toFixed(2) : "0.00"} جنيه
-              </span>
-            </div>
-          </div>
-
-          {/* الأزرار */}
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={() => handleViewDetails(appointment.id)}
-              className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground h-10"
-              size="sm"
-            >
-              <Eye className="w-4 h-4 ml-2" />
-              شوف التفاصيل
-            </Button>
-            
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-10 px-3">
-                  <MoreHorizontal className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={() => handleStatusChange(appointment.id, "pending")}>
-                  <Clock className="h-4 w-4 ml-2" />
-                  قيد الانتظار
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleStatusChange(appointment.id, "confirmed")}>
-                  <CheckCircle className="h-4 w-4 ml-2" />
-                  مؤكد
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleStatusChange(appointment.id, "completed")}>
-                  <CheckCircle className="h-4 w-4 ml-2" />
-                  مكتمل
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleStatusChange(appointment.id, "cancelled")}>
-                  <XCircle className="h-4 w-4 ml-2" />
-                  ملغي
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   // Pagination Component
   const MobilePagination = () => {
     if (!total || total <= pageSize) return null;
@@ -367,11 +302,39 @@ export default function AppointmentsTable({
   return (
     <>
       {/* Mobile View - Cards */}
-      <div className="block md:hidden">
+      <div className="block md:hidden pt-2">
         {appointments.map((appointment) => (
-          <AppointmentCard key={appointment.id} appointment={appointment} />
+          <AppointmentCard 
+            key={appointment.id} 
+            appointment={appointment}
+            statusMap={statusMap}
+            navigate={navigate}
+            handlePhoneClick={handlePhoneClick}
+            handleViewDetails={handleViewDetails}
+            handleStatusChange={handleStatusChange}
+          />
         ))}
-        <MobilePagination />
+        
+        {onLoadMore ? (
+          hasMore && (
+            <div className="mt-4 px-2 pb-4">
+              <Button 
+                variant="outline" 
+                className="w-full h-11 text-base"
+                onClick={onLoadMore}
+                disabled={isLoadingMore}
+              >
+                {isLoadingMore ? (
+                   "بيحمل..."
+                ) : (
+                   "عرض المزيد"
+                )}
+              </Button>
+            </div>
+          )
+        ) : (
+          <MobilePagination />
+        )}
       </div>
 
       {/* Desktop View - Table */}
@@ -382,9 +345,25 @@ export default function AppointmentsTable({
           total={total}
           page={page}
           pageSize={pageSize}
-          onPageChange={onPageChange}
+          onPageChange={onLoadMore ? undefined : onPageChange}
           emptyLabel="مفيش مواعيد"
         />
+        
+        {onLoadMore && hasMore && (
+           <div className="mt-4 flex flex-col items-center justify-center border-t pt-4">
+              <Button 
+                variant="outline" 
+                onClick={onLoadMore}
+                disabled={isLoadingMore}
+                className="min-w-[200px]"
+              >
+                {isLoadingMore ? "بيحمل..." : "عرض المزيد"}
+              </Button>
+              <div className="text-xs text-muted-foreground mt-2">
+                 معروض {appointments.length} من {total}
+              </div>
+           </div>
+        )}
       </div>
 
       {/* Contact Method Dialog */}
@@ -420,3 +399,130 @@ export default function AppointmentsTable({
     </>
   );
 }
+
+// Extracted Component
+const AppointmentCard = ({ 
+  appointment, 
+  statusMap, 
+  navigate, 
+  handlePhoneClick, 
+  handleViewDetails, 
+  handleStatusChange 
+}) => {
+  const status = appointment.status?.toLowerCase() || 'pending';
+  const statusInfo = statusMap[status] || statusMap.pending;
+  const StatusIcon = statusInfo.icon;
+
+  return (
+    <div className="mb-4 pb-4 border-b border-border last:border-0 last:mb-0 last:pb-0">
+      <div className="p-1">
+        {/* Header - اسم المريض والحالة */}
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center gap-3 flex-1">
+            <div className="w-12 h-12 rounded-[var(--radius)] bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+              <User className="w-6 h-6" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <Button 
+                variant="link" 
+                className="font-bold text-lg p-0 h-auto text-right hover:text-primary"
+                onClick={() => navigate(`/patients/${appointment.patient?.id}`)}>
+                {appointment.patient?.name || "مش محدد"}
+              </Button>
+              <Button 
+                variant="link" 
+                className="flex items-center gap-1.5 text-muted-foreground text-sm p-0 h-auto hover:text-primary"
+                onClick={() => handlePhoneClick(appointment.patient?.phone, appointment.patient?.name)}>
+                <span className="truncate">{appointment.patient?.phone || "-"}</span>
+              </Button>
+            </div>
+          </div>
+          <Badge variant={statusInfo.variant} className="gap-1.5 flex-shrink-0">
+            <StatusIcon className="w-3.5 h-3.5" />
+            {statusInfo.label}
+          </Badge>
+        </div>
+
+        {/* معلومات الموعد */}
+        <div className="space-y-2.5 mb-4 p-3">
+          <div className="flex items-center gap-2 text-sm">
+            <Calendar className="w-4 h-4 text-primary flex-shrink-0" />
+            <span className="font-medium text-foreground">
+              {appointment.date ? format(new Date(appointment.date), "dd/MM/yyyy", { locale: ar }) : "مش محدد"}
+            </span>
+            <span className="text-muted-foreground">•</span>
+            <Clock className="w-4 h-4 text-primary flex-shrink-0" />
+            <span className="font-medium text-foreground">
+              {appointment.date ? format(new Date(appointment.date), "hh:mm a", { locale: ar }) : "مش محدد"}
+            </span>
+          </div>
+          
+          {appointment.notes && (
+            <div className="flex items-start gap-2 text-sm">
+              <Tag className="w-4 h-4 text-purple-600 flex-shrink-0 mt-0.5" />
+              <span className="text-muted-foreground flex-1">{appointment.notes}</span>
+            </div>
+          )}
+          
+          <div className="flex items-center gap-2 text-sm">
+            <Receipt className="w-4 h-4 text-green-600 flex-shrink-0" />
+            <span className="font-bold text-foreground">
+              {appointment.price ? appointment.price.toFixed(2) : "0.00"} جنيه
+            </span>
+          </div>
+        </div>
+
+        {/* الأزرار */}
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={() => handleViewDetails(appointment.id)}
+            className="w-[75%] bg-primary hover:bg-primary/90 text-primary-foreground h-10"
+            size="sm"
+          >
+            <Eye className="w-4 h-4 ml-2" />
+            شوف التفاصيل
+          </Button>
+          
+          <div className="w-[25%]">
+            <Select 
+              value={status} 
+              onValueChange={(val) => handleStatusChange(appointment.id, val)}
+            >
+              <SelectTrigger className="w-full h-10 px-1 justify-center text-xs bg-background">
+                 <div className="truncate">
+                  {statusMap[status]?.label || "الحالة"}
+                 </div>
+              </SelectTrigger>
+              <SelectContent align="end">
+                <SelectItem value="pending">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    <span>قيد الانتظار</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="confirmed">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4" />
+                    <span>مؤكد</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="completed">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4" />
+                    <span>مكتمل</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="cancelled">
+                  <div className="flex items-center gap-2">
+                    <XCircle className="h-4 w-4" />
+                    <span>ملغي</span>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};

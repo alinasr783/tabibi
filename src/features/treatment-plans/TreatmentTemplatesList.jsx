@@ -3,12 +3,11 @@ import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
-import { Calendar, DollarSign, Search, Edit, Stethoscope, FileText, Trash2, AlertCircle } from "lucide-react";
-import useTreatmentTemplates from "./useTreatmentTemplates";
+import { Calendar, Search, Edit, Stethoscope, FileText, Trash2, AlertCircle, Clock, Wallet, Users } from "lucide-react";
 import { SkeletonLine } from "../../components/ui/skeleton";
 import { Input } from "../../components/ui/input";
 import { formatCurrency } from "../../lib/utils";
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import TreatmentTemplateEditDialog from "./TreatmentTemplateEditDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../../components/ui/dialog";
 import useDeleteTreatmentTemplate from "./useDeleteTreatmentTemplate";
@@ -20,63 +19,98 @@ function TreatmentTemplateItem({ template }) {
 
   return (
     <>
-      <Card className="border border-border rounded-[var(--radius)] overflow-hidden hover:shadow-md transition-shadow">
-        <CardHeader className="pb-3 border-b border-border/50">
-          <div className="flex justify-between items-start">
-            <CardTitle className="text-lg md:text-xl font-bold text-foreground flex items-center gap-2">
-              <Stethoscope className="h-5 w-5 text-primary" />
-              {template.name}
-            </CardTitle>
-            <Badge variant="outline" className="text-xs">
-              #{String(template.id).slice(0, 8)}
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-4">
-          <div className="space-y-4">
-            <div className="flex items-center text-sm">
-              <DollarSign className="ml-2 h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">سعر الجلسة:</span>
-              <span className="mr-2 font-semibold text-green-600">{formatCurrency(template.session_price || 0)}</span>
-            </div>
-
-            <div className="flex items-center text-sm">
-              <Calendar className="ml-2 h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">تاريخ الإنشاء:</span>
-              <span className="mr-2 font-medium">
-                {template.created_at ? format(new Date(template.created_at), "dd MMM yyyy", { locale: ar }) : "غير محدد"}
-              </span>
-            </div>
-
-            {template.description && (
-              <div className="pt-2">
-                <div className="flex items-start text-sm">
-                  <FileText className="ml-2 h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                  <p className="text-muted-foreground line-clamp-3">
-                    {template.description}
-                  </p>
+      <Card className="group h-full border border-border/50 bg-card hover:border-primary/50 hover:shadow-md transition-all duration-300">
+        <CardHeader className="pb-3 pt-5 px-5">
+          <div className="flex justify-between items-start gap-4">
+            <div className="flex items-start gap-3">
+              <div className="mt-1 p-2.5 rounded-lg bg-primary/10 text-primary shrink-0 group-hover:bg-primary group-hover:text-primary-foreground transition-colors duration-300">
+                <Stethoscope className="h-5 w-5" />
+              </div>
+              <div className="space-y-1.5">
+                <CardTitle className="text-lg font-bold text-foreground leading-none">
+                  {template.name}
+                </CardTitle>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    {template.created_at ? format(new Date(template.created_at), "dd MMM yyyy", { locale: ar }) : "غير محدد"}
+                  </span>
                 </div>
               </div>
-            )}
-
-            <div className="pt-4 grid grid-cols-2 gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setIsEditDialogOpen(true)}
-                className="w-full gap-1"
-              >
-                <Edit className="h-4 w-4" />
-                تعديل
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => setIsDeleteDialogOpen(true)}
-                className="w-full gap-1"
-              >
-                <Trash2 className="h-4 w-4" />
-                حذف
-              </Button>
             </div>
+            
+            <div className="flex flex-col items-end shrink-0">
+              <span className="text-xl font-bold text-primary">
+                {formatCurrency(template.session_price || 0)}
+              </span>
+              <span className="text-[11px] text-muted-foreground font-medium">سعر الجلسة</span>
+            </div>
+          </div>
+        </CardHeader>
+        
+        <CardContent className="px-5 pb-5">
+          <div className="min-h-[3rem] mb-4">
+            {template.description ? (
+              <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+                {template.description}
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground/40 italic">
+                لا يوجد وصف لهذه الخطة
+              </p>
+            )}
+          </div>
+
+          {/* Stats Grid */}
+          <div className="grid grid-cols-3 gap-2 mb-4">
+            <div className="bg-muted/30 rounded-lg p-2 text-center border border-border/50">
+              <div className="text-[10px] text-muted-foreground mb-1 flex items-center justify-center gap-1">
+                <Clock className="w-3 h-3" />
+                آخر استخدام
+              </div>
+              <div className="text-xs font-semibold text-foreground dir-ltr">
+                {template.stats?.lastUsageDate ? format(new Date(template.stats.lastUsageDate), "dd MMM", { locale: ar }) : "-"}
+              </div>
+            </div>
+            
+            <div className="bg-muted/30 rounded-lg p-2 text-center border border-border/50">
+              <div className="text-[10px] text-muted-foreground mb-1 flex items-center justify-center gap-1">
+                <Wallet className="w-3 h-3" />
+                المبيعات
+              </div>
+              <div className="text-xs font-semibold text-foreground">
+                {formatCurrency(template.stats?.totalRevenue || 0)}
+              </div>
+            </div>
+
+            <div className="bg-muted/30 rounded-lg p-2 text-center border border-border/50">
+              <div className="text-[10px] text-muted-foreground mb-1 flex items-center justify-center gap-1">
+                <Users className="w-3 h-3" />
+                المرضى
+              </div>
+              <div className="text-xs font-semibold text-foreground">
+                {template.stats?.uniquePatients || 0}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 pt-2">
+            <Button
+              variant="ghost"
+              onClick={() => setIsEditDialogOpen(true)}
+              className="w-full gap-2 text-muted-foreground hover:text-primary hover:bg-primary/5 h-9"
+            >
+              <Edit className="h-4 w-4" />
+              <span className="text-sm">تعديل</span>
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => setIsDeleteDialogOpen(true)}
+              className="w-full gap-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-9"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span className="text-sm">حذف</span>
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -155,33 +189,10 @@ function TreatmentTemplateSkeleton() {
   );
 }
 
-export default function TreatmentTemplatesList() {
-  const { data: templates, isLoading, error } = useTreatmentTemplates();
-  const [searchTerm, setSearchTerm] = useState("");
-
-  // Filter templates based on search term
-  const filteredTemplates = useMemo(() => {
-    if (!templates) return [];
-    if (!searchTerm) return templates;
-    
-    const term = searchTerm.toLowerCase();
-    return templates.filter(template => 
-      template.name.toLowerCase().includes(term) ||
-      (template.description && template.description.toLowerCase().includes(term))
-    );
-  }, [templates, searchTerm]);
-
+export default function TreatmentTemplatesList({ templates, isLoading, error }) {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="relative max-w-md">
-          <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="بحث في الخطط العلاجية..."
-            className="pr-10 h-12 rounded-[var(--radius)] border-border"
-            disabled
-          />
-        </div>
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <TreatmentTemplateSkeleton key={i} />
@@ -193,77 +204,27 @@ export default function TreatmentTemplatesList() {
 
   if (error) {
     return (
-      <div className="space-y-6">
-        <div className="relative max-w-md">
-          <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="بحث في الخطط العلاجية..."
-            className="pr-10 h-12 rounded-[var(--radius)] border-border"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <div className="text-center py-12">
-          <div className="mx-auto h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
-            <AlertCircle className="h-8 w-8 text-destructive" />
-          </div>
-          <h3 className="text-lg font-medium text-foreground mb-1">حدث خطأ أثناء تحميل الخطط العلاجية</h3>
-          <p className="text-sm text-muted-foreground mt-1">{error.message}</p>
-        </div>
+      <div className="text-center py-10 text-red-500">
+        حدث خطأ أثناء تحميل الخطط العلاجية
       </div>
     );
   }
 
   if (!templates || templates.length === 0) {
     return (
-      <div className="space-y-6">
-        <div className="relative max-w-md">
-          <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="بحث في الخطط العلاجية..."
-            className="pr-10 h-12 rounded-[var(--radius)] border-border"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <div className="text-center py-12">
-          <div className="mx-auto h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-            <Stethoscope className="h-8 w-8 text-primary" />
-          </div>
-          <h3 className="text-lg font-medium text-foreground mb-1">لا توجد خطط علاجية</h3>
-          <p className="text-muted-foreground">لا توجد خطط علاجية متوفرة حالياً</p>
-          <p className="text-sm text-muted-foreground mt-1">اضغط على "إضافة خطة علاجية" لإنشاء خطة علاجية جديدة</p>
-        </div>
+      <div className="text-center py-12 bg-muted/20 rounded-lg border-2 border-dashed border-muted">
+        <Stethoscope className="mx-auto h-12 w-12 text-muted-foreground/50" />
+        <h3 className="mt-4 text-lg font-semibold text-muted-foreground">لا توجد خطط علاجية</h3>
+        <p className="text-sm text-muted-foreground mt-2">قم بإضافة خطة علاجية جديدة للبدء</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="relative max-w-md">
-        <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="بحث في الخطط العلاجية..."
-          className="pr-10 h-12 rounded-[var(--radius)] border-border"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-      </div>
-      {filteredTemplates.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="mx-auto h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
-            <Search className="h-8 w-8 text-muted-foreground" />
-          </div>
-          <h3 className="text-lg font-medium text-foreground mb-1">لا توجد نتائج</h3>
-          <p className="text-muted-foreground">لا توجد خطط علاجية مطابقة للبحث</p>
-        </div>
-      ) : (
-        <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {filteredTemplates.map((template) => (
-            <TreatmentTemplateItem key={template.id} template={template} />
-          ))}
-        </div>
-      )}
+    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      {templates.map((template) => (
+        <TreatmentTemplateItem key={template.id} template={template} />
+      ))}
     </div>
   );
 }

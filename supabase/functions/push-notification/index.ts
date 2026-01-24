@@ -109,16 +109,15 @@ serve(async (req) => {
 
       // 5. Send Notification
       try {
+        // Send as data-only message to prevent duplicate notifications (Browser default + Service Worker)
+        // This allows the Service Worker to handle the display and add the custom logo
         const response = await admin.messaging().sendEachForMulticast({
           tokens: uniqueTokens,
-          notification: {
-            title: title || "New Notification",
-            body: message || "You have a new update",
-          },
           data: {
-              // Add additional data if needed
+              title: title || "New Notification",
+              body: message || "You have a new update",
               notification_id: record.id?.toString() || "",
-              click_action: "/notifications" // Optional: URL to open when clicked
+              click_action: "/notifications"
           }
         });
 

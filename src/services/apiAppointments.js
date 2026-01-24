@@ -57,12 +57,14 @@ export async function getAppointments(search, page, pageSize, filters = {}) {
 
     // Apply time filter
     if (filters.time === "upcoming") {
-        const now = new Date().toISOString()
-        query = query.gte('date', now)
+        // Use YYYY-MM-DD format to ensure we include today's appointments
+        // Comparing date column (if it's just date) with ISO string (with time) would exclude today
+        const today = new Date().toLocaleDateString('en-CA')
+        query = query.gte('date', today)
 
         query = query.order("status", { ascending: false })
             .order("date", { ascending: true })
-        console.log("getAppointments/timeFilter", { type: "upcoming", now })
+        console.log("getAppointments/timeFilter", { type: "upcoming", today })
     } else {
         // For all appointments, sort by date descending (newest first)
         // But for online bookings (source: booking), prioritize pending status
@@ -106,6 +108,10 @@ export async function getAppointments(search, page, pageSize, filters = {}) {
             .gte('date', startDate.toISOString())
             .lte('date', endDate.toISOString())
         console.log("getAppointments/date", { start: startDate.toISOString(), end: endDate.toISOString() })
+    }
+
+    if (filters.patientId) {
+        query = query.eq('patient_id', filters.patientId)
     }
 
     // Apply status filter if provided (skip if "all")
@@ -274,6 +280,8 @@ export async function updateAppointment(id, payload) {
         .single()
 
     if (!userData?.clinic_id) throw new Error("User has no clinic assigned")
+
+    console.log("updateAppointment payload:", payload, "id:", id);
 
     const { data, error } = await supabase
         .from("appointments")

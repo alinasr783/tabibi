@@ -231,7 +231,7 @@ const getSystemPrompt = (userData, clinicData, subscriptionData, statsData, allD
 **الألوان المتاحة:** primary, secondary, success, warning, danger, blue, purple, pink, indigo, cyan
 
 ## الأيقونات:
-[icon:CheckCircle] [icon:Star] [icon:Rocket] [icon:Users] [icon:Calendar] [icon:CreditCard] [icon:Globe] [icon:Bell] [icon:Settings] [icon:FileText] [icon:Clock] [icon:UserPlus] [icon:XCircle] [icon:Copy] [icon:ExternalLink] [icon:TrendingUp] [icon:DollarSign] [icon:Activity] [icon:PieChart] [icon:BarChart]
+[icon:CheckCircle] [icon:Star] [icon:Rocket] [icon:Users] [icon:Calendar] [icon:CreditCard] [icon:Globe] [icon:Bell] [icon:Settings] [icon:FileText] [icon:Clock] [icon:UserPlus] [icon:XCircle] [icon:Copy] [icon:ExternalLink] [icon:TrendingUp] [icon:Banknote] [icon:Activity] [icon:PieChart] [icon:BarChart]
 
 ## الصفحات:
 - /dashboard - لوحة التحكم
@@ -279,7 +279,7 @@ const getSystemPrompt = (userData, clinicData, subscriptionData, statsData, allD
 \`\`\`
 
 ### لما حد يسأل عن الماليات:
-[icon:DollarSign] **الماليات هذا الشهر:**
+[icon:Banknote] **الماليات هذا الشهر:**
 - إيرادات: ${financeThisMonth.income || 0} جنيه
 - مصروفات: ${financeThisMonth.expenses || 0} جنيه
 - صافي: ${financeThisMonth.netProfit || 0} جنيه

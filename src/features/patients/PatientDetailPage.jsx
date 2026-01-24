@@ -1,13 +1,16 @@
-import { ArrowLeft, Phone, Cake, Calendar, Wallet, User, MessageCircle, Edit, ClipboardList, Stethoscope, CreditCard, FileText } from "lucide-react";
+import { ArrowRight, Phone, Calendar, Wallet, User, Edit, ClipboardList, Stethoscope, CreditCard, FileText, Upload, Plus, FileUp, Banknote, ClipboardPlus, X, MessageCircle, Shield } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { Button } from "../../components/ui/button";
-import { Card, CardContent } from "../../components/ui/card";
-
+import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 import PatientEditDialog from "./PatientEditDialog";
 import PatientProfileTab from "./PatientProfileTab";
-import PatientAttachmentsTab from "./PatientAttachmentsTab";
+import PatientAttachmentsTab, { UploadDialog } from "./PatientAttachmentsTab";
+import { usePatientAttachments } from "./usePatientAttachments";
+import VisitCreateForm from "./VisitCreateForm";
+import AppointmentCreateDialog from "../calendar/AppointmentCreateDialog";
 import { SkeletonLine } from "../../components/ui/skeleton";
 import usePatient from "./usePatient";
 import usePatientAppointments from "../calendar/usePatientAppointments";
@@ -26,16 +29,67 @@ import PatientPlanAssignmentForm from "./PatientPlanAssignmentForm";
 import { usePatientPlans } from "./usePatientPlans";
 import usePatientFinancialData from "./usePatientFinancialData";
 import { Eye } from "lucide-react";
+import PatientTransactionDialog from "./PatientTransactionDialog";
+import { toast } from "sonner";
 
 export default function PatientDetailPage() {
   const { id: patientId } = useParams();
   const navigate = useNavigate();
-  
-  // Debug: Log the patientId from the URL
-  console.log("PatientDetailPage - URL patientId:", patientId);
   const location = useLocation();
   const queryClient = useQueryClient();
+  
+  const { data: templates } = useTreatmentTemplates();
+
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isVisitDialogOpen, setIsVisitDialogOpen] = useState(false);
+  const [isAppointmentDialogOpen, setIsAppointmentDialogOpen] = useState(false);
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [isTransactionDialogOpen, setIsTransactionDialogOpen] = useState(false);
+  const [transactionType, setTransactionType] = useState("charge"); // 'charge' or 'payment'
+  const [activeTab, setActiveTab] = useState("profile");
+
+  const [isPlanTemplateDialogOpen, setIsPlanTemplateDialogOpen] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [isPlanFormOpen, setIsPlanFormOpen] = useState(false);
+
+  const handleTemplateSelect = (template) => {
+    setSelectedTemplate(template);
+    setIsPlanTemplateDialogOpen(false);
+    setIsPlanFormOpen(true);
+  };
+
+  const handlePlanAssigned = () => {
+    queryClient.invalidateQueries({ queryKey: ["patient-plans", patientId] });
+  };
+  
+  // Hooks
+  const { uploadAttachment, isUploading } = usePatientAttachments(patientId);
+
+  const handleAppointmentCreated = () => {
+    queryClient.invalidateQueries({ queryKey: ["patient-appointments", patientId] });
+    setIsAppointmentDialogOpen(false);
+    toast.success("تم حجز الموعد بنجاح");
+  };
+
+  const handleUpload = (data) => {
+    uploadAttachment({ ...data, patientId }, {
+      onSuccess: () => {
+        setIsUploadDialogOpen(false);
+        queryClient.invalidateQueries({ queryKey: ["patient-attachments", patientId] });
+        toast.success("تم رفع الملف بنجاح");
+      }
+    });
+  };
+
+  const handleTransactionSuccess = () => {
+    queryClient.invalidateQueries({ queryKey: ["patient-financial", patientId] });
+    toast.success(transactionType === 'payment' ? "تم تسجيل الدفع بنجاح" : "تم إضافة المستحقات بنجاح");
+  };
+
+  const openTransactionDialog = (type) => {
+    setTransactionType(type);
+    setIsTransactionDialogOpen(true);
+  };
 
   // Apply scroll to top on route changes
   useEffect(() => {
@@ -48,8 +102,9 @@ export default function PatientDetailPage() {
   const { data: appointments, isLoading: isAppointmentsLoading } = usePatientAppointments(patientId);
 
   const handleVisitAdded = () => {
-    // Invalidate visits query to refresh the data
     queryClient.invalidateQueries({ queryKey: ["visits", patientId] });
+    setIsVisitDialogOpen(false);
+    toast.success("تم إضافة الكشف بنجاح");
   };
 
   // Calculate patient age
@@ -60,21 +115,8 @@ export default function PatientDetailPage() {
     return age;
   };
 
-  let patientAge = calculateAge(patient?.date_of_birth);
-  let patientAgeUnit = "سنة";
-  
-  if (!patientAge && patient?.age) {
-      patientAge = patient.age;
-      patientAgeUnit = patient.age_unit === 'months' ? 'شهر' : patient.age_unit === 'days' ? 'يوم' : 'سنة';
-  }
-
-  const shareLatestPrescription = () => {
-    // WhatsApp integration removed per user request
-    toast.error("تم إيقاف خدمة واتساب حالياً");
-  };
-
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className="space-y-6 pb-6" dir="rtl">
       {isError ? (
         <div className="text-center py-12">
           <User className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
@@ -85,7 +127,7 @@ export default function PatientDetailPage() {
             onClick={() => navigate(-1)}
             className="gap-1.5"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowRight className="w-4 h-4" />
             رجوع للصفحة السابقة
           </Button>
         </div>
@@ -111,68 +153,46 @@ export default function PatientDetailPage() {
             onClick={() => navigate(-1)}
             className="gap-1.5"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowRight className="w-4 h-4" />
             رجوع للصفحة السابقة
           </Button>
         </div>
       ) : (
         <>
-          {/* Header - Patient Info */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4" style={{ direction: 'rtl' }}>
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
-                <User className="w-7 h-7 text-primary" />
-              </div>
-              <div style={{ direction: 'rtl' }}>
-                <h1 className="text-xl font-bold">{patient?.name}</h1>
-                <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
-                  {patient?.phone && (
-                    <span className="flex items-center gap-1">
-                      <Phone className="w-3.5 h-3.5" />
-                      {patient.phone}
-                    </span>
-                  )}
-                  {patientAge && (
-                    <span className="flex items-center gap-1">
-                      <Cake className="w-3.5 h-3.5" />
-                      {patientAge} {patientAgeUnit}
-                    </span>
-                  )}
-                </div>
-              </div>
+          {/* Header - Patient Info - Refined & Responsive */}
+          <div className="flex items-center gap-3 mb-6" dir="rtl">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => navigate(-1)}
+              className="h-10 w-10 shrink-0 rounded-lg border-dashed"
+            >
+              <ArrowRight className="w-5 h-5" />
+            </Button>
+
+            <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 border border-primary/10">
+              <User className="h-6 w-6 text-primary" />
             </div>
             
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsEditDialogOpen(true)}
-                className="gap-1.5"
-                disabled={!patient}  // Disable if patient data is not loaded
-              >
-                <Edit className="w-4 h-4" />
-                تعديل
-              </Button>
-              
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate(-1)}
-                className="gap-1.5"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                رجوع
-              </Button>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-lg font-bold text-foreground truncate leading-tight">
+                {patient?.name}
+              </h1>
+              {patient?.phone && (
+                <div className="text-sm text-muted-foreground mt-0.5 font-medium text-right" dir="ltr">
+                  {patient.phone}
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Quick Info Cards */}
-          <div className="grid grid-cols-3 gap-3" dir="rtl">
-            {/* Total Amount */}
+          {/* Quick Info Cards - Restored to Finance Page Style */}
+          <div className="grid grid-cols-3 sm:grid-cols-3 gap-3" dir="rtl">
+            {/* Total Income */}
             <Card className="bg-white dark:bg-slate-900 border-border shadow-sm">
               <CardContent className="p-3">
                 <div className="flex items-center gap-2 mb-1">
-                  <Wallet className="w-4 h-4 text-slate-600 dark:text-slate-400" />
+                  <Wallet className="w-4 h-4 text-primary" />
                   <span className="text-xs font-medium text-slate-600 dark:text-slate-400">الإجمالي</span>
                 </div>
                 <p className="text-base font-bold text-slate-900 dark:text-slate-100">
@@ -185,7 +205,7 @@ export default function PatientDetailPage() {
             <Card className="bg-white dark:bg-slate-900 border-border shadow-sm">
               <CardContent className="p-3">
                 <div className="flex items-center gap-2 mb-1">
-                  <CreditCard className="w-4 h-4 text-slate-600 dark:text-slate-400" />
+                  <CreditCard className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                   <span className="text-xs font-medium text-slate-600 dark:text-slate-400">المدفوع</span>
                 </div>
                 <p className="text-base font-bold text-slate-900 dark:text-slate-100">
@@ -198,76 +218,248 @@ export default function PatientDetailPage() {
             <Card className="bg-white dark:bg-slate-900 border-border shadow-sm">
               <CardContent className="p-3">
                 <div className="flex items-center gap-2 mb-1">
-                  <Wallet className="w-4 h-4 text-slate-600 dark:text-slate-400" />
+                  <Wallet className="w-4 h-4 text-rose-600 dark:text-rose-400" />
                   <span className="text-xs font-medium text-slate-600 dark:text-slate-400">المتبقي</span>
                 </div>
-                <p className="text-base font-bold text-slate-900 dark:text-slate-100">
+                <p className={`text-base font-bold ${financialData?.remainingAmount > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-slate-100'}`}>
                   {financialData?.remainingAmount?.toFixed(0) || 0} جنيه
                 </p>
               </CardContent>
             </Card>
           </div>
 
+          {/* Quick Actions */}
+          <Card className="bg-card border-border/50 shadow-sm" dir="rtl">
+            <CardHeader className="pb-3 pt-4 px-4 border-b border-border/50 bg-muted/20">
+              <CardTitle className="text-base flex items-center gap-2 text-primary">
+                <ClipboardPlus className="w-5 h-5" />
+                إجراءات سريعة
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <Button 
+                    variant="outline" 
+                    className="justify-start gap-2 h-11 hover:bg-primary/5 hover:border-primary/30 transition-all shadow-sm" 
+                    onClick={() => setIsEditDialogOpen(true)}
+                >
+                    <Edit className="w-4 h-4 text-primary" />
+                    تعديل الملف
+                </Button>
+                <Button 
+                    variant="outline" 
+                    className="justify-start gap-2 h-11 hover:bg-primary/5 hover:border-primary/30 transition-all shadow-sm" 
+                    onClick={() => setIsVisitDialogOpen(true)}
+                >
+                    <ClipboardPlus className="w-4 h-4 text-blue-600" />
+                    كشف جديد
+                </Button>
+                <Button 
+                    variant="outline" 
+                    className="justify-start gap-2 h-11 hover:bg-primary/5 hover:border-primary/30 transition-all shadow-sm" 
+                    onClick={() => setIsUploadDialogOpen(true)}
+                >
+                    <FileUp className="w-4 h-4 text-amber-600" />
+                    رفع ملف
+                </Button>
+                <Button 
+                    variant="outline" 
+                    className="justify-start gap-2 h-11 hover:bg-primary/5 hover:border-primary/30 transition-all shadow-sm" 
+                    onClick={() => setIsAppointmentDialogOpen(true)}
+                >
+                    <Calendar className="w-4 h-4 text-purple-600" />
+                    حجز موعد
+                </Button>
+                <Button 
+                    variant="outline" 
+                    className="justify-start gap-2 h-11 hover:bg-primary/5 hover:border-primary/30 transition-all shadow-sm" 
+                    onClick={() => setIsPlanTemplateDialogOpen(true)}
+                >
+                    <ClipboardList className="w-4 h-4 text-indigo-600" />
+                    خطة علاجية
+                </Button>
+                <Button 
+                    variant="outline" 
+                    className="justify-start gap-2 h-11 hover:bg-primary/5 hover:border-primary/30 transition-all shadow-sm" 
+                    onClick={() => openTransactionDialog('charge')}
+                >
+                    <Banknote className="w-4 h-4 text-rose-600" />
+                    إضافة مستحقات
+                </Button>
+                <Button 
+                    variant="outline" 
+                    className="justify-start gap-2 h-11 hover:bg-emerald-50 hover:border-emerald-200 transition-all shadow-sm bg-emerald-50/50" 
+                    onClick={() => openTransactionDialog('payment')}
+                >
+                    <Wallet className="w-4 h-4 text-emerald-600" />
+                    دفع مستحقات
+                </Button>
+                <Button 
+                    variant="outline" 
+                    className="justify-start gap-2 h-11 hover:bg-primary/5 hover:border-primary/30 transition-all shadow-sm" 
+                    onClick={() => window.location.href = `tel:${patient?.phone}`}
+                >
+                    <Phone className="w-4 h-4 text-cyan-600" />
+                    مكالمة
+                </Button>
+                <Button 
+                    variant="outline" 
+                    className="justify-start gap-2 h-11 hover:bg-primary/5 hover:border-primary/30 transition-all shadow-sm col-span-2" 
+                    onClick={() => {
+                        const phone = patient?.phone?.replace(/\D/g, ''); // Remove non-digits
+                        window.open(`https://wa.me/2${phone}`, '_blank');
+                    }}
+                >
+                    <MessageCircle className="w-4 h-4 text-green-600" />
+                    تواصل عبر واتساب
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Tabs for Sections */}
-          <Tabs defaultValue="profile" className="w-full" style={{ direction: 'rtl' }}>
-            <TabsList className="w-full md:w-auto grid grid-cols-5 md:inline-flex h-auto p-1 bg-muted/50">
-              <TabsTrigger value="profile" className="text-xs md:text-sm py-2 px-3 gap-1.5">
-                <User className="w-4 h-4" />
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full" style={{ direction: 'rtl' }}>
+            <TabsList className="w-full md:w-auto grid grid-cols-5 md:inline-flex h-auto p-1 bg-muted/50 rounded-lg">
+              <TabsTrigger value="profile" className="text-xs md:text-sm py-2 px-3 gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                <User className="hidden md:block w-4 h-4" />
                 <span>الملف</span>
               </TabsTrigger>
-              <TabsTrigger value="visits" className="text-xs md:text-sm py-2 px-3 gap-1.5">
-                <Stethoscope className="w-4 h-4" />
+              <TabsTrigger value="visits" className="text-xs md:text-sm py-2 px-3 gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                <Stethoscope className="hidden md:block w-4 h-4" />
                 <span>الكشوفات</span>
               </TabsTrigger>
-              <TabsTrigger value="attachments" className="text-xs md:text-sm py-2 px-3 gap-1.5">
-                <FileText className="w-4 h-4" />
+              <TabsTrigger value="attachments" className="text-xs md:text-sm py-2 px-3 gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                <FileText className="hidden md:block w-4 h-4" />
                 <span>الملف</span>
               </TabsTrigger>
-              <TabsTrigger value="appointments" className="text-xs md:text-sm py-2 px-3 gap-1.5">
-                <Calendar className="w-4 h-4" />
+              <TabsTrigger value="appointments" className="text-xs md:text-sm py-2 px-3 gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                <Calendar className="hidden md:block w-4 h-4" />
                 <span>المواعيد</span>
               </TabsTrigger>
-              <TabsTrigger value="plans" className="text-xs md:text-sm py-2 px-3 gap-1.5">
-                <ClipboardList className="w-4 h-4" />
+              <TabsTrigger value="plans" className="text-xs md:text-sm py-2 px-3 gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                <ClipboardList className="hidden md:block w-4 h-4" />
                 <span>الخطط</span>
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="profile" className="mt-4">
-              <PatientProfileTab patient={patient} />
-            </TabsContent>
+            <div className="mt-4">
+              <TabsContent value="profile" className="mt-0 animate-in fade-in-50 slide-in-from-bottom-2">
+                <PatientProfileTab patient={patient} />
+              </TabsContent>
 
-            <TabsContent value="attachments" className="mt-4">
-              <PatientAttachmentsTab patientId={patientId} />
-            </TabsContent>
+              <TabsContent value="attachments" className="mt-0 animate-in fade-in-50 slide-in-from-bottom-2">
+                <PatientAttachmentsTab patientId={patientId} />
+              </TabsContent>
 
-            <TabsContent value="visits" className="mt-4">
-              <PatientVisitsTable 
-                visits={visits} 
-                isLoading={isVisitsLoading} 
-                patientId={patientId}
-                onVisitAdded={handleVisitAdded}
-              />
-            </TabsContent>
+              <TabsContent value="visits" className="mt-0 animate-in fade-in-50 slide-in-from-bottom-2">
+                <PatientVisitsTable 
+                  visits={visits} 
+                  isLoading={isVisitsLoading} 
+                  patientId={patientId}
+                  onVisitAdded={handleVisitAdded}
+                />
+              </TabsContent>
 
-            <TabsContent value="appointments" className="mt-4">
-              <PatientAppointmentsHistory 
-                appointments={appointments} 
-                isLoading={isAppointmentsLoading}
-                patientId={patientId}
-                patient={patient}
-              />
-            </TabsContent>
+              <TabsContent value="appointments" className="mt-0 animate-in fade-in-50 slide-in-from-bottom-2">
+                <PatientAppointmentsHistory 
+                  appointments={appointments} 
+                  isLoading={isAppointmentsLoading}
+                  patientId={patientId}
+                  patient={patient}
+                />
+              </TabsContent>
 
-            <TabsContent value="plans" className="mt-4">
-              <PatientTreatmentPlansTable patientId={patientId} />
-            </TabsContent>
+              <TabsContent value="plans" className="mt-0 animate-in fade-in-50 slide-in-from-bottom-2">
+                <PatientTreatmentPlansTable patientId={patientId} />
+              </TabsContent>
+            </div>
           </Tabs>
 
+          {/* Dialogs */}
           <PatientEditDialog
             open={isEditDialogOpen}
             onClose={() => setIsEditDialogOpen(false)}
             patient={patient}
+          />
+          
+          {/* Create Visit Dialog - Wrapped in Dialog component to prevent rendering at bottom of page */}
+          <Dialog open={isVisitDialogOpen} onOpenChange={setIsVisitDialogOpen}>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" dir="rtl">
+              <DialogHeader>
+                <DialogTitle>إضافة كشف جديد</DialogTitle>
+              </DialogHeader>
+              <VisitCreateForm 
+                patientId={patientId}
+                onSuccess={handleVisitAdded}
+                onCancel={() => setIsVisitDialogOpen(false)}
+              />
+            </DialogContent>
+          </Dialog>
+
+          <AppointmentCreateDialog 
+            open={isAppointmentDialogOpen}
+            onClose={() => setIsAppointmentDialogOpen(false)}
+            initialPatient={patient}
+          />
+
+          <UploadDialog 
+            open={isUploadDialogOpen} 
+            onClose={() => setIsUploadDialogOpen(false)} 
+            onUpload={handleUpload}
+            isUploading={isUploading}
+          />
+
+          <PatientTransactionDialog 
+            open={isTransactionDialogOpen}
+            onOpenChange={setIsTransactionDialogOpen}
+            patientId={patientId}
+            type={transactionType}
+            onSuccess={handleTransactionSuccess}
+          />
+
+          <Dialog open={isPlanTemplateDialogOpen} onOpenChange={setIsPlanTemplateDialogOpen}>
+            <DialogContent dir="rtl">
+              <DialogHeader className="flex flex-row items-center justify-between">
+                <DialogTitle>اختر خطة علاجية</DialogTitle>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-full"
+                  onClick={() => setIsPlanTemplateDialogOpen(false)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </DialogHeader>
+              <div className="grid gap-2 py-4">
+                {templates?.length > 0 ? (
+                  templates.map((template) => (
+                    <div
+                      key={template.id}
+                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                      onClick={() => handleTemplateSelect(template)}
+                    >
+                      <div className="font-medium">{template.name}</div>
+                      <div className="text-sm text-muted-foreground">{template.session_price} ج.م / جلسة</div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center text-muted-foreground py-8">
+                    مفيش قوالب خطط علاجية متاحة
+                  </div>
+                )}
+              </div>
+              <div className="mt-4 flex justify-end border-t pt-4">
+                  <Button variant="outline" onClick={() => setIsPlanTemplateDialogOpen(false)}>إلغاء</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <PatientPlanAssignmentForm
+            open={isPlanFormOpen}
+            onClose={() => setIsPlanFormOpen(false)}
+            template={selectedTemplate}
+            patientId={patientId}
+            onPlanAssigned={handlePlanAssigned}
           />
         </>
       )}
@@ -295,21 +487,24 @@ function PatientTreatmentPlansTable({ patientId }) {
   };
 
   const statusConfig = {
-    active: { label: "نشطة", className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200" },
-    completed: { label: "مكتملة", className: "bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-200" },
-    cancelled: { label: "ملغية", className: "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200" },
+    active: { label: "نشطة", className: "bg-white text-emerald-700 border-emerald-200 dark:bg-slate-950 dark:text-emerald-400 dark:border-emerald-800" },
+    completed: { label: "مكتملة", className: "bg-blue-800 text-white font-bold border border-blue-900 shadow-sm dark:bg-blue-600 dark:text-blue-50" },
+    cancelled: { label: "ملغية", className: "bg-white text-slate-600 border-slate-200 dark:bg-slate-950 dark:text-slate-400 dark:border-slate-700" },
   };
 
   return (
-    <>
+    <div className="space-y-4" style={{ direction: 'rtl' }}>
       {/* Header with Add Button */}
-      <div className="flex items-center justify-between mb-4" style={{ direction: 'rtl' }}>
-        <h3 className="text-sm font-medium text-muted-foreground">الخطط العلاجية</h3>
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+          <ClipboardList className="w-4 h-4 text-primary" />
+          الخطط العلاجية
+        </h3>
         <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
           <DropdownMenuTrigger asChild>
-            <Button size="sm" className="gap-1.5" disabled={!patientId}>
-              <ClipboardList className="w-4 h-4" />
-              إضافة خطة
+            <Button size="sm" variant="outline" className="gap-1.5 h-8 bg-primary/5 hover:bg-primary/10 border-primary/20 text-primary hover:text-primary" disabled={!patientId}>
+              <Plus className="w-3.5 h-3.5" />
+              خطة جديدة
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
@@ -349,31 +544,41 @@ function PatientTreatmentPlansTable({ patientId }) {
           ))}
         </div>
       ) : patientPlans && patientPlans.length > 0 ? (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {patientPlans.map((plan) => (
             <div
               key={plan.id}
               onClick={() => navigate(`/patients/${patientId}/plans/${plan.id}`)}
-              className="cursor-pointer"
+              className="cursor-pointer group"
             >
-              <Card className="hover:bg-muted/50 transition-colors group">
-                <CardContent className="p-3">
+              <Card className="overflow-hidden border-border/50 hover:border-primary/50 hover:shadow-md transition-all duration-300 bg-card/50 hover:bg-card">
+                <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm">
-                          {plan.treatment_templates?.name || "-"}
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="font-bold text-base text-foreground">
+                          {plan.treatment_templates?.name || "خطة علاجية"}
                         </span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${statusConfig[plan.status]?.className || ''}`}>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${statusConfig[plan.status]?.className || ''}`}>
                           {statusConfig[plan.status]?.label || plan.status}
                         </span>
                       </div>
-                      <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                        <span>{plan.total_sessions} جلسة</span>
-                        <span>{plan.total_price} جنيه</span>
+                      
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-1.5 font-medium">
+                          <ClipboardList className="w-3.5 h-3.5" />
+                          <span>{plan.total_sessions} جلسات إجمالية</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 font-medium">
+                          <Wallet className="w-3.5 h-3.5" />
+                          <span>{plan.total_price} جنيه</span>
+                        </div>
                       </div>
                     </div>
-                    <Eye className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                    
+                    <div className="h-8 w-8 rounded-full bg-muted/50 group-hover:bg-primary/10 flex items-center justify-center transition-colors">
+                      <Eye className="w-4 h-4 text-muted-foreground group-hover:text-primary" />
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -381,8 +586,9 @@ function PatientTreatmentPlansTable({ patientId }) {
           ))}
         </div>
       ) : (
-        <div className="text-center py-8 text-muted-foreground text-sm">
-          مفيش خطط علاجية للمريض ده
+        <div className="text-center py-12 bg-muted/20 rounded-xl border border-dashed border-muted-foreground/20">
+          <ClipboardList className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+          <p className="text-muted-foreground text-sm">مفيش خطط علاجية نشطة</p>
         </div>
       )}
 
@@ -393,6 +599,6 @@ function PatientTreatmentPlansTable({ patientId }) {
         patientId={patientId}
         onPlanAssigned={handlePlanAssigned}
       />
-    </>
+    </div>
   );
 }

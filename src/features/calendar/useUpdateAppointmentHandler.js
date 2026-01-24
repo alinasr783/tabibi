@@ -74,7 +74,7 @@ export default function useUpdateAppointmentHandler() {
                 date: data.date,
                 notes: data.notes,
                 price: typeof data.price === "string" ? parseFloat(data.price) : data.price,
-                status: data.status?.toLowerCase() // Add status to payload and ensure lowercase
+                status: data.status?.toLowerCase(), // Add status to payload and ensure lowercase
             };
             
             // Remove undefined values

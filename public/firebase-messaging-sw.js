@@ -23,11 +23,17 @@ const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Received background message ', payload);
-  // Customize notification here
-  const notificationTitle = payload.notification.title;
+  
+  // Support both data-only and notification payloads
+  // We prefer data payload to avoid duplicate notifications and ensure custom icon
+  const notificationTitle = payload.data?.title || payload.notification?.title || "Tabibi Notification";
+  const notificationBody = payload.data?.body || payload.notification?.body || "";
+  
   const notificationOptions = {
-    body: payload.notification.body,
-    icon: '/logo.jpeg' // Using the logo from public folder
+    body: notificationBody,
+    icon: '/logo.jpeg', // Using the logo from public folder
+    badge: '/logo.jpeg', // Badge for Android
+    data: payload.data // Pass data to click handler
   };
 
   self.registration.showNotification(notificationTitle, notificationOptions);

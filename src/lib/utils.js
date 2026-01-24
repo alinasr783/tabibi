@@ -9,7 +9,7 @@ export function cn(...inputs) {
 export function formatCurrency(amount) {
   // Round to nearest whole number and format as currency without decimals
   const roundedAmount = Math.round(amount);
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("ar-EG", {
     style: "currency",
     currency: "EGP",
     minimumFractionDigits: 0,

@@ -102,17 +102,66 @@ export async function getTreatmentTemplates() {
 
     if (!userData?.clinic_id) throw new Error("User has no clinic assigned");
 
-    const { data, error } = await supabase
+    // 1. Fetch Templates
+    const { data: templates, error: templatesError } = await supabase
         .from("treatment_templates")
         .select("id, name, session_price, description, created_at")
         .eq("clinic_id", userData.clinic_id)
         .order("created_at", { ascending: false });
 
-    if (error) {
-        console.error("Error fetching treatment templates:", error);
-        throw error;
+    if (templatesError) {
+        console.error("Error fetching treatment templates:", templatesError);
+        throw templatesError;
     }
-    return data;
+
+    // 2. Fetch Usage Stats (Patient Plans)
+    // Fetch all patient plans for this clinic to calculate stats client-side
+    // This is more efficient than N+1 queries or complex joins that might not be supported
+    const { data: usages, error: usagesError } = await supabase
+        .from("patient_plans")
+        .select("template_id, total_price, patient_id, created_at")
+        .eq("clinic_id", userData.clinic_id)
+        .not("template_id", "is", null);
+
+    if (usagesError) {
+        console.error("Error fetching plan usages:", usagesError);
+        // We don't throw here, just return templates with 0 stats if usages fail
+    }
+
+    // 3. Aggregate Stats in JS
+    const templatesWithStats = templates.map(template => {
+        const templateUsages = usages ? usages.filter(u => u.template_id === template.id) : [];
+        
+        const usageCount = templateUsages.length;
+        const totalRevenue = templateUsages.reduce((sum, u) => sum + (Number(u.total_price) || 0), 0);
+        const uniquePatients = new Set(templateUsages.map(u => u.patient_id)).size;
+        
+        // Find last usage date
+        let lastUsageDate = null;
+        if (templateUsages.length > 0) {
+            const dates = templateUsages.map(u => new Date(u.created_at).getTime());
+            if (dates.length > 0) {
+                lastUsageDate = new Date(Math.max(...dates)).toISOString();
+            }
+        }
+
+        return {
+            ...template,
+            stats: {
+                usageCount,
+                totalRevenue,
+                uniquePatients,
+                lastUsageDate
+            },
+            rawUsages: templateUsages.map(u => ({
+                created_at: u.created_at,
+                total_price: u.total_price,
+                patient_id: u.patient_id
+            }))
+        };
+    });
+
+    return templatesWithStats;
 }
 
 export async function deleteTreatmentTemplate(id) {

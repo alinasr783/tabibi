@@ -1,6 +1,7 @@
 import supabase from "./supabase";
 
 export async function getApps() {
+  // Use tabibi_apps table
   const { data, error } = await supabase
     .from("tabibi_apps")
     .select("*")
@@ -8,7 +9,23 @@ export async function getApps() {
     .order("id");
 
   if (error) throw error;
-  return data;
+  
+  // Shape data to match UI expectations
+  return (data || []).map((app) => ({
+    id: app.id,
+    title: app.title,
+    short_description: app.short_description,
+    full_description: app.full_description,
+    category: app.category,
+    image_url: app.image_url, // tabibi_apps uses image_url
+    color: app.color || "bg-primary/10",
+    price: app.price ?? 0,
+    billing_period: app.billing_period || "monthly",
+    features: app.features || [],
+    screenshots: app.screenshots || [],
+    icon_name: app.icon_name || null, // Check if this exists in tabibi_apps, if not it will be undefined/null which is fine
+    preview_link: app.preview_link || null,
+  }));
 }
 
 export async function incrementAppViews(appId) {
@@ -35,17 +52,35 @@ export async function incrementAppViews(appId) {
 }
 
 export async function getAppById(id) {
-  const { data, error } = await supabase
+  // Use tabibi_apps table
+  const { data: app, error } = await supabase
     .from("tabibi_apps")
     .select("*")
     .eq("id", id)
     .single();
 
   if (error) throw error;
-  return data;
+
+  return {
+    id: app.id,
+    title: app.title,
+    short_description: app.short_description,
+    full_description: app.full_description,
+    category: app.category,
+    image_url: app.image_url,
+    color: app.color || "bg-primary/10",
+    price: app.price ?? 0,
+    billing_period: app.billing_period || "monthly",
+    features: app.features || [],
+    screenshots: app.screenshots || [],
+    icon_name: app.icon_name || null,
+    preview_link: app.preview_link || null,
+    latest_version: null, // Legacy doesn't support versions
+  };
 }
 
 export async function getInstalledApps(clinicId) {
+  // Use app_subscriptions table joined with tabibi_apps
   const { data, error } = await supabase
     .from("app_subscriptions")
     .select(`
@@ -58,7 +93,20 @@ export async function getInstalledApps(clinicId) {
   if (error) throw error;
   
   return data.map(item => ({
-    ...item.app,
+    id: item.app?.id,
+    title: item.app?.title,
+    short_description: item.app?.short_description,
+    full_description: item.app?.full_description,
+    category: item.app?.category,
+    image_url: item.app?.image_url,
+    color: item.app?.color || "bg-primary/10",
+    price: item.app?.price ?? 0,
+    billing_period: item.app?.billing_period || "monthly",
+    features: item.app?.features || [],
+    screenshots: item.app?.screenshots || [],
+    icon_name: item.app?.icon_name || null,
+    preview_link: item.app?.preview_link || null,
+    component_key: item.app?.component_key,
     subscriptionId: item.id,
     installedAt: item.created_at,
     expiresAt: item.current_period_end,
@@ -177,7 +225,7 @@ export async function installApp(clinicId, appId) {
     .eq("app_id", appId)
     .maybeSingle();
 
-  // Get App details for price
+  // Get App details for price/monthly model
   const { data: app } = await supabase
     .from("tabibi_apps")
     .select("price, billing_period")
@@ -185,8 +233,12 @@ export async function installApp(clinicId, appId) {
     .single();
 
   const periodEnd = new Date();
-  if (app.billing_period === 'monthly') periodEnd.setMonth(periodEnd.getMonth() + 1);
-  else if (app.billing_period === 'yearly') periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+  // Default renewal logic based on billing period
+  if (app?.billing_period === 'yearly') {
+    periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+  } else {
+    periodEnd.setMonth(periodEnd.getMonth() + 1);
+  }
 
   let resultData;
 
@@ -197,9 +249,7 @@ export async function installApp(clinicId, appId) {
       .update({ 
         status: "active",
         current_period_start: new Date().toISOString(),
-        current_period_end: periodEnd.toISOString(),
-        amount: app.price,
-        billing_period: app.billing_period
+        current_period_end: periodEnd.toISOString()
       })
       .eq("id", existing.id)
       .select()
@@ -213,10 +263,11 @@ export async function installApp(clinicId, appId) {
       .insert([{ 
         clinic_id: clinicId, 
         app_id: appId,
-        amount: app.price,
-        billing_period: app.billing_period,
         current_period_end: periodEnd.toISOString(),
-        status: 'active'
+        status: 'active',
+        billing_period: app?.billing_period || 'monthly',
+        amount: app?.price || 0,
+        auto_renew: true
       }])
       .select()
       .single();

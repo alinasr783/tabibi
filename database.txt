@@ -299,6 +299,10 @@ CREATE TABLE public.notifications (
   related_id character varying,
   appointment_id bigint,
   patient_id bigint,
+  image_url text,
+  action_link text,
+  action_text text,
+  action_buttons jsonb,
   CONSTRAINT notifications_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.patient_attachments (
@@ -404,6 +408,23 @@ CREATE TABLE public.tabibi_apps (
   views_count integer DEFAULT 0,
   CONSTRAINT tabibi_apps_pkey PRIMARY KEY (id),
   CONSTRAINT tabibi_apps_developer_id_fkey FOREIGN KEY (developer_id) REFERENCES public.app_developers(id)
+);
+CREATE TABLE public.transactions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  reference_number integer NOT NULL DEFAULT nextval('transactions_reference_number_seq'::regclass),
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  user_id uuid,
+  clinic_id uuid,
+  easykash_ref text,
+  amount numeric NOT NULL,
+  currency text DEFAULT 'EGP'::text,
+  status USER-DEFINED DEFAULT 'pending'::payment_status,
+  type USER-DEFINED NOT NULL,
+  metadata jsonb DEFAULT '{}'::jsonb,
+  response_data jsonb DEFAULT '{}'::jsonb,
+  CONSTRAINT transactions_pkey PRIMARY KEY (id),
+  CONSTRAINT transactions_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
 CREATE TABLE public.treatment_templates (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,

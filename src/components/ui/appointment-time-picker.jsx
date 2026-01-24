@@ -1,9 +1,10 @@
-import { format, parse } from "date-fns";
+import { format } from "date-fns";
 import { ar } from "date-fns/locale";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Button } from "./button";
 import { Calendar } from "./calendar";
-import { ScrollArea } from "./scroll-area";
+import { ScrollArea, ScrollBar } from "./scroll-area";
+import { Clock, ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function AppointmentTimePicker({ 
   selectedDate, 
@@ -12,11 +13,12 @@ export default function AppointmentTimePicker({
   onTimeChange,
   availableTimeSlots = [],
   clinicAvailableTime = null,
-  autoSelectFirstAvailable = false // New prop for auto-selection
+  autoSelectFirstAvailable = false
 }) {
   const today = new Date();
   const [date, setDate] = useState(selectedDate || today);
   const [time, setTime] = useState(selectedTime || null);
+  const [selectedHourKey, setSelectedHourKey] = useState(null);
   const [hasAutoSelected, setHasAutoSelected] = useState(false);
 
   // Function to check if a date is available based on clinic hours
@@ -209,10 +211,47 @@ export default function AppointmentTimePicker({
     ? generateTimeSlots(date, clinicAvailableTime)
     : (availableTimeSlots.length > 0 ? availableTimeSlots : defaultTimeSlots);
 
+  // Group slots by hour
+  const groupedSlots = useMemo(() => {
+    const groups = {};
+    timeSlots.forEach(slot => {
+      // slot.time is "09:00 AM"
+      // Split safely
+      const parts = slot.time.split(' ');
+      if (parts.length < 2) return;
+      
+      const [timePart, period] = parts;
+      const [hour, minute] = timePart.split(':');
+      
+      // Key: "09 AM"
+      const hourKey = `${hour} ${period}`;
+      
+      if (!groups[hourKey]) {
+        groups[hourKey] = {
+          id: hourKey,
+          hour,
+          period,
+          display: `${hour} ${period === 'AM' ? 'ص' : 'م'}`,
+          minutes: []
+        };
+      }
+      
+      groups[hourKey].minutes.push({
+        minute,
+        fullTime: slot.time,
+        available: slot.available
+      });
+    });
+    
+    return Object.values(groups);
+  }, [timeSlots]);
+
+  // Reset selection when date changes
   const handleDateSelect = (newDate) => {
     if (newDate && isDateAvailable(newDate)) {
       setDate(newDate);
       setTime(null);
+      setSelectedHourKey(null);
       if (onDateChange) {
         onDateChange(newDate);
       }
@@ -222,12 +261,35 @@ export default function AppointmentTimePicker({
     }
   };
 
+  const handleHourSelect = (hourKey) => {
+    setSelectedHourKey(hourKey);
+    // When changing hour, we could clear the time, or auto-select first available minute?
+    // Let's clear time to force user to pick a minute
+    setTime(null);
+    if (onTimeChange) {
+      onTimeChange(null);
+    }
+  };
+
   const handleTimeSelect = (selectedTime) => {
     setTime(selectedTime);
     if (onTimeChange) {
       onTimeChange(selectedTime);
     }
   };
+
+  // Initialize selectedHourKey if a time is already selected
+  useEffect(() => {
+    if (selectedTime) {
+      const parts = selectedTime.split(' ');
+      if (parts.length >= 2) {
+        const [timePart, period] = parts;
+        const [hour] = timePart.split(':');
+        const key = `${hour} ${period}`;
+        setSelectedHourKey(key);
+      }
+    }
+  }, [selectedTime]);
 
   return (
     <div className="rounded-[var(--radius)] border border-border bg-background overflow-hidden w-full">
@@ -245,35 +307,83 @@ export default function AppointmentTimePicker({
         </div>
       </div>
       
-      {/* Time Slots Section */}
-      <div className="border-t border-border">
-        <div className="p-3 sm:p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-1 h-4 bg-primary rounded-full flex-shrink-0"></div>
+      {/* Modern Time Picker Section */}
+      <div className="border-t border-border bg-muted/20">
+        <div className="p-4 space-y-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Clock className="w-4 h-4 text-primary" />
             <p className="text-sm font-semibold text-foreground truncate">
               {format(date, "EEEE, d MMMM", { locale: ar })}
             </p>
           </div>
           
           {timeSlots.length > 0 ? (
-            <ScrollArea className="max-h-[300px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 pb-2">
-                {timeSlots.map(({ time: timeSlot, available }) => (
-                  <Button
-                    key={timeSlot}
-                    variant={time === timeSlot ? "default" : "outline"}
-                    size="sm"
-                    className="w-full h-9 text-xs font-medium transition-all hover:scale-105"
-                    onClick={() => handleTimeSelect(timeSlot)}
-                    disabled={!available}
-                  >
-                    {timeSlot}
-                  </Button>
-                ))}
+            <div className="flex gap-4 h-[300px] w-full" dir="rtl">
+              {/* Hours Selection */}
+              <div className="flex-1 flex flex-col min-w-0">
+                <p className="text-xs text-muted-foreground mb-2 font-medium text-center">الساعة</p>
+                <ScrollArea className="flex-1 rounded-[var(--radius)] border bg-background w-full">
+                  <div className="flex flex-col gap-2 p-2">
+                    {groupedSlots.map((group) => (
+                      <button
+                        key={group.id}
+                        onClick={() => handleHourSelect(group.id)}
+                        className={`
+                          flex items-center justify-between px-4 py-3 rounded-lg border transition-all duration-200 w-full text-right
+                          ${selectedHourKey === group.id 
+                            ? "bg-primary text-primary-foreground border-primary shadow-sm font-bold" 
+                            : "bg-background hover:bg-muted text-foreground border-transparent hover:border-border"
+                          }
+                        `}
+                      >
+                        <span className="text-lg leading-none">{group.hour}</span>
+                        <span className="text-xs opacity-80">{group.period === 'AM' ? 'صباحاً' : 'مساءً'}</span>
+                      </button>
+                    ))}
+                  </div>
+                </ScrollArea>
               </div>
-            </ScrollArea>
+
+              {/* Minutes Selection */}
+              <div className="flex-1 flex flex-col min-w-0">
+                <p className="text-xs text-muted-foreground mb-2 font-medium text-center">الدقيقة</p>
+                <div className="flex-1 relative rounded-[var(--radius)] border bg-background overflow-hidden">
+                  {selectedHourKey ? (
+                    <ScrollArea className="h-full w-full">
+                      <div className="flex flex-col gap-2 p-2">
+                        {groupedSlots
+                          .find(g => g.id === selectedHourKey)
+                          ?.minutes.map(({ minute, fullTime, available }) => (
+                            <button
+                              key={fullTime}
+                              onClick={() => handleTimeSelect(fullTime)}
+                              disabled={!available}
+                              className={`
+                                flex items-center justify-center py-3 rounded-md border transition-all duration-200 w-full
+                                ${time === fullTime
+                                  ? "bg-primary text-primary-foreground border-primary shadow-sm font-bold" 
+                                  : "bg-background hover:bg-muted text-foreground border-transparent hover:border-border"
+                                }
+                                ${!available ? "opacity-50 cursor-not-allowed bg-muted" : ""}
+                              `}
+                            >
+                              <span className="text-base">{minute}</span>
+                            </button>
+                          ))
+                        }
+                      </div>
+                    </ScrollArea>
+                  ) : (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted/10 p-4 text-center">
+                      <Clock className="w-8 h-8 text-muted-foreground/20 mb-2" />
+                      <p className="text-xs text-muted-foreground">اختر الساعة لعرض الدقائق</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           ) : (
-            <div className="py-8 text-center">
+            <div className="py-8 text-center bg-background rounded-[var(--radius)] border border-dashed">
               <p className="text-sm text-muted-foreground">لا توجد أوقات متاحة لهذا اليوم</p>
             </div>
           )}

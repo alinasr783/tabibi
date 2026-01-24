@@ -46,33 +46,37 @@ export default function TreatmentTemplateCreateDialog({ open, onClose, onTemplat
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg p-0 overflow-hidden">
-        <DialogHeader className="bg-primary text-white p-6 rounded-t-[var(--radius)]">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-[var(--radius)] bg-white/20">
-                <Stethoscope className="h-6 w-6 text-white" />
+      <DialogContent className="max-w-lg p-0 overflow-hidden gap-0">
+        <DialogHeader className="p-6 pb-4 border-b border-border bg-background">
+          <div className="flex justify-between items-start">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20">
+                <Stethoscope className="h-6 w-6" />
               </div>
-              <div>
-                <h3 className="text-xl font-bold flex items-center gap-2">
-                  إضافة خطة علاجية جديدة
-                </h3>
-                <p className="text-primary-foreground/80 text-sm mt-1">قم بإدخال تفاصيل الخطة العلاجية الجديدة</p>
+              <div className="space-y-1">
+                <DialogTitle className="text-xl font-bold text-foreground">
+                  إضافة خطة علاجية
+                </DialogTitle>
+                <p className="text-muted-foreground text-sm">
+                  قم بإضافة خطة علاجية جديدة لقائمة خدماتك
+                </p>
               </div>
             </div>
             <Button 
               variant="ghost" 
               size="icon" 
               onClick={handleClose}
-              className="text-white hover:bg-white/20"
+              className="text-muted-foreground hover:bg-muted -mt-2 -ml-2"
             >
               <X className="h-5 w-5" />
             </Button>
           </div>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="p-6">
-          <TreatmentTemplateForm register={register} errors={errors} />
-          <DialogFooter className="mt-6 gap-3">
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <div className="p-6">
+            <TreatmentTemplateForm register={register} errors={errors} />
+          </div>
+          <DialogFooter className="p-6 pt-0 gap-3">
             <Button 
               variant="outline" 
               onClick={onClose} 

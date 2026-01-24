@@ -104,6 +104,7 @@ export function useSendMessage() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
   const [executeResults, setExecuteResults] = useState({});
+  const [currentAction, setCurrentAction] = useState(null);
   
   const sendMessage = useCallback(async (conversationId, messageContent, clinicData, deepReasoning = false) => {
     if (!conversationId || !messageContent.trim()) return;
@@ -111,6 +112,7 @@ export function useSendMessage() {
     setIsStreaming(true);
     setStreamingContent("");
     setExecuteResults({});
+    setCurrentAction("جاري التفكير...");
     
     try {
       // حفظ رسالة المستخدم
@@ -130,7 +132,7 @@ export function useSendMessage() {
         user,
         clinicData,
         planData,
-        deepReasoning
+        false // Deep reasoning disabled
       );
       
       // Parse the AI response to extract execute commands
@@ -144,6 +146,13 @@ export function useSendMessage() {
           const execKey = JSON.stringify(cmd);
           const actionName = cmd.action;
           const actionData = cmd.data || {};
+          
+          // Set status based on action
+          if (actionName.includes('Patient') && actionName.includes('create')) setCurrentAction("جاري إضافة مريض جديد...");
+          else if (actionName.includes('Patient') && actionName.includes('search')) setCurrentAction("جاري البحث عن مريض...");
+          else if (actionName.includes('Appointment') && actionName.includes('create')) setCurrentAction("جاري حجز موعد جديد...");
+          else if (actionName.includes('Appointment') && actionName.includes('check')) setCurrentAction("جاري التحقق من المواعيد...");
+          else setCurrentAction("جاري تنفيذ الأمر...");
           
           try {
             const result = await executeAIAction(actionName, actionData);
@@ -187,10 +196,12 @@ export function useSendMessage() {
       queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
       
       setIsStreaming(false);
+      setCurrentAction(null);
       return assistantMessage;
       
     } catch (error) {
       setIsStreaming(false);
+      setCurrentAction(null);
       toast.error(error.message || "حصل مشكلة في إرسال الرسالة");
       throw error;
     }
@@ -200,7 +211,8 @@ export function useSendMessage() {
     sendMessage,
     isStreaming,
     streamingContent,
-    executeResults
+    executeResults,
+    currentAction
   };
 }
 
@@ -214,13 +226,13 @@ export function useChat() {
   const createConversation = useCreateConversation();
   const deleteConversationMutation = useDeleteConversation();
   const archiveConversationMutation = useArchiveConversation();
-  const { sendMessage: sendMessageBase, isStreaming, streamingContent, executeResults } = useSendMessage();
+  const { sendMessage: sendMessageBase, isStreaming, streamingContent, executeResults, currentAction } = useSendMessage();
   
   // Wrapped sendMessage that uses active conversation ID
   const sendMessage = useCallback(async (content, clinicData, overrideConversationId = null, deepReasoning = false) => {
     const convId = overrideConversationId || activeConversationId;
     if (!convId) return;
-    return sendMessageBase(convId, content, clinicData, deepReasoning);
+    return sendMessageBase(convId, content, clinicData, false); // Always disable deep reasoning
   }, [activeConversationId, sendMessageBase]);
   
   const startNewConversation = useCallback(async () => {

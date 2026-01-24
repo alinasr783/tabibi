@@ -1,4 +1,4 @@
-import { Search, UserPlus, Calendar, Clock, DollarSign, FileText, User, Phone, ArrowLeft, ArrowRight, Check, X, Loader2, ChevronLeft } from "lucide-react";
+import { Search, UserPlus, Calendar, Clock, Banknote, FileText, User, Phone, ArrowLeft, ArrowRight, Check, X, Loader2, ChevronLeft } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "../../components/ui/button";
@@ -480,7 +480,7 @@ export default function AppointmentCreateDialog({ open, onClose, initialPatient 
                   {/* السعر */}
                   <div className="space-y-2">
                     <Label className="text-sm font-medium flex items-center gap-2">
-                      <DollarSign className="w-4 h-4 text-primary" />
+                      <Banknote className="w-4 h-4 text-primary" />
                       سعر الحجز
                     </Label>
                     <div className="relative">

@@ -1,7 +1,35 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getPatientFinancialData } from "../../services/apiPatients";
+import { useEffect } from "react";
+import supabase from "../../services/supabase";
 
 export default function usePatientFinancialData(patientId) {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!patientId) return;
+
+    const channel = supabase
+      .channel(`financial-update-${patientId}`)
+      .on(
+        'postgres_changes',
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'financial_records', 
+          filter: `patient_id=eq.${patientId}` 
+        },
+        () => {
+          queryClient.invalidateQueries(["patientFinancialData", patientId]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [patientId, queryClient]);
+
   return useQuery({
     queryKey: ["patientFinancialData", patientId],
     queryFn: () => getPatientFinancialData(patientId),

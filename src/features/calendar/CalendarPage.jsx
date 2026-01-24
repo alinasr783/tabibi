@@ -1,8 +1,15 @@
 import { CalendarPlus, Search, Clock, CalendarDays, Filter, RefreshCw, Plus, Users, Calendar, CheckCircle, X, AlertCircle } from "lucide-react"
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState, useMemo, useCallback } from "react"
 import { Button } from "../../components/ui/button"
 import { Card, CardContent } from "../../components/ui/card"
 import { Input } from "../../components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select"
 import TableSkeleton from "../../components/ui/table-skeleton"
 import { APPOINTMENTS_PAGE_SIZE } from "../../constants/pagination"
 import AppointmentCreateDialog from "./AppointmentCreateDialog"
@@ -13,26 +20,141 @@ import OnlineBookingsSection from "./OnlineBookingsSection"
 import OnlineBookingsTable from "../online-booking/OnlineBookingsTable"
 import { useNavigate } from "react-router-dom"
 import useScrollToTop from "../../hooks/useScrollToTop"
+import SortableStat from "../../components/ui/sortable-stat"
+import { SkeletonLine } from "../../components/ui/skeleton"
+
+function StatCard({ icon: Icon, label, value, isLoading, iconColorClass = "bg-primary/10 text-primary", onClick, isActive }) {
+  return (
+    <Card 
+      className={`bg-card/70 h-full transition-all duration-200 ${onClick ? 'cursor-pointer hover:bg-accent/50' : ''} ${isActive ? 'ring-2 ring-primary border-primary bg-primary/5' : ''}`}
+      onClick={onClick}
+    >
+      <CardContent className="flex items-center gap-3 py-3">
+        <div className={`size-8 rounded-[calc(var(--radius)-4px)] grid place-items-center ${iconColorClass}`}>
+          <Icon className="size-4" />
+        </div>
+        <div>
+          <div className="text-xs text-muted-foreground">{label}</div>
+          {isLoading ? (
+            <SkeletonLine className="h-4 w-8" />
+          ) : (
+            <div className="text-lg font-semibold text-black">{value}</div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
 
 export default function CalendarPage() {
-  useScrollToTop(); // Auto scroll to top on page load
+  // useScrollToTop(); // Removed to prevent unwanted scroll resets
   const navigate = useNavigate();
   const [query, setQuery] = useState("")
+  const [searchTerm, setSearchTerm] = useState("")
   const [page, setPage] = useState(1)
   const [allAppointmentsPage, setAllAppointmentsPage] = useState(1)
   const [filters, setFilters] = useState({})
   const [open, setOpen] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [activeTab, setActiveTab] = useState("upcoming")
-  const [isRefreshing, setIsRefreshing] = useState(false) // Add missing state
+  const [selectedStat, setSelectedStat] = useState(null)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [timeFilter, setTimeFilter] = useState("month");
+  const [onlineBookingsPage, setOnlineBookingsPage] = useState(1)
+  const [onlineBookingsList, setOnlineBookingsList] = useState([])
+
+  const filterLabels = {
+    week: "آخر أسبوع",
+    month: "آخر شهر",
+    threeMonths: "آخر 3 أشهر",
+  };
+
+  const timeFilterDates = useMemo(() => {
+    const today = new Date();
+    let startDate = new Date();
+    
+    switch (timeFilter) {
+      case "week":
+        startDate.setDate(today.getDate() - 7);
+        break;
+      case "month":
+        startDate.setMonth(today.getMonth() - 1);
+        break;
+      case "threeMonths":
+        startDate.setMonth(today.getMonth() - 3);
+        break;
+      default:
+        startDate.setMonth(today.getMonth() - 1);
+    }
+    
+    return {
+        dateFrom: startDate.toLocaleDateString('en-CA'),
+        dateTo: today.toLocaleDateString('en-CA')
+    }
+  }, [timeFilter]);
+  
+  // Accumulated lists for "Load More" functionality
+  const [upcomingList, setUpcomingList] = useState([])
+  const [allList, setAllList] = useState([])
+
+  const handleAppointmentUpdate = (updatedAppointment) => {
+    setUpcomingList(prev => prev.map(item => 
+      item.id === updatedAppointment.id ? { ...item, ...updatedAppointment } : item
+    ));
+    
+    setAllList(prev => prev.map(item => 
+      item.id === updatedAppointment.id ? { ...item, ...updatedAppointment } : item
+    ));
+
+    // Trigger stats refresh
+    refetchTodayStats();
+    refetchRangeCompleted();
+    refetchRangePending();
+  };
+
+  const defaultOrder = ["today", "completed", "pending", "upcoming"];
+  
+  // Load order from local storage or use default
+  const [cardsOrder, setCardsOrder] = useState(() => {
+    try {
+      const saved = localStorage.getItem("calendar_stats_order");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          const uniqueKeys = new Set([...parsed, ...defaultOrder]);
+          return Array.from(uniqueKeys);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to load stats order", e);
+    }
+    return defaultOrder;
+  });
+
+  // Save order to local storage whenever it changes
+  useEffect(() => {
+    localStorage.setItem("calendar_stats_order", JSON.stringify(cardsOrder));
+  }, [cardsOrder]);
+
+  const moveCard = useCallback((dragIndex, hoverIndex) => {
+    setCardsOrder((prevCards) => {
+      const newCards = [...prevCards];
+      const draggedCard = newCards[dragIndex];
+      newCards.splice(dragIndex, 1);
+      newCards.splice(hoverIndex, 0, draggedCard);
+      return newCards;
+    });
+  }, []);
   
   // Fetch upcoming appointments
+  // We pass empty string for search and ignore global filters to ensure this list 
+  // always shows all upcoming appointments regardless of user search/filter actions
   const { 
     data: upcomingData, 
     isLoading: isUpcomingLoading,
     refetch: refetchUpcoming,
     isError: isUpcomingError 
-  } = useAppointments(query, page, APPOINTMENTS_PAGE_SIZE, { time: "upcoming" })
+  } = useAppointments("", page, APPOINTMENTS_PAGE_SIZE, { time: "upcoming" })
   
   // Fetch all appointments
   const { 
@@ -47,7 +169,59 @@ export default function CalendarPage() {
     data: onlineBookingsData, 
     isLoading: isOnlineBookingsLoading,
     refetch: refetchOnlineBookings 
-  } = useAppointments("", 1, 100, { source: "booking" })
+  } = useAppointments("", onlineBookingsPage, APPOINTMENTS_PAGE_SIZE, { source: "booking" })
+
+  // Sync upcoming data to list
+  useEffect(() => {
+    if (upcomingData?.data) {
+      if (page === 1) {
+        setUpcomingList(upcomingData.data)
+      } else {
+        setUpcomingList(prev => {
+           // Simple duplicate check based on ID
+           const newIds = new Set(upcomingData.data.map(d => d.id));
+           const filteredPrev = prev.filter(p => !newIds.has(p.id));
+           return [...filteredPrev, ...upcomingData.data];
+        })
+      }
+    }
+  }, [upcomingData, page])
+
+  // Sync all data to list
+  useEffect(() => {
+    if (allData?.data) {
+      if (allAppointmentsPage === 1) {
+        setAllList(allData.data)
+      } else {
+        setAllList(prev => {
+           const newIds = new Set(allData.data.map(d => d.id));
+           const filteredPrev = prev.filter(p => !newIds.has(p.id));
+           return [...filteredPrev, ...allData.data];
+        })
+      }
+    }
+  }, [allData, allAppointmentsPage])
+
+  // Sync online bookings data to list
+  useEffect(() => {
+    if (onlineBookingsData?.data) {
+      if (onlineBookingsPage === 1) {
+        setOnlineBookingsList(onlineBookingsData.data)
+      } else {
+        setOnlineBookingsList(prev => {
+           const newIds = new Set(onlineBookingsData.data.map(d => d.id));
+           const filteredPrev = prev.filter(p => !newIds.has(p.id));
+           return [...filteredPrev, ...onlineBookingsData.data];
+        })
+      }
+    }
+  }, [onlineBookingsData, onlineBookingsPage])
+
+  const handleSearch = () => {
+    setQuery(searchTerm)
+    setPage(1)
+    setAllAppointmentsPage(1)
+  }
 
   const handleFilterChange = (newFilters) => {
     setFilters(newFilters)
@@ -55,14 +229,68 @@ export default function CalendarPage() {
     setAllAppointmentsPage(1)
     // Switch to "all" tab when filter is applied
     setActiveTab("all")
+    setSelectedStat(null)
   }
   
   // Auto-switch to "all" tab when searching
   useEffect(() => {
     if (query) {
       setActiveTab("all")
+      setSelectedStat(null)
     }
   }, [query])
+
+  const handleStatClick = (key) => {
+    // If clicking the already selected stat, toggle it off (reset filters)
+    if (selectedStat === key) {
+      setFilters({});
+      setSelectedStat(null);
+      setActiveTab("all");
+      setPage(1);
+      setAllAppointmentsPage(1);
+      return;
+    }
+
+    setPage(1);
+    setAllAppointmentsPage(1);
+    setUpcomingList([]);
+    setAllList([]);
+
+    // Use local date string in YYYY-MM-DD format
+    const today = new Date().toLocaleDateString('en-CA');
+
+    switch (key) {
+      case "today":
+        setActiveTab("all");
+        setFilters({ date: today });
+        break;
+      case "completed":
+        setActiveTab("all");
+        setFilters({ 
+            status: "completed",
+            dateFrom: timeFilterDates.dateFrom,
+            dateTo: timeFilterDates.dateTo
+        });
+        break;
+      case "pending":
+        setActiveTab("all");
+        setFilters({ 
+            status: "pending",
+            dateFrom: timeFilterDates.dateFrom,
+            dateTo: timeFilterDates.dateTo
+        });
+        break;
+      case "upcoming":
+        setActiveTab("all");
+        setFilters({ time: "upcoming" });
+        break;
+      default:
+        setFilters({});
+        break;
+    }
+    
+    setSelectedStat(key);
+  };
 
   // Fetch today's appointments specifically for stats
   const todayFilter = useMemo(() => {
@@ -76,15 +304,36 @@ export default function CalendarPage() {
     refetch: refetchTodayStats 
   } = useAppointments("", 1, 2000, todayFilter)
 
-  // Fetch total completed appointments
+  // Fetch completed appointments in range
   const { 
-    data: totalCompletedData,
-    refetch: refetchTotalCompleted 
-  } = useAppointments("", 1, 1, { status: "completed" })
+    data: rangeCompletedData,
+    refetch: refetchRangeCompleted 
+  } = useAppointments("", 1, 1, { 
+      status: "completed",
+      dateFrom: timeFilterDates.dateFrom,
+      dateTo: timeFilterDates.dateTo
+  })
+
+  // Fetch pending appointments in range
+  const { 
+    data: rangePendingData,
+    refetch: refetchRangePending 
+  } = useAppointments("", 1, 1, { 
+      status: "pending",
+      dateFrom: timeFilterDates.dateFrom,
+      dateTo: timeFilterDates.dateTo
+  })
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
-    await Promise.all([refetchUpcoming(), refetchAll(), refetchTodayStats(), refetchTotalCompleted()])
+    await Promise.all([
+      refetchUpcoming(), 
+      refetchAll(), 
+      refetchOnlineBookings(),
+      refetchTodayStats(), 
+      refetchRangeCompleted(),
+      refetchRangePending()
+    ])
     setTimeout(() => setIsRefreshing(false), 500)
   }
 
@@ -93,26 +342,21 @@ export default function CalendarPage() {
     const interval = setInterval(() => {
       refetchUpcoming()
       refetchAll()
+      refetchOnlineBookings()
       refetchTodayStats()
-      refetchTotalCompleted()
+      refetchRangeCompleted()
+      refetchRangePending()
     }, 10 * 60 * 1000)
     return () => clearInterval(interval)
-  }, [refetchUpcoming, refetchAll, refetchTodayStats, refetchTotalCompleted])
+  }, [refetchUpcoming, refetchAll, refetchOnlineBookings, refetchTodayStats, refetchRangeCompleted, refetchRangePending])
 
   // Stats calculations
   const todayAppointments = todayStatsData?.data || []
   
-  // Removed completedToday calculation from today's appointments as we now fetch total completed
-  
-  const pendingToday = todayAppointments.filter(a => {
-    const status = a.status?.toLowerCase()?.trim();
-    return ['pending', 'confirmed'].includes(status);
-  }).length
-  
   const stats = {
     today: todayStatsData?.count || 0,
-    completedToday: totalCompletedData?.count || 0,
-    pendingToday,
+    completedToday: rangeCompletedData?.count || 0,
+    pendingToday: rangePendingData?.count || 0,
     upcoming: upcomingData?.count || 0,
     total: allData?.count || 0
   }
@@ -131,137 +375,192 @@ export default function CalendarPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-6" dir="rtl">
-      <div className="max-w-[1920px] mx-auto">
-        {/* Header Section - Dashboard Style */}
-        <div className="mb-6">
-          <div className="flex flex-col gap-4">
-            {/* Title Section */}
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10 text-primary flex-shrink-0">
-                <CalendarPlus className="w-6 h-6" />
-              </div>
-              <div className="flex-1">
-                <h1 className="text-2xl font-bold text-foreground">إدارة المواعيد</h1>
-                <p className="text-sm text-muted-foreground">
-                  {new Date().toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                </p>
-              </div>
+    <div className="space-y-8 pb-20 md:pb-0">
+      {/* Header Section - Dashboard Style */}
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          {/* Title Section */}
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <div className="p-2 rounded-[var(--radius)] bg-primary/10 text-primary flex-shrink-0 mt-[-0.5rem]">
+              <CalendarPlus className="size-6" />
             </div>
-
-            {/* Stats Overview - Dashboard Style Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <Card className="bg-card/70">
-                <CardContent className="flex items-center gap-3 py-3">
-                  <div className="size-8 rounded-[calc(var(--radius)-4px)] bg-primary/10 text-primary grid place-items-center">
-                    <Calendar className="size-4" />
-                  </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground">اليوم</div>
-                    <div className="text-lg font-semibold text-black">{stats.today}</div>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card className="bg-card/70">
-                <CardContent className="flex items-center gap-3 py-3">
-                  <div className="size-8 rounded-[calc(var(--radius)-4px)] bg-primary/10 text-primary grid place-items-center">
-                    <CheckCircle className="size-4" />
-                  </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground">مكتمل</div>
-                    <div className="text-lg font-semibold text-black">{stats.completedToday}</div>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card className="bg-card/70">
-                <CardContent className="flex items-center gap-3 py-3">
-                  <div className="size-8 rounded-[calc(var(--radius)-4px)] bg-amber-500/10 text-amber-600 grid place-items-center">
-                    <Clock className="size-4" />
-                  </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground">منتظر</div>
-                    <div className="text-lg font-semibold text-black">{stats.pendingToday}</div>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card className="bg-card/70">
-                <CardContent className="flex items-center gap-3 py-3">
-                  <div className="size-8 rounded-[calc(var(--radius)-4px)] bg-primary/10 text-primary grid place-items-center">
-                    <CalendarDays className="size-4" />
-                  </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground">قادمة</div>
-                    <div className="text-lg font-semibold text-black">{stats.upcoming}</div>
-                  </div>
-                </CardContent>
-              </Card>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-2xl font-bold truncate">إدارة مواعيدك</h1>
+              <p className="text-sm text-muted-foreground truncate">
+                {new Date().toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Quick Actions Bar - Mobile Optimized */}
-        <div className="mb-4">
-          {/* Search */}
-          <div className="relative mb-3">
-            <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 md:w-5 md:h-5" />
-            <Input
-              className="w-full pr-10 h-10 md:h-11 bg-background border-border focus:border-primary text-sm md:text-base"
-              placeholder="ابحث عن موعد..."
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value)
+        {/* Stats Header */}
+        <div className="flex items-center justify-between gap-4">
+          <h3 className="text-sm font-medium text-muted-foreground">
+            احصائيات مواعيدك
+          </h3>
+          <Select value={timeFilter} onValueChange={setTimeFilter}>
+            <SelectTrigger className="w-[140px] h-9 bg-white">
+              <SelectValue placeholder="اختر الفترة" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="week">آخر أسبوع</SelectItem>
+              <SelectItem value="month">آخر شهر</SelectItem>
+              <SelectItem value="threeMonths">آخر 3 أشهر</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Stats Overview - Dashboard Style Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {cardsOrder.map((key, index) => {
+              let content;
+              switch (key) {
+                case "today":
+                  content = (
+                    <StatCard
+                      icon={Calendar}
+                      label="انهاردة"
+                      value={stats.today}
+                      isLoading={!todayStatsData}
+                      onClick={() => handleStatClick("today")}
+                      isActive={selectedStat === "today"}
+                    />
+                  );
+                  break;
+                case "completed":
+                  content = (
+                    <StatCard
+                      icon={CheckCircle}
+                      label="خلص"
+                      value={stats.completedToday}
+                      isLoading={!rangeCompletedData}
+                      onClick={() => handleStatClick("completed")}
+                      isActive={selectedStat === "completed"}
+                    />
+                  );
+                  break;
+                case "pending":
+                  content = (
+                    <StatCard
+                      icon={Clock}
+                      label="مستني التأكيد"
+                      value={stats.pendingToday}
+                      isLoading={!rangePendingData}
+                      iconColorClass="bg-amber-500/10 text-amber-600"
+                      onClick={() => handleStatClick("pending")}
+                      isActive={selectedStat === "pending"}
+                    />
+                  );
+                  break;
+                case "upcoming":
+                  content = (
+                    <StatCard
+                      icon={CalendarDays}
+                      label="لسه جايه"
+                      value={stats.upcoming}
+                      isLoading={isUpcomingLoading}
+                      onClick={() => handleStatClick("upcoming")}
+                      isActive={selectedStat === "upcoming"}
+                    />
+                  );
+                  break;
+                default:
+                  return null;
+              }
+              
+              return (
+                <SortableStat
+                  key={key}
+                  id={key}
+                  index={index}
+                  moveCard={moveCard}
+                  type="CALENDAR_STAT"
+                >
+                  {content}
+                </SortableStat>
+              );
+            })}
+          </div>
+        </div>
+
+      {/* Quick Actions Bar - Mobile Optimized */}
+      <div>
+        {/* Search */}
+        <div className="relative mb-3">
+          <div className="absolute left-1 top-1/2 transform -translate-y-1/2 z-10">
+            <Button 
+              size="icon" 
+              variant="ghost" 
+              className="h-8 w-8 hover:bg-transparent"
+              onClick={handleSearch}
+            >
+              <Search className="text-muted-foreground w-4 h-4 md:w-5 md:h-5" />
+            </Button>
+          </div>
+          <Input
+            className="w-full pl-10 pr-4 h-10 md:h-11 bg-background border-border focus:border-primary text-sm md:text-base text-right"
+            placeholder="ابحث عن موعد..."
+            value={searchTerm}
+            onChange={(e) => {
+              const value = e.target.value
+              setSearchTerm(value)
+              if (value === "") {
+                setQuery("")
                 setPage(1)
                 setAllAppointmentsPage(1)
-              }}
-            />
-          </div>
-          
-          {/* Action Buttons - Mobile Grid */}
-          <div className="grid grid-cols-2 md:flex gap-2">
-            <Button
-              onClick={() => setOpen(true)}
-              className="h-10 md:h-11 bg-primary hover:bg-primary/90 text-primary-foreground text-sm md:text-base col-span-2 md:col-span-1"
-            >
-              <Plus className="w-4 h-4 md:w-5 md:h-5 ml-2" />
-              موعد جديد
-            </Button>
-            
-            <Button
-              variant="outline"
-              onClick={() => navigate("/work-mode")}
-              className="h-10 md:h-11 text-sm md:text-base flex-1"
-            >
-              <Calendar className="w-3.5 h-3.5 md:w-4 md:h-4 ml-1 md:ml-2" />
-              <span className="hidden sm:inline">وضع العمل</span>
-              <span className="sm:hidden">العمل</span>
-            </Button>
-            
-            <Button
-              variant="outline"
-              onClick={() => setShowFilters(!showFilters)}
-              className="h-10 md:h-11 text-sm md:text-base flex-1"
-            >
-              <Filter className="w-3.5 h-3.5 md:w-4 md:h-4 ml-1 md:ml-2" />
-              <span className="hidden sm:inline">{showFilters ? 'إخفاء' : 'فلاتر'}</span>
-              <span className="sm:hidden">فلتر</span>
-            </Button>
-            
-            <Button
-              variant="outline"
-              onClick={handleRefresh}
-              className="h-10 md:h-11 col-span-2 md:w-auto"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 md:w-4 md:h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            </Button>
-          </div>
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                handleSearch();
+              }
+            }}
+          />
         </div>
+        
+        {/* Action Buttons - Mobile Grid */}
+        <div className="grid grid-cols-2 md:flex gap-2">
+          <Button
+            onClick={() => setOpen(true)}
+            className="h-10 md:h-11 bg-primary hover:bg-primary/90 text-primary-foreground text-sm md:text-base col-span-2 md:col-span-1"
+          >
+            <Plus className="w-4 h-4 md:w-5 md:h-5 ml-2" />
+            موعد جديد
+          </Button>
+          
+          <Button
+            variant="outline"
+            onClick={() => navigate("/work-mode")}
+            className="h-10 md:h-11 text-sm md:text-base flex-1"
+          >
+            <Calendar className="w-3.5 h-3.5 md:w-4 md:h-4 ml-1 md:ml-2" />
+            <span className="hidden sm:inline">مود الشغل</span>
+            <span className="sm:hidden">الشغل</span>
+          </Button>
+          
+          <Button
+            variant="outline"
+            onClick={() => setShowFilters(!showFilters)}
+            className="h-10 md:h-11 text-sm md:text-base flex-1"
+          >
+            <Filter className="w-3.5 h-3.5 md:w-4 md:h-4 ml-1 md:ml-2" />
+            <span className="hidden sm:inline">{showFilters ? 'إخفاء' : 'فلاتر'}</span>
+            <span className="sm:hidden">فلتر</span>
+          </Button>
+          
+          <Button
+            variant="outline"
+            onClick={handleRefresh}
+            className="h-10 md:h-11 col-span-2 md:w-auto"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 md:w-4 md:h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
+      </div>
 
         {/* Filters Panel */}
         {showFilters && (
-          <div className="mb-6 animate-in fade-in duration-200">
+          <div className="animate-in fade-in duration-200">
             <Card className="bg-card/70">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-4">
@@ -287,7 +586,7 @@ export default function CalendarPage() {
         )}
 
         {/* Tabs - Modern Style matching Clinic Page */}
-        <div className="w-full mb-6">
+        <div className="w-full">
           <div className="inline-flex h-10 items-center justify-center rounded-[var(--radius)] bg-muted p-1 text-muted-foreground w-full">
             <button
               onClick={() => setActiveTab("upcoming")}
@@ -301,14 +600,18 @@ export default function CalendarPage() {
                 <Clock className="w-4 h-4" />
                 <span>المواعيد القادمة</span>
                 {stats.upcoming > 0 && (
-                  <span className="bg-primary/10 text-primary text-xs px-2 py-0.5 rounded-[var(--radius)] mr-1">
+                  <span className="bg-primary/10 text-primary text-xs px-2 rounded-[var(--radius)] mr-1 flex items-center justify-center h-5 min-w-[1.25rem]">
                     {stats.upcoming}
                   </span>
                 )}
               </div>
             </button>
             <button
-              onClick={() => setActiveTab("all")}
+              onClick={() => {
+                setActiveTab("all")
+                setFilters({})
+                setSelectedStat(null)
+              }}
               className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 flex-1 ${
                 activeTab === "all"
                   ? "bg-background text-foreground shadow-sm"
@@ -319,7 +622,7 @@ export default function CalendarPage() {
                 <CalendarDays className="w-4 h-4" />
                 <span>جميع المواعيد</span>
                 {stats.total > 0 && (
-                  <span className="bg-muted text-foreground text-xs px-2 py-0.5 rounded-full mr-1">
+                  <span className="bg-muted text-foreground text-xs px-2 rounded-full mr-1 flex items-center justify-center h-5 min-w-[1.25rem]">
                     {stats.total}
                   </span>
                 )}
@@ -332,18 +635,22 @@ export default function CalendarPage() {
         <Card className="bg-card/70 mb-4 md:mb-6">
           <div className="p-0 md:p-4">
             {activeTab === "upcoming" ? (
-              isUpcomingLoading ? (
+              isUpcomingLoading && page === 1 ? (
                 <div className="p-4">
                   <TableSkeleton columns={6} rows={6} />
                 </div>
-              ) : (upcomingData?.data || []).length > 0 ? (
+              ) : upcomingList.length > 0 ? (
                 <AppointmentsTable
-                  appointments={upcomingData.data}
-                  total={upcomingData.count}
+                  appointments={upcomingList}
+                  total={upcomingData?.count || 0}
                   page={page}
                   pageSize={APPOINTMENTS_PAGE_SIZE}
                   onPageChange={setPage}
+                  onLoadMore={() => setPage(p => p + 1)}
+                  hasMore={(upcomingData?.count || 0) > upcomingList.length}
+                  isLoadingMore={isUpcomingLoading && page > 1}
                   fullWidth={true}
+                  onAppointmentUpdated={handleAppointmentUpdate}
                 />
               ) : (
                 <div className="text-center py-8 md:py-12 px-4">
@@ -363,18 +670,22 @@ export default function CalendarPage() {
                 </div>
               )
             ) : (
-              isAllLoading ? (
+              isAllLoading && allAppointmentsPage === 1 ? (
                 <div className="p-4">
                   <TableSkeleton columns={6} rows={6} />
                 </div>
-              ) : (allData?.data || []).length > 0 ? (
+              ) : allList.length > 0 ? (
                 <AppointmentsTable
-                  appointments={allData.data}
-                  total={allData.count}
+                  appointments={allList}
+                  total={allData?.count || 0}
                   page={allAppointmentsPage}
                   pageSize={APPOINTMENTS_PAGE_SIZE}
                   onPageChange={setAllAppointmentsPage}
+                  onLoadMore={() => setAllAppointmentsPage(p => p + 1)}
+                  hasMore={(allData?.count || 0) > allList.length}
+                  isLoadingMore={isAllLoading && allAppointmentsPage > 1}
                   fullWidth={true}
+                  onAppointmentUpdated={handleAppointmentUpdate}
                 />
               ) : (
                 <div className="text-center py-8 md:py-12 px-4">
@@ -428,13 +739,16 @@ export default function CalendarPage() {
 
             <Card className="bg-card/70">
               <CardContent className="p-0">
-                {isOnlineBookingsLoading ? (
+                {isOnlineBookingsLoading && onlineBookingsPage === 1 ? (
                   <div className="p-4 md:p-6">
                     <TableSkeleton columns={4} rows={3} />
                   </div>
-                ) : (onlineBookingsData?.data || []).length > 0 ? (
+                ) : onlineBookingsList.length > 0 ? (
                   <OnlineBookingsTable
-                    appointments={onlineBookingsData.data}
+                    appointments={onlineBookingsList}
+                    onLoadMore={() => setOnlineBookingsPage(p => p + 1)}
+                    hasMore={(onlineBookingsData?.count || 0) > onlineBookingsList.length}
+                    isLoadingMore={isOnlineBookingsLoading && onlineBookingsPage > 1}
                   />
                 ) : (
                   <div className="p-6 md:p-8 text-center">
@@ -456,7 +770,6 @@ export default function CalendarPage() {
         >
           <Plus className="w-6 h-6" />
         </Button>
-      </div>
 
       { /* Create Appointment Dialog */}
       <AppointmentCreateDialog open={open} onClose={() => setOpen(false)} />

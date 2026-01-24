@@ -1,6 +1,7 @@
 import supabase from "./supabase"
+import { createFinancialRecord } from "./apiFinancialRecords"
 
-export async function getPatients(search, page, pageSize) {
+export async function getPatients(search, page, pageSize, filters = {}) {
   // Get current user's clinic_id
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) throw new Error("Not authenticated")
@@ -18,10 +19,31 @@ export async function getPatients(search, page, pageSize) {
   const to = from + pageSize - 1
   let query = supabase
     .from("patients")
-    .select("id,name,phone,gender,address,date_of_birth,age,blood_type", { count: "exact" })
+    .select(`
+      id,
+      name,
+      phone,
+      gender,
+      address,
+      date_of_birth,
+      age,
+      blood_type,
+      created_at,
+      medical_history,
+      appointments(date, status)
+    `, { count: "exact" })
     .eq("clinic_id", userData.clinic_id)
     .order("created_at", { ascending: false })
     .range(from, to)
+    
+  if (filters.gender) {
+    query = query.eq("gender", filters.gender)
+  }
+
+  if (filters.createdAfter) {
+    query = query.gte("created_at", filters.createdAfter)
+  }
+
   if (search && search.trim()) {
     const trimmed = search.trim()
     const isIdSearch = /^(?:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|\d+)$/.test(trimmed)
@@ -209,13 +231,26 @@ export async function getPatientFinancialData(patientId) {
 
   const { data: userData } = await supabase
     .from("users")
-    .select("clinic_id")
+    .select("clinic_id, clinic_id_bigint")
     .eq("user_id", session.user.id)
     .single();
 
   if (!userData?.clinic_id) throw new Error("User has no clinic assigned");
 
-  // Get all appointments for this patient - convert patientId to string for compatibility
+  // Get clinic_id_bigint for financial_records
+  let clinicIdBigint = userData?.clinic_id_bigint
+  
+  if (!clinicIdBigint && userData?.clinic_id) {
+      const { data: clinicData } = await supabase
+          .from("clinics")
+          .select("clinic_id_bigint, id")
+          .eq("clinic_uuid", userData.clinic_id)
+          .single()
+      
+      clinicIdBigint = clinicData?.clinic_id_bigint || clinicData?.id
+  }
+
+  // Get all appointments for this patient
   const { data: appointments, error: appointmentsError } = await supabase
     .from("appointments")
     .select(`
@@ -227,77 +262,152 @@ export async function getPatientFinancialData(patientId) {
       notes
     `)
     .eq("clinic_id", userData.clinic_id)
-    .eq("patient_id", patientId.toString())  // Convert to string for compatibility
+    .eq("patient_id", patientId.toString())
     .order("date", { ascending: false });
 
-  if (appointmentsError) {
-    console.error("Error fetching patient appointments for financial data:", appointmentsError);
-
-    // Check if the error is because there are no appointments for this patient
-    if (appointmentsError.code === 'PGRST116' && appointmentsError.details === 'The result contains 0 rows') {
-      console.warn(`No appointments found for patient with ID ${patientId} in clinic ${userData.clinic_id}`);
-      // Return empty financial data if no appointments exist
-      return {
-        totalAmount: 0,
-        paidAmount: 0,
-        remainingAmount: 0,
-        paymentHistory: []
-      };
+  // Get financial records (transactions)
+  let transactions = [];
+  try {
+    if (clinicIdBigint) {
+      const { data: transData, error: transError } = await supabase
+        .from("financial_records")
+        .select("*")
+        .eq("clinic_id", clinicIdBigint)
+        .eq("patient_id", patientId.toString()) // patient_id is bigint in financial_records, but passed as string/number
+        .order("created_at", { ascending: false });
+      
+      if (!transError && transData) {
+        transactions = transData;
+      }
     }
-
-    throw appointmentsError;
+  } catch (err) {
+    console.warn("Could not fetch financial records", err);
   }
 
+  if (appointmentsError && appointmentsError.code !== 'PGRST116') {
+    console.error("Error fetching patient appointments:", appointmentsError);
+  }
+
+  const safeAppointments = appointments || [];
+
   // Calculate financial summary
-  const completedAppointments = appointments.filter(app => app.status === 'completed');
-  const totalAmount = completedAppointments.reduce((sum, appointment) => sum + (parseFloat(appointment.price) || 0), 0);
-  const paidAmount = totalAmount; // In a real app, this would come from payment records
-  const remainingAmount = 0; // In a real app, this would be calculated from unpaid appointments
+  // 1. Dues from Appointments (completed ones)
+  const completedAppointments = safeAppointments.filter(app => app.status === 'completed');
+  const appointmentDues = completedAppointments.reduce((sum, appointment) => sum + (parseFloat(appointment.price) || 0), 0);
+
+  // 2. Manual Transactions from financial_records
+  // We map 'charge' to 'Add Dues' and 'income' to 'Payment' (Pay Dues)
+  // based on the user's request to use this table for patient balances.
+  const manualCharges = transactions
+    .filter(t => t.type === 'charge')
+    .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+    
+  const manualPayments = transactions
+    .filter(t => t.type === 'income')
+    .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+
+  const totalAmount = appointmentDues + manualCharges;
+  const paidAmount = manualPayments; 
+  const remainingAmount = totalAmount - paidAmount;
 
   // Transform data for payment history
-  const paymentHistory = completedAppointments.map(appointment => ({
-    id: appointment.id,
-    amount: parseFloat(appointment.price) || 0,
-    date: appointment.date,
-    method: "نقدي", // In a real app, this would come from payment records
-    status: "مدفوع"
-  }));
+  const history = [
+    ...completedAppointments.map(app => ({
+      id: app.id,
+      type: 'appointment',
+      amount: parseFloat(app.price) || 0,
+      date: app.date,
+      description: 'موعد: ' + (app.notes || ''),
+      status: 'completed'
+    })),
+    ...transactions.map(t => ({
+      id: t.id,
+      type: t.type === 'charge' ? 'charge' : 'payment',
+      amount: parseFloat(t.amount) || 0,
+      date: t.created_at || t.recorded_at,
+      description: t.description || (t.type === 'charge' ? 'مستحقات إضافية' : 'دفعة نقدية'),
+      status: 'completed'
+    }))
+  ].sort((a, b) => new Date(b.date) - new Date(a.date));
 
   return {
     totalAmount,
     paidAmount,
     remainingAmount,
-    paymentHistory
+    paymentHistory: history
   };
 }
 
-export async function getPatientStats() {
-  // Get current user's clinic_id
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) throw new Error("Not authenticated")
+export async function addPatientTransaction(payload) {
+  // Map 'charge'/'payment' to 'charge'/'income' for financial_records
+  // NOTE: This requires 'charge' to be added to the CHECK constraint of financial_records type column
+  const typeMap = {
+    'charge': 'charge',
+    'payment': 'income'
+  };
 
-  const { data: userData } = await supabase
-    .from("users")
-    .select("clinic_id")
-    .eq("user_id", session.user.id)
-    .single()
+  const financialPayload = {
+    patient_id: payload.patient_id,
+    amount: payload.amount,
+    type: typeMap[payload.type] || 'income', 
+    description: payload.description || (payload.type === 'charge' ? 'مستحقات إضافية' : 'دفعة نقدية'),
+    recorded_at: payload.date || new Date().toISOString()
+  };
 
-  if (!userData?.clinic_id) throw new Error("User has no clinic assigned")
+  return await createFinancialRecord(financialPayload);
+}
 
-  const { count: maleCount, error: maleError } = await supabase
-    .from("patients")
-    .select("*", { count: "exact", head: true })
-    .eq("clinic_id", userData.clinic_id)
-    .eq("gender", "male")
 
-  const { count: femaleCount, error: femaleError } = await supabase
-    .from("patients")
-    .select("*", { count: "exact", head: true })
-    .eq("clinic_id", userData.clinic_id)
-    .eq("gender", "female")
+export async function getPatientStats(startDate) {
+  try {
+    // Get current user's clinic_id
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return { maleCount: 0, femaleCount: 0, totalCount: 0 }
 
-  if (maleError) throw maleError;
-  if (femaleError) throw femaleError;
+    const { data: userData } = await supabase
+      .from("users")
+      .select("clinic_id")
+      .eq("user_id", session.user.id)
+      .single()
 
-  return { maleCount: maleCount || 0, femaleCount: femaleCount || 0 };
+    if (!userData?.clinic_id) return { maleCount: 0, femaleCount: 0, totalCount: 0 }
+
+    let maleQuery = supabase
+      .from("patients")
+      .select("*", { count: "exact", head: true })
+      .eq("clinic_id", userData.clinic_id)
+      .eq("gender", "male")
+
+    let femaleQuery = supabase
+      .from("patients")
+      .select("*", { count: "exact", head: true })
+      .eq("clinic_id", userData.clinic_id)
+      .eq("gender", "female")
+      
+    let totalQuery = supabase
+      .from("patients")
+      .select("*", { count: "exact", head: true })
+      .eq("clinic_id", userData.clinic_id)
+
+    if (startDate) {
+      maleQuery = maleQuery.gte("created_at", startDate)
+      femaleQuery = femaleQuery.gte("created_at", startDate)
+      totalQuery = totalQuery.gte("created_at", startDate)
+    }
+
+    const [maleRes, femaleRes, totalRes] = await Promise.all([
+      maleQuery,
+      femaleQuery,
+      totalQuery
+    ])
+
+    return { 
+      maleCount: maleRes.count || 0, 
+      femaleCount: femaleRes.count || 0, 
+      totalCount: totalRes.count || 0 
+    };
+  } catch (error) {
+    console.error("Error fetching patient stats:", error);
+    return { maleCount: 0, femaleCount: 0, totalCount: 0 };
+  }
 }

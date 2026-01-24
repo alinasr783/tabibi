@@ -10,9 +10,13 @@ import {
   Filter,
   Download,
   X,
-  Coins
+  Coins,
+  Loader2,
+  FileText,
+  User,
+  Calendar
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, subDays, subMonths, startOfDay, endOfDay } from "date-fns";
 import { ar } from "date-fns/locale";
 
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -37,18 +41,55 @@ import { useCreateFinancialRecord } from "../features/finance/useCreateFinancial
 import { useFinancialStats } from "../features/finance/useFinancialStats";
 import { formatCurrency } from "../lib/utils";
 import FinancialAnalytics from "../features/finance/FinancialAnalytics";
+import { useAuth } from "../features/auth/AuthContext";
+import useClinic from "../features/auth/useClinic";
+import { getFinancialSummary, getFinancialRecords, getFinancialChartData } from "../services/apiFinancialRecords";
+import generateFinancialReportPdf from "../lib/generateFinancialReportPdf";
+import { toast } from "sonner";
 
 export default function Finance() {
+  const { user } = useAuth();
+  const { data: clinic } = useClinic();
+  
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const [exportDuration, setExportDuration] = useState("month");
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+
   const [filterType, setFilterType] = useState("all"); // all, income, expense
   const [searchTerm, setSearchTerm] = useState("");
+  const [statsDateFilter, setStatsDateFilter] = useState("month"); // week, month, 3months
+
+  // Calculate stats date range
+  const getStatsDateRange = () => {
+    const end = endOfDay(new Date()).toISOString();
+    let start;
+    
+    switch (statsDateFilter) {
+      case "week":
+        start = startOfDay(subDays(new Date(), 7)).toISOString();
+        break;
+      case "month":
+        start = startOfDay(subMonths(new Date(), 1)).toISOString();
+        break;
+      case "3months":
+        start = startOfDay(subMonths(new Date(), 3)).toISOString();
+        break;
+      default:
+        start = startOfDay(subMonths(new Date(), 1)).toISOString();
+    }
+    
+    return { startDate: start, endDate: end };
+  };
+
+  const statsFilters = getStatsDateRange();
   
   // Fetch records
   const { data: recordsData, isLoading: isRecordsLoading } = useFinancialRecords(1, 100, { type: filterType !== "all" ? filterType : undefined });
   const records = recordsData?.items || [];
   
   // Fetch Stats
-  const { data: statsData, isLoading: isStatsLoading } = useFinancialStats();
+  const { data: statsData, isLoading: isStatsLoading } = useFinancialStats(statsFilters);
   const stats = statsData || { totalIncome: 0, totalExpense: 0, netProfit: 0 };
 
   const createRecordMutation = useCreateFinancialRecord();
@@ -81,6 +122,55 @@ export default function Finance() {
       });
     } catch (error) {
       // Error handled by hook
+    }
+  };
+
+  const handleExportReport = async () => {
+    setIsGeneratingReport(true);
+    try {
+      // Calculate dates
+      const end = endOfDay(new Date()).toISOString();
+      let start;
+      switch (exportDuration) {
+        case "week":
+          start = startOfDay(subDays(new Date(), 7)).toISOString();
+          break;
+        case "month":
+          start = startOfDay(subMonths(new Date(), 1)).toISOString();
+          break;
+        case "3months":
+          start = startOfDay(subMonths(new Date(), 3)).toISOString();
+          break;
+        default:
+          start = startOfDay(subMonths(new Date(), 1)).toISOString();
+      }
+      
+      const filters = { startDate: start, endDate: end };
+      
+      // Fetch Data
+      const [summary, chartData, recordsResponse] = await Promise.all([
+        getFinancialSummary(filters),
+        getFinancialChartData(filters),
+        getFinancialRecords(1, 1000, filters) // Fetch up to 1000 records for the report
+      ]);
+      
+      // Generate PDF
+      await generateFinancialReportPdf(
+        summary,
+        recordsResponse.items,
+        chartData,
+        filters,
+        clinic,
+        user?.name
+      );
+      
+      setIsExportDialogOpen(false);
+      toast.success("تم إنشاء التقرير بنجاح");
+    } catch (error) {
+      console.error("Error generating report:", error);
+      toast.error("حدث خطأ أثناء إنشاء التقرير");
+    } finally {
+      setIsGeneratingReport(false);
     }
   };
 
@@ -129,6 +219,35 @@ export default function Finance() {
     }
   ];
 
+  const renderMobileTransaction = (record) => (
+    <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-sm space-y-3 mb-3">
+      <div className="flex justify-between items-start">
+        <div className="space-y-1">
+          <h3 className="font-bold text-base text-slate-900">{record.description}</h3>
+          {record.patient?.name && (
+            <div className="flex items-center text-sm text-slate-500 gap-1">
+              <User className="w-3 h-3 text-slate-400" />
+              <span>{record.patient.name}</span>
+            </div>
+          )}
+        </div>
+        <Badge variant={record.type === 'income' ? 'default' : 'destructive'} className={record.type === 'income' ? 'bg-green-600 hover:bg-green-700' : ''}>
+          {record.type === 'income' ? 'إيراد' : 'مصروف'}
+        </Badge>
+      </div>
+      
+      <div className="flex justify-between items-center pt-2 border-t border-slate-100">
+        <div className={`font-bold text-lg ${record.type === 'income' ? 'text-green-600' : 'text-red-600'}`} dir="ltr">
+          {record.type === 'income' ? '+' : '-'} {formatCurrency(record.amount)}
+        </div>
+        <div className="flex items-center text-xs text-slate-400 gap-1">
+          <Calendar className="w-3 h-3" />
+          <span>{format(new Date(record.recorded_at || record.created_at), "d MMMM yyyy", { locale: ar })}</span>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       {/* Header */}
@@ -144,164 +263,187 @@ export default function Finance() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
-            <Download className="ml-2 h-4 w-4" />
-            تصدير تقرير
-          </Button>
-          <Button onClick={() => setIsAddDialogOpen(true)}>
-            <Plus className="ml-2 h-4 w-4" />
-            معاملة جديدة
-          </Button>
-          <Dialog open={isAddDialogOpen} onClose={() => setIsAddDialogOpen(false)}>
-            <DialogContent className="w-full sm:max-w-[500px] p-0 overflow-hidden rounded-[var(--radius)] gap-0">
-              <button
-                onClick={() => setIsAddDialogOpen(false)}
-                className="absolute left-4 top-4 rounded-[var(--radius)] opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
-              >
-                <X className="h-4 w-4" />
-                <span className="sr-only">Close</span>
-              </button>
-              
-              <DialogHeader className="p-6 pb-2">
-                <DialogTitle>إضافة معاملة مالية جديدة</DialogTitle>
-                <p className="text-sm text-muted-foreground mt-2">
-                  سجل إيراد جديد أو مصروف للعيادة.
-                </p>
-              </DialogHeader>
+      </div>
 
-              <div className="px-6 py-4">
-                <form onSubmit={handleCreateRecord} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>نوع المعاملة</Label>
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant={newRecord.type === 'income' ? 'default' : 'outline'}
-                        className={`flex-1 ${newRecord.type === 'income' ? 'bg-green-600 hover:bg-green-700' : ''}`}
-                        onClick={() => setNewRecord({ ...newRecord, type: 'income' })}
-                      >
-                        <ArrowUpRight className="ml-2 h-4 w-4" />
-                        إيراد
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={newRecord.type === 'expense' ? 'destructive' : 'outline'}
-                        className="flex-1"
-                        onClick={() => setNewRecord({ ...newRecord, type: 'expense' })}
-                      >
-                        <ArrowDownLeft className="ml-2 h-4 w-4" />
-                        مصروف
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="amount">المبلغ</Label>
-                    <div className="relative">
-                      <Input
-                        id="amount"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        placeholder="0.00"
-                        value={newRecord.amount}
-                        onChange={(e) => setNewRecord({ ...newRecord, amount: e.target.value })}
-                        required
-                      />
-                      <div className="absolute left-3 top-2.5 text-sm text-muted-foreground">جنيه</div>
-                    </div>
-                  </div>
+      {/* Stats Section */}
+      <div className="space-y-4" dir="rtl">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-bold text-muted-foreground">احصائيات مالياتك</h2>
+          <Select value={statsDateFilter} onValueChange={setStatsDateFilter}>
+            <SelectTrigger className="w-[140px] h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="week">آخر أسبوع</SelectItem>
+              <SelectItem value="month">آخر شهر</SelectItem>
+              <SelectItem value="3months">آخر 3 شهور</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="date">التاريخ</Label>
-                    <Input
-                      id="date"
-                      type="date"
-                      value={newRecord.date}
-                      onChange={(e) => setNewRecord({ ...newRecord, date: e.target.value })}
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="description">الوصف</Label>
-                    <Input
-                      id="description"
-                      placeholder="مثال: كشف، إيجار، مستلزمات..."
-                      value={newRecord.description}
-                      onChange={(e) => setNewRecord({ ...newRecord, description: e.target.value })}
-                      required
-                    />
-                  </div>
-
-                  <DialogFooter className="p-0 pt-4 gap-2">
-                    <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                      إلغاء
-                    </Button>
-                    <Button type="submit" disabled={createRecordMutation.isPending}>
-                      {createRecordMutation.isPending ? "جاري الحفظ..." : "حفظ المعاملة"}
-                    </Button>
-                  </DialogFooter>
-                </form>
+        {/* Summary Cards */}
+        <div className="grid grid-cols-3 sm:grid-cols-3 gap-3">
+          {/* Total Income */}
+          <Card className="bg-white dark:bg-slate-900 border-border shadow-sm">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2 mb-1">
+                <TrendingUp className="w-4 h-4 text-green-600 dark:text-green-400" />
+                <span className="text-xs font-medium text-slate-600 dark:text-slate-400">الإيرادات</span>
               </div>
-            </DialogContent>
-          </Dialog>
+              {isStatsLoading ? (
+                <Skeleton className="h-6 w-20" />
+              ) : (
+                <p className="text-base font-bold text-slate-900 dark:text-slate-100">
+                  {stats.totalIncome?.toFixed(0) || 0} جنيه
+                </p>
+              )}
+            </CardContent>
+          </Card>
+          
+          {/* Total Expenses */}
+          <Card className="bg-white dark:bg-slate-900 border-border shadow-sm">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2 mb-1">
+                <TrendingDown className="w-4 h-4 text-red-600 dark:text-red-400" />
+                <span className="text-xs font-medium text-slate-600 dark:text-slate-400">المصروفات</span>
+              </div>
+              {isStatsLoading ? (
+                <Skeleton className="h-6 w-20" />
+              ) : (
+                <p className="text-base font-bold text-slate-900 dark:text-slate-100">
+                  {stats.totalExpense?.toFixed(0) || 0} جنيه
+                </p>
+              )}
+            </CardContent>
+          </Card>
+          
+          {/* Net Profit */}
+          <Card className="bg-white dark:bg-slate-900 border-border shadow-sm">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2 mb-1">
+                <Coins className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <span className="text-xs font-medium text-slate-600 dark:text-slate-400">صافي الربح</span>
+              </div>
+              {isStatsLoading ? (
+                <Skeleton className="h-6 w-20" />
+              ) : (
+                <p className={`text-base font-bold ${stats.netProfit >= 0 ? 'text-slate-900 dark:text-slate-100' : 'text-red-600 dark:text-red-400'}`}>
+                  {stats.netProfit?.toFixed(0) || 0} جنيه
+                </p>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-3 sm:grid-cols-3 gap-3" dir="rtl">
-        {/* Total Income */}
-        <Card className="bg-white dark:bg-slate-900 border-border shadow-sm">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-1">
-              <TrendingUp className="w-4 h-4 text-green-600 dark:text-green-400" />
-              <span className="text-xs font-medium text-slate-600 dark:text-slate-400">الإيرادات</span>
-            </div>
-            {isStatsLoading ? (
-              <Skeleton className="h-6 w-20" />
-            ) : (
-              <p className="text-base font-bold text-slate-900 dark:text-slate-100">
-                {stats.totalIncome?.toFixed(0) || 0} جنيه
+      <div className="flex items-center gap-2 w-full sm:w-auto">
+        <Button onClick={() => setIsAddDialogOpen(true)} className="w-[75%] sm:w-auto h-10">
+          <Plus className="ml-2 h-4 w-4" />
+          معاملة جديدة
+        </Button>
+        <Button 
+          variant="outline" 
+          className="w-[25%] sm:w-auto px-1 h-10"
+          onClick={() => setIsExportDialogOpen(true)}
+        >
+          <Download className="h-4 w-4 sm:ml-2" />
+          <span className="hidden sm:inline">تصدير تقرير</span>
+          <span className="sm:hidden text-xs">تصدير</span>
+        </Button>
+        <Dialog open={isAddDialogOpen} onClose={() => setIsAddDialogOpen(false)}>
+          <DialogContent className="w-full sm:max-w-[500px] p-0 overflow-hidden rounded-[var(--radius)] gap-0">
+            <button
+              onClick={() => setIsAddDialogOpen(false)}
+              className="absolute left-4 top-4 rounded-[var(--radius)] opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
+            >
+              <X className="h-4 w-4" />
+              <span className="sr-only">Close</span>
+            </button>
+            
+            <DialogHeader className="p-6 pb-2">
+              <DialogTitle>إضافة معاملة مالية جديدة</DialogTitle>
+              <p className="text-sm text-muted-foreground mt-2">
+                سجل إيراد جديد أو مصروف للعيادة.
               </p>
-            )}
-          </CardContent>
-        </Card>
-        
-        {/* Total Expenses */}
-        <Card className="bg-white dark:bg-slate-900 border-border shadow-sm">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-1">
-              <TrendingDown className="w-4 h-4 text-red-600 dark:text-red-400" />
-              <span className="text-xs font-medium text-slate-600 dark:text-slate-400">المصروفات</span>
+            </DialogHeader>
+
+            <div className="px-6 py-4">
+              <form onSubmit={handleCreateRecord} className="space-y-4">
+                <div className="space-y-2">
+                  <Label>نوع المعاملة</Label>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant={newRecord.type === 'income' ? 'default' : 'outline'}
+                      className={`flex-1 ${newRecord.type === 'income' ? 'bg-green-600 hover:bg-green-700' : ''}`}
+                      onClick={() => setNewRecord({ ...newRecord, type: 'income' })}
+                    >
+                      <ArrowUpRight className="ml-2 h-4 w-4" />
+                      إيراد
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={newRecord.type === 'expense' ? 'destructive' : 'outline'}
+                      className="flex-1"
+                      onClick={() => setNewRecord({ ...newRecord, type: 'expense' })}
+                    >
+                      <ArrowDownLeft className="ml-2 h-4 w-4" />
+                      مصروف
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="amount">المبلغ</Label>
+                  <div className="relative">
+                    <Input
+                      id="amount"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={newRecord.amount}
+                      onChange={(e) => setNewRecord({ ...newRecord, amount: e.target.value })}
+                      required
+                    />
+                    <div className="absolute left-3 top-2.5 text-sm text-muted-foreground">جنيه</div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="date">التاريخ</Label>
+                  <Input
+                    id="date"
+                    type="date"
+                    value={newRecord.date}
+                    onChange={(e) => setNewRecord({ ...newRecord, date: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="description">الوصف</Label>
+                  <Input
+                    id="description"
+                    placeholder="مثال: كشف، إيجار، مستلزمات..."
+                    value={newRecord.description}
+                    onChange={(e) => setNewRecord({ ...newRecord, description: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <DialogFooter className="p-0 pt-4 gap-2">
+                  <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                    إلغاء
+                  </Button>
+                  <Button type="submit" disabled={createRecordMutation.isPending}>
+                    {createRecordMutation.isPending ? "جاري الحفظ..." : "حفظ المعاملة"}
+                  </Button>
+                </DialogFooter>
+              </form>
             </div>
-            {isStatsLoading ? (
-              <Skeleton className="h-6 w-20" />
-            ) : (
-              <p className="text-base font-bold text-slate-900 dark:text-slate-100">
-                {stats.totalExpense?.toFixed(0) || 0} جنيه
-              </p>
-            )}
-          </CardContent>
-        </Card>
-        
-        {/* Net Profit */}
-        <Card className="bg-white dark:bg-slate-900 border-border shadow-sm">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-1">
-              <Coins className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-              <span className="text-xs font-medium text-slate-600 dark:text-slate-400">صافي الربح</span>
-            </div>
-            {isStatsLoading ? (
-              <Skeleton className="h-6 w-20" />
-            ) : (
-              <p className={`text-base font-bold ${stats.netProfit >= 0 ? 'text-slate-900 dark:text-slate-100' : 'text-red-600 dark:text-red-400'}`}>
-                {stats.netProfit?.toFixed(0) || 0} جنيه
-              </p>
-            )}
-          </CardContent>
-        </Card>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Main Content Tabs */}
@@ -373,6 +515,7 @@ export default function Finance() {
                     columns={columns} 
                     data={filteredRecords}
                     emptyLabel="لا توجد معاملات مالية مطابقة للبحث."
+                    renderMobileItem={renderMobileTransaction}
                   />
                 </div>
               )}
@@ -384,6 +527,57 @@ export default function Finance() {
           <FinancialAnalytics />
         </TabsContent>
       </Tabs>
+
+      <Dialog open={isExportDialogOpen} onClose={() => setIsExportDialogOpen(false)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5 text-primary" />
+              تصدير تقرير مالي شامل
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4" dir="rtl">
+            <div className="space-y-2">
+              <Label>اختر الفترة الزمنية للتقرير</Label>
+              <Select value={exportDuration} onValueChange={setExportDuration}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="week">آخر أسبوع</SelectItem>
+                  <SelectItem value="month">آخر شهر</SelectItem>
+                  <SelectItem value="3months">آخر 3 شهور</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
+              <p>سيحتوي التقرير على:</p>
+              <ul className="list-disc list-inside mt-1 space-y-1">
+                <li>ملخص الإيرادات والمصروفات</li>
+                <li>رسوم بيانية توضيحية</li>
+                <li>جدول تفصيلي لجميع المعاملات</li>
+                <li>صافي الربح للفترة المحددة</li>
+              </ul>
+            </div>
+          </div>
+          <DialogFooter className="flex-row gap-2 sm:gap-2">
+            <Button variant="outline" onClick={() => setIsExportDialogOpen(false)} className="w-[25%] sm:w-auto">إلغاء</Button>
+            <Button onClick={handleExportReport} disabled={isGeneratingReport} className="w-[75%] sm:w-auto gap-2">
+              {isGeneratingReport ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  جاري الإنشاء...
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4" />
+                  إنشاء وتحميل التقرير
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

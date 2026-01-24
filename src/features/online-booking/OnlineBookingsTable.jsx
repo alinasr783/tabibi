@@ -36,6 +36,9 @@ export default function OnlineBookingsTable({
   appointments,
   onAccept,
   onReject,
+  onLoadMore,
+  hasMore = false,
+  isLoadingMore = false,
 }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -54,17 +57,17 @@ export default function OnlineBookingsTable({
       const previousAppointments = queryClient.getQueryData(["appointments"]);
       
       // Optimistically update to the new value
-      queryClient.setQueryData(["appointments"], old => {
-        if (!old) return old;
+      queryClient.setQueriesData({ queryKey: ["appointments"] }, old => {
+        if (!old || !old.data) return old;
         
         // Update the specific appointment in the cache
         return {
           ...old,
-          items: old.items?.map(appointment => 
+          data: old.data.map(appointment => 
             appointment.id === id 
               ? { ...appointment, status } 
               : appointment
-          ) || []
+          )
         };
       });
       
@@ -74,9 +77,8 @@ export default function OnlineBookingsTable({
     // If the mutation fails, use the context returned from onMutate to roll back
     onError: (err, variables, context) => {
       // Rollback to the previous value
-      if (context?.previousAppointments) {
-        queryClient.setQueryData(["appointments"], context.previousAppointments);
-      }
+      // Note: Rolling back setQueriesData is complex, usually we just invalidate
+      queryClient.invalidateQueries({ queryKey: ["appointments"] });
       toast.error(err.message || "فشل في تحديث حالة الحجز");
     },
     // Always refetch after error or success to ensure we have the correct data
@@ -360,6 +362,23 @@ export default function OnlineBookingsTable({
           </div>
         )}
       </div>
+
+      {/* Load More Button */}
+      {onLoadMore && hasMore && (
+        <div className="mt-4 flex flex-col items-center justify-center border-t pt-4">
+          <Button 
+            variant="outline" 
+            onClick={onLoadMore}
+            disabled={isLoadingMore}
+            className="min-w-[200px]"
+          >
+            {isLoadingMore ? "بيحمل..." : "عرض المزيد"}
+          </Button>
+          <div className="text-xs text-muted-foreground mt-2">
+            معروض {appointments.length}
+          </div>
+        </div>
+      )}
 
       {/* Contact Method Dialog */}
       <Dialog open={showContactDialog} onOpenChange={setShowContactDialog}>

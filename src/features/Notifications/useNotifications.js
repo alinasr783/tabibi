@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import supabase from "../../services/supabase";
 import toast from "react-hot-toast";
 import { useEffect } from "react";
@@ -6,10 +6,7 @@ import { useEffect } from "react";
 export function useNotifications() {
   const queryClient = useQueryClient();
   
-  // Original query function
-  const fetchNotifications = async () => {
-    console.log("useNotifications: Fetching notifications");
-    
+  const fetchNotifications = async ({ pageParam = 0 }) => {
     // Get current user
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error("Not authenticated");
@@ -24,11 +21,12 @@ export function useNotifications() {
     if (userError) throw userError;
     if (!userData?.clinic_id) throw new Error("User has no clinic assigned");
 
-    console.log("useNotifications: User clinic_id:", userData.clinic_id);
+    const PAGE_SIZE = 20;
+    const from = pageParam * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
 
     // Fetch notifications for the clinic
-    // Based on the actual database structure
-    const { data, error } = await supabase
+    const { data, error, count } = await supabase
       .from("notifications")
       .select(`
         id,
@@ -38,28 +36,34 @@ export function useNotifications() {
         is_read,
         created_at,
         patient_id,
-        appointment_id
-      `)
+        appointment_id,
+        image_url,
+        action_link,
+        action_text,
+        action_buttons
+      `, { count: 'exact' })
       .eq("clinic_id", userData.clinic_id)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .range(from, to);
 
     if (error) {
       console.error("useNotifications: Error fetching notifications:", error);
       throw error;
     }
     
-    console.log("useNotifications: Retrieved notifications:", data);
-    return data || [];
+    return {
+      notifications: data || [],
+      nextPage: data.length === PAGE_SIZE ? pageParam + 1 : undefined,
+      total: count
+    };
   };
 
   // Set up real-time subscription
   useEffect(() => {
-    // Get current user
     const setupSubscription = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      // Get user's clinic_id
       const { data: userData } = await supabase
         .from("users")
         .select("clinic_id")
@@ -68,7 +72,6 @@ export function useNotifications() {
 
       if (!userData?.clinic_id) return;
 
-      // Subscribe to notifications changes
       const channel = supabase
         .channel('notifications-changes')
         .on(
@@ -81,13 +84,12 @@ export function useNotifications() {
           },
           (payload) => {
             console.log('Real-time notification received:', payload);
-            // Invalidate and refetch notifications when changes occur
             queryClient.invalidateQueries({ queryKey: ["notifications"] });
+            queryClient.invalidateQueries({ queryKey: ["notifications-stats"] });
           }
         )
         .subscribe();
 
-      // Cleanup subscription on unmount
       return () => {
         supabase.removeChannel(channel);
       };
@@ -96,138 +98,107 @@ export function useNotifications() {
     setupSubscription();
   }, [queryClient]);
 
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: ["notifications"],
     queryFn: fetchNotifications,
+    getNextPageParam: (lastPage) => lastPage.nextPage,
+  });
+}
+
+export function useNotificationStats() {
+  return useQuery({
+    queryKey: ["notifications-stats"],
+    queryFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not authenticated");
+
+      const { data: userData } = await supabase
+        .from("users")
+        .select("clinic_id")
+        .eq("user_id", session.user.id)
+        .single();
+
+      if (!userData?.clinic_id) return { total: 0, unread: 0 };
+
+      const { count: totalCount } = await supabase
+        .from("notifications")
+        .select('*', { count: 'exact', head: true })
+        .eq("clinic_id", userData.clinic_id);
+
+      const { count: unreadCount } = await supabase
+        .from("notifications")
+        .select('*', { count: 'exact', head: true })
+        .eq("clinic_id", userData.clinic_id)
+        .eq("is_read", false);
+
+      return {
+        total: totalCount || 0,
+        unread: unreadCount || 0
+      };
+    }
   });
 }
 
 export function useNotificationActions() {
   const queryClient = useQueryClient();
 
-  const markAsRead = async (notificationIds) => {
-    console.log("useNotificationActions: Marking notifications as read:", notificationIds);
-    
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Not authenticated");
-
-      const { data, error } = await supabase
-        .from("notifications")
-        .update({ is_read: true })
-        .in("id", notificationIds)
-        .select();
-
-      if (error) throw error;
-
-      // Invalidate and refetch notifications
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      
-      toast.success(`تم تحديد ${notificationIds.length} إشعار كمقروء`);
-      return data;
-    } catch (error) {
-      console.error("useNotificationActions: Error marking as read:", error);
-      toast.error("فشل في تحديث الإشعارات");
-      throw error;
-    }
-  };
-
-  const markAsUnread = async (notificationIds) => {
-    console.log("useNotificationActions: Marking notifications as unread:", notificationIds);
-    
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Not authenticated");
-
-      const { data, error } = await supabase
-        .from("notifications")
-        .update({ is_read: false })
-        .in("id", notificationIds)
-        .select();
-
-      if (error) throw error;
-
-      // Invalidate and refetch notifications
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      
-      toast.success(`تم تحديد ${notificationIds.length} إشعار كغير مقروء`);
-      return data;
-    } catch (error) {
-      console.error("useNotificationActions: Error marking as unread:", error);
-      toast.error("فشل في تحديث الإشعارات");
-      throw error;
-    }
-  };
-
-  const deleteNotifications = async (notificationIds) => {
-    console.log("useNotificationActions: Deleting notifications:", notificationIds);
-    
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Not authenticated");
-
+  const markAsRead = useMutation({
+    mutationFn: async (id) => {
       const { error } = await supabase
         .from("notifications")
-        .delete()
-        .in("id", notificationIds);
-
+        .update({ is_read: true })
+        .eq("id", id);
       if (error) throw error;
-
-      // Invalidate and refetch notifications
+    },
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      
-      toast.success(`تم حذف ${notificationIds.length} إشعار`);
-    } catch (error) {
-      console.error("useNotificationActions: Error deleting notifications:", error);
-      toast.error("فشل في حذف الإشعارات");
-      throw error;
-    }
-  };
+      queryClient.invalidateQueries({ queryKey: ["notifications-stats"] });
+    },
+  });
 
-  const markAllAsRead = async () => {
-    console.log("useNotificationActions: Marking all notifications as read");
-    
-    try {
+  const markAllAsRead = useMutation({
+    mutationFn: async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Not authenticated");
-
-      // Get user's clinic_id
-      const { data: userData, error: userError } = await supabase
+      const { data: userData } = await supabase
         .from("users")
         .select("clinic_id")
         .eq("user_id", session.user.id)
         .single();
 
-      if (userError) throw userError;
-      if (!userData?.clinic_id) throw new Error("User has no clinic assigned");
-
-      console.log("useNotificationActions: User clinic_id:", userData.clinic_id);
-
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("notifications")
         .update({ is_read: true })
         .eq("clinic_id", userData.clinic_id)
-        .eq("is_read", false)
-        .select();
-
+        .eq("is_read", false);
+        
       if (error) throw error;
-
-      // Invalidate and refetch notifications
+    },
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      
-      toast.success("تم تحديد جميع الإشعارات كمقروءة");
-      return data;
-    } catch (error) {
-      console.error("useNotificationActions: Error marking all as read:", error);
-      toast.error("فشل في تحديث الإشعارات");
-      throw error;
-    }
-  };
+      queryClient.invalidateQueries({ queryKey: ["notifications-stats"] });
+      toast.success("تم تحديد الكل كمقروء");
+    },
+  });
+
+  const deleteNotification = useMutation({
+    mutationFn: async (id) => {
+      const { error } = await supabase
+        .from("notifications")
+        .delete()
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-stats"] });
+      toast.success("تم حذف الاشعار بنجاح");
+    },
+  });
 
   return {
-    markAsRead,
-    markAsUnread,
-    deleteNotifications,
-    markAllAsRead,
+    markAsRead: markAsRead.mutate,
+    markAllAsRead: markAllAsRead.mutate,
+    deleteNotification: deleteNotification.mutate,
   };
 }
+

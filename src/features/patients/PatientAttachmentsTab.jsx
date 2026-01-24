@@ -153,7 +153,7 @@ function TimelineItem({ file, onDelete }) {
   );
 }
 
-function UploadDialog({ open, onClose, onUpload, isUploading }) {
+export function UploadDialog({ open, onClose, onUpload, isUploading }) {
   const [file, setFile] = useState(null);
   const [category, setCategory] = useState("other");
   const [description, setDescription] = useState("");
@@ -254,22 +254,22 @@ function UploadDialog({ open, onClose, onUpload, isUploading }) {
             />
           </div>
 
-          <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
-            <Button type="button" variant="outline" onClick={onClose}>إلغاء</Button>
-            <Button type="submit" disabled={!file || isUploading}>
-              {isUploading ? (
-                <>
-                  <Loader2 className="w-4 h-4 ml-2 animate-spin" />
-                  جاري الرفع...
-                </>
-              ) : (
-                <>
-                  <Upload className="w-4 h-4 ml-2" />
-                  حفظ في الملف
-                </>
-              )}
-            </Button>
-          </div>
+          <div className="flex gap-2 mt-6 pt-4 border-t w-full">
+      <Button type="button" variant="outline" onClick={onClose} className="w-1/4">إلغاء</Button>
+      <Button type="submit" disabled={!file || isUploading} className="w-3/4">
+        {isUploading ? (
+          <>
+            <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+            جاري الرفع...
+          </>
+        ) : (
+          <>
+            <Upload className="w-4 h-4 ml-2" />
+            حفظ في الملف
+          </>
+        )}
+      </Button>
+    </div>
         </form>
       </DialogContent>
     </Dialog>

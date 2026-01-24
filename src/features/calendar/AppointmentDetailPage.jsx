@@ -27,7 +27,12 @@ import {
   Ban,
   PlayCircle,
   Info,
-  ClipboardPlus
+  ClipboardPlus,
+  ExternalLink,
+  ShieldCheck,
+  AlertTriangle,
+  MessageCircle,
+  History
 } from "lucide-react";
 import {useState, useEffect} from "react";
 import {useNavigate, useParams} from "react-router-dom";
@@ -56,16 +61,50 @@ import {
 import {Separator} from "../../components/ui/separator";
 import useAppointment from "./useAppointment";
 import useUpdateAppointmentHandler from "./useUpdateAppointmentHandler";
+import { subscribeToAppointments } from "../../services/apiAppointments";
+import { getIntegration } from "../../services/integrationService";
 import generatePrescriptionPdfNew from "../../lib/generatePrescriptionPdfNew";
 import VisitCreateForm from "../patients/VisitCreateForm";
+import usePatientAppointments from "./usePatientAppointments";
 
 export default function AppointmentDetailPage() {
   useScrollToTop(); // Auto scroll to top on page load
   const {appointmentId} = useParams();
   const {data: appointment, isLoading, error, refetch} = useAppointment(appointmentId);
+  const {data: patientAppointments} = usePatientAppointments(appointment?.patient?.id);
   const navigate = useNavigate();
   const {handleAppointmentUpdate, isPending: isUpdating} = useUpdateAppointmentHandler();
   
+  const [hasGoogleCalendar, setHasGoogleCalendar] = useState(false);
+
+  useEffect(() => {
+    getIntegration('calendar').then(integration => {
+      setHasGoogleCalendar(!!integration);
+    });
+  }, []);
+
+  // Real-time subscription
+  useEffect(() => {
+    if (!appointment?.clinic_id) return;
+
+    const unsubscribe = subscribeToAppointments(
+      (payload) => {
+        // If the update is for this appointment, refetch
+        if (
+          (payload.new?.id && String(payload.new.id) === String(appointmentId)) || 
+          (payload.old?.id && String(payload.old.id) === String(appointmentId))
+        ) {
+          refetch();
+        }
+      },
+      appointment.clinic_id
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [appointment?.clinic_id, appointmentId, refetch]);
+
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [showPrescriptionDialog, setShowPrescriptionDialog] = useState(false);
   const [showNewVisitDialog, setShowNewVisitDialog] = useState(false);
@@ -352,6 +391,29 @@ export default function AppointmentDetailPage() {
     );
   }
 
+  const getGoogleCalendarUrl = () => {
+    if (!appointment?.date) return "#";
+    const startDate = new Date(appointment.date);
+    const endDate = new Date(startDate.getTime() + 30 * 60000); // 30 mins
+    const formatTime = (date) => date.toISOString().replace(/-|:|\.\d\d\d/g, "");
+    
+    const details = `
+المريض: ${appointment.patient?.name || 'مريض'}
+تليفون: ${appointment.patient?.phone || '-'}
+ملاحظات: ${appointment.notes || '-'}
+    `.trim();
+
+    const params = new URLSearchParams({
+      action: "TEMPLATE",
+      text: "حجز عيادة طبيبي",
+      dates: `${formatTime(startDate)}/${formatTime(endDate)}`,
+      details: details,
+      location: "العيادة"
+    });
+
+    return `https://calendar.google.com/calendar/render?${params.toString()}`;
+  };
+
   const rawStatus = optimisticStatus || appointment?.status;
   const currentStatus = rawStatus?.toLowerCase() || 'pending';
   const StatusIcon = statusConfig[currentStatus]?.icon || Clock3;
@@ -361,71 +423,101 @@ export default function AppointmentDetailPage() {
       <div className="max-w-6xl mx-auto space-y-4">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <h1 className="text-xl md:text-2xl font-bold text-foreground">تفاصيل الحجز</h1>
-              <Badge variant="outline" className="text-xs">
-                #{appointmentId?.slice(-6)}
-              </Badge>
+          <div className="flex-1 min-w-0 flex items-center gap-3">
+            <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigate(-1)}>
+              <ArrowLeft className="size-4 rotate-180" /> {/* Rotated for RTL Back */}
+            </Button>
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <h1 className="text-xl md:text-2xl font-bold text-foreground">تفاصيل الحجز</h1>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                تاريخ الإنشاء: {format(new Date(appointment?.created_at || appointment?.date || Date.now()), "d MMM yyyy - hh:mm a", {locale: ar})}
+              </p>
             </div>
-            <p className="text-xs text-muted-foreground">
-              آخر تحديث: {format(new Date(appointment?.updatedAt || Date.now()), "d MMM yyyy - hh:mm a", {locale: ar})}
-            </p>
-          </div>
-          
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => setIsEditModalOpen(true)} className="gap-1.5">
-              <Edit className="size-3.5" />
-              <span className="hidden sm:inline">عدل</span>
-            </Button>
-            <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => navigate(-1)}>
-              <ArrowLeft className="size-3.5" />
-              رجوع
-            </Button>
           </div>
         </div>
 
-        {/* Status Card */}
-        <Card className={`${statusConfig[currentStatus]?.bg} ${statusConfig[currentStatus]?.border} border-2`}>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className={`p-2.5 rounded-[var(--radius)] ${statusConfig[currentStatus]?.bg}`}>
-                <StatusIcon className={`size-6 ${statusConfig[currentStatus]?.color}`} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-bold text-foreground">{statusConfig[currentStatus]?.label}</h3>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  <Badge variant={sourceConfig[appointment?.from]?.variant || "secondary"} className="text-xs">
+        {/* Status Control - Improved */}
+        <Card className={`overflow-hidden border transition-all duration-300 ${statusConfig[currentStatus]?.border} ${statusConfig[currentStatus]?.bg}/30 shadow-sm`}>
+           <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center gap-4">
+             <div className={`flex items-center gap-3 w-full sm:w-auto`}>
+               <div className={`p-2.5 rounded-full shadow-sm ${statusConfig[currentStatus]?.bg} border ${statusConfig[currentStatus]?.border}`}>
+                 <StatusIcon className={`size-5 ${statusConfig[currentStatus]?.color}`} />
+               </div>
+               <div className="flex-1 sm:hidden">
+                 <h3 className={`font-bold ${statusConfig[currentStatus]?.color}`}>{statusConfig[currentStatus]?.label}</h3>
+               </div>
+             </div>
+             
+             <div className="flex-1 min-w-0 grid gap-1.5">
+               <Label className="text-xs text-muted-foreground hidden sm:block">حالة الحجز</Label>
+               <Select
+                  value={currentStatus}
+                  onValueChange={handleStatusChange}
+                  disabled={isUpdating}
+                  dir="rtl"
+               >
+                 <SelectTrigger className="h-10 w-full sm:w-[280px] font-medium bg-background/80 border-muted/40 transition-all hover:bg-background">
+                   <SelectValue placeholder="اختر الحالة" />
+                 </SelectTrigger>
+                 <SelectContent>
+                   {Object.entries(statusConfig).map(([key, config]) => {
+                     const Icon = config.icon;
+                     return (
+                       <SelectItem key={key} value={key} className="cursor-pointer">
+                         <div className="flex items-center gap-2">
+                           <Icon className={`size-4 ${config.color}`} />
+                           <span>{config.label}</span>
+                         </div>
+                       </SelectItem>
+                     );
+                   })}
+                 </SelectContent>
+               </Select>
+             </div>
+
+             <div className="flex gap-2 items-center mt-2 sm:mt-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/50">
+                  <Badge variant={sourceConfig[appointment?.from]?.variant || "secondary"} className="h-7 px-3 text-xs shadow-sm">
                     {sourceConfig[appointment?.from]?.label}
                   </Badge>
                   {appointment?.priority === 'high' && (
-                    <Badge variant="destructive" className="text-xs">عاجل</Badge>
+                    <Badge variant="destructive" className="h-7 px-3 text-xs shadow-sm animate-pulse">عاجل</Badge>
                   )}
-                </div>
-              </div>
-            </div>
-          </CardContent>
+             </div>
+           </CardContent>
         </Card>
 
         {/* Quick Actions - Moved to top */}
-        <Card className="bg-card/70">
+        <Card className="bg-card/70 border-muted/20 shadow-sm">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">إجراءات سريعة</CardTitle>
+            <CardTitle className="text-base flex items-center gap-2">
+              <ClipboardPlus className="size-5 text-primary" />
+              إجراءات سريعة
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
               <Button 
                 variant="outline" 
                 size="sm"
-                className="justify-start gap-2 text-sm h-9" 
-                onClick={handlePrescriptionDialogOpen}>
-                <Pill className="size-3.5" />
-                اكتب روشتة
+                className="justify-start gap-2 text-sm h-9 hover:bg-primary/5 hover:border-primary/30" 
+                onClick={() => setIsEditModalOpen(true)}>
+                <Edit className="size-3.5" />
+                تعديل
               </Button>
               <Button 
                 variant="outline" 
                 size="sm"
-                className="justify-start gap-2 text-sm h-9" 
+                className="justify-start gap-2 text-sm h-9 hover:bg-primary/5 hover:border-primary/30" 
+                onClick={handlePrescriptionDialogOpen}>
+                <Pill className="size-3.5" />
+                روشتة
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="justify-start gap-2 text-sm h-9 hover:bg-primary/5 hover:border-primary/30" 
                 onClick={() => window.print()}>
                 <Printer className="size-3.5" />
                 اطبع
@@ -433,35 +525,42 @@ export default function AppointmentDetailPage() {
               <Button 
                 variant="outline" 
                 size="sm"
-                className="sm:col-span-2 justify-start gap-2 text-sm h-9 bg-primary/5 hover:bg-primary/10 border-primary/20" 
+                className="justify-start gap-2 text-sm h-9 hover:bg-green-50 hover:border-green-200 hover:text-green-700" 
+                onClick={() => {
+                  if (appointment?.patient?.phone) {
+                     window.open(`https://wa.me/2${appointment.patient.phone}`, '_blank');
+                  } else {
+                     alert("رقم التليفون مش موجود");
+                  }
+                }}>
+                <MessageCircle className="size-3.5" />
+                واتساب
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="justify-start gap-2 text-sm h-9 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700" 
+                onClick={() => {
+                  if (appointment?.patient?.phone) {
+                     window.location.href = `tel:${appointment.patient.phone}`;
+                  } else {
+                     alert("رقم التليفون مش موجود");
+                  }
+                }}>
+                <Phone className="size-3.5" />
+                اتصال
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="justify-start gap-2 text-sm h-9 bg-primary/5 hover:bg-primary/10 border-primary/20 text-primary" 
                 onClick={handleCreateNewVisit}>
-                <ClipboardPlus className="size-3.5 text-primary" />
-                <span className="font-medium">ضيف كشف جديد</span>
+                <ClipboardPlus className="size-3.5" />
+                <span className="font-medium">كشف جديد</span>
               </Button>
             </div>
           </CardContent>
         </Card>
-
-        {/* Quick Status Change */}
-        <div className="flex flex-wrap gap-2">
-          {Object.entries(statusConfig).map(([key, config]) => {
-            const Icon = config.icon;
-            if (key === currentStatus) return null;
-            return (
-              <Button
-                key={key}
-                variant="outline"
-                size="sm"
-                className="gap-1.5 text-xs h-8"
-                onClick={() => handleStatusChange(key)}
-                disabled={isUpdating}
-              >
-                <Icon className="size-3.5" />
-                {config.label}
-              </Button>
-            );
-          })}
-        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Main Column */}
@@ -469,55 +568,144 @@ export default function AppointmentDetailPage() {
             {/* Patient Info */}
             <Card className="bg-card/70">
               <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <User className="size-5 text-primary" />
-                  معلومات المريض
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-xs text-muted-foreground">الاسم</Label>
-                    <Button 
-                      variant="link" 
-                      className="font-bold text-lg p-0 h-auto hover:text-primary"
-                      onClick={() => navigate(`/patients/${appointment?.patient?.id}`)}>
-                      {appointment?.patient?.name || "-"}
-                    </Button>
-                  </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">التليفون</Label>
-                    <Button 
-                      variant="link" 
-                      className="flex items-center gap-2 p-0 h-auto font-medium hover:text-primary"
-                      onClick={() => handlePhoneClick(appointment?.patient?.phone, appointment?.patient?.name)}>
-                      <Phone className="size-3.5 text-muted-foreground" />
-                      <span>{appointment?.patient?.phone || "-"}</span>
-                    </Button>
-                  </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">العمر</Label>
-                    <div className="font-medium">
-                      {appointment?.patient?.birthDate 
-                        ? calculatePatientAge(appointment?.patient?.birthDate) 
-                        : appointment?.patient?.age 
-                          ? `${appointment.patient.age} ${appointment.patient.age_unit === 'months' ? 'شهر' : appointment.patient.age_unit === 'days' ? 'يوم' : 'سنة'}`
-                          : "مش معروف"}
-                    </div>
-                  </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">رقم الملف</Label>
-                    <div className="font-medium">#{appointment?.patient?.fileNumber || "—"}</div>
-                  </div>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <User className="size-5 text-primary" />
+                    معلومات المريض
+                  </CardTitle>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    className="h-8 text-xs gap-1"
+                    onClick={() => navigate(`/patients/${appointment?.patient?.id}`)}>
+                    ملف المريض
+                    <ArrowLeft className="size-3" />
+                  </Button>
                 </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Basic Info */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className="flex items-center gap-3 p-2.5 rounded-lg border border-transparent hover:border-muted/30 hover:bg-muted/30 transition-all">
+                      <div className="p-2 bg-primary/10 rounded-full shrink-0">
+                         <User className="size-4 text-primary" />
+                      </div>
+                      <div className="flex items-center gap-2">
+                         <span className="text-sm text-muted-foreground">الاسم:</span>
+                         <span className="font-medium text-foreground">{appointment?.patient?.name || "-"}</span>
+                      </div>
+                    </div>
+
+                    <div 
+                      className="flex items-center gap-3 p-2.5 rounded-lg border border-transparent hover:border-muted/30 hover:bg-muted/30 transition-all cursor-pointer"
+                      onClick={() => handlePhoneClick(appointment?.patient?.phone, appointment?.patient?.name)}
+                    >
+                      <div className="p-2 bg-primary/10 rounded-full shrink-0">
+                         <Phone className="size-4 text-primary" />
+                      </div>
+                      <div className="flex items-center gap-2">
+                         <span className="text-sm text-muted-foreground">التليفون:</span>
+                         <span className="font-medium font-mono text-foreground" dir="ltr">{appointment?.patient?.phone || "-"}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 p-2.5 rounded-lg border border-transparent hover:border-muted/30 hover:bg-muted/30 transition-all">
+                      <div className="p-2 bg-primary/10 rounded-full shrink-0">
+                         <Calendar className="size-4 text-primary" />
+                      </div>
+                      <div className="flex items-center gap-2">
+                         <span className="text-sm text-muted-foreground">السن:</span>
+                         <span className="font-medium text-foreground">
+                            {appointment?.patient?.birthDate 
+                              ? calculatePatientAge(appointment?.patient?.birthDate) 
+                              : appointment?.patient?.age 
+                                ? `${appointment.patient.age} ${appointment.patient.age_unit === 'months' ? 'شهر' : appointment.patient.age_unit === 'days' ? 'يوم' : 'سنة'}`
+                                : "—"}
+                         </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 p-2.5 rounded-lg border border-transparent hover:border-muted/30 hover:bg-muted/30 transition-all">
+                      <div className="p-2 bg-primary/10 rounded-full shrink-0">
+                         <Users className="size-4 text-primary" />
+                      </div>
+                      <div className="flex items-center gap-2">
+                         <span className="text-sm text-muted-foreground">النوع:</span>
+                         <span className="font-medium text-foreground">
+                            {appointment?.patient?.gender === 'male' ? 'ذكر' : appointment?.patient?.gender === 'female' ? 'أنثى' : '—'}
+                         </span>
+                      </div>
+                    </div>
+                </div>
+
                 <Separator />
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="w-full sm:w-auto"
-                  onClick={() => navigate(`/patients/${appointment?.patient?.id}`)}>
-                  شوف الملف الكامل
-                </Button>
+
+                {/* Medical History */}
+                <div className="space-y-3">
+                   <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground/80">
+                     <Activity className="size-4 text-orange-500" />
+                     الحالة الطبية
+                   </h4>
+                   
+                   {/* Chronic Diseases */}
+                   <div className="bg-orange-50/50 rounded-lg p-3 border border-orange-100">
+                     <span className="text-xs font-medium text-orange-800 block mb-2">أمراض مزمنة</span>
+                     {(appointment?.patient?.medical_history?.chronic_diseases && appointment.patient.medical_history.chronic_diseases.length > 0) ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {appointment.patient.medical_history.chronic_diseases.map((disease, idx) => (
+                            <Badge key={idx} variant="outline" className="bg-white text-orange-700 border-orange-200">
+                              {disease}
+                            </Badge>
+                          ))}
+                        </div>
+                     ) : (
+                        <p className="text-xs text-muted-foreground">لا يوجد أمراض مزمنة مسجلة</p>
+                     )}
+                   </div>
+
+                   {/* Allergies */}
+                   <div className="bg-red-50/50 rounded-lg p-3 border border-red-100">
+                     <span className="text-xs font-medium text-red-800 block mb-2">حساسية</span>
+                     {(appointment?.patient?.medical_history?.allergies && appointment.patient.medical_history.allergies.length > 0) ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {appointment.patient.medical_history.allergies.map((allergy, idx) => (
+                            <Badge key={idx} variant="outline" className="bg-white text-red-700 border-red-200">
+                              {allergy}
+                            </Badge>
+                          ))}
+                        </div>
+                     ) : (
+                        <p className="text-xs text-muted-foreground">لا يوجد حساسية مسجلة</p>
+                     )}
+                   </div>
+                </div>
+
+                {/* Insurance Info */}
+                {(appointment?.patient?.insurance_info && Object.keys(appointment?.patient?.insurance_info).length > 0) && (
+                  <>
+                    <Separator />
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground/80">
+                        <ShieldCheck className="size-4 text-blue-500" />
+                        التأمين
+                      </h4>
+                      <div className="bg-blue-50/50 rounded-lg p-3 border border-blue-100 grid grid-cols-2 gap-3">
+                         <div>
+                            <span className="text-[10px] text-blue-600/80 block">شركة التأمين</span>
+                            <span className="text-sm font-medium text-blue-900">
+                              {appointment.patient.insurance_info.provider_name || "—"}
+                            </span>
+                         </div>
+                         <div>
+                            <span className="text-[10px] text-blue-600/80 block">رقم البوليصة</span>
+                            <span className="text-sm font-medium text-blue-900">
+                              {appointment.patient.insurance_info.policy_number || "—"}
+                            </span>
+                         </div>
+                      </div>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
 
@@ -579,6 +767,60 @@ export default function AppointmentDetailPage() {
                 </Button>
               </CardContent>
             </Card>
+
+            {/* Patient History */}
+            <Card className="bg-card/70 border-muted/20 shadow-sm">
+               <CardHeader className="pb-3">
+                 <CardTitle className="flex items-center gap-2 text-base">
+                   <History className="size-5 text-primary" />
+                   سجل زيارات المريض
+                 </CardTitle>
+               </CardHeader>
+               <CardContent>
+                 {!patientAppointments ? (
+                   <div className="space-y-3">
+                      <Skeleton className="h-12 w-full rounded-lg" />
+                      <Skeleton className="h-12 w-full rounded-lg" />
+                   </div>
+                 ) : patientAppointments.length === 0 ? (
+                   <div className="text-center py-8 text-muted-foreground">
+                     <History className="size-10 mx-auto mb-3 opacity-20" />
+                     <p>لا يوجد زيارات سابقة</p>
+                   </div>
+                 ) : (
+                   <div className="space-y-2">
+                     {patientAppointments.slice(0, 5).map((apt) => (
+                       <div key={apt.id} className="flex items-center justify-between p-3 rounded-lg border border-transparent hover:border-muted/30 hover:bg-muted/30 transition-all group">
+                         <div className="flex items-center gap-3">
+                           <div className={`w-1.5 h-1.5 rounded-full ${statusConfig[apt.status]?.bg || 'bg-gray-400'}`} />
+                           <div>
+                             <p className="font-medium text-sm">
+                               {format(new Date(apt.date), "d MMMM yyyy", {locale: ar})}
+                             </p>
+                             <p className="text-xs text-muted-foreground flex items-center gap-1">
+                               {format(new Date(apt.date), "hh:mm a", {locale: ar})}
+                             </p>
+                           </div>
+                         </div>
+                         <div className="flex items-center gap-3">
+                           <Badge variant="outline" className="font-normal h-6 text-xs">
+                             {statusConfig[apt.status]?.label || apt.status}
+                           </Badge>
+                           <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => navigate(`/appointments/${apt.id}`)}>
+                             <ExternalLink className="size-3.5" />
+                           </Button>
+                         </div>
+                       </div>
+                     ))}
+                     {patientAppointments.length > 5 && (
+                       <Button variant="ghost" className="w-full text-xs text-muted-foreground mt-2" onClick={() => navigate(`/patients/${appointment?.patient?.id}`)}>
+                         عرض كل الزيارات ({patientAppointments.length})
+                       </Button>
+                     )}
+                   </div>
+                 )}
+               </CardContent>
+            </Card>
           </div>
 
           {/* Sidebar */}
@@ -619,6 +861,23 @@ export default function AppointmentDetailPage() {
                     </span>
                     <span className="font-medium">العيادة</span>
                   </div>
+
+                  {hasGoogleCalendar && (
+                    <Button 
+                      variant="outline" 
+                      className="w-full gap-3 mt-4 h-12 relative overflow-hidden group border-muted/40 hover:border-blue-200 hover:bg-blue-50/50 transition-all shadow-sm"
+                      onClick={() => window.open(getGoogleCalendarUrl(), '_blank')}
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-r from-blue-50/0 via-blue-50/30 to-blue-50/0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <img 
+                        src="https://upload.wikimedia.org/wikipedia/commons/a/a5/Google_Calendar_icon_%282020%29.svg" 
+                        alt="Google Calendar" 
+                        className="size-5 shrink-0"
+                      />
+                      <span className="font-medium text-foreground group-hover:text-blue-700">Open on Google Calendar</span>
+                      <ExternalLink className="size-3.5 ml-auto text-muted-foreground group-hover:text-blue-600" />
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -818,6 +1077,7 @@ export default function AppointmentDetailPage() {
           </DialogHeader>
           <VisitCreateForm 
             patientId={appointment?.patient?.id}
+            appointmentId={appointmentId}
             onVisitCreated={handleVisitCreated}
             onCancel={handleVisitCancel}
           />

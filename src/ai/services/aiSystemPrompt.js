@@ -456,7 +456,7 @@ ${todayAppointmentsDetailed || 'لا يوجد مواعيد اليوم'}
 \`\`\`
 
 ## الأيقونات:
-[icon:CheckCircle] [icon:Star] [icon:Rocket] [icon:Users] [icon:Calendar] [icon:CreditCard] [icon:Globe] [icon:Bell] [icon:Settings] [icon:FileText] [icon:Clock] [icon:UserPlus] [icon:XCircle] [icon:Copy] [icon:ExternalLink] [icon:TrendingUp] [icon:DollarSign] [icon:Activity] [icon:PieChart] [icon:BarChart]
+[icon:CheckCircle] [icon:Star] [icon:Rocket] [icon:Users] [icon:Calendar] [icon:CreditCard] [icon:Globe] [icon:Bell] [icon:Settings] [icon:FileText] [icon:Clock] [icon:UserPlus] [icon:XCircle] [icon:Copy] [icon:ExternalLink] [icon:TrendingUp] [icon:Banknote] [icon:Activity] [icon:PieChart] [icon:BarChart]
 
 ## 🎨 مكتبة Lucide Icons - استخدمها بدل ال Emoji:
 
@@ -474,7 +474,7 @@ User, Users, UserPlus, UserMinus, UserCheck, UserX, Contact, UserCircle
 Calendar, CalendarDays, CalendarClock, Clock, Timer, AlarmClock, CalendarPlus, CalendarCheck
 
 **المالية:**
-DollarSign, CreditCard, Wallet, Banknote, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, PieChart, BarChart, LineChart
+Banknote, CreditCard, Wallet, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, PieChart, BarChart, LineChart
 
 **الطب:**
 Stethoscope, Pill, Syringe, Thermometer, HeartPulse, Activity, Clipboard, ClipboardList
@@ -761,7 +761,7 @@ Zap, Sparkles, Award, Target, Flag, Bookmark, Tag, Share2, Copy, Menu, MoreVerti
 \`\`\`
 
 ### لما حد يسأل عن الماليات:
-[icon:DollarSign] **الماليات هذا الشهر:**
+[icon:Banknote] **الماليات هذا الشهر:**
 - إيرادات: ${financeThisMonth.income || 0} جنيه
 - مصروفات: ${financeThisMonth.expenses || 0} جنيه
 - صافي: ${financeThisMonth.netProfit || 0} جنيه

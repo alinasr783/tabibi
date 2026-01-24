@@ -30,9 +30,9 @@ export default function PatientPlanDetailPage() {
   }, [plan]);
 
   const statusMap = {
-    active: { label: "نشطة", variant: "default" },
-    completed: { label: "مكتملة", variant: "outline" },
-    cancelled: { label: "ملغية", variant: "destructive" },
+    active: { label: "نشطة", className: "bg-primary text-primary-foreground" },
+    completed: { label: "مكتملة", className: "bg-blue-800 text-white font-bold border border-blue-900 shadow-sm" },
+    cancelled: { label: "ملغية", className: "bg-destructive text-destructive-foreground" },
   };
 
   // Function to handle completing a session

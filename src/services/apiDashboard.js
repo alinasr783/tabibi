@@ -120,8 +120,26 @@ export async function getFilteredPatientStats(filter) {
     const uniquePatients = new Set(filteredAppointments.map(app => app.patient_id))
     const filteredPatientsCount = uniquePatients.size
 
+    // Count pending appointments in the filtered period
+    const filteredPendingAppointments = filteredAppointments.filter(
+        appointment => appointment.status === 'pending'
+    ).length
+
+    // Count online appointments in the filtered period (from === 'booking')
+    const filteredOnlineAppointments = filteredAppointments.filter(
+        appointment => appointment.from === 'booking'
+    ).length
+
+    // Calculate total income from completed appointments in the filtered period
+    const filteredTotalIncome = filteredAppointments
+        .filter(appointment => appointment.status === 'completed')
+        .reduce((sum, appointment) => sum + (parseFloat(appointment.price) || 0), 0)
+
     return {
-        filteredPatients: filteredPatientsCount
+        filteredPatients: filteredPatientsCount,
+        filteredPendingAppointments,
+        filteredOnlineAppointments,
+        filteredTotalIncome
     }
 }
 

@@ -1,15 +1,12 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { 
+  Card, 
+  CardContent, 
+  CardHeader, 
+  CardTitle 
+} from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-import { Label } from "../components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "../components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -19,24 +16,70 @@ import {
   TableRow,
 } from "../components/ui/table-primitives";
 import { Badge } from "../components/ui/badge";
-import { Separator } from "../components/ui/separator";
-import { Checkbox } from "../components/ui/checkbox";
 import { SkeletonLine } from "../components/ui/skeleton";
-import { Plus, Edit, Trash2, UserPlus, User, Phone, Copy, CheckCircle, AlertTriangle } from "lucide-react";
+import { 
+  UserPlus, 
+  User, 
+  Phone, 
+  Edit, 
+  Trash2, 
+  Shield, 
+  Mail, 
+  Search, 
+  UserCog, 
+  Filter, 
+  CheckCircle,
+  Calendar
+} from "lucide-react";
 import useClinicSecretaries from "../features/clinic/useClinicSecretaries";
 import useClinic from "../features/auth/useClinic";
 import { useAuth } from "../features/auth/AuthContext";
 import useAddSecretary from "../features/clinic/useAddSecretary";
 import useUpdateSecretary from "../features/clinic/useUpdateSecretary";
 import useDeleteSecretary from "../features/clinic/useDeleteSecretary";
-import useUpdateSecretaryPermissions from "../features/clinic/useUpdateSecretaryPermissions"; // Add this import
-import SecretaryPermissionsDialog from "../features/clinic/SecretaryPermissionsDialog";
+import useUpdateSecretaryPermissions from "../features/clinic/useUpdateSecretaryPermissions";
 import { SECRETARY_PERMISSIONS } from "../features/clinic/clinicUtils";
 import { toast } from "react-hot-toast";
+import SortableStat from "../components/ui/sortable-stat";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "../components/ui/dialog";
+import { Label } from "../components/ui/label";
+import { Checkbox } from "../components/ui/checkbox";
+
+// --- StatCard Component (Copied from PatientsPage) ---
+function StatCard({ icon: Icon, label, value, isLoading, iconColorClass = "bg-primary/10 text-primary", onClick, active }) {
+  return (
+    <Card 
+      className={`bg-card/70 h-full transition-all duration-200 ${onClick ? 'cursor-pointer hover:bg-accent/50' : ''} ${active ? 'ring-2 ring-primary border-primary' : ''}`}
+      onClick={onClick}
+    >
+      <CardContent className="flex items-center gap-3 py-3">
+        <div className={`size-8 rounded-[calc(var(--radius)-4px)] grid place-items-center ${iconColorClass}`}>
+          <Icon className="size-4" />
+        </div>
+        <div>
+          <div className="text-xs text-muted-foreground">{label}</div>
+          {isLoading ? (
+            <SkeletonLine className="h-4 w-8" />
+          ) : (
+            <div className="text-lg font-semibold text-black">{value}</div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
 
 export default function Staff() {
   const { user } = useAuth();
   const { data: clinic } = useClinic();
+  
+  // -- Data Fetching --
   const {
     data: secretaries,
     isLoading,
@@ -46,37 +89,97 @@ export default function Staff() {
   const { mutate: addSecretary } = useAddSecretary();
   const { mutate: updateSecretary } = useUpdateSecretary();
   const { mutate: deleteSecretary } = useDeleteSecretary();
-  const { mutate: updatePermissions } = useUpdateSecretaryPermissions(); // Add this hook
+  const { mutate: updatePermissions } = useUpdateSecretaryPermissions();
 
+  // -- UI State --
+  const [query, setQuery] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isPermissionsDialogOpen, setIsPermissionsDialogOpen] = useState(false);
   const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false);
-  const [addStaffStep, setAddStaffStep] = useState(1); // Step: 1=Personal, 2=Account, 3=Permissions
+  const [addStaffStep, setAddStaffStep] = useState(1);
   const [selectedSecretary, setSelectedSecretary] = useState(null);
   const [selectedPermissions, setSelectedPermissions] = useState([]);
   const [createdSecretaryInfo, setCreatedSecretaryInfo] = useState(null);
+  
+  // -- Form State --
   const [newSecretary, setNewSecretary] = useState({
     name: "",
     email: "",
     password: "",
     phone: "",
-    permissions: ["dashboard", "calendar", "patients"], // Default permissions
+    permissions: ["dashboard", "calendar", "patients"],
   });
 
+  // -- Stats Ordering --
+  const defaultOrder = ["total", "new", "full_access", "limited"];
+  const [cardsOrder, setCardsOrder] = useState(() => {
+    try {
+      const saved = localStorage.getItem("staff_stats_order");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error("Failed to load stats order", e);
+    }
+    return defaultOrder;
+  });
+
+  useEffect(() => {
+    localStorage.setItem("staff_stats_order", JSON.stringify(cardsOrder));
+  }, [cardsOrder]);
+
+  const moveCard = useCallback((dragIndex, hoverIndex) => {
+    setCardsOrder((prevCards) => {
+      const newCards = [...prevCards];
+      const draggedCard = newCards[dragIndex];
+      newCards.splice(dragIndex, 1);
+      newCards.splice(hoverIndex, 0, draggedCard);
+      return newCards;
+    });
+  }, []);
+
+  // -- Filtering Logic --
+  const filteredSecretaries = useMemo(() => {
+    if (!secretaries) return [];
+    return secretaries.filter(s => 
+      s.name.toLowerCase().includes(query.toLowerCase()) ||
+      s.email.toLowerCase().includes(query.toLowerCase()) ||
+      (s.phone && s.phone.includes(query))
+    );
+  }, [secretaries, query]);
+
+  // -- Stats Calculation --
+  const stats = useMemo(() => {
+    if (!secretaries) return { total: 0, withPhone: 0, highPerms: 0, lowPerms: 0 };
+    return {
+      total: secretaries.length,
+      withPhone: secretaries.filter(s => s.phone).length,
+      highPerms: secretaries.filter(s => {
+         const perms = typeof s.permissions === 'string' ? JSON.parse(s.permissions) : s.permissions;
+         return Array.isArray(perms) && perms.length >= 4;
+      }).length,
+      lowPerms: secretaries.filter(s => {
+         const perms = typeof s.permissions === 'string' ? JSON.parse(s.permissions) : s.permissions;
+         return !Array.isArray(perms) || perms.length < 4;
+      }).length
+    };
+  }, [secretaries]);
+
+  // -- Handlers --
   const handleAddSecretary = () => {
     if (!newSecretary.name || !newSecretary.email || !newSecretary.password) {
       toast.error("لازم تدخل الاسم والإيميل وكلمة السر");
       return;
     }
-    
     if (newSecretary.password.length < 6) {
       toast.error("كلمة السر لازم 6 أحرف على الأقل");
       return;
     }
-    
-    addSecretary(
-      {
+    addSecretary({
         name: newSecretary.name,
         email: newSecretary.email,
         password: newSecretary.password,
@@ -86,20 +189,16 @@ export default function Staff() {
       },
       {
         onSuccess: () => {
-          // Save info for success dialog
           setCreatedSecretaryInfo({
             email: newSecretary.email,
             password: newSecretary.password,
             name: newSecretary.name,
           });
           setIsAddDialogOpen(false);
-          setAddStaffStep(1); // Reset to first step
+          setAddStaffStep(1);
           setIsSuccessDialogOpen(true);
           setNewSecretary({ 
-            name: "", 
-            email: "", 
-            password: "",
-            phone: "",
+            name: "", email: "", password: "", phone: "", 
             permissions: ["dashboard", "calendar", "patients"],
           });
         },
@@ -108,46 +207,25 @@ export default function Staff() {
   };
 
   const handleNextStep = () => {
-    // Validate current step before moving forward
     if (addStaffStep === 1) {
-      if (!newSecretary.name.trim()) {
-        toast.error("لازم تدخل الاسم");
-        return;
-      }
+      if (!newSecretary.name.trim()) { toast.error("لازم تدخل الاسم"); return; }
       setAddStaffStep(2);
     } else if (addStaffStep === 2) {
-      if (!newSecretary.email.trim()) {
-        toast.error("لازم تدخل الإيميل");
-        return;
-      }
-      if (!newSecretary.password.trim()) {
-        toast.error("لازم تدخل كلمة السر");
-        return;
-      }
-      if (newSecretary.password.length < 6) {
-        toast.error("كلمة السر لازم 6 أحرف على الأقل");
-        return;
-      }
+      if (!newSecretary.email.trim()) { toast.error("لازم تدخل الإيميل"); return; }
+      if (!newSecretary.password.trim()) { toast.error("لازم تدخل كلمة السر"); return; }
+      if (newSecretary.password.length < 6) { toast.error("كلمة السر لازم 6 أحرف على الأقل"); return; }
       setAddStaffStep(3);
     }
   };
 
   const handlePreviousStep = () => {
-    if (addStaffStep > 1) {
-      setAddStaffStep(addStaffStep - 1);
-    }
+    if (addStaffStep > 1) setAddStaffStep(addStaffStep - 1);
   };
 
   const handleCloseAddDialog = () => {
     setIsAddDialogOpen(false);
     setAddStaffStep(1);
-    setNewSecretary({ 
-      name: "", 
-      email: "", 
-      password: "",
-      phone: "",
-      permissions: ["dashboard", "calendar", "patients"],
-    });
+    setNewSecretary({ name: "", email: "", password: "", phone: "", permissions: ["dashboard", "calendar", "patients"] });
   };
 
   const handleEditSecretary = (secretary) => {
@@ -160,14 +238,12 @@ export default function Staff() {
       toast.error("الاسم والبريد الإلكتروني مطلوبة");
       return;
     }
-    
     updateSecretary({
       userId: selectedSecretary.user_id,
       name: selectedSecretary.name,
       email: selectedSecretary.email,
       phone: selectedSecretary.phone,
     });
-    
     setIsEditDialogOpen(false);
     setSelectedSecretary(null);
   };
@@ -180,515 +256,451 @@ export default function Staff() {
 
   const handleOpenPermissions = (secretary) => {
     setSelectedSecretary(secretary);
-    
-    // Parse permissions - handle both string (JSON) and array formats
     let permissions = [];
-    
     if (typeof secretary.permissions === 'string') {
-      try {
-        permissions = JSON.parse(secretary.permissions);
-      } catch (e) {
-        console.warn('Failed to parse permissions:', e);
-        permissions = [];
-      }
+      try { permissions = JSON.parse(secretary.permissions); } catch (e) { permissions = []; }
     } else if (Array.isArray(secretary.permissions)) {
       permissions = secretary.permissions;
     }
-    
-    // Extract permission IDs if they're objects
-    const permissionIds = permissions.map(perm => {
-      return typeof perm === 'object' && perm !== null ? perm.id : perm;
-    }).map(id => String(id).trim());
-    
-    console.log('Setting permissions for secretary:', secretary.name, permissionIds);
+    const permissionIds = permissions.map(perm => typeof perm === 'object' && perm !== null ? perm.id : perm).map(id => String(id).trim());
     setSelectedPermissions(permissionIds);
     setIsPermissionsDialogOpen(true);
   };
 
   const handlePermissionChange = (permissionId) => {
     setSelectedPermissions((prev) => {
-      const currentPermissions = Array.isArray(prev) ? prev : [];
-
-      if (currentPermissions.includes(permissionId)) {
-        return currentPermissions.filter((p) => p !== permissionId);
-      } else {
-        return [...currentPermissions, permissionId];
-      }
+      const current = Array.isArray(prev) ? prev : [];
+      return current.includes(permissionId) ? current.filter(p => p !== permissionId) : [...current, permissionId];
     });
   };
 
   const handleNewSecretaryPermissionChange = (permissionId) => {
     setNewSecretary((prev) => {
-      const currentPermissions = Array.isArray(prev.permissions) ? prev.permissions : [];
-
-      if (currentPermissions.includes(permissionId)) {
-        return {
-          ...prev,
-          permissions: currentPermissions.filter((p) => p !== permissionId),
-        };
-      } else {
-        return {
-          ...prev,
-          permissions: [...currentPermissions, permissionId],
-        };
-      }
+      const current = Array.isArray(prev.permissions) ? prev.permissions : [];
+      return {
+        ...prev,
+        permissions: current.includes(permissionId) ? current.filter(p => p !== permissionId) : [...current, permissionId],
+      };
     });
   };
 
   const handleSavePermissions = () => {
-    // Use the dedicated permissions update function instead of general update
     updatePermissions({
       secretaryId: selectedSecretary.user_id,
       permissions: selectedPermissions,
     });
-    
     setIsPermissionsDialogOpen(false);
     setSelectedSecretary(null);
     setSelectedPermissions([]);
   };
 
+  // -- Render Helper for Permissions Badge --
+  const renderPermissionsBadges = (secretary) => {
+     let perms = [];
+     if (typeof secretary.permissions === 'string') {
+        try { perms = JSON.parse(secretary.permissions); } catch (e) {}
+     } else if (Array.isArray(secretary.permissions)) {
+        perms = secretary.permissions;
+     }
+     
+     if (!Array.isArray(perms) || perms.length === 0) return <Badge variant="outline">مفيش صلاحيات</Badge>;
+     
+     return (
+       <div className="flex flex-wrap gap-1">
+         {perms.slice(0, 3).map(p => {
+            const pid = typeof p === 'object' ? p.id : p;
+            const pObj = SECRETARY_PERMISSIONS.find(sp => sp.id === String(pid).trim());
+            return (
+              <Badge key={String(pid)} variant="secondary" className="text-[10px] h-5 px-2">
+                {pObj?.label || pid}
+              </Badge>
+            );
+         })}
+         {perms.length > 3 && (
+            <span className="text-[10px] text-muted-foreground">+{perms.length - 3}</span>
+         )}
+       </div>
+     );
+  };
+
   return (
-    <div className="space-y-6 p-4 md:p-6 bg-background min-h-screen pb-20 md:pb-0" dir="rtl">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="min-h-screen bg-background pb-20 md:pb-0 space-y-6" dir="rtl">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-[var(--radius)] bg-primary/10 text-primary">
-            <User className="w-6 h-6" />
+            <UserCog className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">الموظفين</h1>
-            <p className="text-sm text-muted-foreground">تحكم في السكرتاريه وصلاحياتهم</p>
+            <h1 className="text-2xl font-bold text-foreground">ادارة موظفينك</h1>
+            <p className="text-sm text-muted-foreground">{stats.total} موظف اجمالا</p>
           </div>
         </div>
-        <Button onClick={() => setIsAddDialogOpen(true)} className="bg-primary hover:bg-primary/90 h-9">
-          <UserPlus className="ml-2 h-4 w-4" />
-          سكرتير جديد
-        </Button>
       </div>
 
-      <Card className="bg-card/70">
-        <CardHeader>
-          <CardTitle>قايمة السكرتاريه</CardTitle>
-        </CardHeader>
-        <CardContent>
+      {/* Stats Cards */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between gap-4">
+          <h3 className="text-sm font-medium text-muted-foreground">
+            احصائيات الموظفين
+          </h3>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {cardsOrder.map((key, index) => {
+            let content;
+            switch (key) {
+              case "total":
+                content = (
+                  <StatCard
+                    icon={UserCog}
+                    label="إجمالي الموظفين"
+                    value={stats.total}
+                    isLoading={isLoading}
+                    active={false}
+                  />
+                );
+                break;
+              case "new":
+                content = (
+                  <StatCard
+                    icon={Phone}
+                    label="لديهم رقم هاتف"
+                    value={stats.withPhone}
+                    isLoading={isLoading}
+                    iconColorClass="bg-blue-500/10 text-blue-600"
+                    active={false}
+                  />
+                );
+                break;
+              case "full_access":
+                content = (
+                  <StatCard
+                    icon={Shield}
+                    label="صلاحيات واسعة"
+                    value={stats.highPerms}
+                    isLoading={isLoading}
+                    iconColorClass="bg-green-500/10 text-green-600"
+                    active={false}
+                  />
+                );
+                break;
+              case "limited":
+                content = (
+                  <StatCard
+                    icon={User}
+                    label="صلاحيات محدودة"
+                    value={stats.lowPerms}
+                    isLoading={isLoading}
+                    iconColorClass="bg-orange-500/10 text-orange-600"
+                    active={false}
+                  />
+                );
+                break;
+              default:
+                return null;
+            }
+            return (
+              <SortableStat key={key} id={key} index={index} moveCard={moveCard} type="STAFF_STAT">
+                {content}
+              </SortableStat>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Actions Bar */}
+      <div className="mb-4">
+        <div className="relative mb-3">
+          <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 md:w-5 md:h-5" />
+          <Input
+            className="w-full pr-10 h-10 md:h-11 bg-background border-border focus:border-primary text-sm md:text-base"
+            placeholder="دور على الموظف بالاسم أو الإيميل"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+        
+        <div className="grid grid-cols-2 md:flex gap-2">
+          <Button
+            onClick={() => setIsAddDialogOpen(true)}
+            className="h-10 md:h-11 bg-primary hover:bg-primary/90 text-primary-foreground text-sm md:text-base col-span-2 md:col-span-1"
+          >
+            <UserPlus className="w-4 h-4 md:w-5 md:h-5 ml-2" />
+            موظف جديد
+          </Button>
+        </div>
+      </div>
+
+      {/* Staff List (Mobile Cards & Desktop Table) */}
+      <Card className="bg-card/70 border-none shadow-none">
+        <CardContent className="p-0">
           {isLoading ? (
-            <div className="space-y-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-center justify-between p-4 border border-border rounded-[var(--radius)]">
-                  <div className="space-y-2">
-                    <SkeletonLine width={120} height={16} />
-                    <SkeletonLine width={200} height={14} />
-                  </div>
-                  <div className="flex gap-2">
-                    <SkeletonLine width={80} height={36} />
-                    <SkeletonLine width={80} height={36} />
-                  </div>
-                </div>
-              ))}
-            </div>
+             <div className="space-y-4 p-4">
+               {[1, 2, 3].map((i) => <SkeletonLine key={i} height={60} />)}
+             </div>
           ) : isError ? (
-            <div className="text-destructive text-center py-8">
-              حدث خطأ أثناء تحميل قائمة السكرتير
-            </div>
-          ) : secretaries && secretaries.length > 0 ? (
+             <div className="text-center py-8 text-destructive">حدث خطأ في تحميل البيانات</div>
+          ) : (
             <>
-              {/* Mobile Cards */}
+              {/* Mobile View */}
               <div className="block md:hidden space-y-3">
-                {secretaries.map((secretary) => (
-                  <div key={secretary.user_id} className="mb-4 pb-4 border-b border-border last:border-0 last:mb-0 last:pb-0">
-                    <div className="p-1">
-                      <div className="flex items-start gap-3 mb-3">
-                        <div className="w-12 h-12 rounded-[var(--radius)] bg-primary/10 text-primary flex items-center justify-center">
-                          <User className="w-6 h-6" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-bold text-foreground text-lg truncate">{secretary.name}</h3>
-                          <p className="text-sm text-muted-foreground truncate">{secretary.email}</p>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2 mb-4 p-3">
-                        <div className="flex items-center gap-2 text-sm">
-                          <Phone className="w-4 h-4 text-primary" />
-                          <span className="text-foreground">{secretary.phone || "-"}</span>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-2">الصلاحيات:</p>
-                          <div className="flex flex-wrap gap-1">
-                            {Array.isArray(secretary.permissions) && secretary.permissions.length > 0 ? (
-                              secretary.permissions.map((perm) => {
-                                const permId = typeof perm === 'object' && perm !== null ? perm.id : perm;
-                                const permString = String(permId).trim();
-                                const permission = SECRETARY_PERMISSIONS.find((p) => p.id === permString);
-                                return (
-                                  <Badge key={permString} variant="secondary">
-                                    {permission?.label || permString}
-                                  </Badge>
-                                );
-                              })
-                            ) : (
-                              (() => {
-                                try {
-                                  if (typeof secretary.permissions === 'string') {
-                                    const parsedPermissions = JSON.parse(secretary.permissions);
-                                    if (Array.isArray(parsedPermissions) && parsedPermissions.length > 0) {
-                                      return parsedPermissions.map((perm) => {
-                                        const permId = typeof perm === 'object' && perm !== null ? perm.id : perm;
-                                        const permString = String(permId).trim();
-                                        const permission = SECRETARY_PERMISSIONS.find((p) => p.id === permString);
-                                        return (
-                                          <Badge key={permString} variant="secondary">
-                                            {permission?.label || permString}
-                                          </Badge>
-                                        );
-                                      });
-                                    }
-                                  }
-                                } catch (e) {
-                                  console.warn("Failed to parse permissions:", e);
-                                }
-                                return <Badge variant="outline">مفيش صلاحيات</Badge>;
-                              })()
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-1"
-                          onClick={() => handleOpenPermissions(secretary)}
-                        >
-                          <Edit className="ml-1 h-4 w-4" />
-                          الصلاحيات
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEditSecretary(secretary)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDeleteSecretary(secretary.user_id)}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
+                {filteredSecretaries.length === 0 ? (
+                  <div className="text-center py-12">
+                    <UserCog className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
+                    <p className="text-foreground mb-2">مفيش موظفين</p>
                   </div>
-                ))}
+                ) : (
+                  filteredSecretaries.map((secretary) => (
+                    <Card key={secretary.user_id} className="mb-4 border-border overflow-hidden">
+                      <CardContent className="p-4">
+                        <div className="flex items-start gap-3 mb-3">
+                          <div className="w-12 h-12 rounded-[var(--radius)] bg-primary/10 text-primary flex items-center justify-center">
+                            <User className="w-6 h-6" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-bold text-foreground text-lg truncate">{secretary.name}</h3>
+                            <p className="text-xs text-muted-foreground truncate">{secretary.email}</p>
+                            <div className="mt-2">
+                               {renderPermissionsBadges(secretary)}
+                            </div>
+                          </div>
+                          <Badge variant="secondary">سكرتير</Badge>
+                        </div>
+
+                        <div className="space-y-3 mb-4 p-3 bg-muted/30 rounded-lg">
+                           <div className="flex items-center gap-2 text-sm">
+                              <Phone className="w-4 h-4 text-primary" />
+                              <span className="font-medium text-foreground">{secretary.phone || "-"}</span>
+                           </div>
+                        </div>
+
+                        <div className="flex gap-2 mt-2">
+                           <Button variant="outline" size="sm" className="flex-1" onClick={() => handleOpenPermissions(secretary)}>
+                              <Shield className="w-4 h-4 ml-2" />
+                              الصلاحيات
+                           </Button>
+                           <Button variant="outline" size="sm" onClick={() => handleEditSecretary(secretary)}>
+                              <Edit className="w-4 h-4" />
+                           </Button>
+                           <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleDeleteSecretary(secretary.user_id)}>
+                              <Trash2 className="w-4 h-4" />
+                           </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
               </div>
 
-              {/* Desktop Table */}
-              <div className="hidden md:block">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>الاسم</TableHead>
-                    <TableHead>البريد الإلكتروني</TableHead>
-                    <TableHead>رقم الهاتف</TableHead>
-                    <TableHead>الصلاحيات</TableHead>
-                    <TableHead className="text-right">الإجراءات</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {secretaries.map((secretary) => (
-                    <TableRow key={secretary.user_id}>
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                            <User className="h-4 w-4 text-primary" />
-                          </div>
-                          {secretary.name}
-                        </div>
-                      </TableCell>
-                      <TableCell>{secretary.email}</TableCell>
-                      <TableCell>{secretary.phone || "-"}</TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {Array.isArray(secretary.permissions) &&
-                          secretary.permissions.length > 0 ? (
-                            secretary.permissions.map((perm) => {
-                              // Handle both string and object permissions
-                              const permId = typeof perm === 'object' && perm !== null ? perm.id : perm;
-                              // Ensure it's a string and trim any whitespace
-                              const permString = String(permId).trim();
-                              
-                              const permission = SECRETARY_PERMISSIONS.find(
-                                (p) => p.id === permString
-                              );
-                              
-                              return (
-                                <Badge key={permString} variant="secondary">
-                                  {permission?.label || permString}
-                                </Badge>
-                              );
-                            })
-                          ) : (
-                            // Handle string permissions (JSON string from database)
-                            (() => {
-                              try {
-                                // If permissions is a string, try to parse it as JSON
-                                if (typeof secretary.permissions === 'string') {
-                                  const parsedPermissions = JSON.parse(secretary.permissions);
-                                  if (Array.isArray(parsedPermissions) && parsedPermissions.length > 0) {
-                                    return parsedPermissions.map((perm) => {
-                                      // Handle both string and object permissions
-                                      const permId = typeof perm === 'object' && perm !== null ? perm.id : perm;
-                                      // Ensure it's a string and trim any whitespace
-                                      const permString = String(permId).trim();
-                                      
-                                      const permission = SECRETARY_PERMISSIONS.find(
-                                        (p) => p.id === permString
-                                      );
-                                      
-                                      return (
-                                        <Badge key={permString} variant="secondary">
-                                          {permission?.label || permString}
-                                        </Badge>
-                                      );
-                                    });
-                                  }
-                                }
-                              } catch (e) {
-                                // If parsing fails, fall back to displaying the raw string
-                                console.warn("Failed to parse permissions:", e);
-                              }
-                              return <Badge variant="outline">لا توجد صلاحيات</Badge>;
-                            })()
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleOpenPermissions(secretary)}
-                          >
-                            <Edit className="ml-1 h-4 w-4" />
-                            الصلاحيات
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEditSecretary(secretary)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDeleteSecretary(secretary.user_id)}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              {/* Desktop View */}
+              <div className="hidden md:block border border-border rounded-lg overflow-hidden shadow-sm bg-card">
+                 <Table>
+                    <TableHeader>
+                       <TableRow>
+                          <TableHead>الاسم</TableHead>
+                          <TableHead>البريد الإلكتروني</TableHead>
+                          <TableHead>الهاتف</TableHead>
+                          <TableHead>الصلاحيات</TableHead>
+                          <TableHead className="text-right">الإجراءات</TableHead>
+                       </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                       {filteredSecretaries.map((secretary) => (
+                          <TableRow key={secretary.user_id}>
+                             <TableCell className="font-medium">
+                                <div className="flex items-center gap-2">
+                                   <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                      <User className="h-4 w-4 text-primary" />
+                                   </div>
+                                   {secretary.name}
+                                </div>
+                             </TableCell>
+                             <TableCell>{secretary.email}</TableCell>
+                             <TableCell>{secretary.phone || "-"}</TableCell>
+                             <TableCell>{renderPermissionsBadges(secretary)}</TableCell>
+                             <TableCell className="text-right">
+                                <div className="flex justify-end gap-2">
+                                   <Button variant="outline" size="sm" onClick={() => handleOpenPermissions(secretary)}>
+                                      <Shield className="ml-1 h-4 w-4" />
+                                      الصلاحيات
+                                   </Button>
+                                   <Button variant="outline" size="sm" onClick={() => handleEditSecretary(secretary)}>
+                                      <Edit className="h-4 w-4" />
+                                   </Button>
+                                   <Button variant="outline" size="sm" onClick={() => handleDeleteSecretary(secretary.user_id)} className="text-red-600">
+                                      <Trash2 className="h-4 w-4" />
+                                   </Button>
+                                </div>
+                             </TableCell>
+                          </TableRow>
+                       ))}
+                       {filteredSecretaries.length === 0 && (
+                          <TableRow>
+                             <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                                مفيش موظفين بيطابقوا بحثك
+                             </TableCell>
+                          </TableRow>
+                       )}
+                    </TableBody>
+                 </Table>
               </div>
             </>
-          ) : (
-            <div className="text-center py-8">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-[var(--radius)] bg-primary/10 text-primary mb-4">
-                <UserPlus className="w-6 h-6" />
-              </div>
-              <h3 className="text-lg font-bold text-foreground">لا يوجد موظفين</h3>
-              <p className="text-muted-foreground mb-4">أضف سكرتير لمساعدتك في إدارة العيادة</p>
-              <Button onClick={() => setIsAddDialogOpen(true)}>
-                <UserPlus className="ml-2 h-4 w-4" />
-                إضافة سكرتير
-              </Button>
-            </div>
           )}
         </CardContent>
       </Card>
 
       {/* Add Secretary Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+      <Dialog open={isAddDialogOpen} onOpenChange={handleCloseAddDialog}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>إضافة سكرتير جديد</DialogTitle>
           </DialogHeader>
-          
           <div className="space-y-4 py-4">
-            {/* Steps indicator */}
-            <div className="flex items-center justify-center mb-6">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${addStaffStep >= 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>1</div>
-              <div className={`w-12 h-1 bg-muted ${addStaffStep >= 2 ? 'bg-primary' : ''}`} />
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${addStaffStep >= 2 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>2</div>
-              <div className={`w-12 h-1 bg-muted ${addStaffStep >= 3 ? 'bg-primary' : ''}`} />
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${addStaffStep >= 3 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>3</div>
-            </div>
-
             {addStaffStep === 1 && (
-              <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">الاسم</Label>
-                  <Input 
-                    id="name" 
+                  <Label>الاسم بالكامل</Label>
+                  <Input
+                    placeholder="اسم السكرتير"
                     value={newSecretary.name}
-                    onChange={(e) => setNewSecretary({...newSecretary, name: e.target.value})}
-                    placeholder="اسم السكرتير" 
+                    onChange={(e) => setNewSecretary({ ...newSecretary, name: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="phone">رقم الهاتف (اختياري)</Label>
-                  <Input 
-                    id="phone" 
+                  <Label>رقم الموبايل</Label>
+                  <Input
+                    placeholder="01xxxxxxxxx"
                     value={newSecretary.phone}
-                    onChange={(e) => setNewSecretary({...newSecretary, phone: e.target.value})}
-                    placeholder="01xxxxxxxxx" 
+                    onChange={(e) => setNewSecretary({ ...newSecretary, phone: e.target.value })}
                   />
                 </div>
               </div>
             )}
-
             {addStaffStep === 2 && (
-              <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email">البريد الإلكتروني</Label>
-                  <Input 
-                    id="email" 
+                  <Label>البريد الإلكتروني</Label>
+                  <Input
                     type="email"
+                    placeholder="email@example.com"
                     value={newSecretary.email}
-                    onChange={(e) => setNewSecretary({...newSecretary, email: e.target.value})}
-                    placeholder="email@example.com" 
+                    onChange={(e) => setNewSecretary({ ...newSecretary, email: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password">كلمة المرور</Label>
-                  <Input 
-                    id="password" 
+                  <Label>كلمة المرور</Label>
+                  <Input
                     type="password"
+                    placeholder="******"
                     value={newSecretary.password}
-                    onChange={(e) => setNewSecretary({...newSecretary, password: e.target.value})}
-                    placeholder="******" 
+                    onChange={(e) => setNewSecretary({ ...newSecretary, password: e.target.value })}
                   />
                 </div>
               </div>
             )}
-
             {addStaffStep === 3 && (
-              <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
+              <div className="space-y-4">
                 <Label>الصلاحيات</Label>
-                <div className="grid grid-cols-1 gap-2 border rounded-[var(--radius)] p-3 max-h-[250px] overflow-y-auto">
-                  {SECRETARY_PERMISSIONS.map((permission) => (
-                    <div key={permission.id} className="flex items-start gap-2 p-2 hover:bg-muted/50 rounded-[var(--radius)]">
-                      <Checkbox 
-                        id={`new-${permission.id}`} 
-                        checked={newSecretary.permissions.includes(permission.id)}
-                        onCheckedChange={() => handleNewSecretaryPermissionChange(permission.id)}
+                <div className="space-y-2 max-h-[200px] overflow-y-auto border rounded-md p-2">
+                  {SECRETARY_PERMISSIONS.map((perm) => (
+                    <div key={perm.id} className="flex items-center space-x-2 space-x-reverse">
+                      <Checkbox
+                        id={`new-perm-${perm.id}`}
+                        checked={newSecretary.permissions.includes(perm.id)}
+                        onCheckedChange={() => handleNewSecretaryPermissionChange(perm.id)}
                       />
-                      <div className="grid gap-1.5 leading-none">
-                        <label
-                          htmlFor={`new-${permission.id}`}
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                        >
-                          {permission.label}
-                        </label>
-                        <p className="text-xs text-muted-foreground">
-                          {permission.description}
-                        </p>
-                      </div>
+                      <label htmlFor={`new-perm-${perm.id}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        {perm.label}
+                      </label>
                     </div>
                   ))}
                 </div>
               </div>
             )}
           </div>
-
-          <DialogFooter>
-            <div className="flex w-full gap-2">
-              {addStaffStep > 1 ? (
-                <Button variant="outline" onClick={handlePreviousStep} className="w-[25%]">
-                  السابق
-                </Button>
-              ) : (
-                <Button variant="outline" onClick={handleCloseAddDialog} className="w-[25%]">
-                  إلغاء
-                </Button>
-              )}
-              
-              {addStaffStep < 3 ? (
-                <Button onClick={handleNextStep} className="w-[75%]">
-                  التالي
-                </Button>
-              ) : (
-                <Button onClick={handleAddSecretary} disabled={!newSecretary.name || !newSecretary.email || !newSecretary.password} className="w-[75%]">
-                  إضافة
-                </Button>
-              )}
-            </div>
+          <DialogFooter className="flex-row gap-2 sm:justify-between">
+             {addStaffStep > 1 && (
+               <Button variant="outline" onClick={handlePreviousStep}>رجوع</Button>
+             )}
+             {addStaffStep < 3 ? (
+               <Button onClick={handleNextStep} className="w-full sm:w-auto">التالي</Button>
+             ) : (
+               <Button onClick={handleAddSecretary} className="w-full sm:w-auto">إضافة السكرتير</Button>
+             )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Edit Dialog */}
+      {/* Edit Secretary Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>تعديل بيانات السكرتير</DialogTitle>
           </DialogHeader>
           {selectedSecretary && (
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="edit-name">الاسم</Label>
-                <Input 
-                  id="edit-name" 
+                <Label>الاسم</Label>
+                <Input
                   value={selectedSecretary.name}
-                  onChange={(e) => setSelectedSecretary({...selectedSecretary, name: e.target.value})}
+                  onChange={(e) => setSelectedSecretary({ ...selectedSecretary, name: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-email">البريد الإلكتروني</Label>
-                <Input 
-                  id="edit-email" 
+                <Label>البريد الإلكتروني</Label>
+                <Input
                   value={selectedSecretary.email}
-                  onChange={(e) => setSelectedSecretary({...selectedSecretary, email: e.target.value})}
+                  onChange={(e) => setSelectedSecretary({ ...selectedSecretary, email: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-phone">رقم الهاتف</Label>
-                <Input 
-                  id="edit-phone" 
+                <Label>رقم الهاتف</Label>
+                <Input
                   value={selectedSecretary.phone || ""}
-                  onChange={(e) => setSelectedSecretary({...selectedSecretary, phone: e.target.value})}
+                  onChange={(e) => setSelectedSecretary({ ...selectedSecretary, phone: e.target.value })}
                 />
               </div>
             </div>
           )}
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="w-[25%]">
-              إلغاء
-            </Button>
-            <Button onClick={handleUpdateSecretary} className="w-[75%]">
-              حفظ التغييرات
-            </Button>
+          <DialogFooter>
+            <Button onClick={handleUpdateSecretary}>حفظ التغييرات</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Permissions Dialog */}
-      {selectedSecretary && (
-        <SecretaryPermissionsDialog 
-          isOpen={isPermissionsDialogOpen}
-          onClose={() => setIsPermissionsDialogOpen(false)}
-          secretaryName={selectedSecretary.name}
-          selectedPermissions={selectedPermissions}
-          onPermissionChange={handlePermissionChange}
-          onSave={handleSavePermissions}
-        />
-      )}
+      <Dialog open={isPermissionsDialogOpen} onOpenChange={setIsPermissionsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>تعديل الصلاحيات</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              {SECRETARY_PERMISSIONS.map((perm) => (
+                <div key={perm.id} className="flex items-center space-x-2 space-x-reverse p-2 hover:bg-muted rounded-md">
+                  <Checkbox
+                    id={`perm-${perm.id}`}
+                    checked={selectedPermissions.includes(perm.id)}
+                    onCheckedChange={() => handlePermissionChange(perm.id)}
+                  />
+                  <div className="grid gap-1.5 leading-none">
+                    <label htmlFor={`perm-${perm.id}`} className="text-sm font-medium leading-none">
+                      {perm.label}
+                    </label>
+                    <p className="text-xs text-muted-foreground">
+                      {perm.description}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleSavePermissions}>حفظ الصلاحيات</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Success Dialog */}
       <Dialog open={isSuccessDialogOpen} onOpenChange={setIsSuccessDialogOpen}>
@@ -699,55 +711,25 @@ export default function Staff() {
               تم إضافة السكرتير بنجاح
             </DialogTitle>
           </DialogHeader>
-          
           <div className="space-y-4 py-4">
-            <div className="bg-muted p-4 rounded-[var(--radius)] space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">البريد الإلكتروني:</span>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono font-medium">{createdSecretaryInfo?.email}</span>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-6 w-6" 
-                    onClick={() => {
-                      navigator.clipboard.writeText(createdSecretaryInfo?.email);
-                      toast.success("تم نسخ البريد الإلكتروني");
-                    }}
-                  >
-                    <Copy className="w-3 h-3" />
-                  </Button>
-                </div>
+            <div className="bg-muted p-4 rounded-lg space-y-2">
+              <p className="text-sm font-medium">بيانات الدخول:</p>
+              <div className="flex justify-between items-center bg-background p-2 rounded border">
+                <span className="text-sm text-muted-foreground">البريد:</span>
+                <span className="font-mono select-all">{createdSecretaryInfo?.email}</span>
               </div>
-              
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">كلمة المرور:</span>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono font-medium">{createdSecretaryInfo?.password}</span>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-6 w-6" 
-                    onClick={() => {
-                      navigator.clipboard.writeText(createdSecretaryInfo?.password);
-                      toast.success("تم نسخ كلمة المرور");
-                    }}
-                  >
-                    <Copy className="w-3 h-3" />
-                  </Button>
-                </div>
+              <div className="flex justify-between items-center bg-background p-2 rounded border">
+                <span className="text-sm text-muted-foreground">كلمة السر:</span>
+                <span className="font-mono select-all">{createdSecretaryInfo?.password}</span>
               </div>
             </div>
-            
-            <div className="flex items-start gap-2 text-amber-600 bg-amber-50 p-3 rounded-[var(--radius)] text-sm">
-              <AlertTriangle className="w-5 h-5 shrink-0" />
-              <p>يرجى نسخ هذه البيانات وإرسالها للموظف. لن تتمكن من رؤية كلمة المرور مرة أخرى.</p>
-            </div>
+            <p className="text-sm text-muted-foreground text-center">
+              يرجى نسخ هذه البيانات وإرسالها للسكرتير. لن تظهر كلمة المرور مرة أخرى.
+            </p>
           </div>
-          
           <DialogFooter>
             <Button onClick={() => setIsSuccessDialogOpen(false)} className="w-full">
-              تم، فهمت
+              تم، نسخت البيانات
             </Button>
           </DialogFooter>
         </DialogContent>

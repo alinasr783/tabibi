@@ -11,6 +11,7 @@ export default function DataTable({
   pageSize,
   total,
   onPageChange,
+  renderMobileItem,
 }) {
   const [isMobile, setIsMobile] = useState(false);
 
@@ -34,25 +35,31 @@ export default function DataTable({
         {data.length > 0 ? (
           <div className="space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
             {data.map((row) => (
-              <div key={rowKey(row)} className="table-row border border-gray-200 rounded-[var(--radius)] p-4 bg-white shadow-sm">
-                {columns.map((col, i) => {
-                  const value = col.render ? col.render(row) : row[col.accessor] ?? "-";
-                  // Skip action columns on mobile if they contain buttons
-                  if (col.header === "" || col.header === "الإجراء") {
+              renderMobileItem ? (
+                <div key={rowKey(row)}>
+                  {renderMobileItem(row)}
+                </div>
+              ) : (
+                <div key={rowKey(row)} className="table-row border border-gray-200 rounded-[var(--radius)] p-4 bg-white shadow-sm">
+                  {columns.map((col, i) => {
+                    const value = col.render ? col.render(row) : row[col.accessor] ?? "-";
+                    // Skip action columns on mobile if they contain buttons
+                    if (col.header === "" || col.header === "الإجراء") {
+                      return (
+                        <div key={i} className="table-cell mb-2 last:mb-0" data-label={col.header}>
+                          {value}
+                        </div>
+                      );
+                    }
                     return (
-                      <div key={i} className="table-cell mb-2 last:mb-0" data-label={col.header}>
-                        {value}
+                      <div key={i} className="table-cell mb-3 last:mb-0" data-label={col.header}>
+                        <span className="font-medium text-gray-700 text-sm">{col.header}: </span>
+                        <span className="text-gray-900 text-sm">{value}</span>
                       </div>
                     );
-                  }
-                  return (
-                    <div key={i} className="table-cell mb-3 last:mb-0" data-label={col.header}>
-                      <span className="font-medium text-gray-700 text-sm">{col.header}: </span>
-                      <span className="text-gray-900 text-sm">{value}</span>
-                    </div>
-                  );
-                })}
-              </div>
+                  })}
+                </div>
+              )
             ))}
           </div>
         ) : (

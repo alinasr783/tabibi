@@ -42,14 +42,29 @@ export default function useGoogleCalendarSync() {
 
                 console.log("Syncing future appointments to Google Calendar...", appointments.length);
 
+                // Get cached synced events from localStorage
+                const STORAGE_KEY = `tabibi_synced_events_${clinic.clinic_uuid}`;
+                const cachedSyncedEvents = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+                
                 // Process sequentially to avoid rate limits
                 for (const appt of appointments) {
+                    // Skip if already synced in this browser session context
+                    if (cachedSyncedEvents.includes(appt.id)) {
+                        continue;
+                    }
+
                     try {
                         // Use deterministic ID: tabibiapp + ID
                         // This allows Google to reject duplicates with 409 Conflict
                         // ensuring idempotency without needing extra DB state.
                         const googleEventId = `tabibiapp${appt.id}`;
-                        await addToGoogleCalendar(appt, integration, googleEventId);
+                        const result = await addToGoogleCalendar(appt, integration, googleEventId);
+                        
+                        // If successful or already exists, add to cache
+                        if (result) {
+                            cachedSyncedEvents.push(appt.id);
+                            localStorage.setItem(STORAGE_KEY, JSON.stringify(cachedSyncedEvents));
+                        }
                     } catch (err) {
                         console.error("Sync failed for appointment:", appt.id, err);
                     }
@@ -85,7 +100,16 @@ export default function useGoogleCalendarSync() {
                              // Pass null for integration to let it fetch/refresh inside
                              // Pass deterministic ID
                              const googleEventId = `tabibiapp${payload.new.id}`;
-                             await addToGoogleCalendar(payload.new, null, googleEventId);
+                             const result = await addToGoogleCalendar(payload.new, null, googleEventId);
+
+                             if (result) {
+                                const STORAGE_KEY = `tabibi_synced_events_${clinic.clinic_uuid}`;
+                                const cachedSyncedEvents = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+                                if (!cachedSyncedEvents.includes(payload.new.id)) {
+                                    cachedSyncedEvents.push(payload.new.id);
+                                    localStorage.setItem(STORAGE_KEY, JSON.stringify(cachedSyncedEvents));
+                                }
+                             }
                         } catch (err) {
                             console.error("Realtime sync failed:", err);
                         }

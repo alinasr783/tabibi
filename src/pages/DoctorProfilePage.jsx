@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { getClinicById } from "../services/apiClinic";
 import { Button } from "../components/ui/button";
-import { Loader2, CheckCircle, BadgeCheck, Star, Share2, GraduationCap, Award, MapPin, Phone, MessageCircle, User, Building2, DollarSign, Clock } from "lucide-react";
+import { Loader2, CheckCircle, BadgeCheck, Star, Share2, GraduationCap, Award, MapPin, Phone, MessageCircle, User, Building2, Banknote, Clock } from "lucide-react";
 import supabase from "../services/supabase";
 import { useAuth } from "../features/auth/AuthContext";
 
@@ -271,7 +271,7 @@ export default function DoctorProfilePage() {
             </div>
             <div className="flex items-center gap-3">
               <div className="bg-[#C8A155]/10 p-2 rounded-lg text-[#C8A155]">
-                <DollarSign className="w-5 h-5" />
+                <Banknote className="w-5 h-5" />
               </div>
               <div>
                 <p className="text-sm font-body-sans font-bold">{profile.booking_price ? `${profile.booking_price} ج.م` : "مجاناً"}</p>

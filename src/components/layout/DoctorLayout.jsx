@@ -1,4 +1,5 @@
 import {
+  ChevronDown,
   CalendarDays,
   LayoutDashboard,
   Stethoscope,
@@ -22,34 +23,50 @@ import { NavLink, Outlet, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../features/auth/AuthContext";
 import ClinicInfo from "../../features/auth/ClinicInfo";
 import LogoutButton from "../../features/auth/LogoutButton";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useUnreadNotifications } from "../../features/Notifications/useUnreadNotifications";
 import useFcmToken from "../../hooks/useFcmToken";
 import useGoogleCalendarSync from "../../features/calendar/useGoogleCalendarSync";
-import { DndProvider, useDrag, useDrop } from "react-dnd";
-import { TouchBackend } from "react-dnd-touch-backend";
-import { useUserPreferences, useUpdateUserPreferences } from "../../hooks/useUserPreferences";
 
-// Config for navigation items
+// Config for navigation items with Groups
 const NAV_ITEMS_CONFIG = [
-  { id: 'dashboard', to: "/dashboard", icon: LayoutDashboard, label: "لوحة التحكم", permissionKey: "dashboard" },
-  { id: 'appointments', to: "/appointments", icon: Calendar, label: "المواعيد", permissionKey: "appointments" },
-  { id: 'work-mode', to: "/work-mode", icon: Clock, label: "وضع العمل", permissionKey: "appointments" },
-  { id: 'patients', to: "/patients", icon: Users, label: "المرضى", permissionKey: "patients" },
-  { id: 'examinations', to: "/examinations", icon: Stethoscope, label: "الكشوفات", permissionKey: "patients" },
-  { id: 'clinic', to: "/clinic", icon: Building, label: "العيادة", permissionKey: "settings" },
-  { id: 'treatments', to: "/treatments", icon: ClipboardList, label: "الخطط العلاجية", permissionKey: "treatments" },
-  { id: 'finance', to: "/finance", icon: CreditCard, label: "الماليات", permissionKey: "finance" },
-  { id: 'online-booking', to: "/online-booking", icon: CalendarDays, label: "الحجوزات الإلكترونية", permissionKey: "online-bookings" },
-  { id: 'staff', to: "/staff", icon: UserCog, label: "الموظفين", role: "doctor" },
-  { id: 'subscriptions', to: "/subscriptions", icon: FileText, label: "الاشتراكات", role: "doctor" },
-  { id: 'notifications', to: "/notifications", icon: Bell, label: "الإشعارات", permissionKey: "notifications" },
-  { id: 'integrations', to: "/integrations", icon: Share2, label: "التكاملات", permissionKey: "settings" },
-  { id: 'settings', to: "/settings", icon: Settings, label: "الإعدادات", permissionKey: "settings" },
-  { id: 'ask-tabibi', to: "/ask-tabibi", icon: MessageCircleQuestion, label: " Tabibi AI ", permissionKey: "dashboard" },
-  { id: 'tabibi-apps', to: "/tabibi-apps", icon: Zap, label: "Tabibi Apps", permissionKey: "dashboard" },
-  { id: 'my-apps', to: "/my-apps", icon: LayoutGrid, label: "تطبيقاتي", permissionKey: "dashboard" },
+  // Overview
+  { id: 'dashboard', to: "/dashboard", icon: LayoutDashboard, label: "لوحة التحكم", permissionKey: "dashboard", group: "main" },
+  { id: 'notifications', to: "/notifications", icon: Bell, label: "الإشعارات", permissionKey: "notifications", group: "main" },
+  { id: 'ask-tabibi', to: "/ask-tabibi", icon: MessageCircleQuestion, label: "Tabibi AI", permissionKey: "dashboard", group: "main" },
+  
+  // Clinical
+  { id: 'appointments', to: "/appointments", icon: Calendar, label: "المواعيد", permissionKey: "appointments", group: "practice" },
+  { id: 'patients', to: "/patients", icon: Users, label: "المرضى", permissionKey: "patients", group: "practice" },
+  { id: 'examinations', to: "/examinations", icon: Stethoscope, label: "الكشوفات", permissionKey: "patients", group: "practice" },
+  { id: 'treatments', to: "/treatments", icon: ClipboardList, label: "الخطط العلاجية", permissionKey: "treatments", group: "practice" },
+  { id: 'work-mode', to: "/work-mode", icon: Clock, label: "وضع العمل", permissionKey: "appointments", group: "practice" },
+
+  // Administration
+  { id: 'clinic', to: "/clinic", icon: Building, label: "العيادة", permissionKey: "settings", group: "management" },
+  { id: 'staff', to: "/staff", icon: UserCog, label: "ادارة موظفينك", role: "doctor", group: "management" },
+  { id: 'finance', to: "/finance", icon: CreditCard, label: "الماليات", permissionKey: "finance", group: "management" },
+  { id: 'subscriptions', to: "/subscriptions", icon: FileText, label: "الاشتراكات", role: "doctor", group: "management" },
+  { id: 'online-booking', to: "/online-booking", icon: CalendarDays, label: "الحجوزات الإلكترونية", permissionKey: "online-bookings", group: "management" },
+
+  // Apps
+  { id: 'tabibi-apps', to: "/tabibi-apps", icon: Zap, label: "Tabibi Apps", permissionKey: "dashboard", group: "apps" },
+  { id: 'my-apps', to: "/my-apps", icon: LayoutGrid, label: "تطبيقاتي", permissionKey: "dashboard", group: "apps" },
+  { id: 'integrations', to: "/integrations", icon: Share2, label: "التكاملات", permissionKey: "settings", group: "apps" },
+
+  // Settings
+  { id: 'settings', to: "/settings", icon: Settings, label: "الإعدادات", permissionKey: "settings", group: "system" },
 ];
+
+const GROUP_LABELS = {
+  main: "الرئيسية",
+  practice: "العيادة والمرضى",
+  management: "الإدارة",
+  apps: "التطبيقات",
+  system: "النظام"
+};
+
+const GROUPS_ORDER = ['main', 'practice', 'management', 'apps', 'system'];
 
 function NavItem({ to, icon: Icon, label, isVisible = true, onClick, badgeCount }) {
   if (!isVisible) return null;
@@ -76,92 +93,13 @@ function NavItem({ to, icon: Icon, label, isVisible = true, onClick, badgeCount 
   );
 }
 
-// Draggable wrapper for NavItem
-function DraggableNavItem({ id, index, moveItem, saveOrder, children }) {
-  const ref = useRef(null);
-  
-  const [{ isDragging }, drag] = useDrag({
-    type: "NAV_ITEM",
-    item: { id, index },
-    collect: (monitor) => ({
-      isDragging: monitor.isDragging(),
-    }),
-    end: (item, monitor) => {
-      // Save order when drag ends
-      if (monitor.didDrop()) {
-        saveOrder();
-      }
-    }
-  });
-
-  const [, drop] = useDrop({
-    accept: "NAV_ITEM",
-    hover: (draggedItem, monitor) => {
-      if (!ref.current) return;
-      
-      const dragIndex = draggedItem.index;
-      const hoverIndex = index;
-
-      // Don't replace items with themselves
-      if (dragIndex === hoverIndex) return;
-
-      // Determine rectangle on screen
-      const hoverBoundingRect = ref.current?.getBoundingClientRect();
-
-      // Get vertical middle
-      const hoverMiddleY = (hoverBoundingRect.bottom - hoverBoundingRect.top) / 2;
-
-      // Determine mouse position
-      const clientOffset = monitor.getClientOffset();
-
-      // Get pixels to the top
-      const hoverClientY = clientOffset.y - hoverBoundingRect.top;
-
-      // Only perform the move when the mouse has crossed half of the items height
-      // When dragging downwards, only move when the cursor is below 50%
-      // When dragging upwards, only move when the cursor is above 50%
-
-      // Dragging downwards
-      if (dragIndex < hoverIndex && hoverClientY < hoverMiddleY) return;
-
-      // Dragging upwards
-      if (dragIndex > hoverIndex && hoverClientY > hoverMiddleY) return;
-
-      // Time to actually perform the action
-      moveItem(dragIndex, hoverIndex);
-
-      // Note: we're mutating the monitor item here!
-      // Generally it's better to avoid mutations,
-      // but it's good here for the sake of performance
-      // to avoid expensive index searches.
-      draggedItem.index = hoverIndex;
-    },
-  });
-
-  drag(drop(ref));
-
-  return (
-    <div 
-      ref={ref} 
-      style={{ opacity: isDragging ? 0.5 : 1 }}
-      className="select-none" // Prevent selection but allow touch scrolling
-    >
-      {children}
-    </div>
-  );
-}
-
 export default function DoctorLayout() {
   const { user } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState(GROUPS_ORDER);
   const { unreadCount = 0, loading } = useUnreadNotifications();
   const location = useLocation();
   
-  // User Preferences for Sidebar Order
-  const { data: preferences } = useUserPreferences();
-  const { mutate: updatePreferences } = useUpdateUserPreferences();
-  const [orderedNavItems, setOrderedNavItems] = useState(NAV_ITEMS_CONFIG);
-
   // Initialize FCM Token for notifications
   useFcmToken();
 
@@ -172,33 +110,6 @@ export default function DoctorLayout() {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [location.pathname]);
-
-  // Sync with preferences
-  useEffect(() => {
-    if (preferences?.menu_items && Array.isArray(preferences.menu_items) && preferences.menu_items.length > 0) {
-      const savedOrderIds = preferences.menu_items;
-      
-      // Sort config based on saved order
-      const sortedItems = [...NAV_ITEMS_CONFIG].sort((a, b) => {
-        const indexA = savedOrderIds.indexOf(a.id);
-        const indexB = savedOrderIds.indexOf(b.id);
-        
-        // If both exist in saved order, sort by index
-        if (indexA !== -1 && indexB !== -1) return indexA - indexB;
-        
-        // If only A exists, it comes first
-        if (indexA !== -1) return -1;
-        
-        // If only B exists, it comes first
-        if (indexB !== -1) return 1;
-        
-        // If neither exists, keep original order (or put at end)
-        return 0;
-      });
-      
-      setOrderedNavItems(sortedItems);
-    }
-  }, [preferences]);
 
   // For doctors, show all navigation items
   const isDoctor = user?.role === "doctor";
@@ -217,21 +128,13 @@ export default function DoctorLayout() {
     }
   };
 
-  // Move item handler for DnD
-  const moveItem = useCallback((dragIndex, hoverIndex) => {
-    setOrderedNavItems((prevItems) => {
-      const newItems = [...prevItems];
-      const [removed] = newItems.splice(dragIndex, 1);
-      newItems.splice(hoverIndex, 0, removed);
-      return newItems;
-    });
-  }, []);
-
-  // Save order handler
-  const saveOrder = useCallback(() => {
-    const itemIds = orderedNavItems.map(item => item.id);
-    updatePreferences({ menu_items: itemIds });
-  }, [orderedNavItems, updatePreferences]);
+  const toggleGroup = (groupKey) => {
+    setExpandedGroups(prev => 
+      prev.includes(groupKey) 
+        ? prev.filter(k => k !== groupKey)
+        : [...prev, groupKey]
+    );
+  };
 
   // Close sidebar when clicking outside
   useEffect(() => {
@@ -268,81 +171,105 @@ export default function DoctorLayout() {
   // Check if current page is Tabibi App Details (needs full width control)
   const isAppDetails = /^\/tabibi-apps\/\d+$/.test(location.pathname);
 
+  // Group items
+  const groupedItems = GROUPS_ORDER.reduce((acc, groupKey) => {
+    const items = NAV_ITEMS_CONFIG.filter(item => item.group === groupKey);
+    if (items.length > 0) {
+      acc[groupKey] = items;
+    }
+    return acc;
+  }, {});
+
   return (
-    <DndProvider backend={TouchBackend} options={{ enableMouseEvents: true, delayTouchStart: 300 }}>
-      <div dir="rtl" className="flex h-screen">
-        {/* Floating Mobile menu button - Always visible and floating on small screens at the top */}
-        <button
-          className="md:hidden fixed top-6 left-6 z-[9999] p-3 rounded-full bg-primary text-primary-foreground shadow-lg menu-button"
-          onClick={() => {
-            // Prevent synchronous layout thrash during React commit
-            requestAnimationFrame(() => setIsSidebarOpen((v) => !v));
-          }}>
-          <Menu className="size-6" />
-        </button>
+    <div dir="rtl" className="flex h-screen">
+      {/* Floating Mobile menu button - Always visible and floating on small screens at the top */}
+      <button
+        className="md:hidden fixed top-6 left-6 z-[9999] p-3 rounded-full bg-primary text-primary-foreground shadow-lg menu-button"
+        onClick={() => {
+          // Prevent synchronous layout thrash during React commit
+          requestAnimationFrame(() => setIsSidebarOpen((v) => !v));
+        }}>
+        <Menu className="size-6" />
+      </button>
 
-        {/* Sidebar overlay for mobile */}
-        {isSidebarOpen && (
-          <div
-            className="fixed inset-0 bg-black/50 z-[9998] md:hidden"
-            onClick={() => setIsSidebarOpen(false)}
-          />
-        )}
+      {/* Sidebar overlay for mobile */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-[9998] md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
 
-        {/* Sidebar */}
-        <aside
-          className={`sidebar fixed top-0 left-0 w-64 transform transition-transform duration-300 ease-in-out z-[9999]
-            ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} 
-            md:translate-x-0 md:static md:flex md:w-56 lg:w-60 xl:w-64 flex-shrink-0 flex-col border-e border-border bg-card h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]`}>
-          <Link
-            to="/"
-            onClick={() => setIsSidebarOpen(false)}
-            className="p-4 flex items-center gap-2">
-            <Stethoscope className="size-5 text-primary" />
-            <span className="font-semibold">Tabibi</span>
-          </Link>
-          <nav className="px-3 space-y-3 flex-1">
-            {orderedNavItems.map((item, index) => {
-              // Check visibility
-              let isVisible = true;
-              if (item.role && user?.role !== item.role) isVisible = false;
-              if (item.permissionKey && !hasPermission(item.permissionKey)) isVisible = false;
-              
-              if (!isVisible) return null;
+      {/* Sidebar */}
+      <aside
+        className={`sidebar fixed top-0 left-0 w-64 transform transition-transform duration-300 ease-in-out z-[9999]
+          ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} 
+          md:translate-x-0 md:static md:flex md:w-56 lg:w-60 xl:w-64 flex-shrink-0 flex-col border-e border-border bg-card h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]`}>
+        <Link
+          to="/"
+          onClick={() => setIsSidebarOpen(false)}
+          className="p-4 flex items-center gap-2">
+          <Stethoscope className="size-5 text-primary" />
+          <span className="font-semibold">Tabibi</span>
+        </Link>
+        <nav className="px-3 space-y-6 flex-1 py-2">
+          {GROUPS_ORDER.map(groupKey => {
+            const items = groupedItems[groupKey];
+            if (!items || items.length === 0) return null;
 
-              return (
-                <DraggableNavItem 
-                  key={item.id} 
-                  id={item.id} 
-                  index={index} 
-                  moveItem={moveItem}
-                  saveOrder={saveOrder}
-                >
-                  <NavItem
-                    to={item.to}
-                    icon={item.icon}
-                    label={item.label}
-                    isVisible={true}
-                    onClick={handleNavItemClick}
-                    badgeCount={item.id === 'notifications' ? unreadCount : undefined}
-                  />
-                </DraggableNavItem>
-              );
-            })}
-          </nav>
-          <div className="p-4 border-t border-border space-y-3">
-            <ClinicInfo />
-            <LogoutButton />
-          </div>
-        </aside>
-        <div className="flex-1 md:mr-0 lg:mr-0 xl:mr-0 flex flex-col min-h-0">
-          <main className={`flex-1 overflow-y-auto ${isAppDetails ? '' : 'py-6'} mt-0 md:mt-0`}>
-            <div className={isAppDetails ? "" : "container"}>
-              <Outlet />
-            </div>
-          </main>
+            // Filter items by permission
+            const visibleItems = items.filter(item => {
+               if (item.role && user?.role !== item.role) return false;
+               if (item.permissionKey && !hasPermission(item.permissionKey)) return false;
+               return true;
+            });
+
+            if (visibleItems.length === 0) return null;
+
+            return (
+              <div key={groupKey} className="space-y-1">
+                 {groupKey !== 'main' && (
+                   <button
+                     onClick={() => toggleGroup(groupKey)}
+                     className="w-full flex items-center justify-between px-3 mb-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors group"
+                   >
+                     <span>{GROUP_LABELS[groupKey]}</span>
+                     <ChevronDown 
+                       className={`size-3 transition-transform duration-200 ${expandedGroups.includes(groupKey) ? "" : "rotate-90 rtl:rotate-90"}`} 
+                     />
+                   </button>
+                 )}
+                 {(groupKey === 'main' || expandedGroups.includes(groupKey)) && (
+                   <div className="space-y-1">
+                     {visibleItems.map(item => (
+                       <NavItem
+                        key={item.id}
+                        to={item.to}
+                        icon={item.icon}
+                        label={item.label}
+                        isVisible={true}
+                        onClick={handleNavItemClick}
+                        badgeCount={item.id === 'notifications' ? unreadCount : undefined}
+                      />
+                     ))}
+                   </div>
+                 )}
+              </div>
+            );
+          })}
+        </nav>
+        <div className="p-4 border-t border-border space-y-3">
+          <ClinicInfo />
+          <LogoutButton />
         </div>
+      </aside>
+      <div className="flex-1 md:mr-0 lg:mr-0 xl:mr-0 flex flex-col min-h-0">
+        <main className={`flex-1 overflow-y-auto ${isAppDetails ? '' : 'py-6'} mt-0 md:mt-0`}>
+          <div className={isAppDetails ? "" : "container"}>
+            <Outlet />
+          </div>
+        </main>
       </div>
-    </DndProvider>
+    </div>
   );
 }

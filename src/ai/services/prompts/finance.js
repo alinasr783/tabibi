@@ -11,7 +11,7 @@ export const getFinancePrompt = (financeData) => {
 
 ### أمثلة:
 لما حد يسأل عن الماليات:
-[icon:DollarSign] **الماليات هذا الشهر:**
+[icon:Banknote] **الماليات هذا الشهر:**
 - إيرادات: ${financeThisMonth.income || 0} جنيه
 - مصروفات: ${financeThisMonth.expenses || 0} جنيه
 - صافي: ${financeThisMonth.netProfit || 0} جنيه

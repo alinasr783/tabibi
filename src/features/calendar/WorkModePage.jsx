@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Card, CardContent } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
-import { Clock, User, RefreshCw, ArrowLeft, Check, X, AlertCircle, Eye, Calendar as CalendarIcon, Phone } from "lucide-react";
+import { Clock, User, RefreshCw, Check, X, Eye, Calendar as CalendarIcon, Phone, Search } from "lucide-react";
 import { format, isSameDay } from "date-fns";
 import { ar } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
@@ -11,6 +11,11 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { updateAppointment } from "../../services/apiAppointments";
 import toast from "react-hot-toast";
 import TableSkeleton from "../../components/ui/table-skeleton";
+import SortableStat from "../../components/ui/sortable-stat";
+import { Input } from "../../components/ui/input";
+import DataTable from "../../components/ui/table";
+import supabase from "../../services/supabase";
+import { SkeletonLine } from "../../components/ui/skeleton";
 
 const statusMap = {
   pending: { label: "جديد", variant: "warning" },
@@ -26,13 +31,38 @@ const sourceMap = {
   clinic: { label: "من العيادة", variant: "secondary" },
 };
 
+function StatCard({ icon: Icon, label, value, isLoading, iconColorClass = "bg-primary/10 text-primary", onClick, active }) {
+  return (
+    <Card 
+      className={`bg-card/70 h-full transition-all duration-200 ${onClick ? 'cursor-pointer hover:bg-accent/50' : ''} ${active ? 'ring-2 ring-primary border-primary' : ''}`}
+      onClick={onClick}
+    >
+      <CardContent className="flex items-center gap-3 py-3">
+        <div className={`size-8 rounded-[calc(var(--radius)-4px)] grid place-items-center ${iconColorClass}`}>
+          <Icon className="size-4" />
+        </div>
+        <div>
+          <div className="text-xs text-muted-foreground">{label}</div>
+          {isLoading ? (
+            <SkeletonLine className="h-4 w-8" />
+          ) : (
+            <div className={`text-lg font-semibold ${active ? 'text-primary' : 'text-foreground'}`}>{value}</div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function WorkModePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
+  const [statusFilter, setStatusFilter] = useState(null);
+  const [query, setQuery] = useState("");
+  const [weeklyNewCount, setWeeklyNewCount] = useState(0);
 
   // Fetch appointments for today
-  // Use stable date string for query key to avoid infinite loops
   const dateFilter = useMemo(() => ({ date: new Date() }), [new Date().toDateString()]);
   
   const { 
@@ -41,10 +71,85 @@ export default function WorkModePage() {
     refetch 
   } = useAppointments("", 1, 1000, dateFilter);
 
+  const defaultOrder = ["total", "new", "confirmed", "inProgress"];
+
+  const [cardsOrder, setCardsOrder] = useState(() => {
+    try {
+      const saved = localStorage.getItem("workmode_stats_order");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          const uniqueKeys = new Set([...parsed, ...defaultOrder]);
+          return Array.from(uniqueKeys);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to load stats order", e);
+    }
+    return defaultOrder;
+  });
+
+  useEffect(() => {
+    localStorage.setItem("workmode_stats_order", JSON.stringify(cardsOrder));
+  }, [cardsOrder]);
+
+  // Fetch weekly new appointments count
+  useEffect(() => {
+    const fetchWeeklyCount = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        
+        const { data: userData } = await supabase
+          .from("users")
+          .select("clinic_id")
+          .eq("user_id", session.user.id)
+          .single();
+          
+        if (!userData?.clinic_id) return;
+
+        const now = new Date();
+        const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+        const { count } = await supabase
+          .from("appointments")
+          .select("*", { count: "exact", head: true })
+          .eq("clinic_id", userData.clinic_id)
+          .gte("created_at", weekStart);
+          
+        setWeeklyNewCount(count || 0);
+      } catch (error) {
+        console.error("Error fetching weekly count:", error);
+      }
+    };
+    
+    fetchWeeklyCount();
+  }, []);
+
+  const moveCard = useCallback((dragIndex, hoverIndex) => {
+    setCardsOrder((prevCards) => {
+      const newCards = [...prevCards];
+      const draggedCard = newCards[dragIndex];
+      newCards.splice(dragIndex, 1);
+      newCards.splice(hoverIndex, 0, draggedCard);
+      return newCards;
+    });
+  }, []);
+
   const { mutate: updateStatus } = useMutation({
     mutationFn: ({ id, status }) => updateAppointment(id, { status }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["appointments"] });
+    onSuccess: (data, variables) => {
+      queryClient.setQueriesData({ queryKey: ["appointments"] }, (oldData) => {
+        if (!oldData || !oldData.data) return oldData;
+        return {
+          ...oldData,
+          data: oldData.data.map((item) =>
+            item.id === variables.id
+              ? { ...item, status: variables.status }
+              : item
+          ),
+        };
+      });
       toast.success("تم تحديث حالة الحجز بنجاح");
     },
     onError: (error) => {
@@ -70,7 +175,6 @@ export default function WorkModePage() {
     setTimeout(() => setRefreshing(false), 500);
   };
 
-  // Auto-refresh every 30 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       refetch();
@@ -78,19 +182,36 @@ export default function WorkModePage() {
     return () => clearInterval(interval);
   }, [refetch]);
 
-  // Filter appointments to show only pending, confirmed, and in_progress for today from all sources
-  const filteredAppointments = appointmentsData?.data?.filter(appointment => 
-    (appointment.status === "pending" || appointment.status === "confirmed" || appointment.status === "in_progress") &&
-    appointment.date &&
-    isSameDay(new Date(appointment.date), new Date())
-  ) || [];
+  // Filter logic
+  const filteredAppointments = useMemo(() => {
+    if (!appointmentsData?.data) return [];
+    
+    return appointmentsData.data.filter(appointment => {
+      // Base filter: only pending, confirmed, in_progress for today
+      const isValidStatus = (appointment.status === "pending" || appointment.status === "confirmed" || appointment.status === "in_progress");
+      const isToday = appointment.date && isSameDay(new Date(appointment.date), new Date());
+      
+      if (!isValidStatus || !isToday) return false;
 
-  // Sort appointments by date (earliest first)
+      // Status filter
+      if (statusFilter && appointment.status !== statusFilter) return false;
+
+      // Search query
+      if (query) {
+        const searchLower = query.toLowerCase();
+        const patientName = appointment.patient?.name?.toLowerCase() || "";
+        const patientPhone = appointment.patient?.phone?.toLowerCase() || "";
+        return patientName.includes(searchLower) || patientPhone.includes(searchLower);
+      }
+
+      return true;
+    });
+  }, [appointmentsData, statusFilter, query]);
+
   const sortedAppointments = [...filteredAppointments].sort((a, b) => {
     return new Date(a.date) - new Date(b.date);
   });
 
-  // Calculate patient age from birth date if available (fallback)
   const calculateAge = (birthDate) => {
     if (!birthDate) return "غير محدد";
     const today = new Date();
@@ -103,303 +224,321 @@ export default function WorkModePage() {
     return age;
   };
 
+  // Base counts for cards (ignoring filters for the counts themselves, except "Today" constraint)
+  const baseAppointments = useMemo(() => {
+    if (!appointmentsData?.data) return [];
+    return appointmentsData.data.filter(appointment => 
+      (appointment.status === "pending" || appointment.status === "confirmed" || appointment.status === "in_progress") &&
+      appointment.date &&
+      isSameDay(new Date(appointment.date), new Date())
+    );
+  }, [appointmentsData]);
+
+  const columns = [
+    {
+      header: "#",
+      accessor: (row, index) => index + 1,
+    },
+    {
+      header: "اسم المريض",
+      accessor: "patient.name",
+      render: (row) => <span className="font-medium">{row.patient?.name || "مريض"}</span>
+    },
+    {
+      header: "رقم الهاتف",
+      accessor: "patient.phone",
+      render: (row) => row.patient?.phone || "-"
+    },
+    {
+      header: "العمر",
+      accessor: "age",
+      render: (row) => row.age || (row.patient?.age || calculateAge(row.patient?.date_of_birth)) || "-"
+    },
+    {
+      header: "نوع الحجز",
+      accessor: "from",
+      render: (row) => (
+        <Badge variant={sourceMap[row.from]?.variant || "secondary"}>
+          {sourceMap[row.from]?.label || row.from}
+        </Badge>
+      )
+    },
+    {
+      header: "تاريخ الحجز",
+      accessor: "created_at",
+      render: (row) => row.created_at ? format(new Date(row.created_at), "dd/MM/yyyy hh:mm a", { locale: ar }) : "-"
+    },
+    {
+      header: "ميعاد الدخول",
+      accessor: "date",
+      render: (row) => row.date ? format(new Date(row.date), "dd/MM/yyyy hh:mm a", { locale: ar }) : "-"
+    },
+    {
+      header: "الحالة",
+      accessor: "status",
+      render: (row) => (
+        <Badge variant={statusMap[row.status]?.variant || "secondary"}>
+          {statusMap[row.status]?.label || row.status}
+        </Badge>
+      )
+    },
+    {
+      header: "إجراءات",
+      render: (row) => (
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 gap-1"
+            onClick={() => handleViewDetails(row.id)}
+          >
+            <Eye className="h-4 w-4" />
+            عرض
+          </Button>
+          
+          {row.status === "pending" && (
+            <div className="flex gap-1">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 gap-1 border-green-300 text-green-700 hover:bg-green-50"
+                onClick={() => handleAccept(row.id)}
+              >
+                <Check className="h-4 w-4" />
+                قبول
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 gap-1 border-red-300 text-red-700 hover:bg-red-50"
+                onClick={() => handleReject(row.id)}
+              >
+                <X className="h-4 w-4" />
+                رفض
+              </Button>
+            </div>
+          )}
+        </div>
+      )
+    }
+  ];
+
   return (
-    <div className="min-h-screen bg-background p-4 md:p-6" dir="rtl">
-      <div className="max-w-[1920px] mx-auto">
-        {/* Header */}
-        <div className="mb-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                  <Clock className="w-6 h-6" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-foreground">وضع العمل</h1>
-                  <p className="text-sm text-muted-foreground">ترتيب دخول المرضى</p>
-                </div>
-              </div>
-            </div>
-            
-            <Button
-              variant="outline"
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="h-10 gap-2"
+    <div className="min-h-screen bg-background pb-20 md:pb-0 space-y-6" dir="rtl">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-[var(--radius)] bg-primary/10 text-primary">
+            <Clock className="w-6 h-6" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">وضع العمل</h1>
+            <p className="text-sm text-muted-foreground">{weeklyNewCount} معاد جديد الاسبوع ده</p>
+          </div>
+        </div>
+        
+        <Button
+          variant="outline"
+          onClick={handleRefresh}
+          disabled={refreshing}
+          className="h-10 gap-2"
+        >
+          <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+          تحديث
+        </Button>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {cardsOrder.map((key, index) => {
+          let content;
+          switch (key) {
+            case "total":
+              content = (
+                <StatCard
+                  icon={User}
+                  label="إجمالي الحجوزات"
+                  value={baseAppointments.length}
+                  isLoading={isLoading}
+                  onClick={() => setStatusFilter(null)}
+                  active={false}
+                />
+              );
+              break;
+            case "new":
+              content = (
+                <StatCard
+                  icon={Clock}
+                  label="جديدة"
+                  value={baseAppointments.filter(a => a.status === "pending").length}
+                  isLoading={isLoading}
+                  iconColorClass="bg-amber-500/10 text-amber-600"
+                  onClick={() => setStatusFilter(prev => prev === "pending" ? null : "pending")}
+                  active={statusFilter === "pending"}
+                />
+              );
+              break;
+            case "confirmed":
+              content = (
+                <StatCard
+                  icon={Check}
+                  label="مؤكدة"
+                  value={baseAppointments.filter(a => a.status === "confirmed").length}
+                  isLoading={isLoading}
+                  iconColorClass="bg-green-500/10 text-green-600"
+                  onClick={() => setStatusFilter(prev => prev === "confirmed" ? null : "confirmed")}
+                  active={statusFilter === "confirmed"}
+                />
+              );
+              break;
+            case "inProgress":
+              content = (
+                <StatCard
+                  icon={Clock}
+                  label="بيتكشف دلوقتي"
+                  value={baseAppointments.filter(a => a.status === "in_progress").length}
+                  isLoading={isLoading}
+                  iconColorClass="bg-purple-500/10 text-purple-600"
+                  onClick={() => setStatusFilter(prev => prev === "in_progress" ? null : "in_progress")}
+                  active={statusFilter === "in_progress"}
+                />
+              );
+              break;
+            default:
+              return null;
+          }
+          
+          return (
+            <SortableStat
+              key={key}
+              id={key}
+              index={index}
+              moveCard={moveCard}
+              type="WORKMODE_STAT"
             >
-              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-              تحديث
-            </Button>
-          </div>
-        </div>
+              {content}
+            </SortableStat>
+          );
+        })}
+      </div>
 
-        {/* Info Box */}
-        <div className="mb-6">
-          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="text-sm text-blue-700 font-medium">وضع العمل</p>
-              <p className="text-sm text-blue-600">
-                بتعرض الصفحة دي كل الحجوزات المؤكدة، الجديدة، واللي بتتكشف دلوقتي لليوم دا بترتيب زمني. 
-                تقدر تقبل أو ترفض الحجوزات الجديدة من هنا.
-              </p>
-            </div>
-          </div>
-        </div>
+      {/* Search */}
+      <div className="relative mb-4">
+        <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 md:w-5 md:h-5" />
+        <Input
+          className="w-full pr-10 h-10 md:h-11 bg-background border-border focus:border-primary text-sm md:text-base"
+          placeholder="دور على المريض بالاسم أو رقم الهاتف"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      </div>
 
-        {/* Stats */}
-        <div className="mb-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Card className="bg-card/70">
-              <CardContent className="flex items-center gap-3 py-3">
-                <div className="size-8 rounded-[calc(var(--radius)-4px)] bg-primary/10 text-primary grid place-items-center">
-                  <User className="size-4" />
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground">إجمالي الحجوزات</div>
-                  <div className="text-lg font-semibold">{sortedAppointments.length}</div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-card/70">
-              <CardContent className="flex items-center gap-3 py-3">
-                <div className="size-8 rounded-[calc(var(--radius)-4px)] bg-amber-500/10 text-amber-600 grid place-items-center">
-                  <Clock className="size-4" />
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground">جديدة</div>
-                  <div className="text-lg font-semibold text-amber-600">
-                    {sortedAppointments.filter(a => a.status === "pending").length}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-card/70">
-              <CardContent className="flex items-center gap-3 py-3">
-                <div className="size-8 rounded-[calc(var(--radius)-4px)] bg-green-500/10 text-green-600 grid place-items-center">
-                  <Check className="size-4" />
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground">مؤكدة</div>
-                  <div className="text-lg font-semibold text-green-600">
-                    {sortedAppointments.filter(a => a.status === "confirmed").length}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-card/70">
-              <CardContent className="flex items-center gap-3 py-3">
-                <div className="size-8 rounded-[calc(var(--radius)-4px)] bg-purple-500/10 text-purple-600 grid place-items-center">
-                  <Clock className="size-4" />
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground">بيتكشف دلوقتي</div>
-                  <div className="text-lg font-semibold text-purple-600">
-                    {sortedAppointments.filter(a => a.status === "in_progress").length}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        {/* Appointments List */}
-        <Card className="bg-card/70">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-primary" />
-              قائمة المرضى
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="p-6">
-                <TableSkeleton columns={5} rows={5} />
-              </div>
-            ) : sortedAppointments.length > 0 ? (
-              <>
-                {/* Mobile Cards */}
-                <div className="block md:hidden space-y-3">
-                  {sortedAppointments.map((appointment, index) => (
-                    <Card key={appointment.id} className="bg-card/70 hover:shadow-md transition-shadow">
-                      <CardContent className="p-4">
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex items-center gap-3 flex-1">
-                            <div className="w-10 h-10 rounded-[var(--radius)] bg-primary/10 text-primary flex items-center justify-center font-bold">
-                              {index + 1}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-bold text-foreground text-lg truncate">
-                                {appointment.patient?.name || "مريض"}
-                              </h3>
-                              <div className="flex items-center gap-1.5 text-muted-foreground text-sm">
-                                <Phone className="w-3.5 h-3.5" />
-                                <span className="truncate">{appointment.patient?.phone || "-"}</span>
-                              </div>
-                            </div>
+      {/* Appointments List */}
+      <Card className="bg-card/70 border-none shadow-none">
+        <CardContent className="p-0">
+          {isLoading ? (
+             <TableSkeleton columns={5} rows={5} />
+          ) : sortedAppointments.length > 0 ? (
+            <>
+              {/* Mobile Cards */}
+              <div className="block md:hidden space-y-3">
+                {sortedAppointments.map((appointment, index) => (
+                  <Card key={appointment.id} className="bg-card/70 hover:shadow-md transition-shadow">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-3 flex-1">
+                          <div className="w-12 h-12 rounded-[var(--radius)] bg-primary/10 text-primary flex items-center justify-center font-bold text-lg">
+                            {index + 1}
                           </div>
-                          <Badge variant={statusMap[appointment.status]?.variant || "secondary"}>
-                            {statusMap[appointment.status]?.label || appointment.status}
-                          </Badge>
-                        </div>
-
-                        <div className="space-y-2 mb-4 bg-accent/50 rounded-lg p-3">
-                          <div className="flex items-center gap-2 text-sm">
-                            <CalendarIcon className="w-4 h-4 text-primary" />
-                            <span className="font-medium text-foreground">
-                              {appointment.date ? format(new Date(appointment.date), "dd/MM/yyyy hh:mm a", { locale: ar }) : "-"}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm">
-                            <User className="w-4 h-4 text-purple-600" />
-                            <span className="text-muted-foreground">
-                              العمر: {appointment.age || appointment.patient?.age || calculateAge(appointment.patient?.date_of_birth) || "-"}
-                            </span>
-                          </div>
-                          <div>
-                            <Badge variant={sourceMap[appointment.from]?.variant || "secondary"}>
-                              {sourceMap[appointment.from]?.label || appointment.from}
-                            </Badge>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <Button
-                            onClick={() => handleViewDetails(appointment.id)}
-                            className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground h-10"
-                            size="sm"
-                          >
-                            <Eye className="w-4 h-4 ml-2" />
-                            شوف التفاصيل
-                          </Button>
-                          {appointment.status === "pending" && (
-                            <>
-                              <Button
-                                onClick={() => handleAccept(appointment.id)}
-                                variant="outline"
-                                className="h-10 px-3 border-green-300 text-green-700 hover:bg-green-50"
-                                size="sm"
-                              >
-                                <Check className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                onClick={() => handleReject(appointment.id)}
-                                variant="outline"
-                                className="h-10 px-3 border-red-300 text-red-700 hover:bg-red-50"
-                                size="sm"
-                              >
-                                <X className="w-4 h-4" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-
-                {/* Desktop Table */}
-                <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-border">
-                        <th className="text-right py-3 px-4 font-medium text-foreground">#</th>
-                        <th className="text-right py-3 px-4 font-medium text-foreground">اسم المريض</th>
-                        <th className="text-right py-3 px-4 font-medium text-foreground">رقم الهاتف</th>
-                        <th className="text-right py-3 px-4 font-medium text-foreground">العمر</th>
-                        <th className="text-right py-3 px-4 font-medium text-foreground">نوع الحجز</th>
-                        <th className="text-right py-3 px-4 font-medium text-foreground">تاريخ الحجز</th>
-                        <th className="text-right py-3 px-4 font-medium text-foreground">ميعاد الدخول</th>
-                        <th className="text-right py-3 px-4 font-medium text-foreground">الحالة</th>
-                        <th className="text-right py-3 px-4 font-medium text-foreground">إجراءات</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sortedAppointments.map((appointment, index) => (
-                        <tr key={appointment.id} className="border-b border-border/50 hover:bg-accent/50">
-                          <td className="py-3 px-4">{index + 1}</td>
-                          <td className="py-3 px-4 font-medium">{appointment.patient?.name || "مريض"}</td>
-                          <td className="py-3 px-4">{appointment.patient?.phone || "-"}</td>
-                          <td className="py-3 px-4">
-                            {appointment.age || 
-                             (appointment.patient?.age || calculateAge(appointment.patient?.date_of_birth)) || 
-                             "-"}
-                          </td>
-                          <td className="py-3 px-4">
-                            <Badge variant={sourceMap[appointment.from]?.variant || "secondary"}>
-                              {sourceMap[appointment.from]?.label || appointment.from}
-                            </Badge>
-                          </td>
-                          <td className="py-3 px-4">
-                            {appointment.created_at
-                              ? format(new Date(appointment.created_at), "dd/MM/yyyy hh:mm a", { locale: ar })
-                              : "-"}
-                          </td>
-                          <td className="py-3 px-4">
-                            {appointment.date
-                              ? format(new Date(appointment.date), "dd/MM/yyyy hh:mm a", { locale: ar })
-                              : "-"}
-                          </td>
-                          <td className="py-3 px-4">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-bold text-foreground text-lg truncate">
+                              {appointment.patient?.name || "مريض"}
+                            </h3>
                             <Badge variant={statusMap[appointment.status]?.variant || "secondary"}>
                               {statusMap[appointment.status]?.label || appointment.status}
                             </Badge>
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="flex items-center gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-8 gap-1"
-                                onClick={() => handleViewDetails(appointment.id)}
-                              >
-                                <Eye className="h-4 w-4" />
-                                عرض
-                              </Button>
-                              
-                              {appointment.status === "pending" && (
-                                <div className="flex gap-1">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-8 gap-1 border-green-300 text-green-700 hover:bg-green-50"
-                                    onClick={() => handleAccept(appointment.id)}
-                                  >
-                                    <Check className="h-4 w-4" />
-                                    قبول
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-8 gap-1 border-red-300 text-red-700 hover:bg-red-50"
-                                    onClick={() => handleReject(appointment.id)}
-                                  >
-                                    <X className="h-4 w-4" />
-                                    رفض
-                                  </Button>
-                                </div>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            ) : (
-              <div className="text-center py-12">
-                <Clock className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
-                <p className="text-foreground mb-2">مفيش مواعيد اليوم</p>
-                <p className="text-sm text-muted-foreground">هتظهر المواعيد هنا لما تيجي</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 mb-4 bg-muted/30 rounded-lg p-3">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Phone className="w-4 h-4 text-primary" />
+                          <span className="font-medium text-foreground">
+                            {appointment.patient?.phone || "-"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <CalendarIcon className="w-4 h-4 text-purple-600" />
+                          <span className="text-muted-foreground">
+                            {appointment.date ? format(new Date(appointment.date), "hh:mm a", { locale: ar }) : "-"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <User className="w-4 h-4 text-blue-500" />
+                          <span className="text-muted-foreground">
+                            العمر: {appointment.age || appointment.patient?.age || calculateAge(appointment.patient?.date_of_birth) || "-"}
+                          </span>
+                        </div>
+                        <div>
+                          <Badge variant={sourceMap[appointment.from]?.variant || "secondary"}>
+                            {sourceMap[appointment.from]?.label || appointment.from}
+                          </Badge>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <Button
+                          onClick={() => handleViewDetails(appointment.id)}
+                          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-10"
+                        >
+                          <Eye className="w-4 h-4 ml-2" />
+                          شوف التفاصيل
+                        </Button>
+                        
+                        {appointment.status === "pending" && (
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={() => handleAccept(appointment.id)}
+                              variant="outline"
+                              className="flex-1 h-10 border-green-300 text-green-700 hover:bg-green-50"
+                            >
+                              <Check className="w-4 h-4 ml-2" />
+                              قبول
+                            </Button>
+                            <Button
+                              onClick={() => handleReject(appointment.id)}
+                              variant="outline"
+                              className="flex-1 h-10 border-red-300 text-red-700 hover:bg-red-50"
+                            >
+                              <X className="w-4 h-4 ml-2" />
+                              رفض
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+
+              {/* Desktop Table */}
+              <div className="hidden md:block">
+                <DataTable
+                  columns={columns}
+                  data={sortedAppointments}
+                  emptyLabel="لا توجد حجوزات"
+                />
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <Clock className="w-12 h-12 mb-4 opacity-20" />
+              <p>لا توجد حجوزات مطابقة</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

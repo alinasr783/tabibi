@@ -1,10 +1,10 @@
-import { useQuery } from "@tanstack/react-query"
+import { useInfiniteQuery } from "@tanstack/react-query"
 import { getPatients } from "../../services/apiPatients"
 import { PAGE_SIZE } from "../../constants/pagination"
 import { useOffline } from "../../features/offline-mode/OfflineContext"
 import { useOfflineData } from "../../features/offline-mode/useOfflineData"
 
-export default function usePatients(search, page = 1) {
+export default function usePatients(search, filters = {}, pageSize = 20, options = {}) {
   // Add a try-catch block to handle cases where the hook is used outside the provider
   let isOfflineMode = false;
   let hasOfflineContext = false;
@@ -19,21 +19,34 @@ export default function usePatients(search, page = 1) {
   }
   
   const { searchOfflinePatients } = useOfflineData()
+  const isEnabled = options.enabled !== undefined ? options.enabled : true;
   
   // For offline mode, we'll handle search differently
   if (hasOfflineContext && isOfflineMode) {
     // In offline mode, we don't use pagination, just search all local patients
-    return useQuery({
+    // We wrap it in useInfiniteQuery structure for consistency
+    return useInfiniteQuery({
       queryKey: ["patients", "offline", search ?? ""],
-      queryFn: () => searchOfflinePatients(search),
-      enabled: isOfflineMode
+      queryFn: async () => {
+        const data = await searchOfflinePatients(search);
+        return { items: data, total: data.length };
+      },
+      enabled: isOfflineMode && isEnabled,
+      getNextPageParam: () => undefined,
     })
   }
   
-  // Online mode - use the original implementation
-  return useQuery({
-    queryKey: ["patients", search ?? "", page],
-    queryFn: () => getPatients(search, page, PAGE_SIZE),
-    enabled: !isOfflineMode
+  // Online mode - use infinite query
+  return useInfiniteQuery({
+    queryKey: ["patients", search ?? "", filters, pageSize],
+    queryFn: ({ pageParam = 1 }) => getPatients(search, pageParam, pageSize, filters),
+    getNextPageParam: (lastPage, allPages) => {
+      const totalLoaded = allPages.flatMap(page => page.items).length;
+      if (totalLoaded < lastPage.total) {
+        return allPages.length + 1;
+      }
+      return undefined;
+    },
+    enabled: !isOfflineMode && isEnabled
   })
 }

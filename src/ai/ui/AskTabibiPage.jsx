@@ -15,20 +15,24 @@ import {
   Mic,
   Paperclip,
   Brain,
-  Zap
+  Zap,
+  BadgeCheck,
+  Star,
+  ArrowRight
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
+import { Badge } from "../../components/ui/badge";
 import { useChat } from "./useChat";
 import { useAuth } from "../../features/auth";
 import { getCurrentClinic } from "../../services/apiClinic";
-import { toggleOnlineBooking, changeThemeMode, reorderMenuItem, resetToDefaultSettings, changeColors, executeAIAction } from "../../services/apiAskTabibi";
+import { toggleOnlineBooking, changeThemeMode, reorderMenuItem, resetToDefaultSettings, changeColors, executeAIAction, getAgentProfile } from "../../services/apiAskTabibi";
 import { useUserPreferencesContext } from "../../features/user-preferences/UserPreferencesProvider";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "../../lib/utils";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
-import { ActionRenderer, parseAIResponse, FormattedText, InlineMessageRenderer } from "./ActionRenderer";
+import { parseAIResponse, InlineMessageRenderer } from "./ActionRenderer";
 import AppointmentCreateDialog from "../../features/calendar/AppointmentCreateDialog";
 import PatientCreateDialog from "../../features/patients/PatientCreateDialog";
 import { useNavigate } from "react-router-dom";
@@ -57,9 +61,20 @@ function ChatMessage({ message, isStreaming = false, onAction, executeResults = 
   const isUser = message.role === "user";
   const isAssistant = message.role === "assistant";
   
+  // Clean content to remove "Executing..." status text which is now handled by the UI
+  let contentToParse = message.content;
+  if (isAssistant && contentToParse) {
+    // Remove lines starting with "جاري تنفيذ" or similar
+    contentToParse = contentToParse
+      .replace(/^(جاري تنفيذ|جاري العمل|جاري البحث|جاري إضافة|جاري حجز|Executing|Working on|Processing).+$/gim, "")
+      // Remove specific phrase "جاري تنفيذ :"
+      .replace(/جاري تنفيذ\s*:.*/gi, "")
+      .trim();
+  }
+  
   // Parse content for actions if it's an assistant message
   const { segments } = isAssistant 
-    ? parseAIResponse(message.content) 
+    ? parseAIResponse(contentToParse) 
     : { segments: [{ type: 'text', content: message.content }] };
   
   return (
@@ -136,14 +151,13 @@ function TypingIndicator() {
 // ========================
 // مكون إدخال الرسالة - Mobile Optimized
 // ========================
-function ChatInput({ onSend, disabled }) {
+function ChatInput({ onSend, disabled, currentAction }) {
   const [message, setMessage] = useState("");
-  const [deepReasoning, setDeepReasoning] = useState(false);
   const textareaRef = useRef(null);
   
   const handleSend = () => {
     if (message.trim() && !disabled) {
-      onSend(message.trim(), deepReasoning);
+      onSend(message.trim());
       setMessage("");
       if (textareaRef.current) {
         textareaRef.current.style.height = "auto";
@@ -167,19 +181,17 @@ function ChatInput({ onSend, disabled }) {
   };
   
   return (
-    <div className="bg-background border-t border-border/50 px-2 sm:px-4 py-2 sm:py-3 safe-area-bottom">
-      <div className="max-w-3xl mx-auto flex flex-col items-center">
-        {/* Deep Reasoning Indicator */}
-        {deepReasoning && (
-          <div className="flex items-center justify-center gap-1.5 mb-2 py-1 px-2 rounded-full bg-purple-500/10 border border-purple-500/20 w-fit mx-auto">
-            <Brain className="w-3 h-3 text-purple-500" />
-            <span className="text-[10px] sm:text-xs text-purple-500 font-medium">التفكير العميق</span>
+    <div className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none px-4 pb-4">
+      <div className="max-w-3xl mx-auto flex flex-col items-center pointer-events-auto">
+        {/* Real-time Status Indicator */}
+        {currentAction && (
+          <div className="flex items-center justify-center gap-2 mb-2 py-1.5 px-3 rounded-full bg-white/90 backdrop-blur border border-primary/20 w-fit mx-auto animate-pulse shadow-sm">
+            <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />
+            <span className="text-xs text-primary font-medium">{currentAction}</span>
           </div>
         )}
-        
 
-
-        <div className="flex items-end gap-1.5 sm:gap-2 bg-card rounded-2xl border border-border/60 shadow-sm p-1.5 sm:p-2 px-2 sm:px-3 py-1.5 sm:py-2.5 w-[95%] mb-[8px]">
+        <div className="flex items-end gap-1.5 sm:gap-2 bg-white rounded-2xl border-2 border-primary/30 shadow-lg p-1.5 sm:p-2 px-2 sm:px-3 py-1.5 sm:py-2.5 w-full mb-2 backdrop-blur-sm">
           <textarea
             ref={textareaRef}
             value={message}
@@ -192,31 +204,9 @@ function ChatInput({ onSend, disabled }) {
               "focus:outline-none",
               "placeholder:text-muted-foreground/70 min-h-[36px] sm:min-h-[40px] max-h-[100px]",
               "disabled:opacity-50 disabled:cursor-not-allowed"
-              
             )}
             rows={1}
           />
-          
-          {/* Deep Reasoning Toggle Button */}
-          <Button
-            onClick={() => setDeepReasoning(!deepReasoning)}
-            disabled={disabled}
-            size="icon"
-            variant="ghost"
-            className={cn(
-              "h-8 w-8 sm:h-9 sm:w-9 rounded-xl flex-shrink-0 transition-all",
-              deepReasoning 
-                ? "bg-purple-500 hover:bg-purple-600 text-white" 
-                : "hover:bg-muted text-muted-foreground"
-            )}
-            title={deepReasoning ? "التفكير العميق مفعّل" : "تفعيل التفكير العميق"}
-          >
-            {deepReasoning ? (
-              <Brain className="w-4 h-4" />
-            ) : (
-              <Zap className="w-4 h-4" />
-            )}
-          </Button>
           
           <Button
             onClick={handleSend}
@@ -264,28 +254,24 @@ function ChatSidebar({
         />
       )}
       
-      {/* Sidebar - LEFT side */}
+      {/* Sidebar - RIGHT side */}
       <div className={cn(
-        "fixed md:static top-0 left-0 h-full w-[280px] sm:w-72 bg-card border-r border-border/50 z-50",
+        "fixed md:static top-0 right-0 h-full w-[280px] sm:w-72 bg-card border-l border-border/50 z-50",
         "transform transition-transform duration-300 ease-in-out",
         "flex flex-col shadow-xl md:shadow-none",
-        isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        isOpen ? "translate-x-0" : "translate-x-full md:translate-x-0"
       )}>
         {/* Header */}
         <div className="p-3 sm:p-4 border-b border-border/50 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-2">
+          <div 
+            className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={onNew}
+          >
             <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-            <h2 className="font-semibold text-sm sm:text-base">المحادثات</h2>
+            <h2 className="font-semibold text-sm sm:text-base">Tabibi AI</h2>
           </div>
           <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onNew}
-              className="text-primary h-8 w-8"
-            >
-              <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
-            </Button>
+            {/* Plus button removed as requested */}
             <Button
               variant="ghost"
               size="icon"
@@ -360,43 +346,158 @@ function ChatSidebar({
 }
 
 // ========================
-// شاشة الترحيب
+// شاشة الترحيب (Profile Style)
 // ========================
-function WelcomeScreen({ onStartChat }) {
-  const suggestions = [
-    "ازاي أضيف ميعاد جديد؟",
-    "ازاي أكتب روشتة للمريض؟",
-    "ازاي أفعل الحجز الإلكتروني؟",
-    "ازاي أضيف موظف جديد؟"
-  ];
-  
+function WelcomeScreen({ conversations, onSelectConversation }) {
+  const { data: profile, isLoading } = useQuery({
+    queryKey: ['aiAgentProfile'],
+    queryFn: getAgentProfile,
+    staleTime: 24 * 60 * 60 * 1000, // 24 hours
+  });
+
+  const [visibleConversations, setVisibleConversations] = useState(7);
+
+  if (isLoading) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-[#F8F8F8]">
+        <Loader2 className="w-8 h-8 animate-spin text-[#0A1F44]" />
+      </div>
+    );
+  }
+
+  // Helper for safe stats
+  const stats = {
+    rating: "4.9",
+    status: "متاح"
+  };
+
   return (
-    <div className="flex-1 flex items-center justify-center p-4 sm:p-6">
-      <div className="max-w-sm sm:max-w-md text-center">
-        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center mx-auto mb-4 sm:mb-6">
-          <Bot className="w-8 h-8 sm:w-10 sm:h-10 text-primary" />
-        </div>
-        <h1 className="text-xl sm:text-2xl font-bold mb-2">اسأل Tabibi</h1>
-        <p className="text-sm sm:text-base text-muted-foreground mb-6 sm:mb-8">
-          أنا هنا عشان أساعدك تستخدم المنصة بكل سهولة. اسألني أي سؤال!
-        </p>
+    <div className="min-h-full bg-[#F8F8F8] font-[Cairo] text-[#333333] pb-24 overflow-y-auto overflow-x-hidden chat-scrollbar" dir="rtl">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Amiri:wght@400;700&family=Quicksand:wght@700&display=swap');
+        .font-body-sans { font-family: 'Cairo', sans-serif; }
+        .font-amiri { font-family: 'Amiri', serif; }
+        .font-quicksand { font-family: 'Quicksand', sans-serif; }
+        .card-shadow-elegant { box-shadow: 0 4px 20px -5px rgba(0, 0, 0, 0.08); }
+        .glass-panel {
+          background: rgba(255, 255, 255, 0.15);
+          backdrop-filter: blur(3px);
+          -webkit-backdrop-filter: blur(3px);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+      `}</style>
+
+      <div className="max-w-md mx-auto px-4 space-y-5 pt-4">
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-          {suggestions.map((suggestion, index) => (
-            <button
-              key={index}
-              onClick={() => onStartChat(suggestion)}
-              className={cn(
-                "p-3 sm:p-4 rounded-xl border border-border bg-card/50 text-[13px] sm:text-sm text-right",
-                "hover:bg-muted/50 hover:border-primary/30 transition-all active:scale-[0.98]",
-                "flex items-start gap-2"
-              )}
-            >
-              <MessageCircle className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-              <span>{suggestion}</span>
-            </button>
-          ))}
+        {/* Profile Card */}
+        <div className="rounded-2xl overflow-hidden card-shadow-elegant relative border border-gray-100 h-[280px] flex flex-col justify-end">
+          {/* Banner Background */}
+          <div 
+            className="absolute inset-0 bg-cover bg-center"
+            style={{ 
+              backgroundImage: `url("${profile?.banner_url || 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&q=80&w=2070'}")` 
+            }}
+          >
+             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+          </div>
+          
+          <div className="relative px-6 pb-6 z-10">
+            <div className="flex items-end mb-4 gap-4">
+              <div className="relative shrink-0">
+                <div 
+                  className="bg-center bg-no-repeat aspect-square bg-cover rounded-2xl h-24 w-24 border-2 border-white shadow-lg" 
+                  style={{ backgroundImage: `url("${profile?.avatar_url || 'https://ui-avatars.com/api/?name=Tabibi+AI&background=0D9488&color=fff&size=128'}")` }}
+                ></div>
+              </div>
+              
+              <div className="glass-panel rounded-xl p-3 flex-1 mb-1">
+                <div className="flex items-center gap-2">
+                  <h1 className="text-2xl font-quicksand font-bold text-white drop-shadow-md">{profile?.name || "Tabibi AI"}</h1>
+                  <BadgeCheck className="text-[#1877F2] w-6 h-6 drop-shadow-sm" fill="#C8A155" />
+                </div>
+                <p className="text-white text-base font-amiri font-bold drop-shadow-sm">المساعد الذكي</p>
+              </div>
+            </div>
+            
+            <div className="glass-panel rounded-xl p-3 grid grid-cols-2 gap-2">
+              <div className="text-center border-l border-white/20">
+                <p className="text-xs text-white/90 font-amiri font-bold mb-1">الاصدار</p>
+                <p className="text-lg font-quicksand font-bold text-white drop-shadow-sm">
+                    2.0
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-white/90 font-amiri font-bold mb-1">النوع</p>
+                <div className="flex items-center justify-center gap-1">
+                  <span className="text-lg font-amiri font-bold text-white drop-shadow-sm">طبي</span>
+                  <BadgeCheck className="text-[#C8A155] w-4 h-4 fill-white drop-shadow-sm" />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
+
+        {/* Bio Section */}
+        <div className="bg-white rounded-2xl p-5 card-shadow-elegant border border-[#E0E0E0]">
+          <h3 className="font-amiri font-bold text-xl text-[#0A1F44] mb-3 flex items-center gap-2">
+            <User className="w-5 h-5 text-[#C8A155]" />
+            نبذة عني
+          </h3>
+          <p className="text-sm font-body-sans text-gray-600 leading-relaxed">
+            {profile?.bio || "أنا هنا لمساعدتك في إدارة عيادتك بكفاءة، من حجز المواعيد وإدارة ملفات المرضى إلى تحليل البيانات وتقديم التوصيات."}
+          </p>
+        </div>
+
+        {/* Recent Conversations */}
+        <div className="bg-white rounded-2xl p-5 card-shadow-elegant border border-[#E0E0E0]">
+          <h3 className="font-amiri font-bold text-xl text-[#0A1F44] mb-4 flex items-center gap-2">
+            <MessageCircle className="w-5 h-5 text-[#C8A155]" />
+            المحادثات السابقة
+          </h3>
+          
+          <div className="space-y-3">
+            {conversations && conversations.length > 0 ? (
+              <>
+                {conversations.slice(0, visibleConversations).map((conv) => (
+                  <div 
+                    key={conv.id}
+                    onClick={() => onSelectConversation(conv.id)}
+                    className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100 hover:bg-[#0A1F44]/5 hover:border-[#0A1F44]/10 transition-all cursor-pointer active:scale-[0.98]"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm text-[#0A1F44]">
+                      <MessageCircle className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-[#0A1F44] truncate">{conv.title}</p>
+                      <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                        <Clock className="w-3 h-3" />
+                        {format(new Date(conv.updated_at), "dd MMM, hh:mm a", { locale: ar })}
+                      </p>
+                    </div>
+                    <ChevronLeft className="w-4 h-4 text-gray-400" />
+                  </div>
+                ))}
+                
+                {conversations.length > visibleConversations && (
+                  <button 
+                    onClick={() => setVisibleConversations(prev => prev + 7)}
+                    className="w-full py-3 mt-2 text-sm font-bold text-[#0A1F44] bg-[#0A1F44]/5 rounded-xl hover:bg-[#0A1F44]/10 transition-colors flex items-center justify-center gap-2"
+                  >
+                    عرض المزيد
+                    <ChevronLeft className="w-4 h-4 rotate-270" />
+                  </button>
+                )}
+              </>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-sm text-gray-500">لا توجد محادثات سابقة</p>
+              </div>
+            )}
+          </div>
+        </div>
+        
+
+
       </div>
     </div>
   );
@@ -429,8 +530,21 @@ export default function AskTabibiPage() {
     sendMessage,
     isStreaming,
     isCreatingConversation,
-    executeResults
+    executeResults,
+    currentAction
   } = useChat();
+  
+  // Watch for execution results to update patient ID
+  useEffect(() => {
+    if (executeResults) {
+      Object.values(executeResults).forEach(res => {
+        if (res.status === 'success' && res.result?.patientId) {
+          setLastCreatedPatientId(res.result.patientId);
+          console.log("Updated lastCreatedPatientId from executeResults:", res.result.patientId);
+        }
+      });
+    }
+  }, [executeResults]);
   
   // جلب بيانات العيادة
   const { data: clinicData } = useQuery({
@@ -765,7 +879,7 @@ export default function AskTabibiPage() {
   };
 
   return (
-    <div className="h-[100dvh] md:h-[calc(100vh-6rem)] flex flex-col -m-6 md:-m-0 overflow-hidden">
+    <div className="h-[100dvh] md:h-[calc(100vh-6rem)] flex flex-col -m-6 md:-m-0 overflow-hidden overflow-x-hidden">
       {/* Appointment Create Dialog */}
       <AppointmentCreateDialog
         open={showAppointmentDialog}
@@ -800,53 +914,52 @@ export default function AskTabibiPage() {
         
         {/* Chat Area */}
         <div className="flex-1 flex flex-col bg-muted/10 relative min-h-0">
-          {/* Header */}
-          <div className="bg-card/95 backdrop-blur-md border-b border-border/50 px-3 sm:px-4 py-2 sm:py-3 flex items-center justify-between flex-shrink-0">
-            {/* LEFT: Menu button for mobile */}
-            <div className="flex items-center gap-2 sm:gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setSidebarOpen(true)}
-                className="md:hidden h-8 w-8"
-              >
-                <Menu className="w-5 h-5" />
-              </Button>
-              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
-                <Bot className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-              </div>
-              <div>
-                <h1 className="font-semibold text-sm sm:text-base">اسأل Tabibi</h1>
-                <p className="text-[10px] sm:text-xs text-muted-foreground hidden sm:block">المساعد الذكي للمنصة</p>
-              </div>
-            </div>
-            
-            {/* RIGHT: New chat button */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => startNewConversation()}
-              disabled={isCreatingConversation}
-              className="hidden sm:flex h-8 text-xs"
-            >
-              <Plus className="w-4 h-4 ml-1" />
-              محادثة جديدة
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => startNewConversation()}
-              disabled={isCreatingConversation}
-              className="sm:hidden h-8 w-8"
-            >
-              <Plus className="w-5 h-5" />
-            </Button>
-          </div>
           
+          {/* Header - Only show when in active chat */}
+          {(activeConversationId || messages.length > 0) && (
+            <div className="bg-card/95 backdrop-blur-md border-b border-border/50 px-3 sm:px-4 py-2 sm:py-3 flex items-center justify-between flex-shrink-0">
+              {/* LEFT: Back button for mobile */}
+              <div className="flex items-center gap-2 sm:gap-3">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => selectConversation(null)}
+                  className="md:hidden h-8 w-8"
+                >
+                  <ArrowRight className="w-5 h-5" />
+                </Button>
+                <div 
+                  className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={() => selectConversation(null)}
+                >
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+                    <Bot className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                  </div>
+                  <div>
+                    <h1 className="font-semibold text-sm sm:text-base">Tabibi AI</h1>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground hidden sm:block">المساعد الذكي للمنصة</p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* RIGHT: Empty to keep layout or other actions if needed */}
+              <div></div>
+            </div>
+          )}
+
           {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 sm:py-4 min-h-0 chat-scrollbar">
+          <div className={cn(
+            "flex-1 min-h-0 chat-scrollbar",
+            (!activeConversationId && messages.length === 0) 
+              ? "overflow-hidden flex flex-col" 
+              : "overflow-y-auto px-3 sm:px-4 pt-3 sm:pt-4 pb-24"
+          )}>
             {!activeConversationId && messages.length === 0 ? (
-              <WelcomeScreen onStartChat={handleStartWithSuggestion} />
+              <WelcomeScreen 
+                onStartChat={handleStartWithSuggestion} 
+                conversations={conversations}
+                onSelectConversation={selectConversation}
+              />
             ) : isLoadingMessages ? (
               <div className="flex items-center justify-center h-full">
                 <Loader2 className="w-6 h-6 sm:w-8 sm:h-8 animate-spin text-muted-foreground" />
@@ -863,12 +976,12 @@ export default function AskTabibiPage() {
           </div>
           
           {/* Input Area - Fixed at bottom */}
-          <div className="flex-shrink-0">
-            <ChatInput 
-              onSend={handleSendMessage} 
-              disabled={isStreaming || isCreatingConversation} 
-            />
-          </div>
+          <ChatInput 
+            key={activeConversationId}
+            onSend={handleSendMessage} 
+            disabled={isStreaming || isCreatingConversation}
+            currentAction={currentAction}
+          />
         </div>
       </div>
     </div>

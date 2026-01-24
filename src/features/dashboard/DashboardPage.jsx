@@ -5,9 +5,7 @@ import SwipeableMiniSchedule from "./SwipeableMiniSchedule";
 import SubscriptionBanner from "./SubscriptionBanner";
 import SummaryCards from "./SummaryCards";
 import { useState, useRef } from "react";
-import { DndProvider, useDrag, useDrop } from 'react-dnd';
-import { HTML5Backend } from 'react-dnd-html5-backend';
-import { TouchBackend } from 'react-dnd-touch-backend';
+import { useDrag, useDrop } from 'react-dnd';
 
 // Draggable wrapper component for dashboard sections
 function DraggableSection({ id, index, moveSection, children }) {
@@ -44,6 +42,8 @@ function DraggableSection({ id, index, moveSection, children }) {
     
     longPressTimer.current = setTimeout(() => {
       setIsDraggingEnabled(true);
+      if (navigator.vibrate) navigator.vibrate(50);
+      
       // Also trigger a manual drag start for better mobile support
       if (e.target && e.target.dispatchEvent) {
         const mouseDownEvent = new MouseEvent('mousedown', {
@@ -55,7 +55,7 @@ function DraggableSection({ id, index, moveSection, children }) {
         });
         e.target.dispatchEvent(mouseDownEvent);
       }
-    }, 2000); // 2-second delay
+    }, 400); // 400ms delay (slightly less than backend delay of 500ms)
   };
 
   const handleTouchMove = (e) => {
@@ -142,7 +142,7 @@ function DashboardContent() {
               <Stethoscope className="size-6" />
             </div>
             <div className="min-w-0 flex-1">
-              <h1 className="text-2xl font-bold truncate">لوحة التحكم</h1>
+              <h1 className="text-2xl font-bold truncate">لوحة تحكمك</h1>
               <p className="text-sm text-muted-foreground truncate">  
                 نظرة عامة سريعة على نشاط العيادة
               </p>
@@ -179,12 +179,7 @@ function DashboardContent() {
 }
 
 export default function DashboardPage() {
-  // Use TouchBackend for mobile devices, HTML5Backend for desktop
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  
   return (
-    <DndProvider backend={isMobile ? TouchBackend : HTML5Backend}>
-      <DashboardContent />
-    </DndProvider>
+    <DashboardContent />
   );
 }

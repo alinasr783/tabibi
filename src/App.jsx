@@ -1,6 +1,9 @@
 import { memo, useEffect } from "react";
 import { Toaster } from "react-hot-toast";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { DndProvider } from 'react-dnd';
+import { HTML5Backend } from 'react-dnd-html5-backend';
+import { TouchBackend } from 'react-dnd-touch-backend';
 import DoctorLayout from "./components/layout/DoctorLayout";
 import { AuthProviderWrapper } from "./features/auth/AuthProviderWrapper";
 import { UserPreferencesProvider } from "./features/user-preferences/UserPreferencesProvider";
@@ -343,16 +346,24 @@ function App() {
     initAnalytics();
   }, []);
 
+  // Use TouchBackend for mobile devices, HTML5Backend for desktop
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
   return (
     <BrowserRouter>
       <AuthProviderWrapper>
         <UserPreferencesProvider>
           <OfflineProvider>
-            <AutoPaymentRecorder />
-            <OfflineIndicator />
-            <PWAInstallPrompt />
-            <AppRoutes />
-            <Toaster position="top-center" />
+            <DndProvider 
+              backend={isMobile ? TouchBackend : HTML5Backend}
+              options={isMobile ? { delayTouchStart: 500, enableTouchEvents: true, ignoreContextMenu: true } : undefined}
+            >
+              <AutoPaymentRecorder />
+              <OfflineIndicator />
+              <PWAInstallPrompt />
+              <AppRoutes />
+              <Toaster position="top-center" />
+            </DndProvider>
           </OfflineProvider>
         </UserPreferencesProvider>
       </AuthProviderWrapper>

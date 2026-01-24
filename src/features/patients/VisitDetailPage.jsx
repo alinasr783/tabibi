@@ -1,7 +1,7 @@
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 import {
-    ArrowLeft,
+    ArrowRight,
     Calendar,
     Edit,
     FileText,
@@ -9,12 +9,21 @@ import {
     Printer,
     Stethoscope,
     X,
-    Plus
+    Plus,
+    User,
+    ClipboardPlus,
+    Clock,
+    Activity,
+    CalendarPlus,
+    FileUp,
+    MessageCircle,
+    Phone
 } from "lucide-react";
 import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, Link } from "react-router-dom";
 import { Button } from "../../components/ui/button";
-import { Card, CardContent } from "../../components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../components/ui/tabs";
 import {
     Dialog,
     DialogContent,
@@ -32,6 +41,11 @@ import useClinic from "../auth/useClinic";
 import usePlan from "../auth/usePlan";
 import useUpdateVisit from "./useUpdateVisit";
 import useVisit from "./useVisit";
+import AppointmentCreateDialog from "../calendar/AppointmentCreateDialog";
+import { UploadDialog } from "./PatientAttachmentsTab";
+import { usePatientAttachments } from "./usePatientAttachments";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 export default function VisitDetailPage() {
   const {visitId} = useParams();
@@ -40,7 +54,14 @@ export default function VisitDetailPage() {
   const {user} = useAuth();
   const {data: planData} = usePlan();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const {mutate: updateVisit, isPending: isUpdating} = useUpdateVisit();
+  
+  // New State for Dialogs
+  const [isAppointmentDialogOpen, setIsAppointmentDialogOpen] = useState(false);
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  
+  // Existing State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDiagnosisEditModalOpen, setIsDiagnosisEditModalOpen] = useState(false);
   const [isNotesEditModalOpen, setIsNotesEditModalOpen] = useState(false);
@@ -50,6 +71,60 @@ export default function VisitDetailPage() {
     notes: "",
     medications: [],
   });
+
+  // Attachments Hook
+  const { uploadAttachment, isUploading: isUploadingAttachment } = usePatientAttachments(visit?.patient_id);
+
+  // Handlers for New Actions
+  const handleAppointmentCreated = () => {
+    queryClient.invalidateQueries({ queryKey: ["patient-appointments", visit?.patient_id] });
+    setIsAppointmentDialogOpen(false);
+    toast.success("تم حجز الموعد بنجاح");
+  };
+
+  const handleUpload = (data) => {
+    if (!visit?.patient_id) return;
+    uploadAttachment({ ...data, patientId: visit.patient_id }, {
+      onSuccess: () => {
+        setIsUploadDialogOpen(false);
+        queryClient.invalidateQueries({ queryKey: ["patient-attachments", visit.patient_id] });
+        toast.success("تم رفع الملف بنجاح");
+      }
+    });
+  };
+
+  const handleSendWhatsApp = () => {
+    if (!visit?.patient?.phone) {
+      toast.error("لا يوجد رقم هاتف للمريض");
+      return;
+    }
+
+    let phone = visit.patient.phone.replace(/\D/g, '');
+    if (phone.startsWith('0')) phone = '2' + phone; 
+    
+    let message = `مرحباً ${visit.patient.name}،\n\nإليك الأدوية الموصوفة من د. ${user?.name || 'الطبيب'}:\n\n`;
+    
+    if (visit.medications && visit.medications.length > 0) {
+        visit.medications.forEach((med, index) => {
+            message += `${index + 1}. ${med.name}\n   ${med.using}\n`;
+        });
+    } else {
+        message += "لا توجد أدوية مسجلة في هذا الكشف.\n";
+    }
+
+    if (clinic?.name) message += `\n${clinic.name}`;
+    if (clinic?.address) message += `\n${clinic.address}`;
+
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+  };
+
+  const handleCallPatient = () => {
+    if (!visit?.patient?.phone) {
+      toast.error("لا يوجد رقم هاتف للمريض");
+      return;
+    }
+    window.location.href = `tel:${visit.patient.phone}`;
+  };
 
   // Initialize edit data when visit loads
   useEffect(() => {
@@ -61,16 +136,6 @@ export default function VisitDetailPage() {
       });
     }
   }, [visit]);
-
-  const openEditModal = () => {
-    // Initialize edit data with current visit data
-    setEditData({
-      diagnosis: visit?.diagnosis || "",
-      notes: visit?.notes || "",
-      medications: visit?.medications ? [...visit.medications] : [],
-    });
-    setIsEditModalOpen(true);
-  };
 
   const handleEditChange = (field, value) => {
     setEditData((prev) => ({
@@ -109,22 +174,6 @@ export default function VisitDetailPage() {
         medications: newMedications,
       };
     });
-  };
-
-  const handleSaveEdit = () => {
-    updateVisit(
-      {id: visitId, ...editData},
-      {
-        onSuccess: () => {
-          setIsEditModalOpen(false);
-          // Refresh the visit data
-          window.location.reload();
-        },
-        onError: (error) => {
-          alert("حدث خطأ أثناء تحديث بيانات الكشف: " + error.message);
-        },
-      }
-    );
   };
 
   const openDiagnosisEditModal = () => {
@@ -200,8 +249,6 @@ export default function VisitDetailPage() {
   };
 
   const handleGeneratePdf = async () => {
-    // Validation for required fields (Clinic Name, Address, User Name, Phone)
-    // As per requirement: if these are missing, prevent PDF generation and ask user to complete them
     const missingFields = [];
     if (!clinic?.name || clinic.name.trim() === '' || clinic.name === 'عيادة تجريبيّة') missingFields.push("اسم العيادة");
     if (!clinic?.address || clinic.address.trim() === '' || clinic.address === 'عنوان العيادة التجريبيّة') missingFields.push("عنوان العيادة");
@@ -220,7 +267,7 @@ export default function VisitDetailPage() {
           user.name,
           clinic.name,
           clinic.address,
-          planData // Pass plan data for watermark feature
+          planData 
         );
       } catch (error) {
         console.error("Error in PDF generation:", error);
@@ -234,14 +281,12 @@ export default function VisitDetailPage() {
     }
   };
 
-
-
   if (isLoading) {
     return (
       <div className="space-y-6" dir="rtl">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-muted animate-pulse"></div>
+            <div className="w-16 h-16 rounded-full bg-muted animate-pulse"></div>
             <div className="space-y-2">
               <SkeletonLine width={150} height={20} />
               <SkeletonLine width={100} height={14} />
@@ -249,8 +294,8 @@ export default function VisitDetailPage() {
           </div>
           <SkeletonLine width={80} height={36} />
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          {[1, 2].map((i) => (
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {[1, 2, 3].map((i) => (
             <div key={i} className="h-20 bg-muted rounded-[var(--radius)] animate-pulse"></div>
           ))}
         </div>
@@ -265,7 +310,7 @@ export default function VisitDetailPage() {
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold">تفاصيل الكشف</h1>
           <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1.5">
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowRight className="w-4 h-4" />
             رجوع
           </Button>
         </div>
@@ -279,126 +324,243 @@ export default function VisitDetailPage() {
   }
 
   return (
-    <div className="space-y-6" dir="rtl">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-            <Stethoscope className="w-6 h-6 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold">تفاصيل الكشف</h1>
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground mt-0.5">
-              <Calendar className="w-3.5 h-3.5" />
-              {visit?.created_at
-                ? format(new Date(visit.created_at), "d MMMM yyyy - h:mm a", { locale: ar })
-                : "غير محدد"
-              }
-            </div>
-          </div>
+    <div className="space-y-6 pb-6" dir="rtl">
+      {/* Header - Visit Info */}
+      <div className="flex items-center gap-3 mb-6">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => navigate(-1)}
+          className="h-10 w-10 shrink-0 rounded-lg border-dashed"
+        >
+          <ArrowRight className="w-5 h-5" />
+        </Button>
+
+        <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 border border-primary/10">
+          <Stethoscope className="h-6 w-6 text-primary" />
         </div>
         
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button variant="outline" size="sm" onClick={openDiagnosisEditModal} className="gap-1.5">
-            <Edit className="w-4 h-4" />
-            عدل التشخيص
-          </Button>
-          <Button variant="outline" size="sm" onClick={openNotesEditModal} className="gap-1.5">
-            <Edit className="w-4 h-4" />
-            عدل الملاحظات
-          </Button>
-          <Button variant="outline" size="sm" onClick={openMedicationsEditModal} className="gap-1.5">
-            <Edit className="w-4 h-4" />
-            عدل الأدوية
-          </Button>
-          {visit?.medications && visit.medications.length > 0 && (
-            <>
-              <Button variant="outline" size="sm" onClick={handleGeneratePdf} className="gap-1.5">
-                <Printer className="w-4 h-4" />
-                طباعة
-              </Button>
-            </>
-          )}
-          <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1.5">
-            <ArrowLeft className="w-4 h-4" />
-            رجوع
-          </Button>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-lg font-bold text-foreground truncate leading-tight">
+            تفاصيل الكشف
+          </h1>
+          <div className="text-sm text-muted-foreground mt-0.5 font-medium flex items-center gap-2">
+            <Calendar className="w-3.5 h-3.5" />
+            {visit?.created_at
+              ? format(new Date(visit.created_at), "d MMMM yyyy - h:mm a", { locale: ar })
+              : "غير محدد"
+            }
+          </div>
         </div>
       </div>
 
-      {/* Info Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {/* Diagnosis */}
-        <Card className="bg-card/50">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between gap-2 text-muted-foreground mb-2">
-              <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4" />
-                <span className="text-xs font-medium">التشخيص</span>
-              </div>
-              <Button variant="ghost" size="sm" onClick={openDiagnosisEditModal} className="h-6 w-6 p-1">
-                <Edit className="w-3 h-3" />
-              </Button>
+      {/* Quick Info Cards */}
+      <div className="grid grid-cols-3 gap-2 md:gap-3">
+        {/* Patient Info */}
+        <Card className="bg-white dark:bg-slate-900 border-border shadow-sm">
+          <CardContent className="p-2 md:p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <User className="w-3.5 h-3.5 md:w-4 md:h-4 text-primary" />
+              <span className="text-[10px] md:text-xs font-medium text-slate-600 dark:text-slate-400">المريض</span>
             </div>
-            <p className="text-sm">{visit?.diagnosis || "لا يوجد"}</p>
+            {visit?.patient ? (
+              <Link to={`/patients/${visit.patient_id}`} className="text-xs md:text-base font-bold text-slate-900 dark:text-slate-100 hover:text-primary hover:underline transition-colors truncate block">
+                {visit.patient.name}
+              </Link>
+            ) : (
+              <p className="text-xs md:text-base font-bold text-slate-900 dark:text-slate-100">غير محدد</p>
+            )}
           </CardContent>
         </Card>
-
-        {/* Notes */}
-        <Card className="bg-card/50">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between gap-2 text-muted-foreground mb-2">
-              <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4" />
-                <span className="text-xs font-medium">ملاحظات</span>
-              </div>
-              <Button variant="ghost" size="sm" onClick={openNotesEditModal} className="h-6 w-6 p-1">
-                <Edit className="w-3 h-3" />
-              </Button>
+        
+        {/* Date Info */}
+        <Card className="bg-white dark:bg-slate-900 border-border shadow-sm">
+          <CardContent className="p-2 md:p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <Calendar className="w-3.5 h-3.5 md:w-4 md:h-4 text-blue-600 dark:text-blue-400" />
+              <span className="text-[10px] md:text-xs font-medium text-slate-600 dark:text-slate-400">التاريخ</span>
             </div>
-            <p className="text-sm whitespace-pre-wrap">{visit?.notes || "لا يوجد"}</p>
+            <p className="text-xs md:text-base font-bold text-slate-900 dark:text-slate-100 truncate">
+              {visit?.created_at ? format(new Date(visit.created_at), "d MMMM yyyy", { locale: ar }) : "-"}
+            </p>
+          </CardContent>
+        </Card>
+        
+        {/* Visit Type/Status */}
+        <Card className="bg-white dark:bg-slate-900 border-border shadow-sm">
+          <CardContent className="p-2 md:p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <Activity className="w-3.5 h-3.5 md:w-4 md:h-4 text-emerald-600 dark:text-emerald-400" />
+              <span className="text-[10px] md:text-xs font-medium text-slate-600 dark:text-slate-400">النوع</span>
+            </div>
+            <p className="text-xs md:text-base font-bold text-slate-900 dark:text-slate-100 truncate">
+               كشف جديد
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Medications */}
-      <Card>
+      {/* Quick Actions */}
+      <Card className="bg-card border-border/50 shadow-sm">
+        <CardHeader className="pb-3 pt-4 px-4 border-b border-border/50 bg-muted/20">
+          <CardTitle className="text-base flex items-center gap-2 text-primary">
+            <ClipboardPlus className="w-5 h-5" />
+            إجراءات سريعة
+          </CardTitle>
+        </CardHeader>
         <CardContent className="p-4">
-          <div className="flex items-center justify-between gap-2 text-muted-foreground mb-3">
-            <div className="flex items-center gap-2">
-              <Pill className="w-4 h-4" />
-              <span className="text-sm font-medium">الأدوية</span>
-            </div>
-            <Button variant="ghost" size="sm" onClick={openMedicationsEditModal} className="h-8 w-8 p-1">
-              <Edit className="w-4 h-4" />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Button 
+                variant="outline" 
+                className="justify-start gap-2 h-11 hover:bg-primary/5 hover:border-primary/30 transition-all shadow-sm" 
+                onClick={openDiagnosisEditModal}
+            >
+                <Edit className="w-4 h-4 text-primary" />
+                تعديل التشخيص
             </Button>
-          </div>
-          {visit?.medications && visit.medications.length > 0 ? (
-            <div className="space-y-2">
-              {visit.medications.map((medication, index) => (
-                <div
-                  key={index}
-                  className="flex items-start gap-3 p-3 rounded-[var(--radius)] bg-muted/50"
+            <Button 
+                variant="outline" 
+                className="justify-start gap-2 h-11 hover:bg-primary/5 hover:border-primary/30 transition-all shadow-sm" 
+                onClick={openNotesEditModal}
+            >
+                <FileText className="w-4 h-4 text-blue-600" />
+                تعديل الملاحظات
+            </Button>
+            <Button 
+                variant="outline" 
+                className="justify-start gap-2 h-11 hover:bg-primary/5 hover:border-primary/30 transition-all shadow-sm" 
+                onClick={openMedicationsEditModal}
+            >
+                <Pill className="w-4 h-4 text-amber-600" />
+                تعديل الأدوية
+            </Button>
+            <Button 
+                variant="outline" 
+                className="justify-start gap-2 h-11 hover:bg-primary/5 hover:border-primary/30 transition-all shadow-sm" 
+                onClick={() => setIsAppointmentDialogOpen(true)}
+            >
+                <CalendarPlus className="w-4 h-4 text-indigo-600" />
+                حجز استشارة
+            </Button>
+            <Button 
+                variant="outline" 
+                className="justify-start gap-2 h-11 hover:bg-primary/5 hover:border-primary/30 transition-all shadow-sm" 
+                onClick={() => setIsUploadDialogOpen(true)}
+            >
+                <FileUp className="w-4 h-4 text-orange-600" />
+                رفع مرفقات
+            </Button>
+            <Button 
+                variant="outline" 
+                className="justify-start gap-2 h-11 hover:bg-primary/5 hover:border-primary/30 transition-all shadow-sm" 
+                onClick={handleSendWhatsApp}
+            >
+                <MessageCircle className="w-4 h-4 text-green-600" />
+                إرسال واتساب
+            </Button>
+            <Button 
+                variant="outline" 
+                className="justify-start gap-2 h-11 hover:bg-primary/5 hover:border-primary/30 transition-all shadow-sm" 
+                onClick={handleCallPatient}
+            >
+                <Phone className="w-4 h-4 text-cyan-600" />
+                اتصال بالمريض
+            </Button>
+            {visit?.medications && visit.medications.length > 0 && (
+                <Button 
+                    variant="outline" 
+                    className="justify-start gap-2 h-11 hover:bg-primary/5 hover:border-primary/30 transition-all shadow-sm" 
+                    onClick={handleGeneratePdf}
                 >
-                  <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                    <span className="text-xs font-medium text-primary">{index + 1}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm">{medication.name}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{medication.using}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">لا توجد أدوية</p>
-          )}
+                    <Printer className="w-4 h-4 text-purple-600" />
+                    طباعة الروشتة
+                </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
 
-      {/* Feature Restricted Modal */}
+      {/* Tabs Content */}
+      <Tabs defaultValue="details" className="w-full" dir="rtl">
+        <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
+          <TabsTrigger value="details">التفاصيل</TabsTrigger>
+          <TabsTrigger value="medications">الأدوية</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="details" className="space-y-4 mt-4">
+          <div className="grid grid-cols-1 gap-4">
+            {/* Diagnosis */}
+            <Card className="bg-card/50">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between gap-2 text-muted-foreground mb-2">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    <span className="text-xs font-medium">التشخيص</span>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={openDiagnosisEditModal} className="h-6 w-6 p-1">
+                    <Edit className="w-3 h-3" />
+                  </Button>
+                </div>
+                <p className="text-sm text-right">{visit?.diagnosis || "لا يوجد"}</p>
+              </CardContent>
+            </Card>
 
-      {/* Diagnosis Edit Modal */}
+            {/* Notes */}
+            <Card className="bg-card/50">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between gap-2 text-muted-foreground mb-2">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    <span className="text-xs font-medium">ملاحظات</span>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={openNotesEditModal} className="h-6 w-6 p-1">
+                    <Edit className="w-3 h-3" />
+                  </Button>
+                </div>
+                <p className="text-sm whitespace-pre-wrap text-right">{visit?.notes || "لا يوجد"}</p>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="medications" className="mt-4">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between gap-2 text-muted-foreground mb-3">
+                <div className="flex items-center gap-2">
+                  <Pill className="w-4 h-4" />
+                  <span className="text-sm font-medium">الأدوية</span>
+                </div>
+                <Button variant="ghost" size="sm" onClick={openMedicationsEditModal} className="h-8 w-8 p-1">
+                  <Edit className="w-4 h-4" />
+                </Button>
+              </div>
+              {visit?.medications && visit.medications.length > 0 ? (
+                <div className="space-y-2">
+                  {visit.medications.map((medication, index) => (
+                    <div
+                      key={index}
+                      className="flex items-start gap-3 p-3 rounded-[var(--radius)] bg-muted/50"
+                    >
+                      <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                        <span className="text-xs font-medium text-primary">{index + 1}</span>
+                      </div>
+                      <div className="flex-1 min-w-0 text-right">
+                        <p className="font-medium text-sm">{medication.name}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{medication.using}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center">لا توجد أدوية</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Modals - Kept same logic */}
       <Dialog open={isDiagnosisEditModalOpen} onOpenChange={setIsDiagnosisEditModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -425,7 +587,6 @@ export default function VisitDetailPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Notes Edit Modal */}
       <Dialog open={isNotesEditModalOpen} onOpenChange={setIsNotesEditModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -452,7 +613,6 @@ export default function VisitDetailPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Medications Edit Modal */}
       <Dialog open={isMedicationsEditModalOpen} onOpenChange={setIsMedicationsEditModalOpen}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -515,6 +675,21 @@ export default function VisitDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Appointment Create Dialog */}
+      <AppointmentCreateDialog 
+        open={isAppointmentDialogOpen} 
+        onClose={() => setIsAppointmentDialogOpen(false)} 
+        initialPatient={visit?.patient}
+      />
+
+      {/* Upload Dialog */}
+      <UploadDialog 
+        open={isUploadDialogOpen} 
+        onOpenChange={setIsUploadDialogOpen} 
+        onUpload={handleUpload} 
+        isUploading={isUploadingAttachment} 
+      />
     </div>
   );
 }

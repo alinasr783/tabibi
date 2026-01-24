@@ -30,7 +30,7 @@ const STEPS = [
 export default function PatientWizardForm({ onSubmit, isSubmitting, initialData, onCancel }) {
   const [currentStep, setCurrentStep] = useState(1);
   const [attachments, setAttachments] = useState([]);
-  const [attachmentDescriptions, setAttachmentDescriptions] = useState([]);
+  const [attachmentTypes, setAttachmentTypes] = useState([]);
   const [isReadyToSubmit, setIsReadyToSubmit] = useState(false);
   
   const { register, control, handleSubmit, trigger, formState: { errors }, watch, reset } = useForm({
@@ -121,11 +121,14 @@ export default function PatientWizardForm({ onSubmit, isSubmitting, initialData,
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
     setAttachments(prev => [...prev, ...files]);
+    // Initialize types with "other" or empty string, and empty descriptions
+    setAttachmentTypes(prev => [...prev, ...new Array(files.length).fill("report")]); 
     setAttachmentDescriptions(prev => [...prev, ...new Array(files.length).fill("")]);
   };
 
   const removeFile = (index) => {
     setAttachments(prev => prev.filter((_, i) => i !== index));
+    setAttachmentTypes(prev => prev.filter((_, i) => i !== index));
     setAttachmentDescriptions(prev => prev.filter((_, i) => i !== index));
   };
   
@@ -134,6 +137,14 @@ export default function PatientWizardForm({ onSubmit, isSubmitting, initialData,
         const newDesc = [...prev];
         newDesc[index] = value;
         return newDesc;
+    });
+  };
+
+  const handleTypeChange = (index, value) => {
+    setAttachmentTypes(prev => {
+        const newTypes = [...prev];
+        newTypes[index] = value;
+        return newTypes;
     });
   };
 
@@ -165,14 +176,17 @@ export default function PatientWizardForm({ onSubmit, isSubmitting, initialData,
     }
 
     // Pass data and attachments to the parent handler
-    await onSubmit(data, attachments, attachmentDescriptions);
+    // We combine description and type into a single metadata object if needed by API
+    // Or pass them as separate arrays depending on API signature
+    // Assuming API takes (data, files, descriptions, types) or similar
+    await onSubmit(data, attachments, attachmentDescriptions, attachmentTypes);
   };
 
   return (
     <div className="w-full max-w-2xl mx-auto" dir="rtl">
       {/* Stepper Header */}
-      <div className="flex justify-between items-center mb-8 relative">
-        <div className="absolute top-1/2 left-0 right-0 h-1 bg-gray-200 -z-10" />
+      <div className="flex justify-between items-center mb-8 relative px-2">
+        <div className="absolute top-1/2 left-0 right-0 h-1 bg-gray-100 -z-10" />
         <div 
           className="absolute top-1/2 right-0 h-1 bg-primary transition-all duration-300 -z-10"
           style={{ width: `${((currentStep - 1) / (STEPS.length - 1)) * 100}%` }}
@@ -184,17 +198,17 @@ export default function PatientWizardForm({ onSubmit, isSubmitting, initialData,
           const isCompleted = step.id < currentStep;
           
           return (
-            <div key={step.id} className="flex flex-col items-center bg-white px-2">
+            <div key={step.id} className="flex flex-col items-center bg-background px-2">
               <div 
                 className={`
-                  w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300
-                  ${isActive ? "border-primary bg-primary text-white scale-110" : 
-                    isCompleted ? "border-primary bg-primary text-white" : "border-gray-300 text-gray-400 bg-white"}
+                  w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300
+                  ${isActive ? "border-primary bg-primary text-white scale-110 shadow-md" : 
+                    isCompleted ? "border-primary bg-primary text-white" : "border-gray-200 text-gray-400 bg-background"}
                 `}
               >
-                {isCompleted ? <Check className="w-5 h-5" /> : <Icon className="w-5 h-5" />}
+                {isCompleted ? <Check className="w-4 h-4 md:w-5 md:h-5" /> : <Icon className="w-4 h-4 md:w-5 md:h-5" />}
               </div>
-              <span className={`text-xs mt-2 font-medium ${isActive ? "text-primary" : "text-gray-500"}`}>
+              <span className={`text-[10px] md:text-xs mt-2 font-medium hidden md:block ${isActive ? "text-primary" : "text-gray-500"}`}>
                 {step.title}
               </span>
             </div>
@@ -417,30 +431,66 @@ export default function PatientWizardForm({ onSubmit, isSubmitting, initialData,
                   </div>
 
                   {attachments.length > 0 && (
-                    <div className="space-y-4">
+                    <div className="space-y-3 mt-4">
                       {attachments.map((file, idx) => (
-                        <div key={idx} className="p-3 bg-white rounded border space-y-2">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="truncate max-w-[200px] font-medium">{file.name}</span>
+                        <div key={idx} className="p-3 bg-white rounded-lg border shadow-sm transition-all hover:shadow-md">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                               <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 text-primary">
+                                  <FileText className="w-5 h-5" />
+                               </div>
+                               <div className="flex-1 min-w-0">
+                                 <p className="text-sm font-medium truncate" title={file.name}>
+                                   {file.name.length > 25 ? file.name.substring(0, 25) + "..." : file.name}
+                                 </p>
+                                 <p className="text-xs text-muted-foreground">
+                                   {(file.size / 1024 / 1024).toFixed(2)} MB
+                                 </p>
+                               </div>
+                            </div>
+                            
                             <Button 
                               type="button" 
                               variant="ghost" 
-                              size="sm" 
+                              size="icon" 
                               onClick={() => removeFile(idx)}
-                              className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                              className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 w-8"
                             >
                               <X className="w-4 h-4" />
                             </Button>
                           </div>
-                          <div className="space-y-1">
-                            <Label htmlFor={`desc-${idx}`} className="text-xs text-muted-foreground">وصف الملف (اختياري)</Label>
-                            <Input 
-                              id={`desc-${idx}`}
-                              placeholder="أدخل وصفاً للملف" 
-                              value={attachmentDescriptions[idx] || ""} 
-                              onChange={(e) => handleDescriptionChange(idx, e.target.value)}
-                              className="h-8 text-sm"
-                            />
+
+                          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                               <Label htmlFor={`type-${idx}`} className="text-xs font-medium text-muted-foreground">نوع الملف</Label>
+                               <Select 
+                                 value={attachmentTypes[idx] || "report"} 
+                                 onValueChange={(val) => handleTypeChange(idx, val)}
+                               >
+                                 <SelectTrigger id={`type-${idx}`} className="h-8 text-xs bg-gray-50/50">
+                                   <SelectValue />
+                                 </SelectTrigger>
+                                 <SelectContent>
+                                   <SelectItem value="report">تقرير طبي</SelectItem>
+                                   <SelectItem value="lab">تحاليل</SelectItem>
+                                   <SelectItem value="xray">أشعة</SelectItem>
+                                   <SelectItem value="prescription">روشتة</SelectItem>
+                                   <SelectItem value="insurance">تأمين</SelectItem>
+                                   <SelectItem value="other">أخرى</SelectItem>
+                                 </SelectContent>
+                               </Select>
+                            </div>
+                            
+                            <div className="space-y-1">
+                              <Label htmlFor={`desc-${idx}`} className="text-xs font-medium text-muted-foreground">ملاحظات (اختياري)</Label>
+                              <Input 
+                                id={`desc-${idx}`}
+                                placeholder="وصف للملف..." 
+                                value={attachmentDescriptions[idx] || ""} 
+                                onChange={(e) => handleDescriptionChange(idx, e.target.value)}
+                                className="h-8 text-xs bg-gray-50/50"
+                              />
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -453,34 +503,36 @@ export default function PatientWizardForm({ onSubmit, isSubmitting, initialData,
         </AnimatePresence>
 
         {/* Navigation Actions */}
-        <div className="flex justify-between pt-6 border-t mt-8">
-          <div className="flex gap-2">
-            {currentStep > 1 && (
-              <Button type="button" variant="outline" onClick={prevStep}>
-                <ChevronRight className="w-4 h-4 ml-2" />
-                السابق
-              </Button>
-            )}
-            
-            {onCancel && (
-              <Button type="button" variant="outline" onClick={onCancel}>
-                إلغاء
-              </Button>
-            )}
-          </div>
+        <div className="flex gap-2 pt-6 border-t mt-8 w-full">
+      <div className="w-1/4 flex gap-2">
+        {currentStep > 1 && (
+          <Button type="button" variant="outline" onClick={prevStep} className="w-full">
+            <ChevronRight className="w-4 h-4 ml-2" />
+            السابق
+          </Button>
+        )}
+        
+        {onCancel && !((currentStep > 1)) && (
+          <Button type="button" variant="outline" onClick={onCancel} className="w-full">
+            إلغاء
+          </Button>
+        )}
+      </div>
 
-          {currentStep < STEPS.length ? (
-            <Button type="button" onClick={nextStep}>
-              التالي
-              <ChevronLeft className="w-4 h-4 mr-2" />
-            </Button>
-          ) : (
-            <Button type="submit" disabled={isSubmitting || !isReadyToSubmit}>
-              {isSubmitting ? "جاري الحفظ..." : (initialData ? "تحديث البيانات" : "حفظ المريض")}
-              <Check className="w-4 h-4 mr-2" />
-            </Button>
-          )}
-        </div>
+      <div className="w-3/4">
+        {currentStep < STEPS.length ? (
+          <Button type="button" onClick={nextStep} className="w-full">
+            التالي
+            <ChevronLeft className="w-4 h-4 mr-2" />
+          </Button>
+        ) : (
+          <Button type="submit" disabled={isSubmitting || !isReadyToSubmit} className="w-full">
+            {isSubmitting ? "جاري الحفظ..." : (initialData ? "تحديث البيانات" : "حفظ المريض")}
+            <Check className="w-4 h-4 mr-2" />
+          </Button>
+        )}
+      </div>
+    </div>
       </form>
     </div>
   );
