@@ -11,6 +11,7 @@ const firebaseConfig = {
   storageBucket: "tabibi-813f7.firebasestorage.app",
   messagingSenderId: "927864027980",
   appId: "1:927864027980:web:3fb30ba2cc8d541e89ede9",
+  // Note: An additional Google Analytics tag (G-WNK347J2TS) is manually added in index.html
   measurementId: "G-Q8WKGL7MSM"
 };
 
