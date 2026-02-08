@@ -1,10 +1,11 @@
 import { Badge } from "../../../components/ui/badge";
 import { formatCurrency } from "../../../lib/utils";
-import { Zap } from "lucide-react";
+import { Zap, Layers } from "lucide-react";
 import { APPS_ICON_REGISTRY } from "../appsRegistry";
 
 export default function AppHero({ app, isInstalled }) {
   const Icon = APPS_ICON_REGISTRY[app.icon_name] || Zap;
+  const isIntegrationSupported = app.integration_type && app.integration_type !== 'none';
 
   const getBillingPeriodLabel = (period) => {
     const map = {
@@ -40,6 +41,12 @@ export default function AppHero({ app, isInstalled }) {
               <Badge variant="outline" className="border-primary/20 bg-primary/5 text-primary">
                 {app.category}
               </Badge>
+              {isIntegrationSupported && (
+                <Badge variant="outline" className="border-blue-200 bg-blue-50 text-blue-700 flex items-center gap-1">
+                  <Layers className="w-3 h-3" />
+                  يدعم الدمج
+                </Badge>
+              )}
               {isInstalled && <Badge className="bg-green-500 hover:bg-green-600">مفعل</Badge>}
             </div>
           </div>

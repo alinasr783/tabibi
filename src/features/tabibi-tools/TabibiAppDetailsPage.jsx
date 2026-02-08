@@ -90,6 +90,7 @@ export default function TabibiAppDetailsPage() {
       <AppActionBar 
         app={app} 
         isInstalled={isInstalled} 
+        subscription={subscription}
         installMutation={installMutation} 
         uninstallMutation={uninstallMutation} 
       />

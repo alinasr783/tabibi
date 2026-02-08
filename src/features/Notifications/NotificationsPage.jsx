@@ -252,10 +252,18 @@ export default function NotificationsPage() {
                   {notification.message}
                 </p>
                 
-                <p className="text-xs text-muted-foreground/60 pt-1 flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
-                  {formatEgyptianDate(notification.created_at)}
-                </p>
+                <div className="flex items-center gap-4 pt-1">
+                    <p className="text-xs text-muted-foreground/60 flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    {formatEgyptianDate(notification.created_at)}
+                    </p>
+                    {notification.image_url && (
+                        <span className="text-xs text-primary flex items-center gap-1 bg-primary/10 px-2 py-0.5 rounded-full">
+                            <Eye className="h-3 w-3" />
+                            مرفق صورة
+                        </span>
+                    )}
+                </div>
 
                 {/* Action Buttons Rendering */}
                 {notification.action_buttons && Array.isArray(notification.action_buttons) && notification.action_buttons.length > 0 ? (
@@ -314,97 +322,106 @@ export default function NotificationsPage() {
 
       {/* Details Modal */}
       <Dialog open={!!selectedNotification} onOpenChange={(open) => !open && setSelectedNotification(null)}>
-        <DialogContent className="sm:max-w-[500px] text-right" dir="rtl">
-          {/* Close Button */}
-          <button 
-            onClick={() => setSelectedNotification(null)}
-            className="absolute left-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
-          >
-            <X className="h-4 w-4" />
-            <span className="sr-only">Close</span>
-          </button>
+        <DialogContent className="sm:max-w-[500px] text-right p-0 overflow-hidden gap-0" dir="rtl">
+          
+          {/* Header Actions */}
+          <div className="absolute left-4 top-4 flex items-center gap-2 z-50">
+             <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10 rounded-full"
+                onClick={() => {
+                    deleteNotification(selectedNotification.id);
+                    setSelectedNotification(null);
+                }}
+                title="حذف الاشعار"
+             >
+                <Trash2 className="h-4 w-4" />
+             </Button>
+             <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground rounded-full"
+                onClick={() => setSelectedNotification(null)}
+             >
+                <X className="h-4 w-4" />
+                <span className="sr-only">Close</span>
+             </Button>
+          </div>
 
-          <DialogHeader className="text-right space-y-4">
-            <div className="flex items-center gap-3">
+          <DialogHeader className="p-6 pb-2 text-right space-y-4">
+            <div className="flex items-center gap-3 pr-8">
               <NotificationIcon type={selectedNotification?.type} />
-              <DialogTitle className="text-xl">{selectedNotification?.title}</DialogTitle>
+              <DialogTitle className="text-xl leading-normal">{selectedNotification?.title}</DialogTitle>
             </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mr-1">
               <Calendar className="h-4 w-4" />
               <span>{formatEgyptianDate(selectedNotification?.created_at)}</span>
             </div>
           </DialogHeader>
 
-          <div className="py-6">
+          <div className="p-6 pt-2 overflow-y-auto max-h-[60vh]">
             {selectedNotification?.image_url && (
-              <img 
-                src={selectedNotification.image_url} 
-                alt="Notification" 
-                className="w-full h-48 object-cover rounded-lg mb-4"
-              />
+                <div className="mb-4 rounded-lg overflow-hidden border bg-muted/20">
+                    <img 
+                        src={selectedNotification.image_url} 
+                        alt="Notification" 
+                        className="w-full h-auto max-h-[300px] object-contain mx-auto"
+                    />
+                </div>
             )}
             <p className="text-base leading-loose text-foreground/90 whitespace-pre-wrap">
               {selectedNotification?.message}
             </p>
           </div>
 
-          <DialogFooter className="flex-col sm:flex-row gap-2 sm:justify-start">
-            {(() => {
-              const actions = parseActionButtons(selectedNotification?.action_buttons);
-              if (actions.length > 0) {
-                return actions.map((btn, idx) => (
-                  <Button 
-                    key={idx}
-                    variant={btn.variant || "default"}
-                    onClick={() => {
-                      if (btn.link) {
-                        // Check if external link
-                        if (btn.link.startsWith('http')) {
-                          window.open(btn.link, '_blank');
-                        } else {
-                          navigate(btn.link);
+          {(selectedNotification?.action_buttons || selectedNotification?.action_link) && (
+            <DialogFooter className="p-6 pt-0 flex-col sm:flex-row gap-2 sm:justify-start">
+                {(() => {
+                const actions = parseActionButtons(selectedNotification?.action_buttons);
+                if (actions.length > 0) {
+                    return actions.map((btn, idx) => (
+                    <Button 
+                        key={idx}
+                        variant={btn.variant || "default"}
+                        onClick={() => {
+                        if (btn.link) {
+                            if (btn.link.startsWith('http')) {
+                            window.open(btn.link, '_blank');
+                            } else {
+                            navigate(btn.link);
+                            }
+                            setSelectedNotification(null);
                         }
-                        setSelectedNotification(null);
-                      }
-                    }} 
-                    className="w-full sm:w-auto"
-                  >
-                    {btn.text}
-                  </Button>
-                ));
-              } else if (selectedNotification?.action_link) {
-                return (
-                   <Button 
-                     onClick={() => {
-                       if (selectedNotification.action_link) {
-                         if (selectedNotification.action_link.startsWith('http')) {
-                           window.open(selectedNotification.action_link, '_blank');
-                         } else {
-                           navigate(selectedNotification.action_link);
-                         }
-                         setSelectedNotification(null);
-                       }
-                     }} 
-                     className="w-full sm:w-auto"
-                   >
-                     {selectedNotification.action_text || "عرض التفاصيل"}
-                   </Button>
-                );
-              }
-              return null;
-            })()}
-            <Button 
-              variant="destructive" 
-              onClick={() => {
-                deleteNotification(selectedNotification.id);
-                setSelectedNotification(null);
-              }}
-              className="w-full sm:w-auto"
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              حذف الاشعار
-            </Button>
-          </DialogFooter>
+                        }} 
+                        className="w-full sm:w-auto"
+                    >
+                        {btn.text}
+                    </Button>
+                    ));
+                } else if (selectedNotification?.action_link) {
+                    return (
+                    <Button 
+                        onClick={() => {
+                        if (selectedNotification.action_link) {
+                            if (selectedNotification.action_link.startsWith('http')) {
+                            window.open(selectedNotification.action_link, '_blank');
+                            } else {
+                            navigate(selectedNotification.action_link);
+                            }
+                            setSelectedNotification(null);
+                        }
+                        }} 
+                        className="w-full sm:w-auto"
+                    >
+                        {selectedNotification.action_text || "عرض التفاصيل"}
+                    </Button>
+                    );
+                }
+                return null;
+                })()}
+            </DialogFooter>
+          )}
         </DialogContent>
       </Dialog>
     </div>

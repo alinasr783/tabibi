@@ -14,6 +14,7 @@ import ProtectedRoute from "./features/auth/ProtectedRoute";
 import PublicRoute from "./features/auth/PublicRoute";
 import SubscriptionExpiryGuard from "./features/auth/SubscriptionExpiryGuard";
 import NoSubscriptionGuard from "./features/auth/NoSubscriptionGuard";
+import IntegrationGuard from "./features/tabibi-tools/components/IntegrationGuard";
 import AppointmentDetailPage from "./features/calendar/AppointmentDetailPage";
 import PatientDetailPage from "./features/patients/PatientDetailPage";
 import PatientPlanDetailPage from "./features/patients/PatientPlanDetailPage";
@@ -206,7 +207,9 @@ function AppRoutes() {
           element={
             <PermissionGuard requiredPermission="clinic">
               <SubscriptionExpiryGuard>
-                <MemoizedOnlineBooking />
+                <IntegrationGuard target="/online-booking">
+                  <MemoizedOnlineBooking />
+                </IntegrationGuard>
               </SubscriptionExpiryGuard>
             </PermissionGuard>
           }

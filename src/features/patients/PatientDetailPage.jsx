@@ -31,6 +31,7 @@ import usePatientFinancialData from "./usePatientFinancialData";
 import { Eye } from "lucide-react";
 import PatientTransactionDialog from "./PatientTransactionDialog";
 import { toast } from "sonner";
+import ExtensionSlot from "../tabibi-tools/components/ExtensionSlot";
 
 export default function PatientDetailPage() {
   const { id: patientId } = useParams();
@@ -316,6 +317,9 @@ export default function PatientDetailPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Extension Slot: Patient Summary */}
+          <ExtensionSlot name="patient_summary" context={{ patientId, patient }} />
 
           {/* Tabs for Sections */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full" style={{ direction: 'rtl' }}>

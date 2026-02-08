@@ -1,17 +1,17 @@
 import { useState } from "react";
 import { Button } from "../../../components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../../../components/ui/dialog";
-import { Loader2, Eye, Wallet, CreditCard, Phone, Zap } from "lucide-react";
+import { Loader2, Eye, Wallet, CreditCard, Phone, Zap, Layers, CheckCircle2 } from "lucide-react";
 import { formatCurrency } from "../../../lib/utils";
 import useWallet from "../../clinic/useWallet";
 import useClinic from "../../auth/useClinic";
-import { subscribeWithWallet } from "../../../services/apiTabibiApps";
+import { subscribeWithWallet, toggleAppIntegration } from "../../../services/apiTabibiApps";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import { initiatePayment } from "../../../services/easykashService";
 import { useAuth } from "../../../features/auth/AuthContext";
 
-export default function AppActionBar({ app, isInstalled, uninstallMutation }) {
+export default function AppActionBar({ app, isInstalled, subscription, uninstallMutation }) {
   const { data: clinic } = useClinic();
   const { wallet, isLoading: isWalletLoading } = useWallet();
   const { user } = useAuth();
@@ -85,6 +85,18 @@ export default function AppActionBar({ app, isInstalled, uninstallMutation }) {
     }
   });
 
+  const toggleIntegrationMutation = useMutation({
+    mutationFn: (newStatus) => toggleAppIntegration(subscription?.subscriptionId, newStatus),
+    onSuccess: (data) => {
+      const status = data.is_integrated ? "تفعيل" : "إلغاء";
+      toast.success(`تم ${status} الدمج بنجاح`);
+      queryClient.invalidateQueries(["installed_apps"]);
+    },
+    onError: (err) => {
+      toast.error(`حدث خطأ: ${err.message}`);
+    }
+  });
+
   const getBillingPeriodLabel = (period) => {
     const map = {
       'monthly': 'شهرياً',
@@ -96,6 +108,9 @@ export default function AppActionBar({ app, isInstalled, uninstallMutation }) {
 
   const walletBalance = wallet?.balance || 0;
   const canAfford = walletBalance >= app.price;
+
+  const isIntegrationSupported = app.integration_type && app.integration_type !== 'none';
+  const isIntegrated = subscription?.isIntegrated;
 
   return (
     <div>
@@ -119,16 +134,41 @@ export default function AppActionBar({ app, isInstalled, uninstallMutation }) {
           )}
 
           {isInstalled ? (
-            <Button 
-                variant="outline" 
-                className="flex-[2] md:w-auto md:min-w-[200px] gap-2 border-primary/20 hover:bg-primary/5"
-                onClick={() => {
-                    window.open("https://wa.me/201158954215", "_blank");
-                }}
-            >
-                <Phone className="w-4 h-4 text-primary" />
-                تواصل مع الدعم
-            </Button>
+            <div className="flex gap-2 w-full md:w-auto">
+                <Button 
+                    variant="outline" 
+                    className="flex-1 md:w-auto md:min-w-[150px] gap-2 border-primary/20 hover:bg-primary/5"
+                    onClick={() => {
+                        window.open("https://wa.me/201158954215", "_blank");
+                    }}
+                >
+                    <Phone className="w-4 h-4 text-primary" />
+                    الدعم
+                </Button>
+
+                {isIntegrationSupported && (
+                    <Button
+                        variant={isIntegrated ? "secondary" : "default"}
+                        className={`flex-1 md:w-auto md:min-w-[150px] gap-2 ${isIntegrated ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}
+                        onClick={() => toggleIntegrationMutation.mutate(!isIntegrated)}
+                        disabled={toggleIntegrationMutation.isPending}
+                    >
+                        {toggleIntegrationMutation.isPending ? (
+                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : isIntegrated ? (
+                            <>
+                                <CheckCircle2 className="w-4 h-4" />
+                                تم الدمج
+                            </>
+                        ) : (
+                            <>
+                                <Layers className="w-4 h-4" />
+                                الدمج في Tabibi
+                            </>
+                        )}
+                    </Button>
+                )}
+            </div>
           ) : (
             <>
               {canAfford ? (

@@ -75,6 +75,8 @@ export async function getAppById(id) {
     screenshots: app.screenshots || [],
     icon_name: app.icon_name || null,
     preview_link: app.preview_link || null,
+    integration_type: app.integration_type || 'none',
+    integration_target: app.integration_target || null,
     latest_version: null, // Legacy doesn't support versions
   };
 }
@@ -107,6 +109,9 @@ export async function getInstalledApps(clinicId) {
     icon_name: item.app?.icon_name || null,
     preview_link: item.app?.preview_link || null,
     component_key: item.app?.component_key,
+    integration_type: item.app?.integration_type || 'none',
+    integration_target: item.app?.integration_target || null,
+    isIntegrated: item.is_integrated,
     subscriptionId: item.id,
     installedAt: item.created_at,
     expiresAt: item.current_period_end,
@@ -316,9 +321,21 @@ export async function uninstallApp(clinicId, appId) {
   // Cancel subscription (don't delete)
   const { error } = await supabase
     .from("app_subscriptions")
-    .update({ status: 'cancelled' })
+    .update({ status: 'cancelled', is_integrated: false })
     .eq("clinic_id", clinicId)
     .eq("app_id", appId);
 
   if (error) throw error;
+}
+
+export async function toggleAppIntegration(subscriptionId, isIntegrated) {
+  const { data, error } = await supabase
+    .from("app_subscriptions")
+    .update({ is_integrated: isIntegrated })
+    .eq("id", subscriptionId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
 }

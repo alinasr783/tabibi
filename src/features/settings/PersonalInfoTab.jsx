@@ -252,7 +252,7 @@ export default function PersonalInfoTab() {
                 {/* Avatar */}
                 <div className="flex flex-col items-center gap-4 p-4 border rounded-lg bg-muted/10">
                   <div className="relative group">
-                    <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-muted bg-muted flex items-center justify-center">
+                    <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-muted bg-muted flex items-center justify-center relative">
                       {formData.avatar_url ? (
                         <img 
                           src={formData.avatar_url} 
@@ -268,12 +268,15 @@ export default function PersonalInfoTab() {
                         </div>
                       )}
                     </div>
-                    <Label 
-                      htmlFor="avatar-upload" 
-                      className="absolute bottom-0 right-0 p-1.5 bg-primary text-primary-foreground rounded-full cursor-pointer hover:bg-primary/90 transition-colors shadow-sm"
-                    >
-                      <Upload className="w-3 h-3" />
-                    </Label>
+                    <div className="mt-3">
+                      <Label 
+                        htmlFor="avatar-upload" 
+                        className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md text-sm font-medium transition-colors"
+                      >
+                        <Upload className="w-4 h-4" />
+                        تغيير الصورة
+                      </Label>
+                    </div>
                     <Input
                       id="avatar-upload"
                       type="file"
@@ -291,31 +294,32 @@ export default function PersonalInfoTab() {
 
                 {/* Banner */}
                 <div className="flex flex-col items-center gap-4 p-4 border rounded-lg bg-muted/10">
-                  <div className="relative group w-full h-24 rounded-md overflow-hidden border-2 border-muted bg-muted flex items-center justify-center">
-                    {formData.banner_url ? (
-                      <img 
-                        src={formData.banner_url} 
-                        alt="Banner" 
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                        <span className="text-xs">لا يوجد غلاف</span>
-                      </div>
-                    )}
-                    {uploadingBanner && (
-                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                        <Loader2 className="w-5 h-5 text-white animate-spin" />
-                      </div>
-                    )}
-                    
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20">
+                  <div className="w-full relative group">
+                    <div className="w-full h-32 rounded-md overflow-hidden border-2 border-muted bg-muted flex items-center justify-center relative">
+                      {formData.banner_url ? (
+                        <img 
+                          src={formData.banner_url} 
+                          alt="Banner" 
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                          <span className="text-xs">لا يوجد غلاف</span>
+                        </div>
+                      )}
+                      {uploadingBanner && (
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                          <Loader2 className="w-5 h-5 text-white animate-spin" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="mt-3 flex justify-center">
                         <Label 
                         htmlFor="banner-upload" 
-                        className="cursor-pointer bg-black/60 text-white px-3 py-1.5 rounded-full text-xs flex items-center gap-2 hover:bg-black/80 transition-colors"
+                        className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-secondary text-secondary-foreground hover:bg-secondary/90 rounded-md text-sm font-medium transition-colors"
                         >
-                        <Upload className="w-3 h-3" />
-                        رفع غلاف
+                        <Upload className="w-4 h-4" />
+                        {formData.banner_url ? 'تغيير الغلاف' : 'رفع غلاف'}
                         </Label>
                     </div>
                     <Input
