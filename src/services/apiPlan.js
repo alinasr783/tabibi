@@ -33,7 +33,7 @@ export async function getCurrentPlan() {
     console.log("Fetching active subscription for clinic_id:", userData.clinic_id)
     const { data, error } = await supabase
         .from('subscriptions')
-        .select('*, plans(*)')
+        .select('*, plans:plan_id(*)')
         .eq('clinic_id', userData.clinic_id)
         .eq('status', 'active')
         .single()

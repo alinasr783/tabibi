@@ -19,7 +19,7 @@ export async function createTreatmentTemplate(payload) {
     // get clinic subscription plan
     const { data: subscription } = await supabase
         .from('subscriptions')
-        .select('*, plans(limits)')
+        .select('*, plans:plan_id(limits)')
         .eq('clinic_id', userData.clinic_id)
         .eq('status', 'active')
         .single()

@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useForm } from "react-hook-form"
+import { useForm, Controller } from "react-hook-form"
 import toast from "react-hot-toast"
 import { Button } from "../../components/ui/button"
 import { Input } from "../../components/ui/input"
@@ -14,6 +14,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select"
 import { Label } from "../../components/ui/label"
 
 const STEPS = {
@@ -60,6 +67,7 @@ export default function SignupForm() {
     watch,
     formState: { errors },
     trigger,
+    control,
   } = useForm()
 
   const { mutate: signup, isPending: isSigningUp } = useSignup()
