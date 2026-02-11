@@ -31,33 +31,12 @@ export default function Pricing() {
   const isFreePlan = !currentPlan || currentPlan.name === "Free" || currentPlan.name === "باقة مجانية";
   
   // Get plan limits
-  let patientLimit = 50;
-  let appointmentLimit = 200;
-  
-  if (planLimits) {
-    patientLimit = planLimits.maxPatients || 50;
-    appointmentLimit = planLimits.maxAppointments || 200;
-  } else if (currentPlan?.limits) {
-    try {
-      const limits = typeof currentPlan.limits === 'string' 
-        ? JSON.parse(currentPlan.limits) 
-        : currentPlan.limits;
-      
-      if (limits.max_patients !== undefined) {
-        patientLimit = limits.max_patients;
-      }
-      
-      if (limits.max_appointments !== undefined) {
-        appointmentLimit = limits.max_appointments;
-      }
-    } catch (e) {
-      console.warn("Failed to parse embedded plan limits:", e);
-    }
-  }
+  let patientLimit = planLimits?.maxPatients || 0;
+  let appointmentLimit = planLimits?.maxAppointments || 0;
   
   // Calculate usage percentages with safety checks
-  const patientUsagePercentage = patientLimit && patientLimit !== Infinity && (patientCount !== undefined && patientCount !== null)
-    ? Math.min(100, Math.max(0, Math.round((patientCount / patientLimit) * 100)))
+  const patientUsagePercentage = patientLimit && patientLimit !== Infinity && usageStats?.monthlyPatients
+    ? Math.min(100, Math.max(0, Math.round((usageStats.monthlyPatients / patientLimit) * 100)))
     : 0;
     
   const appointmentUsagePercentage = appointmentLimit && appointmentLimit !== Infinity && usageStats?.monthlyAppointments
@@ -255,9 +234,9 @@ export default function Pricing() {
                 <div className="mb-4">
                   <UsageProgressBar 
                     percentage={patientUsagePercentage}
-                    used={patientCount || 0}
+                    used={usageStats?.monthlyPatients || 0}
                     limit={patientLimit}
-                    label="المرضى"
+                    label="المرضى الجدد شهرياً"
                     icon={Users}
                   />
                 </div>

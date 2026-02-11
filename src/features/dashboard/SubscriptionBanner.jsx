@@ -53,33 +53,15 @@ export default function SubscriptionBanner() {
   const isFree = !plan || planName === "Free" || planName === "باقة مجانية";
 
   // Get plan limits
-  let patientLimit = 50;
-  let appointmentLimit = 200;
+  let patientLimit = planLimits?.maxPatients || 0;
+  let appointmentLimit = planLimits?.maxAppointments || 0;
   
-  if (planLimits) {
-    patientLimit = planLimits.maxPatients || 50;
-    appointmentLimit = planLimits.maxAppointments || 200;
-  } else if (plan?.limits) {
-    try {
-      const limits = typeof plan.limits === 'string' 
-        ? JSON.parse(plan.limits) 
-        : plan.limits;
-      
-      if (limits.max_patients !== undefined) {
-        patientLimit = limits.max_patients;
-      }
-      
-      if (limits.max_appointments !== undefined) {
-        appointmentLimit = limits.max_appointments;
-      }
-    } catch (e) {
-      console.warn("Failed to parse embedded plan limits:", e);
-    }
-  }
+  console.log("Patient limit:", patientLimit);
+  console.log("Appointment limit:", appointmentLimit);
 
   // Calculate usage percentages with safety checks
-  const patientUsagePercentage = patientLimit && patientLimit !== Infinity && (patientCount !== undefined && patientCount !== null)
-    ? Math.min(100, Math.max(0, Math.round((patientCount / patientLimit) * 100)))
+  const patientUsagePercentage = patientLimit && patientLimit !== Infinity && usageStats?.monthlyPatients
+    ? Math.min(100, Math.max(0, Math.round((usageStats.monthlyPatients / patientLimit) * 100)))
     : 0;
     
   const appointmentUsagePercentage = appointmentLimit && appointmentLimit !== Infinity && usageStats?.monthlyAppointments
@@ -197,9 +179,9 @@ export default function SubscriptionBanner() {
                 {/* Patient Usage */}
                 <UsageProgressBar 
                   percentage={patientUsagePercentage}
-                  used={patientCount || 0}
+                  used={usageStats?.monthlyPatients || 0}
                   limit={patientLimit}
-                  label="المرضى"
+                  label="المرضى الجدد"
                   icon={Users}
                 />
                 
