@@ -1,6 +1,11 @@
 import supabase from "./supabase"
 import { createPublicNotification } from "./apiNotifications"
 import { addToGoogleCalendar } from "./integrationService"
+import {
+    normalizePlanLimits,
+    requireActiveSubscription,
+    assertMonthlyLimit,
+} from "./subscriptionEnforcement"
 
 export async function getAppointments(search, page, pageSize, filters = {}) {
     // Get current user's clinic_id
@@ -188,43 +193,21 @@ export async function createAppointment(payload) {
     // The clinic_id in users table is the UUID for the clinics table
     const clinicUuid = userData.clinic_id
 
-    /* 
-    // Check plan limits - DISABLED by user request
-    /*
-    const { data: clinicData } = await supabase
-        .from("clinics")
-        .select("current_plan")
-        .eq("clinic_uuid", clinicUuid) // Use clinic_uuid to find the clinic
-        .single()
+    const subscription = await requireActiveSubscription(clinicUuid)
+    const limits = normalizePlanLimits(subscription?.plans?.limits)
 
-    const currentPlan = clinicData?.current_plan || 'free'
-    const { data: planLimits } = await supabase
-        .from("plans")
-        .select("limits")
-        .eq("id", currentPlan)
-        .single()
-
-    const maxAppointments = planLimits?.limits?.appointments || 50 // Default for free plan if not found
-
-    // Check usage for CURRENT MONTH
-    const now = new Date()
-    // Start of current month
-    const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
-
-    if (maxAppointments !== -1) {
-        // 3. احسب عدد المرضى المضافين في الشهر الحالي فقط
-        const { count } = await supabase
-            .from('appointments')
-            .select('*', { count: 'exact', head: true })
-            .eq('clinic_id', clinicUuid) // Appointments use clinic_id (UUID)
-            .gte('created_at', periodStart) // أهم شرط: أكبر من أو يساوي تاريخ بداية الباقة
-
-        // 4. المقارنة الحاسمة
-        if (count >= maxAppointments) {
-            throw new Error("لقد تجاوزت الحد المسموح من المواعيد لهذا الشهر. يرجى ترقية الباقة.")
-        }
+    if (!payload?.date) {
+        throw new Error("تاريخ الموعد مطلوب")
     }
-    */
+
+    await assertMonthlyLimit({
+        clinicId: clinicUuid,
+        table: "appointments",
+        dateColumn: "date",
+        monthDate: payload.date,
+        maxAllowed: limits.maxAppointments,
+        errorMessage: "لقد تجاوزت الحد المسموح من المواعيد لهذا الشهر. يرجى ترقية الباقة.",
+    })
     
     // Add clinic_id to the appointment data (UUID type for appointments table)
     const appointmentData = {
@@ -402,11 +385,27 @@ export async function createAppointmentPublic(payload, clinicId) {
     // Convert clinicId to string for JSON serialization
     const clinicIdString = clinicId.toString();
 
+    const subscription = await requireActiveSubscription(clinicIdString)
+    const limits = normalizePlanLimits(subscription?.plans?.limits)
+
+    if (!payload?.date) {
+        throw new Error("تاريخ الموعد مطلوب")
+    }
+
+    await assertMonthlyLimit({
+        clinicId: clinicIdString,
+        table: "appointments",
+        dateColumn: "date",
+        monthDate: payload.date,
+        maxAllowed: limits.maxAppointments,
+        errorMessage: "لقد تجاوزت الحد المسموح من المواعيد لهذا الشهر. يرجى ترقية الباقة.",
+    })
+
     // Check for appointment conflicts if enabled
     const { data: clinicData } = await supabase
         .from('clinics')
         .select('prevent_conflicts, min_time_gap')
-        .eq('id', clinicIdString)
+        .eq('clinic_uuid', clinicIdString)
         .single();
 
     if (clinicData?.prevent_conflicts) {

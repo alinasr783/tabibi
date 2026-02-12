@@ -5,8 +5,6 @@ export default function usePlanLimits(clinicId) {
     return useQuery({
         queryKey: ["planLimits", clinicId],
         queryFn: async () => {
-            console.log("=== DEBUG: usePlanLimits started ===");
-            
             let effectiveClinicId = clinicId;
 
             // Get current user's clinic_id if not provided
@@ -24,21 +22,19 @@ export default function usePlanLimits(clinicId) {
                 effectiveClinicId = userData?.clinic_id;
             }
 
-            // Default limits for "No Subscription" or "Free" state
-            const defaultLimits = {
-                maxPatients: 10, // Small limit for free/no subscription
-                maxAppointments: 20,
-                maxTreatmentTemplates: 5,
-                features: {
-                    income: true,
-                    whatsapp: false,
-                    watermark: true
-                }
-            };
-
             if (!effectiveClinicId) {
-                console.log("No clinic ID available, returning default limits");
-                return defaultLimits;
+                return {
+                    hasActiveSubscription: false,
+                    maxPatients: 0,
+                    maxAppointments: 0,
+                    maxTreatmentTemplates: 0,
+                    maxSecretaries: 0,
+                    features: {
+                        income: false,
+                        whatsapp: false,
+                        watermark: true
+                    }
+                };
             }
 
             // Get active subscription with embedded plan data
@@ -59,17 +55,29 @@ export default function usePlanLimits(clinicId) {
 
             if (subscriptionError) {
                 if (subscriptionError.code === "PGRST116") {
-                    console.log("No active subscription found, returning default limits");
-                    return defaultLimits;
+                    return {
+                        hasActiveSubscription: false,
+                        maxPatients: 0,
+                        maxAppointments: 0,
+                        maxTreatmentTemplates: 0,
+                        maxSecretaries: 0,
+                        features: {
+                            income: false,
+                            whatsapp: false,
+                            watermark: true
+                        }
+                    };
                 }
                 throw subscriptionError;
             }
 
             // Initialize planLimits with defaults, then override with plan data
             let planLimits = {
+                hasActiveSubscription: true,
                 maxPatients: 0,
                 maxAppointments: 0,
                 maxTreatmentTemplates: 0,
+                maxSecretaries: 0,
                 features: {
                     income: true,
                     whatsapp: false,
@@ -77,31 +85,35 @@ export default function usePlanLimits(clinicId) {
                 }
             };
 
-            console.log("Subscription raw data:", subscription);
-
             // Parse plan limits from the embedded subscription data
             if (subscription.plans) {
                 const rawLimits = subscription.plans.limits;
-                console.log("Raw limits from DB:", rawLimits);
 
                 try {
                     const limits = typeof rawLimits === 'string' 
                         ? JSON.parse(rawLimits) 
                         : rawLimits;
-                    
-                    console.log("Parsed limits:", limits);
 
                     if (limits && typeof limits === 'object') {
                         if (limits.max_patients !== undefined) {
-                            planLimits.maxPatients = Number(limits.max_patients);
+                            const n = Number(limits.max_patients);
+                            planLimits.maxPatients = n === -1 ? Infinity : n;
                         }
                         
                         if (limits.max_appointments !== undefined) {
-                            planLimits.maxAppointments = Number(limits.max_appointments);
+                            const n = Number(limits.max_appointments);
+                            planLimits.maxAppointments = n === -1 ? Infinity : n;
                         }
                         
                         if (limits.max_treatment_templates !== undefined) {
-                            planLimits.maxTreatmentTemplates = Number(limits.max_treatment_templates);
+                            const n = Number(limits.max_treatment_templates);
+                            planLimits.maxTreatmentTemplates = n === -1 ? Infinity : n;
+                        }
+
+                        if (limits.secretary !== undefined || limits.max_secretaries !== undefined) {
+                            const raw = limits.secretary !== undefined ? limits.secretary : limits.max_secretaries;
+                            const n = Number(raw);
+                            planLimits.maxSecretaries = n === -1 ? Infinity : n;
                         }
                         
                         if (limits.features) {
@@ -116,7 +128,6 @@ export default function usePlanLimits(clinicId) {
                 }
             }
 
-            console.log("Final plan limits:", planLimits);
             return planLimits;
         },
         enabled: true,

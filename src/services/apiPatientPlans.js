@@ -1,4 +1,5 @@
 import supabase from "./supabase";
+import { requireActiveSubscription } from "./subscriptionEnforcement";
 
 export async function createPatientPlan(payload) {
     // Get current user's clinic_id
@@ -12,6 +13,8 @@ export async function createPatientPlan(payload) {
         .single();
 
     if (!userData?.clinic_id) throw new Error("User has no clinic assigned");
+
+    await requireActiveSubscription(userData.clinic_id);
 
     // Add clinic_id to the patient plan data
     const patientPlanData = {

@@ -1,5 +1,10 @@
 import supabase from "./supabase"
 import { generateClinicId } from "../lib/clinicIdGenerator"
+import {
+  normalizePlanLimits,
+  requireActiveSubscription,
+  assertCountLimit,
+} from "./subscriptionEnforcement"
 
 // Check if email already exists
 export async function checkEmailExists(email) {
@@ -432,6 +437,17 @@ export async function addSecretary({ name, email, password, phone, clinicId, per
   if (password.length < 6) {
     throw new Error("كلمة السر لازم 6 أحرف على الأقل");
   }
+
+  const subscription = await requireActiveSubscription(clinicId)
+  const limits = normalizePlanLimits(subscription?.plans?.limits)
+
+  await assertCountLimit({
+    clinicId,
+    table: "users",
+    maxAllowed: limits.maxSecretaries,
+    errorMessage: "لقد تجاوزت الحد المسموح من السكرتارية. يرجى ترقية الباقة.",
+    extraFilter: (query) => query.eq("role", "secretary"),
+  })
 
   // Check if email already exists
   const { data: existingUser } = await supabase

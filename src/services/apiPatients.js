@@ -1,5 +1,10 @@
 import supabase from "./supabase"
 import { createFinancialRecord } from "./apiFinancialRecords"
+import {
+  normalizePlanLimits,
+  requireActiveSubscription,
+  assertMonthlyLimit,
+} from "./subscriptionEnforcement"
 
 export async function getPatients(search, page, pageSize, filters = {}) {
   // Get current user's clinic_id
@@ -72,36 +77,18 @@ export async function createPatient(payload) {
 
   if (!userData?.clinic_id) throw new Error("User has no clinic assigned")
 
-  /*
-  // Security checks disabled by user request
-  /*
-  // get clinic subscription plan
-  const { data: subscription } = await supabase
-    .from('subscriptions')
-    .select('*, plans:plan_id(limits)')
-    .eq('clinic_id', userData.clinic_id)
-    .eq('status', 'active')
-    .single()
+  const subscription = await requireActiveSubscription(userData.clinic_id)
+  const limits = normalizePlanLimits(subscription?.plans?.limits)
 
-  if (!subscription) throw new Error("لا يوجد اشتراك مفعل")
+  await assertMonthlyLimit({
+    clinicId: userData.clinic_id,
+    table: "patients",
+    dateColumn: "created_at",
+    monthDate: new Date(),
+    maxAllowed: limits.maxPatients,
+    errorMessage: "لقد تجاوزت الحد المسموح من المرضى لهذا الشهر. يرجى ترقية الباقة.",
+  })
 
-  const maxPatients = subscription.plans.limits.max_patients
-  const periodStart = subscription.current_period_start
-
-  // 3. احسب عدد المرضى المضافين في الشهر الحالي فقط
-  if (maxPatients !== -1) {
-    const { count } = await supabase
-      .from('patients')
-      .select('*', { count: 'exact', head: true })
-      .eq('clinic_id', userData.clinic_id)
-      .gte('created_at', periodStart) // أهم شرط: أكبر من أو يساوي تاريخ بداية الباقة
-
-    // 4. المقارنة الحاسمة
-    if (count >= maxPatients) {
-      throw new Error("لقد تجاوزت الحد المسموح من المرضى لهذا الشهر. يرجى ترقية الباقة.")
-    }
-  }
-  */
   // Add clinic_id to the patient data
   const patientData = {
     ...payload,
@@ -119,20 +106,27 @@ export async function createPatient(payload) {
     throw error
   }
 
-  // Debug: Log the created patient data
-  console.log("createPatient returning data:", data);
   return data
 }
 
 // New function for public booking - create patient without authentication
 export async function createPatientPublic(payload) {
-  // Convert clinic_id to BigInt for database operations if it exists
   const patientData = { ...payload }
-
-  if (patientData.clinic_id) {
-    // Keep clinic_id as string to avoid BigInt serialization issues
-    patientData.clinic_id = patientData.clinic_id.toString()
+  if (!patientData.clinic_id) {
+    throw new Error("معرف العيادة مطلوب")
   }
+
+  const subscription = await requireActiveSubscription(patientData.clinic_id)
+  const limits = normalizePlanLimits(subscription?.plans?.limits)
+
+  await assertMonthlyLimit({
+    clinicId: patientData.clinic_id,
+    table: "patients",
+    dateColumn: "created_at",
+    monthDate: new Date(),
+    maxAllowed: limits.maxPatients,
+    errorMessage: "لقد تجاوزت الحد المسموح من المرضى لهذا الشهر. يرجى ترقية الباقة.",
+  })
 
   // If age is provided, ensure it's an integer
   if (patientData.age) {
@@ -150,8 +144,6 @@ export async function createPatientPublic(payload) {
     throw error
   }
 
-  // Debug: Log the created patient data
-  console.log("createPatientPublic returning data:", data);
   return data
 }
 

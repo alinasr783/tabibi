@@ -1,4 +1,9 @@
 import supabase from "./supabase";
+import {
+    normalizePlanLimits,
+    requireActiveSubscription,
+    assertCountLimit,
+} from "./subscriptionEnforcement";
 
 export async function createTreatmentTemplate(payload) {
     // Get current user's clinic_id
@@ -13,34 +18,15 @@ export async function createTreatmentTemplate(payload) {
 
     if (!userData?.clinic_id) throw new Error("User has no clinic assigned");
 
-    /*
-    // Security checks disabled by user request
-    /*
-    // get clinic subscription plan
-    const { data: subscription } = await supabase
-        .from('subscriptions')
-        .select('*, plans:plan_id(limits)')
-        .eq('clinic_id', userData.clinic_id)
-        .eq('status', 'active')
-        .single()
+    const subscription = await requireActiveSubscription(userData.clinic_id);
+    const limits = normalizePlanLimits(subscription?.plans?.limits);
 
-    if (!subscription) throw new Error("لا يوجد اشتراك مفعل")
-
-    const maxTreatmentTemplates = subscription.plans.limits.max_treatment_templates
-
-    if (maxTreatmentTemplates !== -1) {
-        // 3. احسب عدد المرضى المضافين في الشهر الحالي فقط
-        const { count } = await supabase
-            .from('treatment_templates')
-            .select('*', { count: 'exact', head: true })
-            .eq('clinic_id', userData.clinic_id)
-
-        // 4. المقارنة الحاسمة
-        if (count >= maxTreatmentTemplates) {
-            throw new Error("لقد تجاوزت الحد المسموح من الخطط. يرجى ترقية الباقة.")
-        }
-    }
-    */
+    await assertCountLimit({
+        clinicId: userData.clinic_id,
+        table: "treatment_templates",
+        maxAllowed: limits.maxTreatmentTemplates,
+        errorMessage: "لقد تجاوزت الحد المسموح من الخطط العلاجية. يرجى ترقية الباقة.",
+    });
 
     // Add clinic_id to the treatment template data
     const treatmentTemplateData = {
