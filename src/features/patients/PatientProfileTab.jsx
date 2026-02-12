@@ -203,12 +203,6 @@ export default function PatientProfileTab({ patient }) {
         patient={displayPatient}
         onSuccess={handleUpdateSuccess}
       />
-      <InsuranceEditModal 
-        open={editingSection === 'insurance'} 
-        onOpenChange={(open) => !open && setEditingSection(null)} 
-        patient={displayPatient}
-        onSuccess={handleUpdateSuccess}
-      />
     </div>
   );
 }

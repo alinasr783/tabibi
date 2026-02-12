@@ -224,6 +224,132 @@ export async function updatePatient(id, payload) {
   return data
 }
 
+export async function deletePatient(id) {
+    // Get current user's clinic_id for security
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) throw new Error("Not authenticated")
+
+    const { data: userData } = await supabase
+        .from("users")
+        .select("clinic_id, clinic_id_bigint")
+        .eq("user_id", session.user.id)
+        .single()
+
+    if (!userData?.clinic_id) throw new Error("User has no clinic assigned")
+
+    // Get clinic_id_bigint for financial_records if not in userData
+    let clinicIdBigint = userData.clinic_id_bigint
+    if (!clinicIdBigint) {
+        const { data: clinicData } = await supabase
+            .from("clinics")
+            .select("clinic_id_bigint, id")
+            .eq("clinic_uuid", userData.clinic_id)
+            .single()
+        
+        clinicIdBigint = clinicData?.clinic_id_bigint || clinicData?.id
+    }
+
+    const patientIdStr = id.toString();
+
+    // 1. Delete notifications
+    await supabase
+        .from("notifications")
+        .delete()
+        .eq("patient_id", patientIdStr)
+        .eq("clinic_id", userData.clinic_id);
+
+    // 2. Delete related records for each appointment
+    // First, get all appointment IDs for this patient
+    const { data: appointments } = await supabase
+        .from("appointments")
+        .select("id")
+        .eq("patient_id", patientIdStr)
+        .eq("clinic_id", userData.clinic_id);
+
+    if (appointments?.length > 0) {
+        const appointmentIds = appointments.map(app => app.id.toString());
+        
+        // Bulk delete appointment-related records
+        await supabase.from("notifications").delete().in("appointment_id", appointmentIds);
+        
+        if (clinicIdBigint) {
+            await supabase.from("financial_records").delete().in("appointment_id", appointmentIds).eq("clinic_id", clinicIdBigint);
+        }
+        
+        await supabase.from("discount_redemptions").delete().in("appointment_id", appointmentIds);
+        
+        try {
+            await supabase.from("whatsapp_message_logs").delete().in("appointment_id", appointmentIds);
+        } catch (e) { /* ignore */ }
+        
+        // Delete appointments
+        await supabase.from("appointments").delete().in("id", appointmentIds);
+    }
+
+    // 3. Delete visits
+    await supabase
+        .from("visits")
+        .delete()
+        .eq("patient_id", patientIdStr)
+        .eq("clinic_id", userData.clinic_id);
+
+    // 4. Delete financial records linked directly to patient
+    if (clinicIdBigint) {
+        await supabase
+            .from("financial_records")
+            .delete()
+            .eq("patient_id", patientIdStr)
+            .eq("clinic_id", clinicIdBigint);
+    }
+
+    // 5. Delete patient plans
+    await supabase
+        .from("patient_plans")
+        .delete()
+        .eq("patient_id", patientIdStr);
+
+    // 6. Delete attachments and files from storage
+    const { data: attachments } = await supabase
+        .from("patient_attachments")
+        .select("id, file_url")
+        .eq("patient_id", patientIdStr);
+
+    if (attachments?.length > 0) {
+        // Delete files from storage
+        for (const attachment of attachments) {
+            try {
+                const urlParts = attachment.file_url.split('/patient-attachments/');
+                if (urlParts.length > 1) {
+                    const filePath = urlParts[1];
+                    await supabase.storage
+                        .from("patient-attachments")
+                        .remove([filePath]);
+                }
+            } catch (err) {
+                console.warn("Could not delete file from storage:", err);
+            }
+        }
+        
+        // Delete attachment records
+        await supabase
+            .from("patient_attachments")
+            .delete()
+            .eq("patient_id", patientIdStr);
+    }
+
+    // Finally delete the patient itself
+    const { error } = await supabase
+        .from("patients")
+        .delete()
+        .eq("id", patientIdStr)
+        .eq("clinic_id", userData.clinic_id)
+
+    if (error) {
+        console.error("Error deleting patient:", error);
+        throw error;
+    }
+}
+
 export async function getPatientFinancialData(patientId) {
   // Get current user's clinic_id
   const { data: { session } } = await supabase.auth.getSession();

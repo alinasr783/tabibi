@@ -1,10 +1,10 @@
-import { ArrowRight, Phone, Calendar, Wallet, User, Edit, ClipboardList, Stethoscope, CreditCard, FileText, Upload, Plus, FileUp, Banknote, ClipboardPlus, X, MessageCircle, Shield } from "lucide-react";
+import { ArrowRight, Phone, Calendar, Wallet, User, Edit, ClipboardList, Stethoscope, CreditCard, FileText, Upload, Plus, FileUp, Banknote, ClipboardPlus, X, MessageCircle, Shield, Trash2, AlertCircle, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "../../components/ui/dialog";
 import PatientEditDialog from "./PatientEditDialog";
 import PatientProfileTab from "./PatientProfileTab";
 import PatientAttachmentsTab, { UploadDialog } from "./PatientAttachmentsTab";
@@ -32,6 +32,7 @@ import { Eye } from "lucide-react";
 import PatientTransactionDialog from "./PatientTransactionDialog";
 import { toast } from "sonner";
 import ExtensionSlot from "../tabibi-tools/components/ExtensionSlot";
+import useDeletePatient from "./useDeletePatient";
 
 export default function PatientDetailPage() {
   const { id: patientId } = useParams();
@@ -48,10 +49,13 @@ export default function PatientDetailPage() {
   const [isTransactionDialogOpen, setIsTransactionDialogOpen] = useState(false);
   const [transactionType, setTransactionType] = useState("charge"); // 'charge' or 'payment'
   const [activeTab, setActiveTab] = useState("profile");
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const [isPlanTemplateDialogOpen, setIsPlanTemplateDialogOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [isPlanFormOpen, setIsPlanFormOpen] = useState(false);
+
+  const { mutate: deletePatient, isPending: isDeleting } = useDeletePatient();
 
   const handleTemplateSelect = (template) => {
     setSelectedTemplate(template);
@@ -246,6 +250,14 @@ export default function PatientDetailPage() {
                 >
                     <Edit className="w-4 h-4 text-primary" />
                     تعديل الملف
+                </Button>
+                <Button 
+                    variant="outline" 
+                    className="justify-start gap-2 h-11 hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-all shadow-sm" 
+                    onClick={() => setIsDeleteDialogOpen(true)}
+                >
+                    <Trash2 className="w-4 h-4 text-red-500" />
+                    حذف المريض
                 </Button>
                 <Button 
                     variant="outline" 
@@ -465,6 +477,65 @@ export default function PatientDetailPage() {
             patientId={patientId}
             onPlanAssigned={handlePlanAssigned}
           />
+
+          {/* Delete Patient Confirmation Dialog */}
+          <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+            <DialogContent className="sm:max-w-[425px]" dir="rtl">
+              <DialogHeader>
+                <div className="mx-auto w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
+                  <AlertCircle className="h-6 w-6 text-red-600" />
+                </div>
+                <DialogTitle className="text-center text-xl font-bold text-gray-900">حذف ملف المريض نهائياً</DialogTitle>
+                <DialogDescription className="text-center text-gray-500 pt-2">
+                  هل أنت متأكد من رغبتك في حذف ملف المريض <span className="font-bold text-red-600">"{patient?.name}"</span>؟ 
+                  <br />
+                  هذا الإجراء <span className="font-bold underline">لا يمكن التراجع عنه</span> وسيؤدي إلى حذف:
+                  <ul className="list-disc list-inside mt-2 text-right inline-block">
+                    <li>كافة المواعيد والحجوزات</li>
+                    <li>سجل الكشوفات والزيارات</li>
+                    <li>السجلات المالية والمدفوعات</li>
+                    <li>الملفات المرفقة والأشعة</li>
+                    <li>الخطط العلاجية</li>
+                  </ul>
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="flex-row-reverse gap-2 sm:justify-center pt-4">
+                <Button
+                  variant="destructive"
+                  className="flex-1 gap-2"
+                  onClick={() => {
+                    deletePatient(patientId, {
+                      onSuccess: () => {
+                        setIsDeleteDialogOpen(false);
+                        navigate("/patients");
+                      }
+                    });
+                  }}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      جاري الحذف...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4" />
+                      تأكيد الحذف النهائي
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setIsDeleteDialogOpen(false)}
+                  disabled={isDeleting}
+                >
+                  إلغاء
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </>
       )}
     </div>

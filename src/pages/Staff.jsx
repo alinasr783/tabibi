@@ -619,10 +619,19 @@ export default function Staff() {
               </div>
             )}
           </div>
-          <DialogFooter className="flex-row gap-2 sm:justify-between">
-             {addStaffStep > 1 && (
-               <Button variant="outline" onClick={handlePreviousStep}>رجوع</Button>
-             )}
+          <DialogFooter className="flex-row gap-2 sm:justify-between items-center">
+             <div className="flex gap-2">
+              {addStaffStep > 1 && (
+                <Button variant="outline" onClick={handlePreviousStep}>رجوع</Button>
+              )}
+              <Button 
+                variant="ghost" 
+                onClick={handleCloseAddDialog}
+                className="w-1/4"
+              >
+                إلغاء
+              </Button>
+             </div>
              {addStaffStep < 3 ? (
                <Button onClick={handleNextStep} className="w-full sm:w-auto">التالي</Button>
              ) : (

@@ -2,7 +2,7 @@ import { format } from "date-fns"
 import { ar } from "date-fns/locale"
 import { Card, CardContent } from "../../components/ui/card"
 import { Button } from "../../components/ui/button"
-import { Eye, Calendar, Clock, Plus } from "lucide-react"
+import { Eye, Calendar, Clock, Plus, Trash2, AlertTriangle, Loader2 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { useState } from "react"
 import {
@@ -10,8 +10,10 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "../../components/ui/dialog"
 import AppointmentCreateDialog from "../calendar/AppointmentCreateDialog"
+import useDeleteAppointment from "../calendar/useDeleteAppointment"
 
 const statusConfig = {
   pending: { label: "منتظر", className: "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200" },
@@ -23,7 +25,19 @@ const statusConfig = {
 export default function PatientAppointmentsHistory({ appointments, isLoading, patientId, patient }) {
   const navigate = useNavigate()
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [appointmentToDelete, setAppointmentToDelete] = useState(null)
   
+  const { mutate: deleteAppointment, isPending: isDeleting } = useDeleteAppointment()
+  
+  const handleDelete = () => {
+    if (!appointmentToDelete) return
+    deleteAppointment(appointmentToDelete.id, {
+      onSuccess: () => {
+        setAppointmentToDelete(null)
+      },
+    })
+  }
+
   if (isLoading) {
     return (
       <div className="space-y-3">
@@ -106,7 +120,19 @@ export default function PatientAppointmentsHistory({ appointments, isLoading, pa
                     </div>
 
                     {/* Action Hint */}
-                    <div className="w-8 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity border-r border-border/30 bg-muted/5">
+                    <div className="flex items-center gap-1 px-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity border-r border-border/30 bg-muted/5">
+                       <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setAppointmentToDelete(appointment);
+                          }}
+                       >
+                          <Trash2 className="w-4 h-4" />
+                       </Button>
+                       <div className="w-px h-4 bg-border/50" />
                        <Eye className="w-4 h-4 text-primary/70" />
                     </div>
                   </div>
@@ -131,6 +157,41 @@ export default function PatientAppointmentsHistory({ appointments, isLoading, pa
         onClose={() => setIsCreateDialogOpen(false)}
         initialPatient={patient}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!appointmentToDelete} onOpenChange={(open) => !open && setAppointmentToDelete(null)}>
+        <DialogContent className="sm:max-w-[400px]" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="size-5" />
+              حذف الحجز نهائياً
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground">
+              هل أنت متأكد أنك تريد حذف حجز يوم {appointmentToDelete?.date ? format(new Date(appointmentToDelete.date), "d MMMM yyyy", { locale: ar }) : ""} نهائياً؟ لا يمكن التراجع عن هذا الإجراء.
+            </p>
+          </div>
+          <DialogFooter className="flex gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setAppointmentToDelete(null)}
+              disabled={isDeleting}
+              className="flex-1"
+            >
+              إلغاء
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="flex-1"
+            >
+              {isDeleting ? <Loader2 className="size-4 animate-spin" /> : "حذف نهائي"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -29,7 +29,7 @@ export async function getCurrentClinic() {
   try {
     const { data, error } = await supabase
       .from("clinics")
-      .select("id, clinic_uuid, name, address, booking_price, available_time, online_booking_enabled")
+      .select("id, clinic_uuid, name, address, booking_price, available_time, online_booking_enabled, whatsapp_enabled, whatsapp_number, prevent_conflicts, min_time_gap")
       .eq("clinic_uuid", clinicUuid)  // Query by clinic_uuid as per actual database schema
       .single()
 
@@ -74,7 +74,7 @@ export async function getClinicById(clinicId) {
   try {
     const { data, error } = await supabase
       .from("clinics")
-      .select("id, clinic_uuid, name, address, booking_price, available_time, online_booking_enabled")
+      .select("id, clinic_uuid, name, address, booking_price, available_time, online_booking_enabled, whatsapp_enabled, whatsapp_number, prevent_conflicts, min_time_gap")
       .eq("clinic_uuid", clinicId)  // Query by clinic_uuid as per project memory
       .single()
 
@@ -162,7 +162,7 @@ export async function getClinicById(clinicId) {
   }
 }
 
-export async function updateClinic({ name, address, booking_price, available_time, online_booking_enabled }) {
+export async function updateClinic({ name, address, booking_price, available_time, online_booking_enabled, whatsapp_enabled, whatsapp_number, prevent_conflicts, min_time_gap }) {
   // Get current user's clinic_id
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) throw new Error("Not authenticated")
@@ -196,6 +196,10 @@ export async function updateClinic({ name, address, booking_price, available_tim
   if (booking_price !== undefined) updateData.booking_price = parseFloat(booking_price) || 0;
   if (available_time !== undefined) updateData.available_time = available_time;
   if (online_booking_enabled !== undefined) updateData.online_booking_enabled = online_booking_enabled;
+  if (whatsapp_enabled !== undefined) updateData.whatsapp_enabled = whatsapp_enabled;
+  if (whatsapp_number !== undefined) updateData.whatsapp_number = whatsapp_number;
+  if (prevent_conflicts !== undefined) updateData.prevent_conflicts = prevent_conflicts;
+  if (min_time_gap !== undefined) updateData.min_time_gap = min_time_gap;
 
   console.log("updateClinic: Updating clinic with data:", updateData);
 

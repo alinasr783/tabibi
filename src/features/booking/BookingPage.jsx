@@ -10,7 +10,8 @@ import {
   ChevronRight,
   Loader2,
   Shield,
-  CreditCard
+  CreditCard,
+  MessageCircle
 } from "lucide-react";
 
 import AppointmentFormCard from "./AppointmentFormCard";
@@ -263,7 +264,18 @@ export default function BookingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50" dir="rtl">
+    <div className="min-h-screen bg-gray-50 pb-20" dir="rtl">
+      {clinic?.whatsapp_enabled && clinic?.whatsapp_number && (
+        <a
+          href={`https://wa.me/${clinic.whatsapp_number.replace(/\+/g, '')}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="fixed bottom-6 right-6 z-[99] bg-[#25D366] text-white p-4 rounded-full shadow-lg hover:scale-110 transition-transform active:scale-95 flex items-center justify-center"
+          aria-label="Contact on WhatsApp"
+        >
+          <MessageCircle className="w-6 h-6 fill-current" />
+        </a>
+      )}
       <div ref={topRef}>
         {/* Header - Centered */}
         <div className="bg-white border-b border-gray-200 py-5">

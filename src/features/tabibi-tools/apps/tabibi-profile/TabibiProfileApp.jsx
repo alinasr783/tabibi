@@ -8,7 +8,7 @@ import { Label } from "../../../../components/ui/label";
 import { Textarea } from "../../../../components/ui/textarea";
 import { Badge } from "../../../../components/ui/badge";
 import { Separator } from "../../../../components/ui/separator";
-import { ExternalLink, Copy, Check, User, MapPin, Phone, Stethoscope, Clock, Save, Loader2, Upload, Trash2, Plus, Award, GraduationCap, FileText } from "lucide-react";
+import { ExternalLink, Copy, Check, User, MapPin, Phone, Stethoscope, Clock, Save, Loader2, Upload, Trash2, Plus, Award, GraduationCap, FileText, QrCode, Download, MessageCircle } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import useUpdateProfile from "../../../settings/useUpdateProfile";
@@ -16,6 +16,7 @@ import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { updateClinic } from "../../../../services/apiClinic";
 import supabase from "../../../../services/supabase";
 import WorkingHours from "../../../clinic/WorkingHours";
+import QRCode from "react-qr-code";
 
 export default function TabibiProfileApp() {
   const { user } = useAuth();
@@ -68,6 +69,7 @@ export default function TabibiProfileApp() {
     banner_url: "",
     education: [],
     certificates: [],
+    contacts: [],
     clinicName: "",
     clinicAddress: "",
     bookingPrice: "",
@@ -93,6 +95,7 @@ export default function TabibiProfileApp() {
         banner_url: user.banner_url || "",
         education: user.education || [],
         certificates: user.certificates || [],
+        contacts: Array.isArray(user.contacts) ? user.contacts : [],
         clinicName: clinic.name || "",
         clinicAddress: clinic.address || "",
         bookingPrice: clinic.booking_price || "",
@@ -223,6 +226,53 @@ export default function TabibiProfileApp() {
     setFormData(prev => ({ ...prev, education: newEducation }));
   };
 
+  const addContact = () => {
+    setFormData(prev => ({
+      ...prev,
+      contacts: [...prev.contacts, { type: "phone", value: "" }]
+    }));
+  };
+
+  const removeContact = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      contacts: prev.contacts.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleContactChange = (index, field, value) => {
+    const newContacts = [...formData.contacts];
+    newContacts[index][field] = value;
+    setFormData(prev => ({ ...prev, contacts: newContacts }));
+  };
+
+  const downloadQRCode = () => {
+    const svg = document.getElementById("profile-qr-code");
+    if (!svg) return;
+    
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    const img = new Image();
+    
+    img.onload = () => {
+      canvas.width = img.width + 40;
+      canvas.height = img.height + 40;
+      ctx.fillStyle = "white";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 20, 20);
+      
+      const pngFile = canvas.toDataURL("image/png");
+      const downloadLink = document.createElement("a");
+      downloadLink.download = `QR-Profile-${formData.name || 'doctor'}.png`;
+      downloadLink.href = pngFile;
+      downloadLink.click();
+      toast.success("تم تحميل رمز QR بنجاح");
+    };
+    
+    img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
+  };
+
   const handleCertificateUpload = async (event) => {
     try {
       const file = event.target.files[0];
@@ -285,7 +335,8 @@ export default function TabibiProfileApp() {
       avatar_url: formData.avatar_url,
       banner_url: formData.banner_url,
       education: formData.education,
-      certificates: formData.certificates
+      certificates: formData.certificates,
+      contacts: formData.contacts
     });
 
     // Update Clinic Data
@@ -428,10 +479,10 @@ export default function TabibiProfileApp() {
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20">
                         <Label 
                         htmlFor="banner-upload-app" 
-                        className="cursor-pointer bg-black/60 text-white px-3 py-1.5 rounded-full text-xs flex items-center gap-2 hover:bg-black/80 transition-colors"
+                        className="cursor-pointer bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 hover:bg-primary/90 transition-colors shadow-sm"
                         >
-                        <Upload className="w-3 h-3" />
-                        رفع غلاف
+                        <Upload className="w-4 h-4" />
+                        تغيير الغلاف
                         </Label>
                     </div>
                     <Input
@@ -482,6 +533,69 @@ export default function TabibiProfileApp() {
                     dir="ltr" 
                     className="text-right"
                   />
+                </div>
+              </div>
+
+              {/* Multiple Contacts Section */}
+              <div className="space-y-4 pt-4 border-t">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Phone className="w-5 h-5 text-primary" />
+                    <h3 className="text-base font-semibold">أرقام تواصل إضافية</h3>
+                  </div>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={addContact}
+                    className="h-8 text-xs"
+                  >
+                    <Plus className="w-3 h-3 ml-1" />
+                    إضافة رقم
+                  </Button>
+                </div>
+                
+                <div className="space-y-3">
+                  {formData.contacts.map((contact, index) => (
+                    <div key={index} className="grid gap-3 sm:grid-cols-12 items-start bg-muted/30 p-3 rounded-md relative group">
+                      <div className="sm:col-span-4 space-y-1">
+                        <select
+                          value={contact.type}
+                          onChange={(e) => handleContactChange(index, 'type', e.target.value)}
+                          className="w-full h-8 text-sm rounded-md border border-input bg-background px-3 py-1"
+                        >
+                          <option value="phone">اتصال فقط</option>
+                          <option value="whatsapp">واتساب فقط</option>
+                          <option value="both">اتصال وواتساب</option>
+                        </select>
+                      </div>
+                      <div className="sm:col-span-7 space-y-1">
+                        <Input
+                          placeholder="رقم الهاتف (مثال: 01234567890)"
+                          value={contact.value}
+                          onChange={(e) => handleContactChange(index, 'value', e.target.value)}
+                          className="h-8 text-sm"
+                          type="tel"
+                        />
+                      </div>
+                      <div className="sm:col-span-1 flex justify-end">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeContact(index)}
+                          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                  {formData.contacts.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4 bg-muted/20 rounded-md border border-dashed">
+                      لم يتم إضافة أرقام تواصل إضافية بعد
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -783,6 +897,45 @@ export default function TabibiProfileApp() {
               </div>
             </div>
             
+            {/* QR Code Card */}
+            <Card className="border-primary/20 bg-primary/5">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <QrCode className="h-4 w-4" />
+                  رمز QR للبروفايل
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col items-center gap-4">
+                <div className="p-4 bg-white rounded-xl shadow-sm border border-primary/10">
+                  {publicProfileUrl ? (
+                    <QRCode 
+                      id="profile-qr-code"
+                      value={publicProfileUrl} 
+                      size={150}
+                      level="H"
+                    />
+                  ) : (
+                    <div className="w-[150px] h-[150px] flex items-center justify-center text-muted-foreground text-xs text-center px-4">
+                      جارٍ تجهيز الرابط...
+                    </div>
+                  )}
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full gap-2 bg-white"
+                  onClick={downloadQRCode}
+                  disabled={!publicProfileUrl}
+                >
+                  <Download className="h-4 w-4" />
+                  تحميل الرمز (QR Code)
+                </Button>
+                <p className="text-[10px] text-center text-muted-foreground">
+                  يمكنك طباعة هذا الرمز ووضعه في عيادتك ليسهل على المرضى الوصول لملفك الشخصي.
+                </p>
+              </CardContent>
+            </Card>
+
             <div className="bg-blue-50 text-blue-800 p-4 rounded-lg text-xs leading-relaxed border border-blue-100">
               <p>
                 <strong>ملاحظة:</strong> البيانات التي تقوم بتعديلها هنا تنعكس تلقائياً على صفحة إعداداتك الرئيسية وعلى صفحة ملفك الشخصي العامة.

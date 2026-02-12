@@ -1,11 +1,13 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { getClinicById } from "../services/apiClinic";
 import { Button } from "../components/ui/button";
-import { Loader2, CheckCircle, BadgeCheck, Star, Share2, GraduationCap, Award, MapPin, Phone, MessageCircle, User, Building2, Banknote, Clock } from "lucide-react";
+import { Loader2, CheckCircle, BadgeCheck, Star, Share2, GraduationCap, Award, MapPin, Phone, MessageCircle, User, Building2, Banknote, Clock, QrCode, Download, X } from "lucide-react";
 import supabase from "../services/supabase";
 import { useAuth } from "../features/auth/AuthContext";
+import QRCode from "react-qr-code";
+import toast from "react-hot-toast";
 
 // Helper function to fetch extended public profile data
 async function getDoctorPublicProfile(clinicUuid) {
@@ -27,7 +29,7 @@ async function getDoctorPublicProfile(clinicUuid) {
   try {
     const { data: users, error } = await supabase
       .from('users')
-      .select('name, bio, specialty, avatar_url, banner_url, education, certificates, phone')
+      .select('name, bio, specialty, avatar_url, banner_url, education, certificates, phone, contacts')
       .eq('clinic_id', clinicUuid)
       .eq('role', 'doctor')
       .limit(1);
@@ -69,6 +71,8 @@ export default function DoctorProfilePage() {
   const { clinicId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [contactModal, setContactModal] = useState({ show: false, type: null, list: [] }); // type: 'call' or 'whatsapp'
   
   // Check if the current user is the owner of this profile
   const isOwner = user?.clinic_id === clinicId;
@@ -78,6 +82,69 @@ export default function DoctorProfilePage() {
     queryFn: () => getDoctorPublicProfile(clinicId),
     enabled: !!clinicId
   });
+
+  const handleContactAction = (type) => {
+    const contacts = profile?.doctor?.contacts || [];
+    const primaryPhone = profile?.doctor?.phone;
+    
+    // Filter contacts based on action type
+    let filteredContacts = contacts.filter(c => {
+      if (type === 'call') return c.type === 'phone' || c.type === 'both';
+      if (type === 'whatsapp') return c.type === 'whatsapp' || c.type === 'both';
+      return false;
+    });
+
+    // Add primary phone if it exists and matches type
+    if (primaryPhone) {
+      const alreadyInList = filteredContacts.some(c => c.value === primaryPhone);
+      if (!alreadyInList) {
+        // Assume primary phone is for both unless specified otherwise
+        filteredContacts = [{ type: 'both', value: primaryPhone, isPrimary: true }, ...filteredContacts];
+      }
+    }
+
+    if (filteredContacts.length === 0) {
+      toast.error(type === 'call' ? "رقم الهاتف غير متوفر" : "رقم الواتساب غير متوفر");
+      return;
+    }
+
+    if (filteredContacts.length === 1) {
+      const val = filteredContacts[0].value.replace(/\s/g, '');
+      if (type === 'call') window.location.href = `tel:${val}`;
+      else window.open(`https://wa.me/${val.replace(/\+/g, '')}`, '_blank');
+      return;
+    }
+
+    // Show selection modal if multiple contacts
+    setContactModal({ show: true, type, list: filteredContacts });
+  };
+
+  const downloadQRCode = () => {
+    const svg = document.getElementById("profile-qr-code");
+    if (!svg) return;
+    
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    const img = new Image();
+    
+    img.onload = () => {
+      canvas.width = img.width + 40;
+      canvas.height = img.height + 40;
+      ctx.fillStyle = "white";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 20, 20);
+      
+      const pngFile = canvas.toDataURL("image/png");
+      const downloadLink = document.createElement("a");
+      downloadLink.download = `QR-Profile-${profile?.doctor?.name || 'doctor'}.png`;
+      downloadLink.href = pngFile;
+      downloadLink.click();
+      toast.success("تم تحميل رمز QR بنجاح");
+    };
+    
+    img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
+  };
 
   // Scroll to top on mount
   // Fixed BadgeCheck reference error - Force Update
@@ -205,24 +272,25 @@ export default function DoctorProfilePage() {
         {/* Action Buttons */}
         <div className="bg-white rounded-2xl p-4 flex items-center justify-between gap-3 card-shadow-elegant border border-[#E0E0E0]">
           <button 
-            onClick={() => {
-                if(doctor.phone) window.location.href = `tel:${doctor.phone}`;
-                else alert("رقم الهاتف غير متوفر");
-            }}
+            onClick={() => handleContactAction('call')}
             className="flex-1 bg-[#0A1F44]/10 text-[#0A1F44] rounded-xl py-3 flex flex-col items-center gap-1 transition-all hover:bg-[#0A1F44]/20 active:scale-95"
           >
             <Phone className="w-5 h-5" />
             <span className="text-xs font-body-sans font-semibold">اتصال</span>
           </button>
           <button 
-            onClick={() => {
-                if(doctor.phone) window.open(`https://wa.me/${doctor.phone}`, '_blank');
-                else alert("رقم الهاتف غير متوفر");
-            }}
+            onClick={() => setShowQRModal(true)}
             className="flex-1 bg-[#0A1F44]/10 text-[#0A1F44] rounded-xl py-3 flex flex-col items-center gap-1 transition-all hover:bg-[#0A1F44]/20 active:scale-95"
           >
+            <QrCode className="w-5 h-5" />
+            <span className="text-xs font-body-sans font-semibold">QR Code</span>
+          </button>
+          <button 
+            onClick={() => handleContactAction('whatsapp')}
+            className="flex-1 bg-[#25D366]/10 text-[#25D366] rounded-xl py-3 flex flex-col items-center gap-1 transition-all hover:bg-[#25D366]/20 active:scale-95"
+          >
             <MessageCircle className="w-5 h-5" />
-            <span className="text-xs font-body-sans font-semibold">رسالة</span>
+            <span className="text-xs font-body-sans font-semibold">واتساب</span>
           </button>
           <button 
              onClick={async () => {
@@ -251,6 +319,98 @@ export default function DoctorProfilePage() {
             <span className="text-xs font-body-sans font-semibold">مشاركة</span>
           </button>
         </div>
+
+        {/* QR Code Modal */}
+        {showQRModal && (
+          <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-300">
+            <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
+              <div className="p-6 flex flex-col items-center gap-6">
+                <div className="w-full flex justify-between items-center">
+                  <h3 className="text-xl font-bold font-amiri text-[#0A1F44]">رمز QR للبروفايل</h3>
+                  <button 
+                    onClick={() => setShowQRModal(false)}
+                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                  >
+                    <X className="w-6 h-6 text-gray-500" />
+                  </button>
+                </div>
+
+                <div className="p-6 bg-white rounded-2xl border-2 border-gray-100 shadow-inner">
+                  <QRCode 
+                    id="profile-qr-code"
+                    value={window.location.href} 
+                    size={200}
+                    className="w-full h-auto"
+                  />
+                </div>
+
+                <div className="w-full space-y-3">
+                  <Button 
+                    onClick={downloadQRCode}
+                    className="w-full py-6 bg-[#0A1F44] hover:bg-[#0A1F44]/90 rounded-2xl gap-2 text-lg font-bold"
+                  >
+                    <Download className="w-5 h-5" />
+                    تحميل الرمز
+                  </Button>
+                  <p className="text-center text-sm text-gray-500 font-body-sans">
+                    يمكن للمرضى مسح هذا الرمز للوصول لصفحتك مباشرة
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Contact Selection Modal */}
+        {contactModal.show && (
+          <div className="fixed inset-0 bg-black/60 z-[110] flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm animate-in fade-in duration-300">
+            <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl animate-in slide-in-from-bottom duration-300 sm:zoom-in-95">
+              <div className="p-6 flex flex-col gap-6">
+                <div className="w-full flex justify-between items-center">
+                  <h3 className="text-xl font-bold font-amiri text-[#0A1F44]">
+                    {contactModal.type === 'call' ? 'اختر رقم للاتصال' : 'اختر رقم للواتساب'}
+                  </h3>
+                  <button 
+                    onClick={() => setContactModal({ show: false, type: null, list: [] })}
+                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                  >
+                    <X className="w-6 h-6 text-gray-500" />
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  {contactModal.list.map((contact, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        const val = contact.value.replace(/\s/g, '');
+                        if (contactModal.type === 'call') window.location.href = `tel:${val}`;
+                        else window.open(`https://wa.me/${val.replace(/\+/g, '')}`, '_blank');
+                        setContactModal({ show: false, type: null, list: [] });
+                      }}
+                      className="w-full p-4 flex items-center justify-between bg-gray-50 hover:bg-[#0A1F44]/5 rounded-2xl border border-gray-100 transition-all group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-xl ${contactModal.type === 'call' ? 'bg-[#0A1F44]/10 text-[#0A1F44]' : 'bg-[#25D366]/10 text-[#25D366]'}`}>
+                          {contactModal.type === 'call' ? <Phone className="w-5 h-5" /> : <MessageCircle className="w-5 h-5" />}
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-bold font-body-sans text-[#0A1F44]">{contact.value}</p>
+                          <p className="text-[10px] text-gray-400 font-body-sans">
+                            {contact.isPrimary ? 'الرقم الأساسي' : (contact.type === 'both' ? 'اتصال وواتساب' : (contact.type === 'phone' ? 'اتصال فقط' : 'واتساب فقط'))}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center bg-white border border-gray-100 group-hover:bg-[#0A1F44] group-hover:text-white transition-colors">
+                        <CheckCircle className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Clinic Details */}
         <div className="bg-white rounded-2xl p-5 card-shadow-elegant border border-[#E0E0E0]">

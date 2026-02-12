@@ -10,7 +10,7 @@ import useClinic from "../auth/useClinic";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { updateClinic } from "../../services/apiClinic";
 import toast from "react-hot-toast";
-import { Plus, X, Upload, FileText, Trash2, GraduationCap, Award, User, Loader2 } from "lucide-react";
+import { Plus, X, Upload, FileText, Trash2, GraduationCap, Award, User, Loader2, Phone } from "lucide-react";
 import supabase from "../../services/supabase";
 
 export default function PersonalInfoTab() {
@@ -42,7 +42,8 @@ export default function PersonalInfoTab() {
     education: [],
     certificates: [],
     avatar_url: "",
-    banner_url: ""
+    banner_url: "",
+    contacts: []
   });
 
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -61,7 +62,8 @@ export default function PersonalInfoTab() {
         education: Array.isArray(user.education) ? user.education : [],
         certificates: Array.isArray(user.certificates) ? user.certificates : [],
         avatar_url: user.avatar_url || "",
-        banner_url: user.banner_url || ""
+        banner_url: user.banner_url || "",
+        contacts: Array.isArray(user.contacts) ? user.contacts : []
       }));
     }
   }, [user]);
@@ -82,6 +84,26 @@ export default function PersonalInfoTab() {
       ...prev,
       [name]: value
     }));
+  };
+
+  const addContact = () => {
+    setFormData(prev => ({
+      ...prev,
+      contacts: [...prev.contacts, { type: "phone", value: "" }]
+    }));
+  };
+
+  const removeContact = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      contacts: prev.contacts.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleContactChange = (index, field, value) => {
+    const newContacts = [...formData.contacts];
+    newContacts[index][field] = value;
+    setFormData(prev => ({ ...prev, contacts: newContacts }));
   };
 
   const handleAvatarUpload = async (e) => {
@@ -219,7 +241,8 @@ export default function PersonalInfoTab() {
       banner_url: formData.banner_url,
       education: formData.education,
       certificates: formData.certificates,
-      specialty: formData.specialty
+      specialty: formData.specialty,
+      contacts: formData.contacts
     });
     
     // Update clinic if doctor and fields are changed
@@ -316,7 +339,7 @@ export default function PersonalInfoTab() {
                     <div className="mt-3 flex justify-center">
                         <Label 
                         htmlFor="banner-upload" 
-                        className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-secondary text-secondary-foreground hover:bg-secondary/90 rounded-md text-sm font-medium transition-colors"
+                        className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md text-sm font-medium transition-colors"
                         >
                         <Upload className="w-4 h-4" />
                         {formData.banner_url ? 'تغيير الغلاف' : 'رفع غلاف'}
@@ -402,6 +425,69 @@ export default function PersonalInfoTab() {
                 placeholder="اكتب نبذة مختصرة عن خبراتك وتخصصك..."
                 className="text-sm min-h-[100px]"
               />
+            </div>
+
+            {/* Multiple Contacts Section */}
+            <div className="space-y-4 pt-4 border-t">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Phone className="w-5 h-5 text-primary" />
+                  <h3 className="text-base font-semibold">أرقام التواصل</h3>
+                </div>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={addContact}
+                  className="h-8 text-xs"
+                >
+                  <Plus className="w-3 h-3 ml-1" />
+                  إضافة رقم
+                </Button>
+              </div>
+              
+              <div className="space-y-3">
+                {formData.contacts.map((contact, index) => (
+                  <div key={index} className="grid gap-3 sm:grid-cols-12 items-start bg-muted/30 p-3 rounded-md relative group">
+                    <div className="sm:col-span-4 space-y-1">
+                      <select
+                        value={contact.type}
+                        onChange={(e) => handleContactChange(index, 'type', e.target.value)}
+                        className="w-full h-8 text-sm rounded-md border border-input bg-background px-3 py-1"
+                      >
+                        <option value="phone">اتصال فقط</option>
+                        <option value="whatsapp">واتساب فقط</option>
+                        <option value="both">اتصال وواتساب</option>
+                      </select>
+                    </div>
+                    <div className="sm:col-span-7 space-y-1">
+                      <Input
+                        placeholder="رقم الهاتف (مثال: 01234567890)"
+                        value={contact.value}
+                        onChange={(e) => handleContactChange(index, 'value', e.target.value)}
+                        className="h-8 text-sm"
+                        type="tel"
+                      />
+                    </div>
+                    <div className="sm:col-span-1 flex justify-end">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeContact(index)}
+                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                {formData.contacts.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4 bg-muted/20 rounded-md border border-dashed">
+                    لم يتم إضافة أرقام تواصل إضافية بعد
+                  </p>
+                )}
+              </div>
             </div>
 
             {/* Education Section */}

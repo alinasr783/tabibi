@@ -32,7 +32,8 @@ import {
   ShieldCheck,
   AlertTriangle,
   MessageCircle,
-  History
+  History,
+  Trash2
 } from "lucide-react";
 import {useState, useEffect} from "react";
 import {useNavigate, useParams} from "react-router-dom";
@@ -61,6 +62,7 @@ import {
 import {Separator} from "../../components/ui/separator";
 import useAppointment from "./useAppointment";
 import useUpdateAppointmentHandler from "./useUpdateAppointmentHandler";
+import useDeleteAppointment from "./useDeleteAppointment";
 import { subscribeToAppointments } from "../../services/apiAppointments";
 import { getIntegration } from "../../services/integrationService";
 import generatePrescriptionPdfNew from "../../lib/generatePrescriptionPdfNew";
@@ -74,6 +76,7 @@ export default function AppointmentDetailPage() {
   const {data: patientAppointments} = usePatientAppointments(appointment?.patient?.id);
   const navigate = useNavigate();
   const {handleAppointmentUpdate, isPending: isUpdating} = useUpdateAppointmentHandler();
+  const {mutate: deleteAppointment, isPending: isDeleting} = useDeleteAppointment();
   
   const [hasGoogleCalendar, setHasGoogleCalendar] = useState(false);
 
@@ -106,6 +109,7 @@ export default function AppointmentDetailPage() {
   }, [appointment?.clinic_id, appointmentId, refetch]);
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [showPrescriptionDialog, setShowPrescriptionDialog] = useState(false);
   const [showNewVisitDialog, setShowNewVisitDialog] = useState(false);
   const [showContactDialog, setShowContactDialog] = useState(false);
@@ -200,6 +204,15 @@ export default function AppointmentDetailPage() {
     await handleAppointmentUpdate(appointmentId, editData);
     setIsEditModalOpen(false);
     refetch();
+  };
+
+  const handleDelete = () => {
+    deleteAppointment(appointmentId, {
+      onSuccess: () => {
+        setIsDeleteDialogOpen(false);
+        navigate(-1);
+      },
+    });
   };
 
   const handleStatusChange = async (newStatus) => {
@@ -549,6 +562,14 @@ export default function AppointmentDetailPage() {
                 }}>
                 <Phone className="size-3.5" />
                 اتصال
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="justify-start gap-2 text-sm h-9 hover:bg-red-50 hover:border-red-200 hover:text-red-700" 
+                onClick={() => setIsDeleteDialogOpen(true)}>
+                <Trash2 className="size-3.5" />
+                حذف الحجز
               </Button>
               <Button 
                 variant="outline" 
@@ -1081,6 +1102,41 @@ export default function AppointmentDetailPage() {
             onVisitCreated={handleVisitCreated}
             onCancel={handleVisitCancel}
           />
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="size-5" />
+              حذف الحجز نهائياً
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground">
+              هل أنت متأكد أنك تريد حذف هذا الحجز نهائياً؟ لا يمكن التراجع عن هذا الإجراء.
+            </p>
+          </div>
+          <DialogFooter className="flex gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteDialogOpen(false)}
+              disabled={isDeleting}
+              className="flex-1"
+            >
+              إلغاء
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="flex-1"
+            >
+              {isDeleting ? <Loader2 className="size-4 animate-spin" /> : "حذف نهائي"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

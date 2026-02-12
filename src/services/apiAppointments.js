@@ -306,12 +306,60 @@ export async function deleteAppointment(id) {
 
     const { data: userData } = await supabase
         .from("users")
-        .select("clinic_id")
+        .select("clinic_id, clinic_id_bigint")
         .eq("user_id", session.user.id)
         .single()
 
     if (!userData?.clinic_id) throw new Error("User has no clinic assigned")
 
+    // Get clinic_id_bigint for financial_records if not in userData
+    let clinicIdBigint = userData.clinic_id_bigint
+    if (!clinicIdBigint) {
+        const { data: clinicData } = await supabase
+            .from("clinics")
+            .select("clinic_id_bigint, id")
+            .eq("clinic_uuid", userData.clinic_id)
+            .single()
+        
+        clinicIdBigint = clinicData?.clinic_id_bigint || clinicData?.id
+    }
+
+    // Delete related records first to avoid foreign key constraints
+    // 1. Delete notifications
+    await supabase
+        .from("notifications")
+        .delete()
+        .eq("appointment_id", id.toString())
+        .eq("clinic_id", userData.clinic_id);
+
+    // 2. Delete financial records (uses clinicIdBigint)
+    if (clinicIdBigint) {
+        await supabase
+            .from("financial_records")
+            .delete()
+            .eq("appointment_id", id)
+            .eq("clinic_id", clinicIdBigint);
+    }
+
+    // 3. Delete discount redemptions
+    await supabase
+        .from("discount_redemptions")
+        .delete()
+        .eq("appointment_id", id);
+
+    // 4. Delete WhatsApp logs if the table exists
+    try {
+        await supabase
+            .from("whatsapp_message_logs")
+            .delete()
+            .eq("appointment_id", id)
+            .eq("clinic_id", userData.clinic_id);
+    } catch (err) {
+        // Table might not exist or other issues, ignore
+        console.warn("Could not delete WhatsApp logs:", err.message);
+    }
+
+    // Finally delete the appointment itself
     const { error } = await supabase
         .from("appointments")
         .delete()
@@ -353,6 +401,35 @@ export async function searchPatients(searchTerm) {
 export async function createAppointmentPublic(payload, clinicId) {
     // Convert clinicId to string for JSON serialization
     const clinicIdString = clinicId.toString();
+
+    // Check for appointment conflicts if enabled
+    const { data: clinicData } = await supabase
+        .from('clinics')
+        .select('prevent_conflicts, min_time_gap')
+        .eq('id', clinicIdString)
+        .single();
+
+    if (clinicData?.prevent_conflicts) {
+        const gapMinutes = parseInt(clinicData.min_time_gap) || 0;
+        const appointmentDate = new Date(payload.date);
+        
+        // Calculate range to check for conflicts
+        const startDate = new Date(appointmentDate.getTime() - (gapMinutes - 1) * 60000);
+        const endDate = new Date(appointmentDate.getTime() + (gapMinutes - 1) * 60000);
+
+        const { data: conflicts } = await supabase
+            .from('appointments')
+            .select('id')
+            .eq('clinic_id', clinicIdString)
+            .neq('status', 'cancelled')
+            .gte('date', startDate.toISOString())
+            .lte('date', endDate.toISOString())
+            .limit(1);
+
+        if (conflicts && conflicts.length > 0) {
+            throw new Error(`عذراً، هذا الوقت غير متاح. يرجى اختيار وقت آخر (يوجد تضارب مع حجز آخر في غضون ${gapMinutes} دقيقة)`);
+        }
+    }
 
     // Check if phone is blocked (Shadow Ban)
     // If phone is provided in payload, check against blocked_phones table
