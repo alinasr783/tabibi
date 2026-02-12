@@ -10,6 +10,7 @@ import { Label } from "../../components/ui/label";
 import { Textarea } from "../../components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { TagInput } from "../../components/ui/tag-input";
+import { Checkbox } from "../../components/ui/checkbox";
 import { updatePatient } from "../../services/apiPatients";
 import toast from "react-hot-toast";
 
@@ -243,5 +244,179 @@ export function InsuranceForm({ patient, onCancel, onSuccess }) {
         isSubmitting={isSubmitting} 
       />
     </form>
+  );
+}
+
+export function CustomFieldsForm({ patient, onCancel, onSuccess }) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [customFields, setCustomFields] = useState(
+    Array.isArray(patient.custom_fields) ? patient.custom_fields : []
+  );
+  const [newField, setNewField] = useState({ name: "", type: "text" });
+
+  const addField = () => {
+    const name = newField.name.trim();
+    if (!name) return;
+    setCustomFields((prev) => [
+      ...prev,
+      { id: crypto.randomUUID(), name, type: newField.type, value: "" },
+    ]);
+    setNewField({ name: "", type: "text" });
+  };
+
+  const removeField = (id) => {
+    setCustomFields((prev) => prev.filter((f) => f.id !== id));
+  };
+
+  const updateFieldValue = (id, value) => {
+    setCustomFields((prev) =>
+      prev.map((f) => (f.id === id ? { ...f, value } : f))
+    );
+  };
+
+  const renderFieldInput = (field) => {
+    if (field.type === "textarea") {
+      return (
+        <Textarea
+          value={field.value ?? ""}
+          onChange={(e) => updateFieldValue(field.id, e.target.value)}
+          className="min-h-[80px] text-sm"
+        />
+      );
+    }
+
+    if (field.type === "number") {
+      return (
+        <Input
+          type="number"
+          value={field.value ?? ""}
+          onChange={(e) => updateFieldValue(field.id, e.target.value)}
+          className="text-sm"
+        />
+      );
+    }
+
+    if (field.type === "date") {
+      return (
+        <Input
+          type="date"
+          value={field.value ?? ""}
+          onChange={(e) => updateFieldValue(field.id, e.target.value)}
+          className="text-sm"
+        />
+      );
+    }
+
+    if (field.type === "checkbox") {
+      return (
+        <div className="flex items-center gap-2">
+          <Checkbox
+            checked={Boolean(field.value)}
+            onCheckedChange={(checked) => updateFieldValue(field.id, checked)}
+          />
+          <span className="text-sm text-muted-foreground">نعم / لا</span>
+        </div>
+      );
+    }
+
+    return (
+      <Input
+        value={field.value ?? ""}
+        onChange={(e) => updateFieldValue(field.id, e.target.value)}
+        className="text-sm"
+      />
+    );
+  };
+
+  const onSave = async () => {
+    try {
+      setIsSubmitting(true);
+      await updatePatient(patient.id, { custom_fields: customFields });
+      toast.success("تم تحديث الحقول الإضافية بنجاح");
+      onSuccess({ custom_fields: customFields });
+    } catch (error) {
+      toast.error("حدث خطأ أثناء تحديث الحقول الإضافية");
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 items-end">
+        <div className="sm:col-span-3 space-y-2">
+          <Label>اسم الحقل</Label>
+          <Input
+            value={newField.name}
+            onChange={(e) => setNewField((prev) => ({ ...prev, name: e.target.value }))}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addField();
+              }
+            }}
+            placeholder="مثال: حساسية أدوية"
+            className="h-11"
+          />
+        </div>
+
+        <div className="sm:col-span-1 space-y-2">
+          <Label>النوع</Label>
+          <Select
+            value={newField.type}
+            onValueChange={(value) => setNewField((prev) => ({ ...prev, type: value }))}
+            dir="rtl"
+          >
+            <SelectTrigger className="h-11 justify-between">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="text">نص</SelectItem>
+              <SelectItem value="number">رقم</SelectItem>
+              <SelectItem value="date">تاريخ</SelectItem>
+              <SelectItem value="textarea">نص طويل</SelectItem>
+              <SelectItem value="checkbox">صح/غلط</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <Button
+          type="button"
+          variant="outline"
+          onClick={addField}
+          disabled={!newField.name.trim()}
+          className="sm:col-span-1 h-11"
+        >
+          إضافة
+        </Button>
+      </div>
+
+      {customFields.length === 0 ? (
+        <div className="text-sm text-muted-foreground">لا يوجد حقول إضافية</div>
+      ) : (
+        <div className="space-y-2">
+          {customFields.map((field) => (
+            <div key={field.id} className="rounded-lg border p-3 bg-card/50 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-sm font-semibold">{field.name}</div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => removeField(field.id)}
+                >
+                  <X className="w-4 h-4 text-destructive" />
+                </Button>
+              </div>
+              {renderFieldInput(field)}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <ActionButtons onSave={onSave} onCancel={onCancel} isSubmitting={isSubmitting} />
+    </div>
   );
 }

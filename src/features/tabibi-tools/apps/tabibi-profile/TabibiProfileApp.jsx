@@ -406,13 +406,40 @@ export default function TabibiProfileApp() {
           {/* Images Card */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Upload className="h-5 w-5 text-primary" />
-                الصور والمظهر
-              </CardTitle>
-              <CardDescription>
-                تخصيص الصور التي تظهر في ملفك الشخصي
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Upload className="h-5 w-5 text-primary" />
+                    الصور والمظهر
+                  </CardTitle>
+                  <CardDescription>
+                    تخصيص الصور التي تظهر في ملفك الشخصي
+                  </CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="gap-2"
+                    onClick={downloadQRCode}
+                    disabled={!publicProfileUrl}
+                  >
+                    <QrCode className="h-4 w-4" />
+                    تحميل QR Code
+                  </Button>
+                  {/* Hidden QR Code for downloading only */}
+                  <div className="hidden">
+                    {publicProfileUrl && (
+                      <QRCode 
+                        id="profile-qr-code"
+                        value={publicProfileUrl} 
+                        size={256}
+                        level="H"
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid gap-6 md:grid-cols-2">
@@ -897,44 +924,7 @@ export default function TabibiProfileApp() {
               </div>
             </div>
             
-            {/* QR Code Card */}
-            <Card className="border-primary/20 bg-primary/5">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <QrCode className="h-4 w-4" />
-                  رمز QR للبروفايل
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-col items-center gap-4">
-                <div className="p-4 bg-white rounded-xl shadow-sm border border-primary/10">
-                  {publicProfileUrl ? (
-                    <QRCode 
-                      id="profile-qr-code"
-                      value={publicProfileUrl} 
-                      size={150}
-                      level="H"
-                    />
-                  ) : (
-                    <div className="w-[150px] h-[150px] flex items-center justify-center text-muted-foreground text-xs text-center px-4">
-                      جارٍ تجهيز الرابط...
-                    </div>
-                  )}
-                </div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="w-full gap-2 bg-white"
-                  onClick={downloadQRCode}
-                  disabled={!publicProfileUrl}
-                >
-                  <Download className="h-4 w-4" />
-                  تحميل الرمز (QR Code)
-                </Button>
-                <p className="text-[10px] text-center text-muted-foreground">
-                  يمكنك طباعة هذا الرمز ووضعه في عيادتك ليسهل على المرضى الوصول لملفك الشخصي.
-                </p>
-              </CardContent>
-            </Card>
+            {/* Removed QR Code from Preview per user request */}
 
             <div className="bg-blue-50 text-blue-800 p-4 rounded-lg text-xs leading-relaxed border border-blue-100">
               <p>

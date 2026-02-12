@@ -10,6 +10,7 @@ import { useState, useEffect } from "react";
 import { PersonalInfoEditModal } from "./PersonalInfoEditModal";
 import { MedicalHistoryEditModal } from "./MedicalHistoryEditModal";
 import { InsuranceEditModal } from "./InsuranceEditModal";
+import { CustomFieldsEditModal } from "./CustomFieldsEditModal";
 
 export default function PatientProfileTab({ patient }) {
   const [editingSection, setEditingSection] = useState(null); // 'personal', 'medical', 'insurance'
@@ -28,6 +29,7 @@ export default function PatientProfileTab({ patient }) {
 
   const medicalHistory = displayPatient.medical_history || {};
   const insuranceInfo = displayPatient.insurance_info || {};
+  const customFields = Array.isArray(displayPatient.custom_fields) ? displayPatient.custom_fields : [];
 
   return (
     <div className="space-y-6" dir="rtl">
@@ -184,6 +186,42 @@ export default function PatientProfileTab({ patient }) {
         </CardContent>
       </Card>
 
+      {/* Custom Fields */}
+      <Card className="relative group bg-card/70">
+        <div className="absolute top-4 left-4 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+          <Button variant="ghost" size="sm" onClick={() => setEditingSection('custom')}>
+            <Edit className="w-4 h-4 text-muted-foreground" />
+          </Button>
+        </div>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-bold flex items-center gap-2">
+            <FileText className="w-5 h-5 text-primary" />
+            حقول إضافية
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {customFields.length === 0 ? (
+            <div className="text-sm text-muted-foreground">لا يوجد</div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {customFields.map((field) => (
+                <div
+                  key={field.id}
+                  className="p-2.5 rounded-lg border border-transparent hover:border-muted/30 hover:bg-muted/30 transition-all"
+                >
+                  <div className="text-xs text-muted-foreground mb-1">{field.name}</div>
+                  <div className="text-sm font-medium text-foreground">
+                    {field.type === "checkbox"
+                      ? (field.value ? "نعم" : "لا")
+                      : (field.value ?? "-") || "-"}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Edit Modals */}
       <PersonalInfoEditModal 
         open={editingSection === 'personal'} 
@@ -200,6 +238,12 @@ export default function PatientProfileTab({ patient }) {
       <InsuranceEditModal 
         open={editingSection === 'insurance'} 
         onOpenChange={(open) => !open && setEditingSection(null)} 
+        patient={displayPatient}
+        onSuccess={handleUpdateSuccess}
+      />
+      <CustomFieldsEditModal
+        open={editingSection === 'custom'}
+        onOpenChange={(open) => !open && setEditingSection(null)}
         patient={displayPatient}
         onSuccess={handleUpdateSuccess}
       />

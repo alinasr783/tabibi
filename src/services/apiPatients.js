@@ -176,7 +176,7 @@ export async function getPatientById(id) {
   // depending on the actual database schema
   const { data, error } = await supabase
     .from("patients")
-    .select("id,name,phone,gender,address,date_of_birth,age,blood_type,job,marital_status,email,medical_history,insurance_info,age_unit,notes")
+    .select("id,name,phone,gender,address,date_of_birth,age,blood_type,job,marital_status,email,medical_history,insurance_info,age_unit,notes,custom_fields")
     .eq("id", id.toString())  // Convert to string to handle both number and UUID IDs
     .eq("clinic_id", userData.clinic_id)
     .single()

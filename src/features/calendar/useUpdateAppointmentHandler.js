@@ -37,11 +37,10 @@ export default function useUpdateAppointmentHandler() {
 
         // Only validate price if it's being updated
         if (data.price !== undefined) {
-            if (
-                data.price === "" ||
-                isNaN(parseFloat(data.price)) ||
-                parseFloat(data.price) < 0
-            ) {
+            if (data.price === null || data.price === "") return null
+            const parsed =
+                typeof data.price === "string" ? parseFloat(data.price) : data.price
+            if (Number.isNaN(parsed) || parsed < 0) {
                 return "سعر الحجز مطلوب ويجب أن يكون رقمًا موجبًا"
             }
         }
@@ -70,19 +69,23 @@ export default function useUpdateAppointmentHandler() {
                 }
             }
             
-            const payload = {
-                date: data.date,
-                notes: data.notes,
-                price: typeof data.price === "string" ? parseFloat(data.price) : data.price,
-                status: data.status?.toLowerCase(), // Add status to payload and ensure lowercase
-            };
+            const payload = {}
+
+            if (data.date !== undefined) payload.date = data.date
+            if (data.notes !== undefined) payload.notes = data.notes
+            if (data.status !== undefined) payload.status = data.status?.toLowerCase()
+            if (data.diagnosis !== undefined) payload.diagnosis = data.diagnosis
+            if (data.treatment !== undefined) payload.treatment = data.treatment
+            if (data.custom_fields !== undefined) payload.custom_fields = data.custom_fields
+
+            if (data.price !== undefined && data.price !== null && data.price !== "") {
+                payload.price =
+                    typeof data.price === "string" ? parseFloat(data.price) : data.price
+            }
             
-            // Remove undefined values
-            Object.keys(payload).forEach(key => {
-                if (payload[key] === undefined) {
-                    delete payload[key];
-                }
-            });
+            Object.keys(payload).forEach((key) => {
+                if (payload[key] === undefined) delete payload[key]
+            })
             
             updateAppointment(
                 { id: appointmentId, ...payload },

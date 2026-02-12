@@ -223,7 +223,7 @@ export async function getCurrentUser() {
             console.log("getCurrentUser: Creating user data promise");
             const { data: userData, error: userError } = await supabase
                 .from("users")
-                .select("user_id, email, name, phone, role, clinic_id, permissions, avatar_url, banner_url, bio, education, certificates, specialty")
+                .select("user_id, email, name, phone, role, clinic_id, permissions, avatar_url, banner_url, bio, education, certificates, specialty, contacts")
                 .eq("user_id", session.user.id)
                 .single();
             
@@ -349,7 +349,7 @@ export async function getCurrentUser() {
                 const { data: fallbackData, error: fallbackError } = await withTimeout(
                     supabase
                         .from("users")
-                        .select("user_id, role, clinic_id")
+                        .select("user_id, role, clinic_id, contacts")
                         .eq("user_id", session.user.id)
                         .single(),
                     10000 // 10 second timeout for fallback
@@ -551,7 +551,7 @@ export async function updateSecretaryPermissions(secretaryId, permissions) {
     return data
 }
 
-export async function updateProfile({ name, phone, email, avatar_url, bio, education, certificates, specialty, banner_url }) {
+export async function updateProfile({ name, phone, email, avatar_url, bio, education, certificates, specialty, banner_url, contacts }) {
     // Get current user session
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) throw new Error("جلسة المصادقة مفقودة! برجاء تسجيل الدخول مرة أخرى.")
@@ -582,6 +582,7 @@ export async function updateProfile({ name, phone, email, avatar_url, bio, educa
     if (certificates !== undefined) updates.certificates = certificates
     if (specialty !== undefined) updates.specialty = specialty
     if (banner_url !== undefined) updates.banner_url = banner_url
+    if (contacts !== undefined) updates.contacts = contacts
 
     // Update user in users table
     const { data, error: userError } = await supabase

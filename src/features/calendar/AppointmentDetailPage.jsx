@@ -52,6 +52,7 @@ import {Input} from "../../components/ui/input";
 import {Label} from "../../components/ui/label";
 import {Skeleton} from "../../components/ui/skeleton";
 import {Textarea} from "../../components/ui/textarea";
+import { Checkbox } from "../../components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -126,8 +127,11 @@ export default function AppointmentDetailPage() {
     price: "",
     status: "",
     diagnosis: "",
-    treatment: ""
+    treatment: "",
+    custom_fields: []
   });
+
+  const [newField, setNewField] = useState({ name: "", type: "text" });
 
   // Removed newVisitData state - will use VisitCreateForm directly
 
@@ -189,7 +193,8 @@ export default function AppointmentDetailPage() {
         price: appointment.price || "",
         status: appointment.status || "",
         diagnosis: appointment.diagnosis || "",
-        treatment: appointment.treatment || ""
+        treatment: appointment.treatment || "",
+        custom_fields: appointment.custom_fields || []
       });
       // Reset optimistic status when real data arrives
       setOptimisticStatus(null);
@@ -198,6 +203,89 @@ export default function AppointmentDetailPage() {
 
   const handleEditChange = (field, value) => {
     setEditData((prev) => ({...prev, [field]: value}));
+  };
+
+  const handleAddCustomField = () => {
+    if (!newField.name.trim()) return;
+    
+    const newFields = [
+      ...editData.custom_fields,
+      { 
+        id: crypto.randomUUID(), 
+        name: newField.name, 
+        type: newField.type, 
+        value: "" 
+      }
+    ];
+    
+    setEditData(prev => ({ ...prev, custom_fields: newFields }));
+    setNewField({ name: "", type: "text" });
+  };
+
+  const handleRemoveCustomField = (id) => {
+    const newFields = editData.custom_fields.filter(f => f.id !== id);
+    setEditData(prev => ({ ...prev, custom_fields: newFields }));
+  };
+
+  const handleCustomFieldValueChange = (id, value) => {
+    const newFields = editData.custom_fields.map(f => 
+      f.id === id ? { ...f, value } : f
+    );
+    setEditData(prev => ({ ...prev, custom_fields: newFields }));
+  };
+
+  const renderCustomFieldValueInput = (field) => {
+    if (field.type === "textarea") {
+      return (
+        <Textarea
+          value={field.value ?? ""}
+          onChange={(e) => handleCustomFieldValueChange(field.id, e.target.value)}
+          className="min-h-[80px] text-sm"
+        />
+      );
+    }
+
+    if (field.type === "number") {
+      return (
+        <Input
+          type="number"
+          value={field.value ?? ""}
+          onChange={(e) => handleCustomFieldValueChange(field.id, e.target.value)}
+          className="text-sm"
+        />
+      );
+    }
+
+    if (field.type === "date") {
+      return (
+        <Input
+          type="date"
+          value={field.value ?? ""}
+          onChange={(e) => handleCustomFieldValueChange(field.id, e.target.value)}
+          className="text-sm"
+        />
+      );
+    }
+
+    if (field.type === "checkbox") {
+      return (
+        <div className="flex items-center gap-2">
+          <Checkbox
+            checked={Boolean(field.value)}
+            onCheckedChange={(checked) => handleCustomFieldValueChange(field.id, checked)}
+          />
+          <span className="text-sm text-muted-foreground">نعم / لا</span>
+        </div>
+      );
+    }
+
+    return (
+      <Input
+        value={field.value ?? ""}
+        onChange={(e) => handleCustomFieldValueChange(field.id, e.target.value)}
+        className="text-sm"
+      />
+    );
   };
 
   const handleSaveEdit = async () => {
@@ -767,6 +855,80 @@ export default function AppointmentDetailPage() {
                     value={editData.treatment}
                     onChange={(e) => handleEditChange("treatment", e.target.value)}
                   />
+                </div>
+                <div className="space-y-3">
+                  <Label className="text-xs text-muted-foreground block">حقول إضافية</Label>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 items-end">
+                    <div className="sm:col-span-3">
+                      <Label className="text-[10px] text-muted-foreground mb-1 block">اسم الحقل</Label>
+                      <Input
+                        value={newField.name}
+                        onChange={(e) => setNewField((prev) => ({ ...prev, name: e.target.value }))}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleAddCustomField();
+                          }
+                        }}
+                        placeholder="مثال: ضغط الدم"
+                        className="text-sm"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-1">
+                      <Label className="text-[10px] text-muted-foreground mb-1 block">النوع</Label>
+                      <Select
+                        value={newField.type}
+                        onValueChange={(value) => setNewField((prev) => ({ ...prev, type: value }))}
+                        dir="rtl"
+                      >
+                        <SelectTrigger className="h-10 w-full justify-between text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="text">نص</SelectItem>
+                          <SelectItem value="number">رقم</SelectItem>
+                          <SelectItem value="date">تاريخ</SelectItem>
+                          <SelectItem value="textarea">نص طويل</SelectItem>
+                          <SelectItem value="checkbox">صح/غلط</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="sm:col-span-1 gap-2"
+                      onClick={handleAddCustomField}
+                      disabled={!newField.name.trim()}
+                    >
+                      <Plus className="size-4" />
+                      إضافة
+                    </Button>
+                  </div>
+
+                  {editData.custom_fields?.length > 0 && (
+                    <div className="space-y-2">
+                      {editData.custom_fields.map((field) => (
+                        <div key={field.id} className="rounded-lg border p-3 bg-card/50 space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="text-sm font-semibold">{field.name}</div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => handleRemoveCustomField(field.id)}
+                            >
+                              <Trash2 className="size-4 text-destructive" />
+                            </Button>
+                          </div>
+                          {renderCustomFieldValueInput(field)}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <Button 
                   onClick={handleSaveEdit}

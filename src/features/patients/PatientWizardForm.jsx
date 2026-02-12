@@ -31,7 +31,7 @@ export default function PatientWizardForm({ onSubmit, isSubmitting, initialData,
   const [currentStep, setCurrentStep] = useState(1);
   const [attachments, setAttachments] = useState([]);
   const [attachmentTypes, setAttachmentTypes] = useState([]);
-  const [isReadyToSubmit, setIsReadyToSubmit] = useState(false);
+  const [attachmentDescriptions, setAttachmentDescriptions] = useState([]);
   
   const { register, control, handleSubmit, trigger, formState: { errors }, watch, reset } = useForm({
     defaultValues: {
@@ -93,16 +93,6 @@ export default function PatientWizardForm({ onSubmit, isSubmitting, initialData,
       });
     }
   }, [initialData, reset]);
-
-  // Prevent accidental double-click submission when reaching the last step
-  useEffect(() => {
-    if (currentStep === STEPS.length) {
-      const timer = setTimeout(() => setIsReadyToSubmit(true), 500);
-      return () => clearTimeout(timer);
-    } else {
-      setIsReadyToSubmit(false);
-    }
-  }, [currentStep]);
 
   const nextStep = async () => {
     let fieldsToValidate = [];
@@ -216,7 +206,11 @@ export default function PatientWizardForm({ onSubmit, isSubmitting, initialData,
         })}
       </div>
 
-      <form onSubmit={handleSubmit(onFinalSubmit)} onKeyDown={handleKeyDown} className="space-y-6">
+      <form
+        onSubmit={(e) => e.preventDefault()}
+        onKeyDown={handleKeyDown}
+        className="space-y-6"
+      >
         <AnimatePresence mode="wait">
           <motion.div
             key={currentStep}
@@ -244,9 +238,8 @@ export default function PatientWizardForm({ onSubmit, isSubmitting, initialData,
                     <Input 
                       {...register("phone", { required: "رقم الهاتف مطلوب" })}
                       placeholder="05xxxxxxxx"
-                      className="h-11"
                       dir="ltr"
-                      className="text-right"
+                      className="h-11 text-right"
                     />
                     {errors.phone && <p className="text-red-500 text-sm">{errors.phone.message}</p>}
                   </div>
@@ -334,7 +327,7 @@ export default function PatientWizardForm({ onSubmit, isSubmitting, initialData,
 
                 <div className="space-y-2">
                   <Label>البريد الإلكتروني</Label>
-                  <Input {...register("email")} type="email" placeholder="email@example.com" className="h-11" dir="ltr" className="text-right" />
+                  <Input {...register("email")} type="email" placeholder="email@example.com" dir="ltr" className="h-11 text-right" />
                 </div>
 
                 <div className="space-y-2">
@@ -526,7 +519,12 @@ export default function PatientWizardForm({ onSubmit, isSubmitting, initialData,
             <ChevronLeft className="w-4 h-4 mr-2" />
           </Button>
         ) : (
-          <Button type="submit" disabled={isSubmitting || !isReadyToSubmit} className="w-full">
+          <Button
+            type="button"
+            onClick={handleSubmit(onFinalSubmit)}
+            disabled={isSubmitting}
+            className="w-full"
+          >
             {isSubmitting ? "جاري الحفظ..." : (initialData ? "تحديث البيانات" : "حفظ المريض")}
             <Check className="w-4 h-4 mr-2" />
           </Button>

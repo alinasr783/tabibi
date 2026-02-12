@@ -1,6 +1,18 @@
 -- WARNING: This schema is for context only and is not meant to be run.
 -- Table order and constraints may not be valid for execution.
 
+CREATE TABLE public.ai_agent_profile (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  bio text,
+  avatar_url text,
+  banner_url text,
+  skills jsonb DEFAULT '[]'::jsonb,
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT ai_agent_profile_pkey PRIMARY KEY (id)
+);
 CREATE TABLE public.app_data_submissions (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   app_id bigint NOT NULL,
@@ -55,6 +67,7 @@ CREATE TABLE public.app_subscriptions (
   billing_period text,
   amount numeric,
   auto_renew boolean DEFAULT true,
+  is_integrated boolean DEFAULT false,
   CONSTRAINT app_subscriptions_pkey PRIMARY KEY (id),
   CONSTRAINT app_subscriptions_app_id_fkey FOREIGN KEY (app_id) REFERENCES public.tabibi_apps(id)
 );
@@ -64,6 +77,9 @@ CREATE TABLE public.appointments (
   patient_id bigint,
   date text,
   notes text,
+  diagnosis text,
+  treatment text,
+  custom_fields jsonb DEFAULT '[]'::jsonb,
   status text,
   price bigint,
   from text,
@@ -170,6 +186,10 @@ CREATE TABLE public.clinics (
   clinic_uuid uuid DEFAULT gen_random_uuid() UNIQUE,
   online_booking_enabled boolean DEFAULT true,
   clinic_id_bigint bigint,
+  whatsapp_enabled boolean DEFAULT false,
+  whatsapp_number text,
+  prevent_conflicts boolean DEFAULT false,
+  min_time_gap integer DEFAULT 30,
   CONSTRAINT clinics_pkey PRIMARY KEY (id),
   CONSTRAINT clinics_current_plan_fkey FOREIGN KEY (current_plan) REFERENCES public.plans(id)
 );
@@ -258,7 +278,7 @@ CREATE TABLE public.financial_records (
   patient_id bigint,
   patient_plan_id bigint,
   amount numeric NOT NULL,
-  type text NOT NULL CHECK (type = ANY (ARRAY['income'::text, 'expense'::text])),
+  type text NOT NULL CHECK (type = ANY (ARRAY['income'::text, 'expense'::text, 'charge'::text])),
   description text NOT NULL,
   recorded_at timestamp with time zone DEFAULT now(),
   created_at timestamp with time zone DEFAULT now(),
@@ -352,6 +372,7 @@ CREATE TABLE public.patients (
   notes text,
   medical_history jsonb DEFAULT '{}'::jsonb,
   insurance_info jsonb DEFAULT '{}'::jsonb,
+  custom_fields jsonb DEFAULT '[]'::jsonb,
   CONSTRAINT patients_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.plan_pricing (
@@ -406,6 +427,8 @@ CREATE TABLE public.tabibi_apps (
   submission_schema jsonb DEFAULT '{}'::jsonb,
   images jsonb DEFAULT '[]'::jsonb,
   views_count integer DEFAULT 0,
+  integration_type text DEFAULT 'none'::text CHECK (integration_type = ANY (ARRAY['none'::text, 'full'::text, 'partial'::text])),
+  integration_target text,
   CONSTRAINT tabibi_apps_pkey PRIMARY KEY (id),
   CONSTRAINT tabibi_apps_developer_id_fkey FOREIGN KEY (developer_id) REFERENCES public.app_developers(id)
 );
@@ -458,6 +481,7 @@ CREATE TABLE public.user_preferences (
   daily_appointments_email_enabled boolean DEFAULT false,
   daily_appointments_email_time text DEFAULT '07:00'::text,
   timezone text DEFAULT 'Africa/Cairo'::text,
+  tabibi_ai_settings jsonb DEFAULT '{}'::jsonb,
   CONSTRAINT user_preferences_pkey PRIMARY KEY (id),
   CONSTRAINT user_preferences_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
@@ -479,6 +503,7 @@ CREATE TABLE public.users (
   certificates jsonb DEFAULT '[]'::jsonb,
   specialty text,
   banner_url text,
+  contacts jsonb DEFAULT '[]'::jsonb,
   CONSTRAINT users_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.visits (

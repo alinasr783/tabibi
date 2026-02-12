@@ -3,10 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { getClinicById } from "../services/apiClinic";
 import { Button } from "../components/ui/button";
-import { Loader2, CheckCircle, BadgeCheck, Star, Share2, GraduationCap, Award, MapPin, Phone, MessageCircle, User, Building2, Banknote, Clock, QrCode, Download, X } from "lucide-react";
+import { Loader2, CheckCircle, BadgeCheck, Star, Share2, GraduationCap, Award, MapPin, Phone, MessageCircle, User, Building2, Banknote, Clock, X } from "lucide-react";
 import supabase from "../services/supabase";
-import { useAuth } from "../features/auth/AuthContext";
-import QRCode from "react-qr-code";
 import toast from "react-hot-toast";
 
 // Helper function to fetch extended public profile data
@@ -70,12 +68,7 @@ async function getDoctorPublicProfile(clinicUuid) {
 export default function DoctorProfilePage() {
   const { clinicId } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const [showQRModal, setShowQRModal] = useState(false);
   const [contactModal, setContactModal] = useState({ show: false, type: null, list: [] }); // type: 'call' or 'whatsapp'
-  
-  // Check if the current user is the owner of this profile
-  const isOwner = user?.clinic_id === clinicId;
 
   const { data: profile, isLoading, error } = useQuery({
     queryKey: ['public-doctor-profile', clinicId],
@@ -117,33 +110,6 @@ export default function DoctorProfilePage() {
 
     // Show selection modal if multiple contacts
     setContactModal({ show: true, type, list: filteredContacts });
-  };
-
-  const downloadQRCode = () => {
-    const svg = document.getElementById("profile-qr-code");
-    if (!svg) return;
-    
-    const svgData = new XMLSerializer().serializeToString(svg);
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    const img = new Image();
-    
-    img.onload = () => {
-      canvas.width = img.width + 40;
-      canvas.height = img.height + 40;
-      ctx.fillStyle = "white";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 20, 20);
-      
-      const pngFile = canvas.toDataURL("image/png");
-      const downloadLink = document.createElement("a");
-      downloadLink.download = `QR-Profile-${profile?.doctor?.name || 'doctor'}.png`;
-      downloadLink.href = pngFile;
-      downloadLink.click();
-      toast.success("تم تحميل رمز QR بنجاح");
-    };
-    
-    img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
   };
 
   // Scroll to top on mount
@@ -279,13 +245,6 @@ export default function DoctorProfilePage() {
             <span className="text-xs font-body-sans font-semibold">اتصال</span>
           </button>
           <button 
-            onClick={() => setShowQRModal(true)}
-            className="flex-1 bg-[#0A1F44]/10 text-[#0A1F44] rounded-xl py-3 flex flex-col items-center gap-1 transition-all hover:bg-[#0A1F44]/20 active:scale-95"
-          >
-            <QrCode className="w-5 h-5" />
-            <span className="text-xs font-body-sans font-semibold">QR Code</span>
-          </button>
-          <button 
             onClick={() => handleContactAction('whatsapp')}
             className="flex-1 bg-[#25D366]/10 text-[#25D366] rounded-xl py-3 flex flex-col items-center gap-1 transition-all hover:bg-[#25D366]/20 active:scale-95"
           >
@@ -319,47 +278,6 @@ export default function DoctorProfilePage() {
             <span className="text-xs font-body-sans font-semibold">مشاركة</span>
           </button>
         </div>
-
-        {/* QR Code Modal */}
-        {showQRModal && (
-          <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-300">
-            <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
-              <div className="p-6 flex flex-col items-center gap-6">
-                <div className="w-full flex justify-between items-center">
-                  <h3 className="text-xl font-bold font-amiri text-[#0A1F44]">رمز QR للبروفايل</h3>
-                  <button 
-                    onClick={() => setShowQRModal(false)}
-                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                  >
-                    <X className="w-6 h-6 text-gray-500" />
-                  </button>
-                </div>
-
-                <div className="p-6 bg-white rounded-2xl border-2 border-gray-100 shadow-inner">
-                  <QRCode 
-                    id="profile-qr-code"
-                    value={window.location.href} 
-                    size={200}
-                    className="w-full h-auto"
-                  />
-                </div>
-
-                <div className="w-full space-y-3">
-                  <Button 
-                    onClick={downloadQRCode}
-                    className="w-full py-6 bg-[#0A1F44] hover:bg-[#0A1F44]/90 rounded-2xl gap-2 text-lg font-bold"
-                  >
-                    <Download className="w-5 h-5" />
-                    تحميل الرمز
-                  </Button>
-                  <p className="text-center text-sm text-gray-500 font-body-sans">
-                    يمكن للمرضى مسح هذا الرمز للوصول لصفحتك مباشرة
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Contact Selection Modal */}
         {contactModal.show && (

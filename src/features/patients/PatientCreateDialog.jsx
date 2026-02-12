@@ -1,5 +1,4 @@
-import { X, Loader2, Check } from "lucide-react";
-import { useForm } from "react-hook-form";
+import { X } from "lucide-react";
 import toast from "react-hot-toast";
 import { Button } from "../../components/ui/button";
 import {
@@ -15,7 +14,7 @@ import { uploadPatientAttachment } from "../../services/apiAttachments";
 export default function PatientCreateDialog({open, onClose, onPatientCreated, clinicId}) {
   const {mutateAsync, isPending} = useCreatePatientOffline();
   
-  async function onSubmit(values, attachments, attachmentDescriptions) {
+  async function onSubmit(values, attachments, attachmentDescriptions, attachmentTypes) {
     try {
       // Handle age and age_unit
       let age = null;
@@ -41,7 +40,7 @@ export default function PatientCreateDialog({open, onClose, onPatientCreated, cl
             patientId: newPatient.id,
             clinicId: clinicId,
             file: file,
-            category: 'initial_upload',
+            category: attachmentTypes?.[idx] || 'report',
             description: attachmentDescriptions?.[idx] || 'ملف تم رفعه أثناء إنشاء المريض'
           })
         );
@@ -61,7 +60,13 @@ export default function PatientCreateDialog({open, onClose, onPatientCreated, cl
   }
 
   return (
-    <Dialog open={open} onOpenChange={onClose} style={{ direction: 'rtl' }}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) onClose?.();
+      }}
+      style={{ direction: 'rtl' }}
+    >
       <DialogContent className="sm:max-w-[700px] w-[95vw] max-h-[90vh] h-auto p-0 rounded-[var(--radius)] border-0 shadow-2xl overflow-hidden" dir="rtl">
         {/* Header */}
         <DialogHeader className="p-4 bg-white sticky top-0 z-10 border-b">
