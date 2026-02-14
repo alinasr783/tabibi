@@ -91,8 +91,7 @@ export default function PatientFormCard({
               render={({ field }) => (
                 <Select
                   onValueChange={field.onChange}
-                  defaultValue={field.value}
-                  value={field.value}
+                  value={field.value ?? ""}
                   dir="rtl"
                 >
                   <SelectTrigger id="gender" className="h-10 w-full justify-between">
@@ -120,8 +119,12 @@ export default function PatientFormCard({
             <Input
               id="age"
               type="number"
+              inputMode="numeric"
+              step="1"
               {...register("age", {
                 required: "العمر مطلوب",
+                valueAsNumber: true,
+                validate: (v) => (Number.isFinite(v) ? true : "العمر غير صحيح"),
                 min: { value: 1, message: "العمر يجب أن يكون أكبر من 0" },
                 max: { value: 120, message: "العمر يجب أن يكون أقل من 120" }
               })}

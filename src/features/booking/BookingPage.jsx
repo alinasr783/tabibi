@@ -24,6 +24,11 @@ import useClinicById from "./useClinicById";
 import useCreateAppointmentPublic from "./useCreateAppointmentPublic";
 import usePatientHandling from "./usePatientHandling";
 import { useBookingAnalytics } from "./useBookingAnalytics";
+import { isSupabaseConfigured } from "../../services/supabase";
+import { dbg } from "../../lib/debug";
+
+const isUuid = (v) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(v));
 
 export default function BookingPage() {
   const { clinicId } = useParams();
@@ -34,8 +39,10 @@ export default function BookingPage() {
     isError: isClinicError,
   } = useClinicById(clinicId);
   
+  const resolvedClinicId = clinic?.clinic_uuid || (isUuid(clinicId) ? clinicId : null);
+
   // Analytics Hook
-  const { saveDraft, checkBlocked, logConversion, logBlockedAttempt } = useBookingAnalytics(clinicId);
+  const { saveDraft, checkBlocked, logConversion, logBlockedAttempt } = useBookingAnalytics(resolvedClinicId);
 
   const {
     register: registerPatient,
@@ -101,6 +108,16 @@ export default function BookingPage() {
 
   const handlePatientFormSubmit = async (data) => {
     try {
+      dbg("booking/patientFormSubmit/input", data);
+      if (!resolvedClinicId) {
+        toast.error("تعذر تحديد العيادة");
+        return;
+      }
+      if (!isSupabaseConfigured) {
+        toast.error("الحجز الإلكتروني غير مُفعّل حالياً (إعدادات الاتصال غير مكتملة)");
+        return;
+      }
+      dbg("booking/patientFormSubmit/resolvedClinicId", { resolvedClinicId, clinicIdParam: clinicId, clinicFromQuery: clinic?.clinic_uuid });
       // Check blocked status first to prevent patient creation if blocked
       const isBlocked = await checkBlocked(data.phone);
       if (isBlocked) {
@@ -116,20 +133,34 @@ export default function BookingPage() {
         return;
       }
 
-      const patient = await handlePatientSubmit(data, clinicId);
+      const patient = await handlePatientSubmit(data, resolvedClinicId);
+      dbg("booking/patientFormSubmit/patientResult", patient);
       setSelectedPatient(patient);
       setCurrentStep(2);
       // Force save draft on step completion
       saveDraft(2, { ...data, patientId: patient.id });
       toast.success("تم حفظ بياناتك بنجاح");
     } catch (error) {
-      toast.error("مشكلة في حفظ بياناتك، حاول تاني");
+      const msg = String(error?.message || "");
+      if (msg.toLowerCase().includes("no api key") || msg.toLowerCase().includes("apikey")) {
+        toast.error("الحجز الإلكتروني غير مُفعّل حالياً (apikey غير موجود)");
+      } else {
+        toast.error("مشكلة في حفظ بياناتك، حاول تاني");
+      }
     }
   };
 
   const onSubmit = async (data) => {
     if (!selectedPatient) {
       toast.error("محتاج تكمل بياناتك الأول!");
+      return;
+    }
+    if (!resolvedClinicId) {
+      toast.error("تعذر تحديد العيادة");
+      return;
+    }
+    if (!isSupabaseConfigured) {
+      toast.error("الحجز الإلكتروني غير مُفعّل حالياً (إعدادات الاتصال غير مكتملة)");
       return;
     }
 
@@ -181,7 +212,7 @@ export default function BookingPage() {
           phone: selectedPatient.phone, // Pass phone for backend blocking check
           from: "booking"
         },
-        clinicId: clinicId,
+        clinicId: resolvedClinicId,
       },
       {
         onSuccess: (data) => {
@@ -191,7 +222,12 @@ export default function BookingPage() {
           reset();
         },
         onError: (error) => {
-          toast.error("مشكلة في الحجز، حاول تاني");
+          const msg = String(error?.message || "");
+          if (msg.toLowerCase().includes("no api key") || msg.toLowerCase().includes("apikey")) {
+            toast.error("الحجز الإلكتروني غير مُفعّل حالياً (apikey غير موجود)");
+          } else {
+            toast.error("مشكلة في الحجز، حاول تاني");
+          }
         },
       }
     );

@@ -59,7 +59,11 @@ export async function getPatientFinanceLedger(patientId, filters = {}) {
 
   if (filters.startDate) query = query.gte("recorded_at", filters.startDate);
   if (filters.endDate) query = query.lte("recorded_at", filters.endDate);
-  if (filters.type && filters.type !== "all") query = query.eq("type", filters.type);
+  if (filters.type && filters.type !== "all") {
+    if (filters.type === "income") query = query.in("type", ["income", "payment"]);
+    else if (filters.type === "charge") query = query.in("type", ["charge", "due", "dues"]);
+    else query = query.eq("type", filters.type);
+  }
 
   const { data, error } = await query;
   if (error) throw error;
@@ -70,11 +74,11 @@ export async function getPatientFinanceSummary(patientId, filters = {}) {
   const rows = await getPatientFinanceLedger(patientId, filters);
 
   const totalCharges = rows
-    .filter((r) => r.type === "charge")
+    .filter((r) => r.type === "charge" || r.type === "due" || r.type === "dues")
     .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
 
   const totalPayments = rows
-    .filter((r) => r.type === "income")
+    .filter((r) => r.type === "income" || r.type === "payment")
     .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
 
   const balance = totalCharges - totalPayments;

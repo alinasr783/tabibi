@@ -1,4 +1,5 @@
 import supabase from "./supabase"
+import { dbg } from "../lib/debug"
 import { createFinancialRecord } from "./apiFinancialRecords"
 import {
   normalizePlanLimits,
@@ -116,6 +117,22 @@ export async function createPatientPublic(payload) {
     throw new Error("معرف العيادة مطلوب")
   }
 
+  dbg("booking/createPatientPublic/input", {
+    ...patientData,
+    __types: Object.fromEntries(Object.keys(patientData).map((k) => [k, typeof patientData[k]])),
+  })
+
+  for (const key of Object.keys(patientData)) {
+    const v = patientData[key]
+    if (v === Infinity || v === -Infinity) patientData[key] = null
+    if (typeof v === "string") {
+      const s = v.trim().toLowerCase()
+      if (s === "infinity" || s === "+infinity" || s === "-infinity" || s === "nan") {
+        patientData[key] = null
+      }
+    }
+  }
+
   const subscription = await requireActiveSubscription(patientData.clinic_id)
   const limits = normalizePlanLimits(subscription?.plans?.limits)
 
@@ -129,21 +146,40 @@ export async function createPatientPublic(payload) {
   })
 
   // If age is provided, ensure it's an integer
-  if (patientData.age) {
-    patientData.age = parseInt(patientData.age, 10);
+  if (patientData.age !== undefined && patientData.age !== null && String(patientData.age).trim() !== "") {
+    const n = Number(patientData.age);
+    if (Number.isFinite(n)) patientData.age = Math.max(1, Math.min(120, Math.trunc(n)));
+    else patientData.age = null;
+  } else {
+    patientData.age = null;
   }
+
+  const insertData = {
+    name: patientData.name,
+    phone: patientData.phone,
+    gender: patientData.gender,
+    age: patientData.age,
+    clinic_id: patientData.clinic_id,
+  }
+
+  dbg("booking/createPatientPublic/sanitized", {
+    insertData,
+    __types: Object.fromEntries(Object.keys(insertData).map((k) => [k, typeof insertData[k]])),
+  })
 
   const { data, error } = await supabase
     .from("patients")
-    .insert(patientData)
+    .insert(insertData)
     .select()
     .single()
 
   if (error) {
     console.error("Error creating patient:", error)
+    dbg("booking/createPatientPublic/error", { message: error?.message, code: error?.code, details: error?.details, hint: error?.hint })
     throw error
   }
 
+  dbg("booking/createPatientPublic/success", data)
   return data
 }
 

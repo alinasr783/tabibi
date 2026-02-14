@@ -19,20 +19,23 @@ const queryClient = new QueryClient({
   },
 });
 
-// Register service worker for offline support and PWA
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
+if (import.meta.env.DEV && "serviceWorker" in navigator) {
+  navigator.serviceWorker.getRegistrations().then((regs) => regs.forEach((r) => r.unregister()));
+}
+
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("/sw.js")
       .then((registration) => {
-        console.log('✅ Service Worker registered:', registration);
-        
-        // Check for updates periodically
+        console.log("✅ Service Worker registered:", registration);
+
         setInterval(() => {
           registration.update();
-        }, 60 * 60 * 1000); // Check every hour
+        }, 60 * 60 * 1000);
       })
       .catch((registrationError) => {
-        console.log('❌ Service Worker registration failed:', registrationError);
+        console.log("❌ Service Worker registration failed:", registrationError);
       });
   });
 }

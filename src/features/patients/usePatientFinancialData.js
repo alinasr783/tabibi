@@ -20,7 +20,9 @@ export default function usePatientFinancialData(patientId) {
           filter: `patient_id=eq.${patientId}` 
         },
         () => {
-          queryClient.invalidateQueries(["patientFinancialData", patientId]);
+          queryClient.invalidateQueries({ queryKey: ["patientFinancialData", patientId] });
+          queryClient.invalidateQueries({ queryKey: ["patientFinanceLedger", Number(patientId)] });
+          queryClient.invalidateQueries({ queryKey: ["patientFinanceSummary", Number(patientId)] });
         }
       )
       .subscribe();

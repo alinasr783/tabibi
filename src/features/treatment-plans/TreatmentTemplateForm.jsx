@@ -10,6 +10,8 @@ export default function TreatmentTemplateForm({ register, errors, setValue, watc
   const [showAdvanced, setShowAdvanced] = useState(false);
   const billingMode = watch?.("advanced_settings.billing.mode") || "per_session";
   const paymentPromptEnabled = !!watch?.("advanced_settings.paymentPrompt.enabled");
+  const isBundleBilling = billingMode === "bundle";
+  const sessionPrice = watch?.("session_price");
 
   useEffect(() => {
     if (!setValue) return;
@@ -24,6 +26,13 @@ export default function TreatmentTemplateForm({ register, errors, setValue, watc
       setValue("advanced_settings.paymentPrompt.enabled", false, { shouldDirty: false });
     }
   }, [setValue]);
+
+  useEffect(() => {
+    if (!setValue) return;
+    if (isBundleBilling) {
+      setValue("session_price", 0, { shouldDirty: sessionPrice != null && String(sessionPrice) !== "" });
+    }
+  }, [isBundleBilling, setValue]);
 
   return (
     <div className="space-y-5">
@@ -51,7 +60,7 @@ export default function TreatmentTemplateForm({ register, errors, setValue, watc
       <div className="space-y-2">
         <Label htmlFor="session_price" className="text-sm font-medium text-foreground flex items-center gap-2">
           <Banknote className="h-4 w-4 text-green-600" />
-          <span>سعر الجلسة (جنية مصري)</span>
+          <span>سعر الجلسة (جنية مصري){isBundleBilling ? " (اختياري)" : ""}</span>
         </Label>
         <div className="relative">
           <Input
@@ -59,15 +68,25 @@ export default function TreatmentTemplateForm({ register, errors, setValue, watc
             type="number"
             step="0.01"
             min="0"
-            {...register("session_price", { 
-              required: "سعر الجلسة مطلوب",
-              min: { value: 0, message: "سعر الجلسة يجب أن يكون أكبر من أو يساوي صفر" }
+            disabled={isBundleBilling}
+            {...register("session_price", {
+              validate: (value) => {
+                if (isBundleBilling) return true;
+                if (value == null || String(value).trim() === "") return "سعر الجلسة مطلوب";
+                const n = Number(value);
+                if (!Number.isFinite(n)) return "سعر الجلسة غير صحيح";
+                if (n < 0) return "سعر الجلسة يجب أن يكون أكبر من أو يساوي صفر";
+                return true;
+              },
             })}
             placeholder="0.00"
             className="h-11 pr-10"
           />
           <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">ج.م</span>
         </div>
+        {isBundleBilling ? (
+          <p className="text-xs text-muted-foreground">في حالة الباقات يتم حساب المستحقات بسعر الباقة.</p>
+        ) : null}
         {errors.session_price && (
           <p className="text-sm text-destructive mt-1 flex items-center gap-1">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

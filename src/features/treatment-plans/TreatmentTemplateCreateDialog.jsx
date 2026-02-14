@@ -33,10 +33,11 @@ export default function TreatmentTemplateCreateDialog({ open, onClose, onTemplat
       const mode = advanced?.billing?.mode || "per_session";
       const bundleSize = Number(advanced?.billing?.bundleSize);
       const bundlePrice = Number(advanced?.billing?.bundlePrice);
+      const sessionPrice = Number(values.session_price);
 
       const payload = {
         name: values.name,
-        session_price: parseFloat(values.session_price),
+        session_price: mode === "bundle" ? 0 : (Number.isFinite(sessionPrice) ? sessionPrice : 0),
         description: values.description || null,
         advanced_settings: {
           billing: {

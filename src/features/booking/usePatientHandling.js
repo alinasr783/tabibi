@@ -2,6 +2,7 @@ import { useCallback } from "react"
 import toast from "react-hot-toast"
 import { searchPatientsPublic } from "../../services/apiAppointments"
 import useCreatePatientPublic from "../patients/useCreatePatientPublic"
+import { dbg } from "../../lib/debug"
 
 export default function usePatientHandling() {
     const { mutateAsync: createPatient, isPending: isCreatingPatient } =
@@ -16,11 +17,13 @@ export default function usePatientHandling() {
     const handlePatientSubmit = useCallback(
         async (patientData, clinicId) => {
             try {
+                dbg("booking/patientHandling/input", { patientData, clinicId })
                 // Search for existing patient by phone
                 const searchResults = await searchPatientsPublic(
                     patientData.phone,
                     clinicId
                 )
+                dbg("booking/patientHandling/searchResults", searchResults)
 
                 // If patient exists, return existing patient
                 if (searchResults && searchResults.length > 0) {
@@ -30,19 +33,29 @@ export default function usePatientHandling() {
                 }
 
                 // If patient doesn't exist, create new patient
+                const ageNumber = Number(patientData.age);
                 const payload = {
                     name: patientData.name,
                     phone: patientData.phone,
                     gender: patientData.gender,
-                    age: patientData.age,
+                    age: Number.isFinite(ageNumber) ? Math.max(1, Math.min(120, Math.trunc(ageNumber))) : null,
                     clinic_id: clinicId,
                 }
 
+                dbg("booking/patientHandling/createPayload", {
+                    ...payload,
+                    __types: {
+                        age: typeof payload.age,
+                        clinic_id: typeof payload.clinic_id,
+                    },
+                })
                 const newPatient = await createPatient(payload)
+                dbg("booking/patientHandling/createdPatient", newPatient)
                 // toast.success("تم إضافة المريض بنجاح")
                 return newPatient
             } catch (error) {
                 console.error("Error handling patient:", error)
+                dbg("booking/patientHandling/error", { message: error?.message, code: error?.code, details: error?.details, hint: error?.hint })
                 // toast.error("حدث خطأ أثناء معالجة بيانات المريض")
                 throw error
             }

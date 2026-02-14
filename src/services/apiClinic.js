@@ -1,5 +1,8 @@
 import supabase from "./supabase"
 
+const isUuid = (v) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(v));
+
 export async function getCurrentClinic() {
   console.log("getCurrentClinic: Starting clinic data fetch");
   
@@ -70,95 +73,97 @@ export async function getClinicById(clinicId) {
     throw new Error("Clinic ID is required");
   }
 
-  // Try to get clinic data for public booking page
-  try {
-    const { data, error } = await supabase
-      .from("clinics")
-      .select("id, clinic_uuid, name, address, booking_price, available_time, online_booking_enabled, whatsapp_enabled, whatsapp_number, prevent_conflicts, min_time_gap")
-      .eq("clinic_uuid", clinicId)  // Query by clinic_uuid as per project memory
-      .single()
+  const selectFull = "id, clinic_uuid, name, address, booking_price, available_time, online_booking_enabled, whatsapp_enabled, whatsapp_number, prevent_conflicts, min_time_gap";
+  const selectFallback = "id, clinic_uuid, name, address, booking_price, available_time, whatsapp_enabled, whatsapp_number, prevent_conflicts, min_time_gap";
 
-    if (error) {
-      console.error("getClinicById: Error querying clinic:", error);
-      
-      // Check if it's a permission error
-      if (error.message.includes("permission") || error.message.includes("denied")) {
-        console.log("getClinicById: Permission error, returning fallback data");
-        // Return a fallback clinic object for testing with a clear indication
-        return {
-          clinic_uuid: clinicId,
-          name: "عيادة تجريبيّة",
-          address: "عنوان العيادة التجريبيّة",
-          booking_price: 0,
-          available_time: {
-            saturday: { start: "09:00", end: "17:00", off: false },
-            sunday: { start: "09:00", end: "17:00", off: false },
-            monday: { start: "09:00", end: "17:00", off: false },
-            tuesday: { start: "09:00", end: "17:00", off: false },
-            wednesday: { start: "09:00", end: "17:00", off: false },
-            thursday: { start: "09:00", end: "17:00", off: false },
-            friday: { start: "09:00", end: "17:00", off: true }
-          },
-          online_booking_enabled: true
-        };
+  const isPermissionError = (msg) => {
+    const m = String(msg || "").toLowerCase();
+    return m.includes("permission") || m.includes("denied");
+  };
+
+  const fetchByUuid = async (uuid) => {
+    try {
+      const { data, error } = await supabase
+        .from("clinics")
+        .select(selectFull)
+        .eq("clinic_uuid", uuid)
+        .single();
+      if (!error) return data;
+      if (String(error.message).includes("online_booking_enabled")) {
+        const { data: d2, error: e2 } = await supabase
+          .from("clinics")
+          .select(selectFallback)
+          .eq("clinic_uuid", uuid)
+          .single();
+        if (e2) throw e2;
+        return { ...d2, online_booking_enabled: true };
       }
-      
-      console.log("getClinicById: Other error, returning fallback data");
-      // For other errors, still provide a fallback but log the actual error
+      throw error;
+    } catch (e) {
+      throw e;
+    }
+  };
+
+  const fetchByBigint = async (n) => {
+    try {
+      const { data, error } = await supabase
+        .from("clinics")
+        .select(selectFull)
+        .eq("clinic_id_bigint", n)
+        .single();
+      if (!error) return data;
+      if (String(error.message).includes("online_booking_enabled")) {
+        const { data: d2, error: e2 } = await supabase
+          .from("clinics")
+          .select(selectFallback)
+          .eq("clinic_id_bigint", n)
+          .single();
+        if (e2) throw e2;
+        return { ...d2, online_booking_enabled: true };
+      }
+      throw error;
+    } catch (e) {
+      throw e;
+    }
+  };
+
+  try {
+    if (isUuid(clinicId)) {
+      const data = await fetchByUuid(clinicId);
+      console.log("getClinicById: Clinic data retrieved:", data);
+      return data;
+    }
+
+    const n = Number(clinicId);
+    if (Number.isFinite(n)) {
+      const data = await fetchByBigint(n);
+      console.log("getClinicById: Clinic data retrieved (resolved bigint):", data);
+      return data;
+    }
+
+    throw new Error("Invalid clinic identifier");
+  } catch (error) {
+    console.error("getClinicById: Error querying clinic:", error);
+    if (isUuid(clinicId) && isPermissionError(error?.message)) {
+      console.log("getClinicById: Permission error, returning fallback data");
       return {
         clinic_uuid: clinicId,
         name: "عيادة تجريبيّة",
         address: "عنوان العيادة التجريبيّة",
         booking_price: 0,
-        available_time: {},
+        available_time: {
+          saturday: { start: "09:00", end: "17:00", off: false },
+          sunday: { start: "09:00", end: "17:00", off: false },
+          monday: { start: "09:00", end: "17:00", off: false },
+          tuesday: { start: "09:00", end: "17:00", off: false },
+          wednesday: { start: "09:00", end: "17:00", off: false },
+          thursday: { start: "09:00", end: "17:00", off: false },
+          friday: { start: "09:00", end: "17:00", off: true }
+        },
         online_booking_enabled: true
       };
     }
-    
-    console.log("getClinicById: Clinic data retrieved:", data);
-    return data
-  } catch (error) {
-    console.error("getClinicById: Unexpected error:", error);
-    
-    // If the online_booking_enabled column doesn't exist, try without it
-    if (error.message.includes('online_booking_enabled')) {
-      const { data, error: fallbackError } = await supabase
-        .from("clinics")
-        .select("id, clinic_uuid, name, address, booking_price, available_time")
-        .eq("clinic_uuid", clinicId)  // Query by clinic_uuid as per project memory
-        .single()
-      
-      if (fallbackError) {
-        console.error("getClinicById: Fallback error:", fallbackError);
-        // Return fallback data
-        return {
-          clinic_uuid: clinicId,
-          name: "عيادة تجريبيّة",
-          address: "عنوان العيادة التجريبيّة",
-          booking_price: 0,
-          available_time: {},
-          online_booking_enabled: true
-        };
-      }
-      
-      console.log("getClinicById: Clinic data retrieved with fallback:", data);
-      
-      // Add the missing property with a default value
-      return {
-        ...data,
-        online_booking_enabled: true
-      }
-    }
-    
-    // Return fallback data
-    return {
-      clinic_uuid: clinicId,
-      name: "عيادة تجريبيّة",
-      address: "عنوان العيادة التجريبيّة",
-      booking_price: 0,
-      available_time: {},
-      online_booking_enabled: true
-    };
+    throw error;
   }
 }
 

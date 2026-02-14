@@ -87,7 +87,11 @@ export default function PatientDetailPage() {
   };
 
   const handleTransactionSuccess = () => {
-    queryClient.invalidateQueries({ queryKey: ["patient-financial", patientId] });
+    queryClient.invalidateQueries({ queryKey: ["patientFinancialData", patientId] });
+    queryClient.invalidateQueries({ queryKey: ["patientFinanceLedger", Number(patientId)] });
+    queryClient.invalidateQueries({ queryKey: ["patientFinanceSummary", Number(patientId)] });
+    queryClient.invalidateQueries({ queryKey: ["financialRecords"] });
+    queryClient.invalidateQueries({ queryKey: ["financialStats"] });
     toast.success(transactionType === 'payment' ? "تم تسجيل الدفع بنجاح" : "تم إضافة المستحقات بنجاح");
   };
 
