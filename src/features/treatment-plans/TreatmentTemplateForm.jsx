@@ -1,9 +1,30 @@
+import { useEffect, useState } from "react";
 import { Label } from "../../components/ui/label";
 import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
 import { Stethoscope, Banknote, FileText } from "lucide-react";
+import { Switch } from "../../components/ui/switch";
+import { Separator } from "../../components/ui/separator";
 
-export default function TreatmentTemplateForm({ register, errors }) {
+export default function TreatmentTemplateForm({ register, errors, setValue, watch }) {
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const billingMode = watch?.("advanced_settings.billing.mode") || "per_session";
+  const paymentPromptEnabled = !!watch?.("advanced_settings.paymentPrompt.enabled");
+
+  useEffect(() => {
+    if (!setValue) return;
+    setValue("advanced_settings.billing.mode", billingMode || "per_session", { shouldDirty: false });
+    if (watch?.("advanced_settings.billing.bundleSize") == null) {
+      setValue("advanced_settings.billing.bundleSize", 2, { shouldDirty: false });
+    }
+    if (watch?.("advanced_settings.billing.bundlePrice") == null) {
+      setValue("advanced_settings.billing.bundlePrice", 0, { shouldDirty: false });
+    }
+    if (watch?.("advanced_settings.paymentPrompt.enabled") == null) {
+      setValue("advanced_settings.paymentPrompt.enabled", false, { shouldDirty: false });
+    }
+  }, [setValue]);
+
   return (
     <div className="space-y-5">
       <div className="space-y-2">
@@ -70,6 +91,64 @@ export default function TreatmentTemplateForm({ register, errors }) {
         />
         <p className="text-xs text-muted-foreground mt-1">يمكنك إضافة تفاصيل إضافية حول هذه الخطة العلاجية</p>
       </div>
+
+      <Separator />
+
+      <div className="flex items-center justify-between gap-4">
+        <div className="space-y-0.5">
+          <div className="text-sm font-semibold text-foreground">الإعدادات المتقدمة</div>
+          <div className="text-xs text-muted-foreground">خاصة بهذه الخطة العلاجية</div>
+        </div>
+        <Switch checked={showAdvanced} onCheckedChange={setShowAdvanced} />
+      </div>
+
+      {showAdvanced ? (
+        <div className="space-y-4 rounded-[var(--radius)] border border-border p-4 bg-muted/10">
+          <div className="space-y-2">
+            <Label>طريقة إضافة المستحقات</Label>
+            <select
+              className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+              value={billingMode}
+              onChange={(e) => setValue?.("advanced_settings.billing.mode", e.target.value, { shouldDirty: true })}
+            >
+              <option value="per_session">كل جلسة بسعرها</option>
+              <option value="bundle">كل عدد جلسات بسعر</option>
+            </select>
+          </div>
+
+          {billingMode === "bundle" ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>عدد الجلسات في الباقة</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  {...register("advanced_settings.billing.bundleSize")}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>سعر الباقة (جنيه)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  {...register("advanced_settings.billing.bundlePrice")}
+                />
+              </div>
+            </div>
+          ) : null}
+
+          <div className="flex items-center justify-between gap-4">
+            <div className="space-y-0.5">
+              <div className="text-sm font-semibold text-foreground">إظهار مودال دفع بعد الجلسة</div>
+              <div className="text-xs text-muted-foreground">على مستوى هذه الخطة فقط</div>
+            </div>
+            <Switch
+              checked={paymentPromptEnabled}
+              onCheckedChange={(v) => setValue?.("advanced_settings.paymentPrompt.enabled", v, { shouldDirty: true })}
+            />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -160,9 +160,14 @@ export async function getFinancialSummary(filters = {}) {
         .filter(r => r.type === 'expense')
         .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
 
+    const totalCharges = data
+        .filter(r => r.type === 'charge')
+        .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
+
     return {
         totalIncome,
         totalExpense,
+        totalCharges,
         netProfit: totalIncome - totalExpense
     }
 }

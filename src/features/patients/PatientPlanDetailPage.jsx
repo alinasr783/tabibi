@@ -8,11 +8,15 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader } from "../../components/ui/card";
 import { SkeletonLine } from "../../components/ui/skeleton";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../../components/ui/dialog";
+import { Input } from "../../components/ui/input";
+import { Label } from "../../components/ui/label";
+import { Switch } from "../../components/ui/switch";
 import { formatCurrency } from "../../lib/utils";
 import usePatientPlan from "./usePatientPlan";
 import { useUpdatePatientPlan } from "./usePatientPlans";
 import { createVisit } from "../../services/apiVisits";
-import { createAppointment } from "../../services/apiAppointments";
+import { createFinancialRecord } from "../../services/apiFinancialRecords";
 
 export default function PatientPlanDetailPage() {
   const { patientId, planId } = useParams();
@@ -21,6 +25,10 @@ export default function PatientPlanDetailPage() {
   const { data: plan, isLoading, error } = usePatientPlan(planId);
   const { mutate: updatePlan } = useUpdatePatientPlan();
   const [completedSessions, setCompletedSessions] = useState(0);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [paymentEnabled, setPaymentEnabled] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [lastVisitId, setLastVisitId] = useState(null);
 
   // Initialize completedSessions from plan data
   useEffect(() => {
@@ -45,79 +53,67 @@ export default function PatientPlanDetailPage() {
     
     if (completedSessions < (plan?.total_sessions || 0)) {
       try {
-        // First, create a visit record linked to this patient plan
-        console.log("=== PATIENT PLAN DEBUG ===");
-        console.log("1. Creating visit for patient plan:", { patientId, planId });
-        
         const visitResult = await createVisit({
           patient_id: patientId,
           patient_plan_id: planId,
           diagnosis: "جلسة علاجية",
           notes: "جلسة مكتملة ضمن خطة العلاج"
         });
-        
-        console.log("2. Visit created successfully:", visitResult.id);
-        
-        // Calculate session price
-        const sessionPrice = plan?.treatment_templates?.session_price || 
-          (plan?.total_price > 0 && plan?.total_sessions > 0 ? 
-          plan.total_price / plan.total_sessions : 0);
-        
-        console.log("3. Session price calculated:", sessionPrice);
-        
-        // Create an appointment for this session
-        console.log("4. Creating appointment for session");
-        const appointmentResult = await createAppointment({
-          patient_id: patientId,
-          date: new Date().toISOString(),
-          notes: `جلسة علاجية - ${plan?.treatment_templates?.name || 'خطة علاجية'}`,
-          price: sessionPrice,
-          status: 'completed', // Explicitly set status to completed
-          from: 'clinic'
-        });
-        
-        console.log("5. Appointment created successfully:", appointmentResult.id);
-        
-        // Then update the plan's completed sessions count
+
         const newCompletedSessions = completedSessions + 1;
         setCompletedSessions(newCompletedSessions);
-        
-        // Prepare update payload
-        const payload = { completed_sessions: newCompletedSessions };
-        
-        // If all sessions are completed, also update status to 'completed'
-        if (newCompletedSessions >= (plan?.total_sessions || 0)) {
-          payload.status = 'completed';
+
+        toast.success("تم تسجيل الجلسة بنجاح");
+
+        queryClient.invalidateQueries({ queryKey: ['patientPlan', planId] });
+        queryClient.invalidateQueries({ queryKey: ['patientPlans'] });
+        queryClient.invalidateQueries({ queryKey: ['visits'] });
+        queryClient.invalidateQueries({ queryKey: ["patientFinancialData", Number(patientId)] });
+
+        const promptEnabled = !!plan?.advanced_settings?.paymentPrompt?.enabled;
+        if (promptEnabled) {
+          setLastVisitId(visitResult?.id || null);
+          setPaymentEnabled(false);
+          setPaymentAmount("");
+          setShowPaymentDialog(true);
         }
-        
-        // Update the database
-        updatePlan(
-          { id: planId, payload },
-          {
-            onSuccess: () => {
-              console.log("6. Patient plan updated successfully");
-              toast.success(newCompletedSessions >= (plan?.total_sessions || 0) 
-                ? "تم إكمال جميع الجلسات وتحديث حالة الخطة إلى مكتملة" 
-                : "تم تحديث الجلسة بنجاح");
-              
-              // Invalidate the patient plan query to refresh the UI
-              queryClient.invalidateQueries({ queryKey: ['patientPlan', planId] });
-              queryClient.invalidateQueries({ queryKey: ['patientPlans'] });
-              queryClient.invalidateQueries({ queryKey: ['appointments'] });
-              queryClient.invalidateQueries({ queryKey: ['visits'] });
-            },
-            onError: (error) => {
-              toast.error("حدث خطأ أثناء تحديث الجلسة");
-              console.error("Error updating session:", error);
-              // Revert the local state if the update failed
-              setCompletedSessions(completedSessions);
-            },
-          }
-        );
       } catch (error) {
         console.log("ERROR in PatientPlanDetailPage:", error.message);
         toast.error("حدث خطأ أثناء تسجيل الجلسة");
       }
+    }
+  };
+
+  const submitSessionPayment = async () => {
+    if (!paymentEnabled) {
+      setShowPaymentDialog(false);
+      return;
+    }
+    const amt = Number(paymentAmount);
+    if (!Number.isFinite(amt) || amt <= 0) {
+      toast.error("أدخل مبلغ صحيح");
+      return;
+    }
+    try {
+      await createFinancialRecord({
+        visit_id: lastVisitId,
+        patient_id: Number(patientId),
+        patient_plan_id: Number(planId),
+        amount: amt,
+        type: "income",
+        reference_key: lastVisitId ? `plan:${planId}:visit:${lastVisitId}:payment` : `plan:${planId}:payment:${Date.now()}`,
+        description: `دفعة جلسة علاجية - ${plan?.treatment_templates?.name || "خطة علاجية"}`,
+        recorded_at: new Date().toISOString(),
+      });
+      toast.success("تم تسجيل الدفعة");
+      queryClient.invalidateQueries({ queryKey: ["patientFinancialData", Number(patientId)] });
+      queryClient.invalidateQueries({ queryKey: ["patientFinanceLedger", Number(patientId)] });
+      queryClient.invalidateQueries({ queryKey: ["patientFinanceSummary", Number(patientId)] });
+      queryClient.invalidateQueries({ queryKey: ["financialRecords"] });
+      queryClient.invalidateQueries({ queryKey: ["financialStats"] });
+      setShowPaymentDialog(false);
+    } catch (e) {
+      toast.error("حدث خطأ أثناء تسجيل الدفعة");
     }
   };
 
@@ -212,6 +208,36 @@ export default function PatientPlanDetailPage() {
 
   return (
     <div className="space-y-6" dir="rtl">
+      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+        <DialogContent dir="rtl" onPointerDownOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle>تسجيل دفعة للجلسة</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="space-y-0.5">
+                <div className="text-sm font-medium">هل دفع المريض الآن؟</div>
+                <div className="text-xs text-muted-foreground">فعّلها لإضافة مبلغ مدفوع لهذه الجلسة</div>
+              </div>
+              <Switch checked={paymentEnabled} onCheckedChange={setPaymentEnabled} />
+            </div>
+            {paymentEnabled ? (
+              <div className="space-y-2">
+                <Label>المبلغ المدفوع (جنيه)</Label>
+                <Input type="number" min="0" step="0.01" dir="ltr" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} />
+              </div>
+            ) : null}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setShowPaymentDialog(false)}>
+              إغلاق
+            </Button>
+            <Button type="button" onClick={submitSessionPayment}>
+              حفظ
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <div className="flex items-center justify-between">
         <Button
           variant="ghost"

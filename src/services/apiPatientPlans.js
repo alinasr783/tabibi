@@ -58,6 +58,7 @@ export async function getPatientPlan(planId) {
             total_price,
             status,
             created_at,
+            advanced_settings,
             treatment_templates(name, session_count, session_price)
         `)
         .eq("clinic_id", userData.clinic_id)
@@ -101,6 +102,7 @@ export async function getPatientPlans(patientId) {
             total_price,
             status,
             created_at,
+            advanced_settings,
             treatment_templates(name, session_count, session_price)
         `)
         .eq("clinic_id", userData.clinic_id)

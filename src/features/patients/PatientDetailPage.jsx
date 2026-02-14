@@ -307,6 +307,14 @@ export default function PatientDetailPage() {
                     <Wallet className="w-4 h-4 text-emerald-600" />
                     دفع مستحقات
                 </Button>
+                <Button
+                    variant="outline"
+                    className="justify-start gap-2 h-11 hover:bg-primary/5 hover:border-primary/30 transition-all shadow-sm"
+                    onClick={() => navigate(`/patients/${patientId}/finance-monitor`)}
+                >
+                    <Wallet className="w-4 h-4 text-primary" />
+                    مراقبة الماليات
+                </Button>
                 <Button 
                     variant="outline" 
                     className="justify-start gap-2 h-11 hover:bg-primary/5 hover:border-primary/30 transition-all shadow-sm" 

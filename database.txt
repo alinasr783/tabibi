@@ -77,14 +77,14 @@ CREATE TABLE public.appointments (
   patient_id bigint,
   date text,
   notes text,
-  diagnosis text,
-  treatment text,
-  custom_fields jsonb DEFAULT '[]'::jsonb,
   status text,
   price bigint,
   from text,
   clinic_id uuid,
   age bigint,
+  diagnosis text,
+  treatment text,
+  custom_fields jsonb NOT NULL DEFAULT '[]'::jsonb,
   CONSTRAINT appointments_pkey PRIMARY KEY (id),
   CONSTRAINT appointment_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(id)
 );
@@ -277,15 +277,18 @@ CREATE TABLE public.financial_records (
   appointment_id bigint,
   patient_id bigint,
   patient_plan_id bigint,
+  visit_id bigint,
   amount numeric NOT NULL,
   type text NOT NULL CHECK (type = ANY (ARRAY['income'::text, 'expense'::text, 'charge'::text])),
   description text NOT NULL,
+  reference_key text,
   recorded_at timestamp with time zone DEFAULT now(),
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT financial_records_pkey PRIMARY KEY (id),
   CONSTRAINT financial_records_appointment_id_fkey FOREIGN KEY (appointment_id) REFERENCES public.appointments(id),
   CONSTRAINT financial_records_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(id),
-  CONSTRAINT financial_records_patient_plan_id_fkey FOREIGN KEY (patient_plan_id) REFERENCES public.patient_plans(id)
+  CONSTRAINT financial_records_patient_plan_id_fkey FOREIGN KEY (patient_plan_id) REFERENCES public.patient_plans(id),
+  CONSTRAINT financial_records_visit_id_fkey FOREIGN KEY (visit_id) REFERENCES public.visits(id)
 );
 CREATE TABLE public.integrations (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -347,6 +350,7 @@ CREATE TABLE public.patient_plans (
   status text,
   patient_id bigint,
   total_price bigint,
+  advanced_settings jsonb NOT NULL DEFAULT '{}'::jsonb,
   clinic_id uuid,
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT patient_plans_pkey PRIMARY KEY (id),
@@ -372,7 +376,7 @@ CREATE TABLE public.patients (
   notes text,
   medical_history jsonb DEFAULT '{}'::jsonb,
   insurance_info jsonb DEFAULT '{}'::jsonb,
-  custom_fields jsonb DEFAULT '[]'::jsonb,
+  custom_fields jsonb NOT NULL DEFAULT '[]'::jsonb,
   CONSTRAINT patients_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.plan_pricing (
@@ -456,6 +460,7 @@ CREATE TABLE public.treatment_templates (
   session_count integer,
   session_price integer,
   description text,
+  advanced_settings jsonb NOT NULL DEFAULT '{}'::jsonb,
   clinic_id uuid,
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT treatment_templates_pkey PRIMARY KEY (id)

@@ -5,12 +5,20 @@ import { getClinicById } from "../services/apiClinic";
 import { Button } from "../components/ui/button";
 import { Loader2, CheckCircle, BadgeCheck, Star, Share2, GraduationCap, Award, MapPin, Phone, MessageCircle, User, Building2, Banknote, Clock, X } from "lucide-react";
 import supabase from "../services/supabase";
+import { defaultClinicProfileSettings, getClinicProfileSettings, logClinicProfileEvent } from "../services/apiClinicProfile";
 import toast from "react-hot-toast";
 
 // Helper function to fetch extended public profile data
 async function getDoctorPublicProfile(clinicUuid) {
   // 1. Get Clinic Data
   const clinic = await getClinicById(clinicUuid);
+  let profileSettings = defaultClinicProfileSettings;
+  try {
+    const result = await getClinicProfileSettings(clinicUuid);
+    profileSettings = result?.settings || defaultClinicProfileSettings;
+  } catch {
+    profileSettings = defaultClinicProfileSettings;
+  }
   
   // 2. Try to get Doctor Data
   let doctor = {
@@ -40,29 +48,51 @@ async function getDoctorPublicProfile(clinicUuid) {
   }
 
   // 3. Get Booking Stats (Real Data)
-  const stats = {
-    bookingsLastMonth: "0",
-    rating: "4.9"
+  const stats = {};
+  const enabledStatKeys = new Set(
+    (profileSettings?.stats?.enabled
+      ? (profileSettings?.stats?.items || []).filter((i) => i?.enabled).map((i) => i?.key)
+      : []
+    ).filter(Boolean)
+  );
+  const getCountSinceDays = async (days) => {
+    const since = new Date();
+    since.setDate(since.getDate() - days);
+    const { count, error } = await supabase
+      .from("appointments")
+      .select("*", { count: "exact", head: true })
+      .eq("clinic_id", clinicUuid)
+      .gte("created_at", since.toISOString());
+    if (error) return 0;
+    return count || 0;
   };
 
   try {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
-    const { count, error } = await supabase
-      .from('appointments')
-      .select('*', { count: 'exact', head: true })
-      .eq('clinic_id', clinicUuid)
-      .gte('created_at', thirtyDaysAgo.toISOString());
-    
-    if (!error) {
-      stats.bookingsLastMonth = count > 0 ? `+${count}` : "0";
+    const needsWeek = enabledStatKeys.has("bookings_last_week");
+    const needsMonth = enabledStatKeys.has("bookings_last_month");
+    const needsYear = enabledStatKeys.has("bookings_last_year");
+
+    const [weekCount, monthCount, yearCount] = await Promise.all([
+      needsWeek ? getCountSinceDays(7) : Promise.resolve(null),
+      needsMonth ? getCountSinceDays(30) : Promise.resolve(null),
+      needsYear ? getCountSinceDays(365) : Promise.resolve(null),
+    ]);
+
+    if (weekCount !== null) stats.bookings_last_week = weekCount;
+    if (monthCount !== null) stats.bookings_last_month = monthCount;
+    if (yearCount !== null) stats.bookings_last_year = yearCount;
+
+    const ratingItem = (profileSettings?.stats?.items || []).find((i) => i?.key === "rating");
+    if (enabledStatKeys.has("rating")) {
+      const value = typeof ratingItem?.value === "number" ? ratingItem.value : Number(ratingItem?.value);
+      stats.rating = Number.isFinite(value) ? value : 4.9;
+      stats.rating_max = Number.isFinite(ratingItem?.max) ? ratingItem.max : 5;
     }
   } catch (err) {
     console.log("Could not fetch booking stats", err);
   }
 
-  return { ...clinic, doctor, stats };
+  return { ...clinic, doctor, stats, profileSettings };
 }
 
 export default function DoctorProfilePage() {
@@ -75,6 +105,23 @@ export default function DoctorProfilePage() {
     queryFn: () => getDoctorPublicProfile(clinicId),
     enabled: !!clinicId
   });
+
+  const logDailyProfileView = () => {
+    try {
+      const key = `tabibi_profile_viewed_${clinicId}_${new Date().toISOString().slice(0, 10)}`;
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, "1");
+      logClinicProfileEvent({ clinicId, eventType: "profile_view" });
+    } catch {
+      logClinicProfileEvent({ clinicId, eventType: "profile_view" });
+    }
+  };
+
+  useEffect(() => {
+    if (!clinicId) return;
+    if (!profile) return;
+    logDailyProfileView();
+  }, [clinicId, profile]);
 
   const handleContactAction = (type) => {
     const contacts = profile?.doctor?.contacts || [];
@@ -103,6 +150,7 @@ export default function DoctorProfilePage() {
 
     if (filteredContacts.length === 1) {
       const val = filteredContacts[0].value.replace(/\s/g, '');
+      logClinicProfileEvent({ clinicId, eventType: type === "call" ? "action_call" : "action_whatsapp" });
       if (type === 'call') window.location.href = `tel:${val}`;
       else window.open(`https://wa.me/${val.replace(/\+/g, '')}`, '_blank');
       return;
@@ -137,6 +185,11 @@ export default function DoctorProfilePage() {
   }
 
   const { doctor, stats } = profile;
+  const profileSettings = profile.profileSettings || {};
+  const settingsStats = profileSettings?.stats || {};
+  const settingsActions = profileSettings?.actions || {};
+  const settingsSections = profileSettings?.builtinSections || {};
+  const customSections = Array.isArray(profileSettings?.customSections) ? profileSettings.customSections : [];
 
   // Helper to check if open now
   const isOpenNow = () => {
@@ -160,6 +213,355 @@ export default function DoctorProfilePage() {
 
     return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
   };
+
+  const actionButtonsByKey = {
+    call: {
+      key: "call",
+      onClick: () => handleContactAction("call"),
+      className:
+        "flex-1 bg-[#0A1F44]/10 text-[#0A1F44] rounded-xl py-3 flex flex-col items-center gap-1 transition-all hover:bg-[#0A1F44]/20 active:scale-95",
+      icon: <Phone className="w-5 h-5" />,
+      label: "اتصال",
+    },
+    whatsapp: {
+      key: "whatsapp",
+      onClick: () => handleContactAction("whatsapp"),
+      className:
+        "flex-1 bg-[#25D366]/10 text-[#25D366] rounded-xl py-3 flex flex-col items-center gap-1 transition-all hover:bg-[#25D366]/20 active:scale-95",
+      icon: <MessageCircle className="w-5 h-5" />,
+      label: "واتساب",
+    },
+    share: {
+      key: "share",
+      onClick: async () => {
+        if (navigator.share) {
+          try {
+            await navigator.share({
+              title: doctor.name,
+              text: `احجز موعد مع ${doctor.name} في ${profile.name}`,
+              url: window.location.href,
+            });
+            logClinicProfileEvent({ clinicId, eventType: "action_share" });
+          } catch (err) {
+            return;
+          }
+        } else {
+          try {
+            await navigator.clipboard.writeText(window.location.href);
+            logClinicProfileEvent({ clinicId, eventType: "action_share" });
+            alert("تم نسخ الرابط");
+          } catch (err) {
+            alert("فشل نسخ الرابط");
+          }
+        }
+      },
+      className:
+        "flex-1 bg-gray-100 text-gray-600 rounded-xl py-3 flex flex-col items-center gap-1 transition-all hover:bg-gray-200 active:scale-95",
+      icon: <Share2 className="w-5 h-5" />,
+      label: "مشاركة",
+    },
+    location: {
+      key: "location",
+      onClick: () => {
+        const url =
+          (typeof settingsActions.locationUrl === "string" && settingsActions.locationUrl.trim()) ||
+          (profile.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(profile.address)}` : null);
+        if (!url) return;
+        logClinicProfileEvent({ clinicId, eventType: "action_location" });
+        window.open(url, "_blank");
+      },
+      className:
+        "flex-1 bg-[#C8A155]/10 text-[#8A6D2F] rounded-xl py-3 flex flex-col items-center gap-1 transition-all hover:bg-[#C8A155]/20 active:scale-95",
+      icon: <MapPin className="w-5 h-5" />,
+      label: "الموقع",
+    },
+  };
+
+  const orderedActionKeys = Array.isArray(settingsActions.order) ? settingsActions.order : ["call", "whatsapp", "share"];
+  const enabledActions = settingsActions?.enabled !== false;
+  const showLocationAction = !!settingsActions?.showLocation;
+  const actionButtons = enabledActions
+    ? orderedActionKeys
+        .filter((k) => k !== "location" || showLocationAction)
+        .map((k) => actionButtonsByKey[k])
+        .filter(Boolean)
+    : [];
+
+  const statItems = settingsStats?.enabled
+    ? (settingsStats.items || []).filter((i) => i?.enabled)
+    : [];
+
+  const statTiles = statItems
+    .map((item) => {
+      if (item.key === "open_now") {
+        return {
+          key: "open_now",
+          title: "الموعد القادم",
+          value: isOpenNow() ? "مفتوح الآن" : "مغلق",
+          icon: null,
+        };
+      }
+      if (item.key === "bookings_last_week") {
+        return { key: "bookings_last_week", title: "مواعيد (أسبوع)", value: stats.bookings_last_week ?? 0 };
+      }
+      if (item.key === "bookings_last_month") {
+        return { key: "bookings_last_month", title: "مواعيد (30 يوم)", value: stats.bookings_last_month ?? 0 };
+      }
+      if (item.key === "bookings_last_year") {
+        return { key: "bookings_last_year", title: "مواعيد (سنة)", value: stats.bookings_last_year ?? 0 };
+      }
+      if (item.key === "rating") {
+        return { key: "rating", title: "التقييم", value: stats.rating ?? 4.9, icon: "star" };
+      }
+      return null;
+    })
+    .filter(Boolean);
+
+  const statsGridColsClass = statTiles.length === 1 ? "grid-cols-1" : statTiles.length === 2 ? "grid-cols-2" : "grid-cols-3";
+
+  const sectionComponents = {
+    actions: actionButtons.length ? (
+      <div className="bg-white rounded-2xl p-4 flex items-center justify-between gap-3 card-shadow-elegant border border-[#E0E0E0]">
+        {actionButtons.map((btn) => (
+          <button key={btn.key} onClick={btn.onClick} className={btn.className}>
+            {btn.icon}
+            <span className="text-xs font-body-sans font-semibold">{btn.label}</span>
+          </button>
+        ))}
+      </div>
+    ) : null,
+    clinic_details: (
+      <div className="bg-white rounded-2xl p-5 card-shadow-elegant border border-[#E0E0E0]">
+        <h3 className="font-amiri font-bold text-xl text-[#0A1F44] mb-4 flex items-center gap-2">
+          <Building2 className="w-5 h-5 text-[#C8A155]" />
+          تفاصيل العيادة
+        </h3>
+        <div className="space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="bg-[#C8A155]/10 p-2 rounded-lg text-[#C8A155]">
+              <MapPin className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-sm font-body-sans font-bold">{profile.name}</p>
+              <p className="text-xs text-gray-500 mt-0.5">{profile.address}</p>
+              <button
+                onClick={() => {
+                  const url =
+                    (typeof settingsActions.locationUrl === "string" && settingsActions.locationUrl.trim()) ||
+                    (profile.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(profile.address)}` : null);
+                  if (!url) return;
+                  logClinicProfileEvent({ clinicId, eventType: "action_location", metadata: { source: "clinic_details" } });
+                  window.open(url, "_blank");
+                }}
+                className="text-[#0A1F44] text-xs font-body-sans font-semibold mt-1 hover:underline"
+              >
+                عرض الموقع على الخريطة
+              </button>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="bg-[#C8A155]/10 p-2 rounded-lg text-[#C8A155]">
+              <Banknote className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-sm font-body-sans font-bold">{profile.booking_price ? `${profile.booking_price} ج.م` : "مجاناً"}</p>
+              <p className="text-xs text-gray-500">رسوم الكشفية الضريبية</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    ),
+    working_hours: (
+      <div className="bg-white rounded-2xl p-5 card-shadow-elegant border border-[#E0E0E0]">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-amiri font-bold text-xl text-[#0A1F44] flex items-center gap-2">
+            <Clock className="w-5 h-5 text-[#C8A155]" />
+            أوقات العمل
+          </h3>
+          <span
+            className={`text-xs font-body-sans font-semibold ${
+              isOpenNow() ? "text-green-600 bg-green-50" : "text-red-600 bg-red-50"
+            } px-3 py-1 rounded-full`}
+          >
+            {isOpenNow() ? "مفتوح الآن" : "مغلق الآن"}
+          </span>
+        </div>
+        <div className="space-y-3">
+          {profile.available_time &&
+            Object.entries(profile.available_time).map(([day, time]) => {
+              const dayNames = {
+                sunday: "الأحد",
+                monday: "الاثنين",
+                tuesday: "الثلاثاء",
+                wednesday: "الأربعاء",
+                thursday: "الخميس",
+                friday: "الجمعة",
+                saturday: "السبت",
+              };
+              if (!time.start) return null;
+              return (
+                <div key={day} className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">{dayNames[day]}</span>
+                  {time.off ? (
+                    <span className="font-body-sans italic text-red-400">مغلق</span>
+                  ) : (
+                    <span className="font-body-sans font-semibold">
+                      {time.start} - {time.end}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+        </div>
+      </div>
+    ),
+    bio: (
+      <div className="bg-white rounded-2xl p-5 card-shadow-elegant border border-[#E0E0E0]">
+        <h3 className="font-amiri font-bold text-xl text-[#0A1F44] mb-4 flex items-center gap-2">
+          <User className="w-5 h-5 text-[#C8A155]" />
+          النبذة المهنية
+        </h3>
+        <p className="text-sm text-gray-600 leading-relaxed">{doctor.bio || "لا توجد نبذة تعريفية"}</p>
+      </div>
+    ),
+    education: (
+      <div className="bg-white rounded-2xl p-5 card-shadow-elegant border border-[#E0E0E0]">
+        <h3 className="font-amiri font-bold text-xl text-[#0A1F44] mb-4 flex items-center gap-2">
+          <GraduationCap className="w-5 h-5 text-[#C8A155]" />
+          المؤهلات العلمية
+        </h3>
+        <div className="space-y-4">
+          {doctor.education && doctor.education.length > 0 ? (
+            doctor.education.map((edu, idx) => (
+              <div key={idx} className="flex gap-3 items-baseline">
+                <div className="w-1 bg-[#C8A155] rounded-full shrink-0 h-4 mt-1"></div>
+                <div>
+                  <p className="text-sm font-body-sans font-bold text-[#333333]">{edu.degree}</p>
+                  <p className="text-xs text-gray-500">
+                    {edu.school} {edu.year ? `، ${edu.year}` : ""}
+                  </p>
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-gray-500">لا توجد مؤهلات مضافة</p>
+          )}
+        </div>
+      </div>
+    ),
+    certificates: (
+      <div className="bg-white rounded-2xl p-5 card-shadow-elegant border border-[#E0E0E0]">
+        <h3 className="font-amiri font-bold text-xl text-[#0A1F44] mb-4 flex items-center gap-2">
+          <Award className="w-5 h-5 text-[#C8A155]" />
+          الشهادات والتراخيص
+        </h3>
+        <div className="grid grid-cols-2 gap-3">
+          {doctor.certificates && doctor.certificates.length > 0 ? (
+            doctor.certificates.map((cert, idx) => (
+              <div key={idx} className="rounded-xl overflow-hidden border border-[#E0E0E0] card-shadow-elegant group relative">
+                {cert.url ? (
+                  <div className="aspect-[4/3] bg-gray-100 relative overflow-hidden">
+                    <img
+                      src={cert.url}
+                      alt={cert.name}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                      onClick={() => window.open(cert.url, "_blank")}
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none" />
+                  </div>
+                ) : (
+                  <div className="flex gap-3 items-baseline p-3">
+                    <div className="w-1 bg-[#C8A155] rounded-full shrink-0 h-4 mt-1"></div>
+                    <div>
+                      <p className="text-sm font-body-sans font-bold text-[#333333]">{cert.name}</p>
+                      <p className="text-xs text-gray-500">
+                        {cert.issuer} {cert.year ? `، ${cert.year}` : ""}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-gray-500 col-span-2">لا توجد شهادات مضافة</p>
+          )}
+        </div>
+      </div>
+    ),
+    custom_sections:
+      customSections.length > 0 ? (
+        <div className="space-y-5">
+          {customSections
+            .slice()
+            .sort((a, b) => (a?.order ?? 0) - (b?.order ?? 0))
+            .map((section) => {
+              const id = section?.id || `${section?.type || "section"}-${Math.random()}`;
+              const title = section?.title || "";
+              if (section?.type === "text") {
+                return (
+                  <div key={id} className="bg-white rounded-2xl p-5 card-shadow-elegant border border-[#E0E0E0]">
+                    {title ? <h3 className="font-amiri font-bold text-xl text-[#0A1F44] mb-4">{title}</h3> : null}
+                    <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{section?.content || ""}</p>
+                  </div>
+                );
+              }
+              if (section?.type === "split") {
+                return (
+                  <div key={id} className="bg-white rounded-2xl overflow-hidden card-shadow-elegant border border-[#E0E0E0]">
+                    <div className="p-5">
+                      {title ? <h3 className="font-amiri font-bold text-xl text-[#0A1F44] mb-4">{title}</h3> : null}
+                      <div className="grid grid-cols-1 gap-4">
+                        {section?.imageUrl ? (
+                          <div className="rounded-xl overflow-hidden border border-[#E0E0E0]">
+                            <img src={section.imageUrl} alt={title || "section"} className="w-full h-auto object-cover" />
+                          </div>
+                        ) : null}
+                        <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{section?.text || ""}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+              if (section?.type === "youtube") {
+                const url = typeof section?.youtubeUrl === "string" ? section.youtubeUrl.trim() : "";
+                const videoIdMatch = url.match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{6,})/);
+                const videoId = videoIdMatch ? videoIdMatch[1] : null;
+                const embedUrl = videoId ? `https://www.youtube.com/embed/${videoId}` : null;
+                return (
+                  <div key={id} className="bg-white rounded-2xl p-5 card-shadow-elegant border border-[#E0E0E0]">
+                    {title ? <h3 className="font-amiri font-bold text-xl text-[#0A1F44] mb-4">{title}</h3> : null}
+                    {embedUrl ? (
+                      <div className="aspect-video w-full overflow-hidden rounded-xl border border-[#E0E0E0]">
+                        <iframe
+                          title={title || "YouTube"}
+                          src={embedUrl}
+                          className="w-full h-full"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          referrerPolicy="strict-origin-when-cross-origin"
+                          allowFullScreen
+                        />
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500">رابط يوتيوب غير صالح</p>
+                    )}
+                  </div>
+                );
+              }
+              return null;
+            })}
+        </div>
+      ) : null,
+  };
+
+  const sectionOrder = Array.isArray(settingsSections.order)
+    ? settingsSections.order
+    : ["actions", "clinic_details", "working_hours", "bio", "education", "certificates", "custom_sections"];
+
+  const sectionVisibility = settingsSections.visibility || {};
+  const orderedSections = sectionOrder
+    .filter((id) => sectionVisibility[id] !== false)
+    .map((id) => sectionComponents[id])
+    .filter(Boolean);
 
   return (
     <div className="min-h-[100dvh] bg-[#F8F8F8] font-[Cairo] text-[#333333] pb-24" dir="rtl">
@@ -213,70 +615,27 @@ export default function DoctorProfilePage() {
               </div>
             </div>
             
-            <div className="glass-panel rounded-xl p-3 grid grid-cols-3 gap-2">
-              <div className="text-center">
-                <p className="text-xs text-white/90 font-amiri font-bold mb-1">الموعد القادم</p>
-                <p className="text-lg font-amiri font-bold text-white drop-shadow-sm">
-                    {isOpenNow() ? "مفتوح الآن" : "مغلق"}
-                </p>
+            {statTiles.length ? (
+              <div className={`glass-panel rounded-xl p-3 grid ${statsGridColsClass} gap-2`}>
+                {statTiles.map((tile, idx) => (
+                  <div
+                    key={tile.key}
+                    className={`text-center ${statTiles.length === 3 && idx === 1 ? "border-x border-white/20" : ""}`}
+                  >
+                    <p className="text-xs text-white/90 font-amiri font-bold mb-1">{tile.title}</p>
+                    {tile.key === "rating" ? (
+                      <div className="flex items-center justify-center gap-1">
+                        <span className="text-lg font-amiri font-bold text-white drop-shadow-sm">{tile.value}</span>
+                        <Star className="text-white w-4 h-4 fill-current drop-shadow-sm" />
+                      </div>
+                    ) : (
+                      <p className="text-lg font-amiri font-bold text-white drop-shadow-sm">{tile.value}</p>
+                    )}
+                  </div>
+                ))}
               </div>
-              <div className="text-center border-x border-white/20">
-                <p className="text-xs text-white/90 font-amiri font-bold mb-1">مواعيد (30 يوم)</p>
-                <p className="text-lg font-amiri font-bold text-white drop-shadow-sm">{stats.bookingsLastMonth}</p>
-              </div>
-              <div className="text-center">
-                <p className="text-xs text-white/90 font-amiri font-bold mb-1">التقييم</p>
-                <div className="flex items-center justify-center gap-1">
-                  <span className="text-lg font-amiri font-bold text-white drop-shadow-sm">{stats.rating}</span>
-                  <Star className="text-white w-4 h-4 fill-current drop-shadow-sm" />
-                </div>
-              </div>
-            </div>
+            ) : null}
           </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="bg-white rounded-2xl p-4 flex items-center justify-between gap-3 card-shadow-elegant border border-[#E0E0E0]">
-          <button 
-            onClick={() => handleContactAction('call')}
-            className="flex-1 bg-[#0A1F44]/10 text-[#0A1F44] rounded-xl py-3 flex flex-col items-center gap-1 transition-all hover:bg-[#0A1F44]/20 active:scale-95"
-          >
-            <Phone className="w-5 h-5" />
-            <span className="text-xs font-body-sans font-semibold">اتصال</span>
-          </button>
-          <button 
-            onClick={() => handleContactAction('whatsapp')}
-            className="flex-1 bg-[#25D366]/10 text-[#25D366] rounded-xl py-3 flex flex-col items-center gap-1 transition-all hover:bg-[#25D366]/20 active:scale-95"
-          >
-            <MessageCircle className="w-5 h-5" />
-            <span className="text-xs font-body-sans font-semibold">واتساب</span>
-          </button>
-          <button 
-             onClick={async () => {
-                if (navigator.share) {
-                    try {
-                        await navigator.share({
-                            title: doctor.name,
-                            text: `احجز موعد مع ${doctor.name} في ${profile.name}`,
-                            url: window.location.href,
-                        });
-                    } catch (err) {
-                        console.log('Error sharing:', err);
-                    }
-                } else {
-                    try {
-                        await navigator.clipboard.writeText(window.location.href);
-                        alert("تم نسخ الرابط");
-                    } catch (err) {
-                        alert("فشل نسخ الرابط");
-                    }
-                }
-             }}
-            className="flex-1 bg-gray-100 text-gray-600 rounded-xl py-3 flex flex-col items-center gap-1 transition-all hover:bg-gray-200 active:scale-95"
-          >
-            <Share2 className="w-5 h-5" />
-            <span className="text-xs font-body-sans font-semibold">مشاركة</span>
-          </button>
         </div>
 
         {/* Contact Selection Modal */}
@@ -302,6 +661,7 @@ export default function DoctorProfilePage() {
                       key={idx}
                       onClick={() => {
                         const val = contact.value.replace(/\s/g, '');
+                        logClinicProfileEvent({ clinicId, eventType: contactModal.type === "call" ? "action_call" : "action_whatsapp" });
                         if (contactModal.type === 'call') window.location.href = `tel:${val}`;
                         else window.open(`https://wa.me/${val.replace(/\+/g, '')}`, '_blank');
                         setContactModal({ show: false, type: null, list: [] });
@@ -330,137 +690,18 @@ export default function DoctorProfilePage() {
           </div>
         )}
 
-        {/* Clinic Details */}
-        <div className="bg-white rounded-2xl p-5 card-shadow-elegant border border-[#E0E0E0]">
-          <h3 className="font-amiri font-bold text-xl text-[#0A1F44] mb-4 flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-[#C8A155]" />
-            تفاصيل العيادة
-          </h3>
-          <div className="space-y-4">
-            <div className="flex items-start gap-3">
-              <div className="bg-[#C8A155]/10 p-2 rounded-lg text-[#C8A155]">
-                <MapPin className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-sm font-body-sans font-bold">{profile.name}</p>
-                <p className="text-xs text-gray-500 mt-0.5">{profile.address}</p>
-                <button className="text-[#0A1F44] text-xs font-body-sans font-semibold mt-1 hover:underline">عرض الموقع على الخريطة</button>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="bg-[#C8A155]/10 p-2 rounded-lg text-[#C8A155]">
-                <Banknote className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-sm font-body-sans font-bold">{profile.booking_price ? `${profile.booking_price} ج.م` : "مجاناً"}</p>
-                <p className="text-xs text-gray-500">رسوم الكشفية الضريبية</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Working Hours */}
-        <div className="bg-white rounded-2xl p-5 card-shadow-elegant border border-[#E0E0E0]">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-amiri font-bold text-xl text-[#0A1F44] flex items-center gap-2">
-              <Clock className="w-5 h-5 text-[#C8A155]" />
-              أوقات العمل
-            </h3>
-            <span className={`text-xs font-body-sans font-semibold ${isOpenNow() ? "text-green-600 bg-green-50" : "text-red-600 bg-red-50"} px-3 py-1 rounded-full`}>
-                {isOpenNow() ? "مفتوح الآن" : "مغلق الآن"}
-            </span>
-          </div>
-          <div className="space-y-3">
-            {profile.available_time && Object.entries(profile.available_time).map(([day, time]) => {
-                const dayNames = {
-                    sunday: 'الأحد', monday: 'الاثنين', tuesday: 'الثلاثاء',
-                    wednesday: 'الأربعاء', thursday: 'الخميس', friday: 'الجمعة', saturday: 'السبت'
-                };
-                if (!time.start) return null; // Skip if no time
-                return (
-                    <div key={day} className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600">{dayNames[day]}</span>
-                        {time.off ? (
-                             <span className="font-body-sans italic text-red-400">مغلق</span>
-                        ) : (
-                            <span className="font-body-sans font-semibold">{time.start} - {time.end}</span>
-                        )}
-                    </div>
-                );
-            })}
-          </div>
-        </div>
-
-        {/* Bio and Education */}
-        <div className="bg-white rounded-2xl p-5 card-shadow-elegant border border-[#E0E0E0]">
-          <h3 className="font-amiri font-bold text-xl text-[#0A1F44] mb-4 flex items-center gap-2">
-            <User className="w-5 h-5 text-[#C8A155]" />
-            النبذة المهنية
-          </h3>
-          <p className="text-sm text-gray-600 leading-relaxed mb-6">
-            {doctor.bio || "لا توجد نبذة تعريفية"}
-          </p>
-          
-          <h3 className="font-amiri font-bold text-xl text-[#0A1F44] mb-4 flex items-center gap-2 border-t border-[#E0E0E0] pt-5">
-            <GraduationCap className="w-5 h-5 text-[#C8A155]" />
-            المؤهلات العلمية
-          </h3>
-          <div className="space-y-4">
-             {doctor.education && doctor.education.length > 0 ? (
-                 doctor.education.map((edu, idx) => (
-                    <div key={idx} className="flex gap-3 items-baseline">
-                        <div className="w-1 bg-[#C8A155] rounded-full shrink-0 h-4 mt-1"></div>
-                        <div>
-                            <p className="text-sm font-body-sans font-bold text-[#333333]">{edu.degree}</p>
-                            <p className="text-xs text-gray-500">{edu.school} {edu.year ? `، ${edu.year}` : ''}</p>
-                        </div>
-                    </div>
-                 ))
-             ) : (
-                <p className="text-sm text-gray-500">لا توجد مؤهلات مضافة</p>
-             )}
-          </div>
-
-          <h3 className="font-amiri font-bold text-xl text-[#0A1F44] mb-4 flex items-center gap-2 border-t border-[#E0E0E0] pt-5 mt-5">
-            <Award className="w-5 h-5 text-[#C8A155]" />
-            الشهادات والتراخيص
-          </h3>
-          <div className="grid grid-cols-2 gap-3">
-             {doctor.certificates && doctor.certificates.length > 0 ? (
-                 doctor.certificates.map((cert, idx) => (
-                    <div key={idx} className="rounded-xl overflow-hidden border border-[#E0E0E0] card-shadow-elegant group relative">
-                        {cert.url ? (
-                            <div className="aspect-[4/3] bg-gray-100 relative overflow-hidden">
-                                <img 
-                                    src={cert.url} 
-                                    alt={cert.name} 
-                                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                                    onClick={() => window.open(cert.url, '_blank')}
-                                />
-                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none" />
-                            </div>
-                        ) : (
-                            <div className="flex gap-3 items-baseline p-3">
-                                <div className="w-1 bg-[#C8A155] rounded-full shrink-0 h-4 mt-1"></div>
-                                <div>
-                                    <p className="text-sm font-body-sans font-bold text-[#333333]">{cert.name}</p>
-                                    <p className="text-xs text-gray-500">{cert.issuer} {cert.year ? `، ${cert.year}` : ''}</p>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                 ))
-             ) : (
-                <p className="text-sm text-gray-500 col-span-2">لا توجد شهادات مضافة</p>
-             )}
-          </div>
-        </div>
+        {orderedSections.map((section, idx) => (
+          <div key={idx}>{section}</div>
+        ))}
         
         {/* Fixed Booking Button */}
         <div className="fixed bottom-0 left-0 right-0 p-4 pb-6 bg-white border-t border-[#E0E0E0] z-50 safe-area-bottom">
             <Button 
             className="w-full h-12 text-lg rounded-xl bg-[#0A1F44] hover:bg-[#0A1F44]/90 text-white font-bold flex items-center justify-center gap-2 transition-all font-amiri shadow-none mb-2" 
-            onClick={() => navigate(`/booking/${clinicId}`)}
+            onClick={() => {
+              logClinicProfileEvent({ clinicId, eventType: "booking_click" });
+              navigate(`/booking/${clinicId}`);
+            }}
             >
             احجز موعد الآن
             </Button>

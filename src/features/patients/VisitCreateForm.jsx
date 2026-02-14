@@ -6,6 +6,7 @@ import { Label } from "../../components/ui/label"
 import { Plus, X, Loader2 } from "lucide-react"
 import useCreateVisit from "./useCreateVisit"
 import SpeechButton from "../../components/ui/SpeechButton"
+import { Switch } from "../../components/ui/switch"
 import {
   Select,
   SelectContent,
@@ -16,12 +17,14 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../../components/ui/dialog"
 import { usePatientPlans, useCreatePatientPlan } from "./usePatientPlans"
 import useTreatmentTemplates from "../treatment-plans/useTreatmentTemplates"
+import { createFinancialRecord } from "../../services/apiFinancialRecords"
 
 function AddPlanDialog({ open, onClose, patientId, onPlanCreated }) {
     const { data: templates, isLoading: isLoadingTemplates } = useTreatmentTemplates()
     const { mutate: createPlan, isPending: isCreating } = useCreatePatientPlan()
     const [selectedTemplateId, setSelectedTemplateId] = useState("")
     const [sessions, setSessions] = useState(1)
+    const [sessionsError, setSessionsError] = useState("")
 
     const handleSubmit = (e) => {
         e.preventDefault()
@@ -30,12 +33,23 @@ function AddPlanDialog({ open, onClose, patientId, onPlanCreated }) {
         const template = templates.find(t => String(t.id) === String(selectedTemplateId))
         if (!template) return
 
+        const mode = template?.advanced_settings?.billing?.mode || "per_session"
+        const bSize = Number(template?.advanced_settings?.billing?.bundleSize) || 2
+        const bPrice = Number(template?.advanced_settings?.billing?.bundlePrice) || 0
+        const sessionsNumber = parseInt(sessions)
+        if (mode === "bundle" && sessionsNumber % bSize !== 0) {
+            setSessionsError(`عدد الجلسات يجب أن يكون مضاعفات ${bSize}`)
+            return
+        }
+        setSessionsError("")
+
         const payload = {
             patient_id: patientId,
             template_id: selectedTemplateId,
-            total_sessions: parseInt(sessions),
-            total_price: template.session_price * parseInt(sessions),
-            status: "active"
+            total_sessions: sessionsNumber,
+            total_price: mode === "bundle" ? (sessionsNumber / bSize) * bPrice : template.session_price * sessionsNumber,
+            status: "active",
+            advanced_settings: template?.advanced_settings || {}
         }
 
         createPlan(payload, {
@@ -57,7 +71,7 @@ function AddPlanDialog({ open, onClose, patientId, onPlanCreated }) {
 
     return (
         <Dialog open={open} onClose={onClose}>
-            <DialogContent className="sm:max-w-[425px]" dir="rtl">
+            <DialogContent className="sm:max-w-[425px] max-h-[85vh] overflow-y-auto" dir="rtl">
                 <DialogHeader>
                     <DialogTitle>إضافة خطة علاجية جديدة</DialogTitle>
                 </DialogHeader>
@@ -85,17 +99,36 @@ function AddPlanDialog({ open, onClose, patientId, onPlanCreated }) {
                                 type="number" 
                                 min="1" 
                                 value={sessions} 
-                                onChange={(e) => setSessions(e.target.value)}
+                                step={selectedTemplate?.advanced_settings?.billing?.mode === "bundle" ? (Number(selectedTemplate?.advanced_settings?.billing?.bundleSize) || 2) : 1}
+                                onChange={(e) => {
+                                  const v = e.target.value
+                                  setSessions(v)
+                                  const mode = selectedTemplate?.advanced_settings?.billing?.mode || "per_session"
+                                  const bSize = Number(selectedTemplate?.advanced_settings?.billing?.bundleSize) || 2
+                                  const n = parseInt(v)
+                                  if (!n || n < 1) setSessionsError("أدخل عدد جلسات صحيح")
+                                  else if (mode === "bundle" && n % bSize !== 0) setSessionsError(`عدد الجلسات يجب أن يكون مضاعفات ${bSize}`)
+                                  else setSessionsError("")
+                                }}
                             />
+                            {sessionsError ? (
+                              <p className="text-sm text-destructive">{sessionsError}</p>
+                            ) : null}
                             <p className="text-sm text-muted-foreground">
-                                الإجمالي: {selectedTemplate.session_price * sessions} ج.م
+                                الإجمالي: {(() => {
+                                  const mode = selectedTemplate?.advanced_settings?.billing?.mode || "per_session"
+                                  const bSize = Number(selectedTemplate?.advanced_settings?.billing?.bundleSize) || 2
+                                  const bPrice = Number(selectedTemplate?.advanced_settings?.billing?.bundlePrice) || 0
+                                  const s = parseInt(sessions) || 0
+                                  return mode === "bundle" ? (s / bSize) * bPrice : selectedTemplate.session_price * s
+                                })()} ج.م
                             </p>
                         </div>
                     )}
 
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={onClose}>إلغاء</Button>
-                        <Button type="submit" disabled={!selectedTemplateId || isCreating}>
+                        <Button type="submit" disabled={!selectedTemplateId || isCreating || !!sessionsError}>
                             {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : "إضافة"}
                         </Button>
                     </DialogFooter>
@@ -112,11 +145,16 @@ export default function VisitCreateForm({ patientId, patientPlanId: externalPati
     const [newMedication, setNewMedication] = useState({ name: "", using: "" })
     const [selectedPlanId, setSelectedPlanId] = useState(externalPatientPlanId || "")
     const [isAddPlanOpen, setIsAddPlanOpen] = useState(false)
+    const [showPaymentDialog, setShowPaymentDialog] = useState(false)
+    const [paymentEnabled, setPaymentEnabled] = useState(false)
+    const [paymentAmount, setPaymentAmount] = useState("")
+    const [lastVisitId, setLastVisitId] = useState(null)
     
     // Fetch patient plans for this patient
     const { data: patientPlans, isLoading: isPlansLoading } = usePatientPlans(patientId)
     
     const { mutate: createVisit, isPending: isCreating } = useCreateVisit()
+    const selectedPlan = patientPlans?.find((p) => String(p.id) === String(selectedPlanId || externalPatientPlanId || ""))
 
     const handleAddMedicationField = () => {
         if (newMedication.name.trim() !== "" && newMedication.using.trim() !== "") {
@@ -216,7 +254,7 @@ export default function VisitCreateForm({ patientId, patientPlanId: externalPati
         }
         
         createVisit(visitData, {
-            onSuccess: () => {
+            onSuccess: (data) => {
                 console.log("VisitCreateForm: Visit created successfully")
                 // Reset form
                 setDiagnosis("")
@@ -227,6 +265,14 @@ export default function VisitCreateForm({ patientId, patientPlanId: externalPati
                 
                 // Notify parent component
                 if (onVisitCreated) onVisitCreated()
+
+                const promptEnabled = !!selectedPlan?.advanced_settings?.paymentPrompt?.enabled
+                if (visitData.patient_plan_id && promptEnabled) {
+                    setLastVisitId(data?.id || null)
+                    setPaymentEnabled(false)
+                    setPaymentAmount("")
+                    setShowPaymentDialog(true)
+                }
             },
             onError: (error) => {
                 console.error("VisitCreateForm: Error creating visit", error)
@@ -234,10 +280,61 @@ export default function VisitCreateForm({ patientId, patientPlanId: externalPati
         })
     }
 
+    const submitSessionPayment = async () => {
+        if (!paymentEnabled) {
+            setShowPaymentDialog(false)
+            return
+        }
+        const amt = Number(paymentAmount)
+        if (!Number.isFinite(amt) || amt <= 0) {
+            return
+        }
+        try {
+            await createFinancialRecord({
+                visit_id: lastVisitId,
+                patient_id: Number(patientId),
+                patient_plan_id: Number(selectedPlan?.id || externalPatientPlanId),
+                amount: amt,
+                type: "income",
+                reference_key: lastVisitId ? `plan:${selectedPlan?.id || externalPatientPlanId}:visit:${lastVisitId}:payment` : `plan:${selectedPlan?.id || externalPatientPlanId}:payment:${Date.now()}`,
+                description: `دفعة جلسة علاجية - ${selectedPlan?.treatment_templates?.name || "خطة علاجية"}`
+            })
+            setShowPaymentDialog(false)
+        } catch {
+            setShowPaymentDialog(false)
+        }
+    }
+
     console.log("VisitCreateForm: Rendering with props", { patientId, externalPatientPlanId, selectedPlanId })
 
     return (
         <>
+            <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+                <DialogContent dir="rtl" onPointerDownOutside={(e) => e.preventDefault()}>
+                    <DialogHeader>
+                        <DialogTitle>تسجيل دفعة للجلسة</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between gap-4">
+                            <div className="space-y-0.5">
+                                <div className="text-sm font-medium">هل دفع المريض الآن؟</div>
+                                <div className="text-xs text-muted-foreground">فعّلها لإضافة مبلغ مدفوع لهذه الجلسة</div>
+                            </div>
+                            <Switch checked={paymentEnabled} onCheckedChange={setPaymentEnabled} />
+                        </div>
+                        {paymentEnabled ? (
+                            <div className="space-y-2">
+                                <Label>المبلغ المدفوع (جنيه)</Label>
+                                <Input type="number" min="0" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} />
+                            </div>
+                        ) : null}
+                    </div>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setShowPaymentDialog(false)}>إغلاق</Button>
+                        <Button type="button" onClick={submitSessionPayment}>حفظ</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
             <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-4">
                     {/* Patient Plan Selection */}

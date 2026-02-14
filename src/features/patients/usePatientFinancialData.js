@@ -34,7 +34,8 @@ export default function usePatientFinancialData(patientId) {
     queryKey: ["patientFinancialData", patientId],
     queryFn: () => getPatientFinancialData(patientId),
     enabled: !!patientId,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
     retry: 1,
   });
 }

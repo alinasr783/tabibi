@@ -31,13 +31,15 @@ export async function createTreatmentTemplate(payload) {
     // Add clinic_id to the treatment template data
     const treatmentTemplateData = {
         ...payload,
-        clinic_id: userData.clinic_id
+        clinic_id: userData.clinic_id,
+        advanced_settings: payload.advanced_settings || {},
+        updated_at: new Date().toISOString(),
     };
 
     const { data, error } = await supabase
         .from("treatment_templates")
         .insert(treatmentTemplateData)
-        .select()
+        .select("id, name, session_count, session_price, description, created_at, updated_at, clinic_id, advanced_settings")
         .single();
 
     if (error) {
@@ -62,10 +64,14 @@ export async function updateTreatmentTemplate(id, payload) {
 
     const { data, error } = await supabase
         .from("treatment_templates")
-        .update(payload)
+        .update({
+            ...payload,
+            advanced_settings: payload.advanced_settings || {},
+            updated_at: new Date().toISOString(),
+        })
         .eq("id", id)
         .eq("clinic_id", userData.clinic_id)
-        .select()
+        .select("id, name, session_count, session_price, description, created_at, updated_at, clinic_id, advanced_settings")
         .single();
 
     if (error) {
@@ -91,7 +97,7 @@ export async function getTreatmentTemplates() {
     // 1. Fetch Templates
     const { data: templates, error: templatesError } = await supabase
         .from("treatment_templates")
-        .select("id, name, session_price, description, created_at")
+        .select("id, name, session_price, description, created_at, advanced_settings")
         .eq("clinic_id", userData.clinic_id)
         .order("created_at", { ascending: false });
 

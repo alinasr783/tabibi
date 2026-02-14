@@ -39,6 +39,7 @@ import { Skeleton } from "../components/ui/skeleton";
 import { useFinancialRecords } from "../features/finance/useFinancialRecords";
 import { useCreateFinancialRecord } from "../features/finance/useCreateFinancialRecord";
 import { useFinancialStats } from "../features/finance/useFinancialStats";
+import useFinanceRealtime from "../features/finance/useFinanceRealtime";
 import { formatCurrency } from "../lib/utils";
 import FinancialAnalytics from "../features/finance/FinancialAnalytics";
 import { useAuth } from "../features/auth/AuthContext";
@@ -50,13 +51,14 @@ import { toast } from "sonner";
 export default function Finance() {
   const { user } = useAuth();
   const { data: clinic } = useClinic();
+  useFinanceRealtime();
   
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [exportDuration, setExportDuration] = useState("month");
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
-  const [filterType, setFilterType] = useState("all"); // all, income, expense
+  const [filterType, setFilterType] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [statsDateFilter, setStatsDateFilter] = useState("month"); // week, month, 3months
 
@@ -90,7 +92,7 @@ export default function Finance() {
   
   // Fetch Stats
   const { data: statsData, isLoading: isStatsLoading } = useFinancialStats(statsFilters);
-  const stats = statsData || { totalIncome: 0, totalExpense: 0, netProfit: 0 };
+  const stats = statsData || { totalIncome: 0, totalExpense: 0, totalCharges: 0, netProfit: 0 };
 
   const createRecordMutation = useCreateFinancialRecord();
 
@@ -197,8 +199,17 @@ export default function Finance() {
       header: "النوع",
       accessor: "type",
       render: (record) => (
-        <Badge variant={record.type === 'income' ? 'default' : 'destructive'} className={record.type === 'income' ? 'bg-green-600 hover:bg-green-700' : ''}>
-          {record.type === 'income' ? 'إيراد' : 'مصروف'}
+        <Badge
+          variant={record.type === 'expense' ? 'destructive' : 'default'}
+          className={
+            record.type === 'income'
+              ? 'bg-green-600 hover:bg-green-700'
+              : record.type === 'charge'
+                ? 'bg-amber-600 hover:bg-amber-700'
+                : ''
+          }
+        >
+          {record.type === 'income' ? 'إيراد' : record.type === 'expense' ? 'مصروف' : 'مستحقات'}
         </Badge>
       )
     },
@@ -212,8 +223,16 @@ export default function Finance() {
       accessor: "amount",
       cellClassName: "text-left",
       render: (record) => (
-        <div className={`text-left font-bold ${record.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
-          {record.type === 'income' ? '+' : '-'} {formatCurrency(record.amount)}
+        <div
+          className={`text-left font-bold ${
+            record.type === 'income'
+              ? 'text-green-600'
+              : record.type === 'expense'
+                ? 'text-red-600'
+                : 'text-amber-600'
+          }`}
+        >
+          {record.type === 'expense' ? '-' : '+'} {formatCurrency(record.amount)}
         </div>
       )
     }
@@ -231,14 +250,32 @@ export default function Finance() {
             </div>
           )}
         </div>
-        <Badge variant={record.type === 'income' ? 'default' : 'destructive'} className={record.type === 'income' ? 'bg-green-600 hover:bg-green-700' : ''}>
-          {record.type === 'income' ? 'إيراد' : 'مصروف'}
+        <Badge
+          variant={record.type === 'expense' ? 'destructive' : 'default'}
+          className={
+            record.type === 'income'
+              ? 'bg-green-600 hover:bg-green-700'
+              : record.type === 'charge'
+                ? 'bg-amber-600 hover:bg-amber-700'
+                : ''
+          }
+        >
+          {record.type === 'income' ? 'إيراد' : record.type === 'expense' ? 'مصروف' : 'مستحقات'}
         </Badge>
       </div>
       
       <div className="flex justify-between items-center pt-2 border-t border-slate-100">
-        <div className={`font-bold text-lg ${record.type === 'income' ? 'text-green-600' : 'text-red-600'}`} dir="ltr">
-          {record.type === 'income' ? '+' : '-'} {formatCurrency(record.amount)}
+        <div
+          className={`font-bold text-lg ${
+            record.type === 'income'
+              ? 'text-green-600'
+              : record.type === 'expense'
+                ? 'text-red-600'
+                : 'text-amber-600'
+          }`}
+          dir="ltr"
+        >
+          {record.type === 'expense' ? '-' : '+'} {formatCurrency(record.amount)}
         </div>
         <div className="flex items-center text-xs text-slate-400 gap-1">
           <Calendar className="w-3 h-3" />
@@ -282,7 +319,7 @@ export default function Finance() {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-3 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {/* Total Income */}
           <Card className="bg-white dark:bg-slate-900 border-border shadow-sm">
             <CardContent className="p-3">
@@ -333,6 +370,23 @@ export default function Finance() {
               )}
             </CardContent>
           </Card>
+
+          {/* Total Charges */}
+          <Card className="bg-white dark:bg-slate-900 border-border shadow-sm">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2 mb-1">
+                <ArrowUpRight className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                <span className="text-xs font-medium text-slate-600 dark:text-slate-400">المستحقات</span>
+              </div>
+              {isStatsLoading ? (
+                <Skeleton className="h-6 w-20" />
+              ) : (
+                <p className="text-base font-bold text-slate-900 dark:text-slate-100">
+                  {stats.totalCharges?.toFixed(0) || 0} جنيه
+                </p>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
 
@@ -362,9 +416,7 @@ export default function Finance() {
             
             <DialogHeader className="p-6 pb-2">
               <DialogTitle>إضافة معاملة مالية جديدة</DialogTitle>
-              <p className="text-sm text-muted-foreground mt-2">
-                سجل إيراد جديد أو مصروف للعيادة.
-              </p>
+                <p className="text-sm text-muted-foreground mt-2">سجل إيراد أو مصروف أو مستحقات.</p>
             </DialogHeader>
 
             <div className="px-6 py-4">
@@ -389,6 +441,15 @@ export default function Finance() {
                     >
                       <ArrowDownLeft className="ml-2 h-4 w-4" />
                       مصروف
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={newRecord.type === 'charge' ? 'default' : 'outline'}
+                      className={`flex-1 ${newRecord.type === 'charge' ? 'bg-amber-600 hover:bg-amber-700' : ''}`}
+                      onClick={() => setNewRecord({ ...newRecord, type: 'charge' })}
+                    >
+                      <ArrowUpRight className="ml-2 h-4 w-4" />
+                      مستحقات
                     </Button>
                   </div>
                 </div>
@@ -496,6 +557,7 @@ export default function Finance() {
                       <SelectItem value="all">الكل</SelectItem>
                       <SelectItem value="income">إيرادات</SelectItem>
                       <SelectItem value="expense">مصروفات</SelectItem>
+                      <SelectItem value="charge">مستحقات</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

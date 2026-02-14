@@ -20,6 +20,7 @@ export default function TreatmentTemplateEditDialog({ open, onClose, template })
     formState: { errors },
     reset,
     setValue,
+    watch,
   } = useForm();
   
   const { mutateAsync, isPending } = useUpdateTreatmentTemplate();
@@ -30,6 +31,10 @@ export default function TreatmentTemplateEditDialog({ open, onClose, template })
       setValue("name", template.name);
       setValue("session_price", template.session_price);
       setValue("description", template.description || "");
+      setValue("advanced_settings.billing.mode", template.advanced_settings?.billing?.mode || "per_session");
+      setValue("advanced_settings.billing.bundleSize", template.advanced_settings?.billing?.bundleSize ?? 2);
+      setValue("advanced_settings.billing.bundlePrice", template.advanced_settings?.billing?.bundlePrice ?? 0);
+      setValue("advanced_settings.paymentPrompt.enabled", !!template.advanced_settings?.paymentPrompt?.enabled);
     }
   }, [template, open, setValue]);
 
@@ -43,11 +48,26 @@ export default function TreatmentTemplateEditDialog({ open, onClose, template })
       if (!template?.id) {
         throw new Error("معرف الخطة مفقود");
       }
+
+      const advanced = values.advanced_settings || {};
+      const mode = advanced?.billing?.mode || "per_session";
+      const bundleSize = Number(advanced?.billing?.bundleSize);
+      const bundlePrice = Number(advanced?.billing?.bundlePrice);
       
       const payload = {
         name: values.name,
         session_price: parseFloat(values.session_price),
         description: values.description || null,
+        advanced_settings: {
+          billing: {
+            mode,
+            bundleSize: Number.isFinite(bundleSize) ? bundleSize : 2,
+            bundlePrice: Number.isFinite(bundlePrice) ? bundlePrice : 0,
+          },
+          paymentPrompt: {
+            enabled: !!advanced?.paymentPrompt?.enabled,
+          },
+        },
       };
       
       await mutateAsync({ id: template.id, payload });
@@ -61,14 +81,14 @@ export default function TreatmentTemplateEditDialog({ open, onClose, template })
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg overflow-hidden">
+      <DialogContent className="max-w-lg overflow-y-auto max-h-[90vh]">
         <DialogHeader className="border-b border-border p-6 pb-4">
           <DialogTitle className="flex items-center gap-2">
             تعديل الخطة العلاجية
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="p-6">
-          <TreatmentTemplateForm register={register} errors={errors} />
+          <TreatmentTemplateForm register={register} errors={errors} setValue={setValue} watch={watch} />
           <DialogFooter className="mt-6 gap-3">
             <Button 
               variant="outline" 

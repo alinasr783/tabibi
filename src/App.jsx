@@ -18,6 +18,7 @@ import IntegrationGuard from "./features/tabibi-tools/components/IntegrationGuar
 import AppointmentDetailPage from "./features/calendar/AppointmentDetailPage";
 import PatientDetailPage from "./features/patients/PatientDetailPage";
 import PatientPlanDetailPage from "./features/patients/PatientPlanDetailPage";
+import PatientFinanceMonitorPage from "./features/patients/PatientFinanceMonitorPage";
 import VisitDetailPage from "./features/patients/VisitDetailPage";
 import ExaminationsPage from "./features/examinations/ExaminationsPage";
 import Booking from "./pages/Booking";
@@ -68,6 +69,7 @@ const MemoizedPatientDetailPage = memo(PatientDetailPage);
 const MemoizedVisitDetailPage = memo(VisitDetailPage);
 const MemoizedExaminationsPage = memo(ExaminationsPage);
 const MemoizedPatientPlanDetailPage = memo(PatientPlanDetailPage);
+const MemoizedPatientFinanceMonitorPage = memo(PatientFinanceMonitorPage);
 const MemoizedAppointmentDetailPage = memo(AppointmentDetailPage);
 const MemoizedClinic = memo(Clinic);
 const MemoizedTreatmentPlans = memo(TreatmentPlans);
@@ -170,6 +172,16 @@ function AppRoutes() {
             <PermissionGuard requiredPermission="patients">
               <SubscriptionExpiryGuard>
                 <MemoizedPatientDetailPage />
+              </SubscriptionExpiryGuard>
+            </PermissionGuard>
+          }
+        />
+        <Route
+          path="/patients/:patientId/finance-monitor"
+          element={
+            <PermissionGuard requiredPermission="patients">
+              <SubscriptionExpiryGuard>
+                <MemoizedPatientFinanceMonitorPage />
               </SubscriptionExpiryGuard>
             </PermissionGuard>
           }

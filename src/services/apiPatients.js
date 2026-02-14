@@ -368,21 +368,6 @@ export async function getPatientFinancialData(patientId) {
       clinicIdBigint = clinicData?.clinic_id_bigint || clinicData?.id
   }
 
-  // Get all appointments for this patient
-  const { data: appointments, error: appointmentsError } = await supabase
-    .from("appointments")
-    .select(`
-      id,
-      price,
-      status,
-      created_at,
-      date,
-      notes
-    `)
-    .eq("clinic_id", userData.clinic_id)
-    .eq("patient_id", patientId.toString())
-    .order("date", { ascending: false });
-
   // Get financial records (transactions)
   let transactions = [];
   try {
@@ -402,47 +387,28 @@ export async function getPatientFinancialData(patientId) {
     console.warn("Could not fetch financial records", err);
   }
 
-  if (appointmentsError && appointmentsError.code !== 'PGRST116') {
-    console.error("Error fetching patient appointments:", appointmentsError);
-  }
-
-  const safeAppointments = appointments || [];
-
   // Calculate financial summary
-  // 1. Dues from Appointments (completed ones)
-  const completedAppointments = safeAppointments.filter(app => app.status === 'completed');
-  const appointmentDues = completedAppointments.reduce((sum, appointment) => sum + (parseFloat(appointment.price) || 0), 0);
-
-  // 2. Manual Transactions from financial_records
-  // We map 'charge' to 'Add Dues' and 'income' to 'Payment' (Pay Dues)
-  // based on the user's request to use this table for patient balances.
+  // Dues from financial_records.type='charge'
   const manualCharges = transactions
     .filter(t => t.type === 'charge')
     .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
     
+  // Payments from financial_records.type='income'
   const manualPayments = transactions
     .filter(t => t.type === 'income')
     .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
 
-  const totalAmount = appointmentDues + manualCharges;
+  const totalAmount = manualCharges;
   const paidAmount = manualPayments; 
   const remainingAmount = totalAmount - paidAmount;
 
   // Transform data for payment history
   const history = [
-    ...completedAppointments.map(app => ({
-      id: app.id,
-      type: 'appointment',
-      amount: parseFloat(app.price) || 0,
-      date: app.date,
-      description: 'موعد: ' + (app.notes || ''),
-      status: 'completed'
-    })),
     ...transactions.map(t => ({
       id: t.id,
       type: t.type === 'charge' ? 'charge' : 'payment',
       amount: parseFloat(t.amount) || 0,
-      date: t.created_at || t.recorded_at,
+      date: t.recorded_at || t.created_at,
       description: t.description || (t.type === 'charge' ? 'مستحقات إضافية' : 'دفعة نقدية'),
       status: 'completed'
     }))

@@ -17,6 +17,8 @@ export default function TreatmentTemplateCreateDialog({ open, onClose, onTemplat
     handleSubmit,
     formState: { errors },
     reset,
+    setValue,
+    watch,
   } = useForm();
   const { mutateAsync, isPending } = useCreateTreatmentTemplate();
 
@@ -27,10 +29,25 @@ export default function TreatmentTemplateCreateDialog({ open, onClose, onTemplat
 
   async function onSubmit(values) {
     try {
+      const advanced = values.advanced_settings || {};
+      const mode = advanced?.billing?.mode || "per_session";
+      const bundleSize = Number(advanced?.billing?.bundleSize);
+      const bundlePrice = Number(advanced?.billing?.bundlePrice);
+
       const payload = {
         name: values.name,
         session_price: parseFloat(values.session_price),
         description: values.description || null,
+        advanced_settings: {
+          billing: {
+            mode,
+            bundleSize: Number.isFinite(bundleSize) ? bundleSize : 2,
+            bundlePrice: Number.isFinite(bundlePrice) ? bundlePrice : 0,
+          },
+          paymentPrompt: {
+            enabled: !!advanced?.paymentPrompt?.enabled,
+          },
+        },
       };
       
       const newTemplate = await mutateAsync(payload);
@@ -46,7 +63,7 @@ export default function TreatmentTemplateCreateDialog({ open, onClose, onTemplat
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg p-0 overflow-hidden gap-0">
+      <DialogContent className="max-w-lg p-0 overflow-y-auto max-h-[90vh] gap-0">
         <DialogHeader className="p-6 pb-4 border-b border-border bg-background">
           <div className="flex justify-between items-start">
             <div className="flex items-center gap-4">
@@ -74,7 +91,7 @@ export default function TreatmentTemplateCreateDialog({ open, onClose, onTemplat
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className="p-6">
-            <TreatmentTemplateForm register={register} errors={errors} />
+            <TreatmentTemplateForm register={register} errors={errors} setValue={setValue} watch={watch} />
           </div>
           <DialogFooter className="p-6 pt-0 gap-3">
             <Button 

@@ -30,8 +30,13 @@ export default function PatientPlanAssignmentForm({
     if (template && totalSessions !== "" && !isNaN(parseInt(totalSessions))) {
       const sessions = parseInt(totalSessions);
       if (sessions > 0) {
-        const calculatedPrice = sessions * (template.session_price || 0);
-        setTotalPrice(calculatedPrice);
+        const mode = template.advanced_settings?.billing?.mode || "per_session";
+        const bSize = Number(template.advanced_settings?.billing?.bundleSize) || 2;
+        const bPrice = Number(template.advanced_settings?.billing?.bundlePrice) || 0;
+        const calculatedPrice = mode === "bundle"
+          ? (sessions / bSize) * bPrice
+          : sessions * (template.session_price || 0);
+        setTotalPrice(Number.isFinite(calculatedPrice) ? calculatedPrice : 0);
         return;
       }
     }
@@ -41,11 +46,14 @@ export default function PatientPlanAssignmentForm({
   // Reset form when dialog opens or template changes
   useEffect(() => {
     if (open) {
-      setTotalSessions(1);
       setSessionError("");
       if (template) {
-        setTotalPrice(template.session_price || 0);
+        const mode = template.advanced_settings?.billing?.mode || "per_session";
+        const bSize = Number(template.advanced_settings?.billing?.bundleSize) || 2;
+        const initialSessions = mode === "bundle" ? bSize : 1;
+        setTotalSessions(initialSessions);
       } else {
+        setTotalSessions(1);
         setTotalPrice(0);
       }
     }
@@ -76,7 +84,13 @@ export default function PatientPlanAssignmentForm({
     if (numValue < 1) {
       setSessionError("عدد الجلسات يجب أن يكون أكبر من صفر");
     } else {
-      setSessionError("");
+      const mode = template?.advanced_settings?.billing?.mode || "per_session";
+      const bSize = Number(template?.advanced_settings?.billing?.bundleSize) || 2;
+      if (mode === "bundle" && numValue % bSize !== 0) {
+        setSessionError(`عدد الجلسات يجب أن يكون مضاعفات ${bSize}`);
+      } else {
+        setSessionError("");
+      }
     }
   };
 
@@ -87,6 +101,13 @@ export default function PatientPlanAssignmentForm({
     const sessions = parseInt(totalSessions);
     if (isNaN(sessions) || sessions < 1) {
       setSessionError("عدد الجلسات يجب أن يكون أكبر من صفر");
+      return;
+    }
+
+    const mode = template?.advanced_settings?.billing?.mode || "per_session";
+    const bSize = Number(template?.advanced_settings?.billing?.bundleSize) || 2;
+    if (mode === "bundle" && sessions % bSize !== 0) {
+      setSessionError(`عدد الجلسات يجب أن يكون مضاعفات ${bSize}`);
       return;
     }
     
@@ -100,7 +121,8 @@ export default function PatientPlanAssignmentForm({
       total_price: parseFloat(totalPrice),
       template_id: template.id,
       patient_id: patientId,
-      status: "active" // Set default status to active
+      status: "active",
+      advanced_settings: template?.advanced_settings || {},
     };
     
     console.log("Submitting patient plan:", payload);
@@ -126,7 +148,7 @@ export default function PatientPlanAssignmentForm({
         onClose();
       }
     }}>
-      <DialogContent className="sm:max-w-[425px]" dir="rtl" onPointerDownOutside={(e) => e.preventDefault()}>
+      <DialogContent className="sm:max-w-[425px] max-h-[85vh] overflow-y-auto" dir="rtl" onPointerDownOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>تعيين خطة علاجية</DialogTitle>
         </DialogHeader>
@@ -169,7 +191,8 @@ export default function PatientPlanAssignmentForm({
                 <Input
                   id="total_sessions"
                   type="number"
-                  min="1"
+                  min={template?.advanced_settings?.billing?.mode === "bundle" ? (Number(template?.advanced_settings?.billing?.bundleSize) || 2) : 1}
+                  step={template?.advanced_settings?.billing?.mode === "bundle" ? (Number(template?.advanced_settings?.billing?.bundleSize) || 2) : 1}
                   value={totalSessions}
                   onChange={handleSessionCountChange}
                   className={sessionError ? "border-red-500" : ""}
@@ -208,6 +231,7 @@ export default function PatientPlanAssignmentForm({
                 </div>
               </div>
             )}
+
           </div>
           
           <DialogFooter>

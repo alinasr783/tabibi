@@ -5,5 +5,7 @@ export default function useTreatmentTemplates() {
     return useQuery({
         queryKey: ["treatmentTemplates"],
         queryFn: getTreatmentTemplates,
+        staleTime: Infinity,
+        refetchOnWindowFocus: false,
     });
 }
