@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useForm, Controller } from "react-hook-form"
 import toast from "react-hot-toast"
 import { Button } from "../../components/ui/button"
@@ -7,7 +7,9 @@ import { generateClinicId } from "../../lib/clinicIdGenerator"
 import useSignup from "./useSignup"
 import useVerifyClinicId from "./useVerifyClinicId"
 import { checkEmailExists, signInWithGoogle } from "../../services/apiAuth"
-import { Mail, User, Building2, CheckCircle2, X, Stethoscope, FileText } from "lucide-react"
+import { recordAffiliateLinkOpen } from "../../services/apiAffiliate"
+import { Mail, User, Building2, CheckCircle2, X, Stethoscope, FileText, Link2 } from "lucide-react"
+import { useSearchParams } from "react-router-dom"
 import {
   Dialog,
   DialogContent,
@@ -34,6 +36,8 @@ export default function SignupForm() {
   const [currentStep, setCurrentStep] = useState(STEPS.ACCOUNT_INFO)
   const [selectedRole, setSelectedRole] = useState("")
   const [generatedClinicId, setGeneratedClinicId] = useState("")
+  const [searchParams] = useSearchParams()
+  const [referralCode, setReferralCode] = useState("")
   const [clinicVerification, setClinicVerification] = useState({ 
     status: null, // null, 'success', 'error'
     message: "" 
@@ -76,6 +80,18 @@ export default function SignupForm() {
   const password = watch("password")
   const role = watch("role")
   const clinicIdInput = watch("clinicId")
+
+  useEffect(() => {
+    const ref = (searchParams.get("ref") || "").trim()
+    if (!ref) return
+    setReferralCode(ref)
+    localStorage.setItem("tabibi_referral_code", ref)
+    const key = `tabibi_affiliate_opened_${ref}`
+    if (!sessionStorage.getItem(key)) {
+      sessionStorage.setItem(key, "1")
+      recordAffiliateLinkOpen(ref)
+    }
+  }, [searchParams])
 
   // Google Signup Handlers
   function handleGoogleVerifyClinic() {
@@ -134,6 +150,7 @@ export default function SignupForm() {
          pendingData.permissions = [];
     }
 
+    pendingData.referralCode = referralCode || null
     localStorage.setItem('pending_google_signup', JSON.stringify(pendingData));
     
     try {
@@ -358,7 +375,8 @@ export default function SignupForm() {
       name: formData.name,
       phone: formData.phone,
       role: formData.role,
-      clinicId: role === "doctor" ? finalClinicId : verifiedClinicId,
+      clinicId: role === "doctor" ? finalClinicId : role === "secretary" ? verifiedClinicId : null,
+      referralCode: referralCode || null,
     }
 
     // Add role-specific data with trimmed values
@@ -407,7 +425,8 @@ export default function SignupForm() {
       name: data.name,
       phone: data.phone,
       role: data.role,
-      clinicId: data.role === "doctor" ? finalClinicId : verifiedClinicId,
+      clinicId: data.role === "doctor" ? finalClinicId : data.role === "secretary" ? verifiedClinicId : null,
+      referralCode: referralCode || null,
     }
 
     // Add role-specific data
@@ -494,6 +513,40 @@ export default function SignupForm() {
           </div>
         </div>
       </div>
+
+      {referralCode && (
+        <div className="rounded-[var(--radius)] border bg-primary/5 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3 min-w-0">
+              <div className="mt-0.5 size-9 rounded-[var(--radius)] bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <Link2 className="size-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-foreground">التسجيل من رابط Affiliate</div>
+                <div className="text-xs text-muted-foreground mt-1 break-all">
+                  كود الإحالة: <span className="font-mono">{referralCode}</span>
+                </div>
+                <div className="text-[11px] text-muted-foreground mt-1">
+                  سيتم ربط الحساب بالطريقة الصحيحة تلقائياً بعد تسجيل الدخول كطبيب.
+                </div>
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="shrink-0"
+              onClick={() => {
+                localStorage.removeItem("tabibi_referral_code")
+                setReferralCode("")
+                toast.success("تم إلغاء رابط الإحالة")
+              }}
+            >
+              <X className="size-4" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Step 1: Account Information */}
       {currentStep === STEPS.ACCOUNT_INFO && (
@@ -659,6 +712,7 @@ export default function SignupForm() {
                   <SelectContent>
                     <SelectItem value="doctor">طبيب</SelectItem>
                     <SelectItem value="secretary">سكرتير</SelectItem>
+                    <SelectItem value="affiliate">مسوق بالعمولة</SelectItem>
                   </SelectContent>
                 </Select>
               )}

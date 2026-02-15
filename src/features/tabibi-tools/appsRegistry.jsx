@@ -5,18 +5,21 @@ import {
   Globe, 
   ShieldCheck,
   UserCircle,
-  Calendar
+  Calendar,
+  Handshake
 } from "lucide-react";
 
 // Import real components
 import AskTabibiPage from "../ask-tabibi/AskTabibiPage"; 
 import TabibiProfileApp from "./apps/tabibi-profile/TabibiProfileApp";
 import AdvancedOnlineBooking from "../online-booking/apps/AdvancedOnlineBooking";
+import TabibiAffiliateApp from "./apps/tabibi-affiliate/TabibiAffiliateApp";
 
 export const APPS_COMPONENT_REGISTRY = {
   'ai_assistant': AskTabibiPage,
   'tabibi_profile': TabibiProfileApp,
-  'advanced_online_booking': AdvancedOnlineBooking
+  'advanced_online_booking': AdvancedOnlineBooking,
+  'tabibi_affiliate': TabibiAffiliateApp
 };
 
 export const APPS_ICON_REGISTRY = {
@@ -26,5 +29,6 @@ export const APPS_ICON_REGISTRY = {
   'Globe': Globe,
   'ShieldCheck': ShieldCheck,
   'UserCircle': UserCircle,
-  'Calendar': Calendar
+  'Calendar': Calendar,
+  'Handshake': Handshake
 };

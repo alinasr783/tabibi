@@ -131,6 +131,18 @@ export async function signup({ email, password, userData }) {
         }
     }
 
+    // Apply affiliate referral if present (best-effort)
+    if (userData.role === "doctor" && userData.referralCode) {
+        try {
+            await supabase.rpc("apply_affiliate_referral", {
+                referral_code: userData.referralCode,
+                clinic_id: userData.clinicId,
+            })
+        } catch (e) {
+            console.warn("Affiliate referral apply failed (non-blocking):", e)
+        }
+    }
+
     return data
 }
 

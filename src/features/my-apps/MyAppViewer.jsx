@@ -67,7 +67,7 @@ export default function MyAppViewer() {
         <Component />
       </div>
       
-      {currentApp && appKey !== 'tabibi_profile' && (
+      {currentApp && appKey !== 'tabibi_profile' && appKey !== 'tabibi_affiliate' && (
         <AppActionBar 
           app={appData} 
           isInstalled={true} 

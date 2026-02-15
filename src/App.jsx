@@ -5,6 +5,7 @@ import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { TouchBackend } from 'react-dnd-touch-backend';
 import DoctorLayout from "./components/layout/DoctorLayout";
+import AffiliateLayout from "./components/layout/AffiliateLayout";
 import { AuthProviderWrapper } from "./features/auth/AuthProviderWrapper";
 import { UserPreferencesProvider } from "./features/user-preferences/UserPreferencesProvider";
 import AutoPaymentRecorder from "./features/finance/AutoPaymentRecorder";
@@ -12,6 +13,7 @@ import { initAnalytics } from "./lib/firebase";
 import PermissionGuard from "./features/auth/PermissionGuard";
 import ProtectedRoute from "./features/auth/ProtectedRoute";
 import PublicRoute from "./features/auth/PublicRoute";
+import RoleGuard from "./features/auth/RoleGuard";
 import SubscriptionExpiryGuard from "./features/auth/SubscriptionExpiryGuard";
 import NoSubscriptionGuard from "./features/auth/NoSubscriptionGuard";
 import IntegrationGuard from "./features/tabibi-tools/components/IntegrationGuard";
@@ -35,6 +37,8 @@ import PaymentCallback from "./pages/PaymentCallback";
 import Settings from "./pages/Settings";
 import Integrations from "./pages/Integrations";
 import Signup from "./pages/Signup";
+import AffiliateEntry from "./pages/AffiliateEntry";
+import AffiliateDashboard from "./pages/AffiliateDashboard";
 import TreatmentPlans from "./pages/TreatmentPlans";
 import Staff from "./pages/Staff";
 import Subscriptions from "./pages/Subscriptions";
@@ -61,6 +65,8 @@ const MemoizedLogin = memo(Login);
 const MemoizedPlanConfirmation = memo(PlanConfirmation);
 const MemoizedPaymentCallback = memo(PaymentCallback);
 const MemoizedSignup = memo(Signup);
+const MemoizedAffiliateEntry = memo(AffiliateEntry);
+const MemoizedAffiliateDashboard = memo(AffiliateDashboard);
 const MemoizedBooking = memo(Booking);
 const MemoizedDashboard = memo(Dashboard);
 const MemoizedCalendar = memo(Calendar);
@@ -120,12 +126,15 @@ function AppRoutes() {
           </PublicRoute>
         }
       />
+      <Route path="/affiliate" element={<MemoizedAffiliateEntry />} />
       <Route
         element={
           <ProtectedRoute>
-            <NoSubscriptionGuard>
-              <DoctorLayout />
-            </NoSubscriptionGuard>
+            <RoleGuard allowedRoles={["doctor", "secretary"]}>
+              <NoSubscriptionGuard>
+                <DoctorLayout />
+              </NoSubscriptionGuard>
+            </RoleGuard>
           </ProtectedRoute>
         }>
         <Route
@@ -348,6 +357,16 @@ function AppRoutes() {
             </PermissionGuard>
           }
         />
+      </Route>
+      <Route
+        element={
+          <ProtectedRoute>
+            <RoleGuard allowedRoles={["affiliate"]}>
+              <AffiliateLayout />
+            </RoleGuard>
+          </ProtectedRoute>
+        }>
+        <Route path="/affiliate/dashboard" element={<MemoizedAffiliateDashboard />} />
       </Route>
       <Route path="/booking/:clinicId" element={<MemoizedBooking />} />
       <Route path="/doctor-profile/:clinicId" element={<MemoizedDoctorProfilePage />} />
