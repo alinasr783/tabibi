@@ -1,4 +1,5 @@
 import supabase from './supabase';
+import { normalizeMedicalFieldsConfig } from "../lib/medicalFieldsConfig";
 
 // ========================
 // User Preferences API
@@ -22,6 +23,15 @@ const DEFAULT_PREFERENCES = {
   daily_appointments_email_time: '07:00',
   timezone: 'Africa/Cairo'
 };
+
+function attachComputedDefaults(preferences) {
+  const base = preferences && typeof preferences === "object" ? preferences : {};
+  return {
+    ...DEFAULT_PREFERENCES,
+    ...base,
+    medical_fields_config: normalizeMedicalFieldsConfig(base.medical_fields_config),
+  };
+}
 
 // Get user preferences (creates default if not exists)
 export async function getUserPreferences() {
@@ -49,20 +59,20 @@ export async function getUserPreferences() {
       
       if (insertError) {
         console.error('Error creating user preferences:', insertError);
-        return DEFAULT_PREFERENCES;
+        return attachComputedDefaults(DEFAULT_PREFERENCES);
       }
-      return newData;
+      return attachComputedDefaults(newData);
     }
 
     if (error) {
       console.error('Error fetching user preferences:', error);
-      return DEFAULT_PREFERENCES;
+      return attachComputedDefaults(DEFAULT_PREFERENCES);
     }
 
-    return data;
+    return attachComputedDefaults(data);
   } catch (error) {
     console.error('Error in getUserPreferences:', error);
-    return DEFAULT_PREFERENCES;
+    return attachComputedDefaults(DEFAULT_PREFERENCES);
   }
 }
 

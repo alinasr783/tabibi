@@ -166,6 +166,22 @@ CREATE TABLE public.chat_messages (
   CONSTRAINT chat_messages_pkey PRIMARY KEY (id),
   CONSTRAINT chat_messages_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.chat_conversations(id)
 );
+CREATE TABLE public.clinic_profile_analytics (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  clinic_id uuid NOT NULL,
+  visitor_id uuid,
+  event_type text NOT NULL CHECK (event_type = ANY (ARRAY['profile_view'::text, 'booking_click'::text, 'action_call'::text, 'action_whatsapp'::text, 'action_share'::text, 'action_location'::text])),
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT clinic_profile_analytics_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.clinic_profile_settings (
+  clinic_id uuid NOT NULL,
+  settings jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT clinic_profile_settings_pkey PRIMARY KEY (clinic_id)
+);
 CREATE TABLE public.clinic_wallets (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   clinic_id uuid NOT NULL UNIQUE,
@@ -277,18 +293,18 @@ CREATE TABLE public.financial_records (
   appointment_id bigint,
   patient_id bigint,
   patient_plan_id bigint,
-  visit_id bigint,
   amount numeric NOT NULL,
   type text NOT NULL CHECK (type = ANY (ARRAY['income'::text, 'expense'::text, 'charge'::text])),
   description text NOT NULL,
-  reference_key text,
   recorded_at timestamp with time zone DEFAULT now(),
   created_at timestamp with time zone DEFAULT now(),
+  visit_id bigint,
+  reference_key text,
   CONSTRAINT financial_records_pkey PRIMARY KEY (id),
+  CONSTRAINT financial_records_visit_id_fkey FOREIGN KEY (visit_id) REFERENCES public.visits(id),
   CONSTRAINT financial_records_appointment_id_fkey FOREIGN KEY (appointment_id) REFERENCES public.appointments(id),
   CONSTRAINT financial_records_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(id),
-  CONSTRAINT financial_records_patient_plan_id_fkey FOREIGN KEY (patient_plan_id) REFERENCES public.patient_plans(id),
-  CONSTRAINT financial_records_visit_id_fkey FOREIGN KEY (visit_id) REFERENCES public.visits(id)
+  CONSTRAINT financial_records_patient_plan_id_fkey FOREIGN KEY (patient_plan_id) REFERENCES public.patient_plans(id)
 );
 CREATE TABLE public.integrations (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -350,9 +366,9 @@ CREATE TABLE public.patient_plans (
   status text,
   patient_id bigint,
   total_price bigint,
-  advanced_settings jsonb NOT NULL DEFAULT '{}'::jsonb,
   clinic_id uuid,
   updated_at timestamp with time zone DEFAULT now(),
+  advanced_settings jsonb NOT NULL DEFAULT '{}'::jsonb,
   CONSTRAINT patient_plans_pkey PRIMARY KEY (id),
   CONSTRAINT patient_plans_template_id_fkey FOREIGN KEY (template_id) REFERENCES public.treatment_templates(id),
   CONSTRAINT patient_plans_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(id)
@@ -460,9 +476,9 @@ CREATE TABLE public.treatment_templates (
   session_count integer,
   session_price integer,
   description text,
-  advanced_settings jsonb NOT NULL DEFAULT '{}'::jsonb,
   clinic_id uuid,
   updated_at timestamp with time zone DEFAULT now(),
+  advanced_settings jsonb NOT NULL DEFAULT '{}'::jsonb,
   CONSTRAINT treatment_templates_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.user_preferences (
@@ -487,6 +503,7 @@ CREATE TABLE public.user_preferences (
   daily_appointments_email_time text DEFAULT '07:00'::text,
   timezone text DEFAULT 'Africa/Cairo'::text,
   tabibi_ai_settings jsonb DEFAULT '{}'::jsonb,
+  medical_fields_config jsonb DEFAULT '{}'::jsonb,
   CONSTRAINT user_preferences_pkey PRIMARY KEY (id),
   CONSTRAINT user_preferences_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
@@ -520,6 +537,9 @@ CREATE TABLE public.visits (
   medications jsonb,
   clinic_id uuid,
   patient_plan_id bigint,
+  treatment text,
+  follow_up text,
+  custom_fields jsonb DEFAULT '[]'::jsonb,
   CONSTRAINT visits_pkey PRIMARY KEY (id),
   CONSTRAINT visits_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(id)
 );

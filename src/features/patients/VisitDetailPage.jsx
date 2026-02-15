@@ -19,7 +19,7 @@ import {
     MessageCircle,
     Phone
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
@@ -35,6 +35,14 @@ import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { SkeletonLine } from "../../components/ui/skeleton";
 import { Textarea } from "../../components/ui/textarea";
+import { Checkbox } from "../../components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
 import generatePrescriptionPdfNew from "../../lib/generatePrescriptionPdfNew";
 import { useAuth } from "../auth/AuthContext";
 import useClinic from "../auth/useClinic";
@@ -46,6 +54,12 @@ import { UploadDialog } from "./PatientAttachmentsTab";
 import { usePatientAttachments } from "./usePatientAttachments";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useUserPreferences } from "../../hooks/useUserPreferences";
+import {
+  flattenCustomFieldTemplates,
+  mergeTemplatesIntoCustomFields,
+  normalizeMedicalFieldsConfig,
+} from "../../lib/medicalFieldsConfig";
 
 export default function VisitDetailPage() {
   const {visitId} = useParams();
@@ -53,9 +67,22 @@ export default function VisitDetailPage() {
   const {data: clinic} = useClinic();
   const {user} = useAuth();
   const {data: planData} = usePlan();
+  const { data: preferences } = useUserPreferences();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const {mutate: updateVisit, isPending: isUpdating} = useUpdateVisit();
+
+  const medicalFieldsConfig = useMemo(
+    () => normalizeMedicalFieldsConfig(preferences?.medical_fields_config),
+    [preferences?.medical_fields_config]
+  );
+  const visitFields = medicalFieldsConfig.visit.fields;
+  const visitSections = medicalFieldsConfig.visit.sections;
+  const visitCustomSections = medicalFieldsConfig.visit.customSections;
+  const visitAllTemplates = useMemo(
+    () => flattenCustomFieldTemplates({ config: medicalFieldsConfig, context: "visit" }),
+    [medicalFieldsConfig]
+  );
   
   // New State for Dialogs
   const [isAppointmentDialogOpen, setIsAppointmentDialogOpen] = useState(false);
@@ -65,12 +92,20 @@ export default function VisitDetailPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDiagnosisEditModalOpen, setIsDiagnosisEditModalOpen] = useState(false);
   const [isNotesEditModalOpen, setIsNotesEditModalOpen] = useState(false);
+  const [isTreatmentEditModalOpen, setIsTreatmentEditModalOpen] = useState(false);
+  const [isFollowUpEditModalOpen, setIsFollowUpEditModalOpen] = useState(false);
   const [isMedicationsEditModalOpen, setIsMedicationsEditModalOpen] = useState(false);
+  const [isCustomFieldsEditModalOpen, setIsCustomFieldsEditModalOpen] = useState(false);
   const [editData, setEditData] = useState({
     diagnosis: "",
+    treatment: "",
+    follow_up: "",
     notes: "",
     medications: [],
+    custom_fields: [],
   });
+
+  const [newField, setNewField] = useState({ name: "", type: "text", section_id: "default" });
 
   // Attachments Hook
   const { uploadAttachment, isUploading: isUploadingAttachment } = usePatientAttachments(visit?.patient_id);
@@ -128,14 +163,16 @@ export default function VisitDetailPage() {
 
   // Initialize edit data when visit loads
   useEffect(() => {
-    if (visit && !editData.diagnosis) {
-      setEditData({
-        diagnosis: visit.diagnosis || "",
-        notes: visit.notes || "",
-        medications: visit.medications ? [...visit.medications] : [],
-      });
-    }
-  }, [visit]);
+    if (!visit) return;
+    setEditData({
+      diagnosis: visit.diagnosis || "",
+      treatment: visit.treatment || "",
+      follow_up: visit.follow_up || "",
+      notes: visit.notes || "",
+      medications: visit.medications ? [...visit.medications] : [],
+      custom_fields: mergeTemplatesIntoCustomFields(visit.custom_fields || [], visitAllTemplates),
+    });
+  }, [visit, visitAllTemplates]);
 
   const handleEditChange = (field, value) => {
     setEditData((prev) => ({
@@ -179,8 +216,11 @@ export default function VisitDetailPage() {
   const openDiagnosisEditModal = () => {
     setEditData({
       diagnosis: visit?.diagnosis || "",
+      treatment: visit?.treatment || "",
+      follow_up: visit?.follow_up || "",
       notes: visit?.notes || "",
       medications: visit?.medications ? [...visit.medications] : [],
+      custom_fields: mergeTemplatesIntoCustomFields(visit?.custom_fields || [], visitAllTemplates),
     });
     setIsDiagnosisEditModalOpen(true);
   };
@@ -188,8 +228,11 @@ export default function VisitDetailPage() {
   const openNotesEditModal = () => {
     setEditData({
       diagnosis: visit?.diagnosis || "",
+      treatment: visit?.treatment || "",
+      follow_up: visit?.follow_up || "",
       notes: visit?.notes || "",
       medications: visit?.medications ? [...visit.medications] : [],
+      custom_fields: mergeTemplatesIntoCustomFields(visit?.custom_fields || [], visitAllTemplates),
     });
     setIsNotesEditModalOpen(true);
   };
@@ -197,10 +240,134 @@ export default function VisitDetailPage() {
   const openMedicationsEditModal = () => {
     setEditData({
       diagnosis: visit?.diagnosis || "",
+      treatment: visit?.treatment || "",
+      follow_up: visit?.follow_up || "",
       notes: visit?.notes || "",
       medications: visit?.medications ? [...visit.medications] : [],
+      custom_fields: mergeTemplatesIntoCustomFields(visit?.custom_fields || [], visitAllTemplates),
     });
     setIsMedicationsEditModalOpen(true);
+  };
+
+  const openTreatmentEditModal = () => {
+    setEditData({
+      diagnosis: visit?.diagnosis || "",
+      treatment: visit?.treatment || "",
+      follow_up: visit?.follow_up || "",
+      notes: visit?.notes || "",
+      medications: visit?.medications ? [...visit.medications] : [],
+      custom_fields: mergeTemplatesIntoCustomFields(visit?.custom_fields || [], visitAllTemplates),
+    });
+    setIsTreatmentEditModalOpen(true);
+  };
+
+  const openFollowUpEditModal = () => {
+    setEditData({
+      diagnosis: visit?.diagnosis || "",
+      treatment: visit?.treatment || "",
+      follow_up: visit?.follow_up || "",
+      notes: visit?.notes || "",
+      medications: visit?.medications ? [...visit.medications] : [],
+      custom_fields: mergeTemplatesIntoCustomFields(visit?.custom_fields || [], visitAllTemplates),
+    });
+    setIsFollowUpEditModalOpen(true);
+  };
+
+  const openCustomFieldsEditModal = () => {
+    setEditData({
+      diagnosis: visit?.diagnosis || "",
+      treatment: visit?.treatment || "",
+      follow_up: visit?.follow_up || "",
+      notes: visit?.notes || "",
+      medications: visit?.medications ? [...visit.medications] : [],
+      custom_fields: mergeTemplatesIntoCustomFields(visit?.custom_fields || [], visitAllTemplates),
+    });
+    setIsCustomFieldsEditModalOpen(true);
+  };
+
+  const handleAddCustomField = () => {
+    if (!newField.name.trim()) return;
+    const next = [
+      ...(Array.isArray(editData.custom_fields) ? editData.custom_fields : []),
+      {
+        id: crypto.randomUUID(),
+        name: newField.name.trim(),
+        type: newField.type,
+        section_id: newField.section_id || "default",
+        value: "",
+      },
+    ];
+    setEditData((prev) => ({ ...prev, custom_fields: next }));
+    setNewField({ name: "", type: "text", section_id: newField.section_id || "default" });
+  };
+
+  const handleRemoveCustomField = (id) => {
+    const next = (Array.isArray(editData.custom_fields) ? editData.custom_fields : []).filter((f) => f.id !== id);
+    setEditData((prev) => ({ ...prev, custom_fields: next }));
+  };
+
+  const handleCustomFieldValueChange = (id, value) => {
+    const next = (Array.isArray(editData.custom_fields) ? editData.custom_fields : []).map((f) =>
+      f.id === id ? { ...f, value } : f
+    );
+    setEditData((prev) => ({ ...prev, custom_fields: next }));
+  };
+
+  const renderCustomFieldValueInput = (field) => {
+    if (field.type === "textarea") {
+      return (
+        <Textarea
+          value={field.value ?? ""}
+          onChange={(e) => handleCustomFieldValueChange(field.id, e.target.value)}
+          className="min-h-[80px] text-sm"
+          placeholder={field.placeholder || ""}
+        />
+      );
+    }
+
+    if (field.type === "number") {
+      return (
+        <Input
+          type="number"
+          value={field.value ?? ""}
+          onChange={(e) => handleCustomFieldValueChange(field.id, e.target.value)}
+          className="text-sm"
+          placeholder={field.placeholder || ""}
+        />
+      );
+    }
+
+    if (field.type === "date") {
+      return (
+        <Input
+          type="date"
+          value={field.value ?? ""}
+          onChange={(e) => handleCustomFieldValueChange(field.id, e.target.value)}
+          className="text-sm"
+        />
+      );
+    }
+
+    if (field.type === "checkbox") {
+      return (
+        <div className="flex items-center gap-2">
+          <Checkbox
+            checked={Boolean(field.value)}
+            onCheckedChange={(checked) => handleCustomFieldValueChange(field.id, checked)}
+          />
+          <span className="text-sm text-muted-foreground">نعم / لا</span>
+        </div>
+      );
+    }
+
+    return (
+      <Input
+        value={field.value ?? ""}
+        onChange={(e) => handleCustomFieldValueChange(field.id, e.target.value)}
+        className="text-sm"
+        placeholder={field.placeholder || ""}
+      />
+    );
   };
 
   const handleSaveDiagnosis = () => {
@@ -228,6 +395,51 @@ export default function VisitDetailPage() {
         },
         onError: (error) => {
           alert("حدث خطأ أثناء تحديث الملاحظات: " + error.message);
+        },
+      }
+    );
+  };
+
+  const handleSaveTreatment = () => {
+    updateVisit(
+      { id: visitId, treatment: editData.treatment },
+      {
+        onSuccess: () => {
+          setIsTreatmentEditModalOpen(false);
+          window.location.reload();
+        },
+        onError: (error) => {
+          alert("حدث خطأ أثناء تحديث العلاج: " + error.message);
+        },
+      }
+    );
+  };
+
+  const handleSaveFollowUp = () => {
+    updateVisit(
+      { id: visitId, follow_up: editData.follow_up },
+      {
+        onSuccess: () => {
+          setIsFollowUpEditModalOpen(false);
+          window.location.reload();
+        },
+        onError: (error) => {
+          alert("حدث خطأ أثناء تحديث المتابعة: " + error.message);
+        },
+      }
+    );
+  };
+
+  const handleSaveCustomFields = () => {
+    updateVisit(
+      { id: visitId, custom_fields: editData.custom_fields },
+      {
+        onSuccess: () => {
+          setIsCustomFieldsEditModalOpen(false);
+          window.location.reload();
+        },
+        onError: (error) => {
+          alert("حدث خطأ أثناء تحديث الحقول الإضافية: " + error.message);
         },
       }
     );
@@ -323,6 +535,11 @@ export default function VisitDetailPage() {
     );
   }
 
+  const customFields = mergeTemplatesIntoCustomFields(
+    Array.isArray(visit?.custom_fields) ? visit.custom_fields : [],
+    visitAllTemplates
+  );
+
   return (
     <div className="space-y-6 pb-6" dir="rtl">
       {/* Header - Visit Info */}
@@ -410,22 +627,56 @@ export default function VisitDetailPage() {
         </CardHeader>
         <CardContent className="p-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Button 
-                variant="outline" 
-                className="justify-start gap-2 h-11 hover:bg-primary/5 hover:border-primary/30 transition-all shadow-sm" 
-                onClick={openDiagnosisEditModal}
-            >
-                <Edit className="w-4 h-4 text-primary" />
-                تعديل التشخيص
-            </Button>
-            <Button 
-                variant="outline" 
-                className="justify-start gap-2 h-11 hover:bg-primary/5 hover:border-primary/30 transition-all shadow-sm" 
-                onClick={openNotesEditModal}
-            >
-                <FileText className="w-4 h-4 text-blue-600" />
-                تعديل الملاحظات
-            </Button>
+            {visitFields.diagnosis?.enabled !== false && (
+              <Button 
+                  variant="outline" 
+                  className="justify-start gap-2 h-11 hover:bg-primary/5 hover:border-primary/30 transition-all shadow-sm" 
+                  onClick={openDiagnosisEditModal}
+              >
+                  <Edit className="w-4 h-4 text-primary" />
+                  تعديل {visitFields.diagnosis?.label || "التشخيص"}
+              </Button>
+            )}
+            {visitFields.notes?.enabled !== false && (
+              <Button 
+                  variant="outline" 
+                  className="justify-start gap-2 h-11 hover:bg-primary/5 hover:border-primary/30 transition-all shadow-sm" 
+                  onClick={openNotesEditModal}
+              >
+                  <FileText className="w-4 h-4 text-blue-600" />
+                  تعديل {visitFields.notes?.label || "الملاحظات"}
+              </Button>
+            )}
+            {visitFields.treatment?.enabled !== false && (
+              <Button 
+                  variant="outline" 
+                  className="justify-start gap-2 h-11 hover:bg-primary/5 hover:border-primary/30 transition-all shadow-sm" 
+                  onClick={openTreatmentEditModal}
+              >
+                  <FileText className="w-4 h-4 text-emerald-600" />
+                  تعديل {visitFields.treatment?.label || "العلاج"}
+              </Button>
+            )}
+            {visitFields.follow_up?.enabled !== false && (
+              <Button 
+                  variant="outline" 
+                  className="justify-start gap-2 h-11 hover:bg-primary/5 hover:border-primary/30 transition-all shadow-sm" 
+                  onClick={openFollowUpEditModal}
+              >
+                  <FileText className="w-4 h-4 text-violet-600" />
+                  تعديل {visitFields.follow_up?.label || "المتابعة"}
+              </Button>
+            )}
+            {(customFields.length > 0 || visitAllTemplates.length > 0) && (
+              <Button 
+                  variant="outline" 
+                  className="justify-start gap-2 h-11 hover:bg-primary/5 hover:border-primary/30 transition-all shadow-sm" 
+                  onClick={openCustomFieldsEditModal}
+              >
+                  <FileText className="w-4 h-4 text-slate-600" />
+                  تعديل الحقول الإضافية
+              </Button>
+            )}
             <Button 
                 variant="outline" 
                 className="justify-start gap-2 h-11 hover:bg-primary/5 hover:border-primary/30 transition-all shadow-sm" 
@@ -489,37 +740,116 @@ export default function VisitDetailPage() {
         
         <TabsContent value="details" className="space-y-4 mt-4">
           <div className="grid grid-cols-1 gap-4">
-            {/* Diagnosis */}
-            <Card className="bg-card/50">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between gap-2 text-muted-foreground mb-2">
-                  <div className="flex items-center gap-2">
-                    <FileText className="w-4 h-4" />
-                    <span className="text-xs font-medium">التشخيص</span>
+            {visitFields.diagnosis?.enabled !== false && (
+              <Card className="bg-card/50">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between gap-2 text-muted-foreground mb-2">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      <span className="text-xs font-medium">{visitFields.diagnosis?.label || "التشخيص"}</span>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={openDiagnosisEditModal} className="h-6 w-6 p-1">
+                      <Edit className="w-3 h-3" />
+                    </Button>
                   </div>
-                  <Button variant="ghost" size="sm" onClick={openDiagnosisEditModal} className="h-6 w-6 p-1">
-                    <Edit className="w-3 h-3" />
-                  </Button>
-                </div>
-                <p className="text-sm text-right">{visit?.diagnosis || "لا يوجد"}</p>
-              </CardContent>
-            </Card>
+                  <p className="text-sm text-right whitespace-pre-wrap">{visit?.diagnosis || "لا يوجد"}</p>
+                </CardContent>
+              </Card>
+            )}
 
-            {/* Notes */}
-            <Card className="bg-card/50">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between gap-2 text-muted-foreground mb-2">
-                  <div className="flex items-center gap-2">
-                    <FileText className="w-4 h-4" />
-                    <span className="text-xs font-medium">ملاحظات</span>
+            {visitFields.notes?.enabled !== false && (
+              <Card className="bg-card/50">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between gap-2 text-muted-foreground mb-2">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      <span className="text-xs font-medium">{visitFields.notes?.label || "ملاحظات"}</span>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={openNotesEditModal} className="h-6 w-6 p-1">
+                      <Edit className="w-3 h-3" />
+                    </Button>
                   </div>
-                  <Button variant="ghost" size="sm" onClick={openNotesEditModal} className="h-6 w-6 p-1">
-                    <Edit className="w-3 h-3" />
-                  </Button>
-                </div>
-                <p className="text-sm whitespace-pre-wrap text-right">{visit?.notes || "لا يوجد"}</p>
-              </CardContent>
-            </Card>
+                  <p className="text-sm whitespace-pre-wrap text-right">{visit?.notes || "لا يوجد"}</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {visitFields.treatment?.enabled !== false && (
+              <Card className="bg-card/50">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between gap-2 text-muted-foreground mb-2">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      <span className="text-xs font-medium">{visitFields.treatment?.label || "العلاج"}</span>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={openTreatmentEditModal} className="h-6 w-6 p-1">
+                      <Edit className="w-3 h-3" />
+                    </Button>
+                  </div>
+                  <p className="text-sm whitespace-pre-wrap text-right">{visit?.treatment || "لا يوجد"}</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {visitFields.follow_up?.enabled !== false && (
+              <Card className="bg-card/50">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between gap-2 text-muted-foreground mb-2">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      <span className="text-xs font-medium">{visitFields.follow_up?.label || "متابعة"}</span>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={openFollowUpEditModal} className="h-6 w-6 p-1">
+                      <Edit className="w-3 h-3" />
+                    </Button>
+                  </div>
+                  <p className="text-sm whitespace-pre-wrap text-right">{visit?.follow_up || "لا يوجد"}</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {visitSections?.items?.extra_fields?.enabled !== false && (customFields.length > 0 || visitAllTemplates.length > 0) && (
+              <Card className="bg-card/50">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between gap-2 text-muted-foreground mb-2">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      <span className="text-xs font-medium">{visitSections?.items?.extra_fields?.title || "حقول إضافية"}</span>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={openCustomFieldsEditModal} className="h-6 w-6 p-1">
+                      <Edit className="w-3 h-3" />
+                    </Button>
+                  </div>
+                  {customFields.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-right">لا يوجد</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {[{ id: "default", title: visitSections?.items?.extra_fields?.title || "حقول إضافية", enabled: true }, ...visitCustomSections]
+                        .filter((s) => s.enabled !== false)
+                        .map((s) => {
+                          const fields = customFields.filter((f) => String(f?.section_id || "default") === String(s.id));
+                          if (fields.length === 0) return null;
+                          return (
+                            <div key={s.id} className="space-y-2">
+                              <div className="text-sm font-semibold">{s.title}</div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                {fields.map((field) => (
+                                  <div key={field.id} className="p-2.5 rounded-lg border bg-card/50">
+                                    <div className="text-xs text-muted-foreground mb-1">{field.name}</div>
+                                    <div className="text-sm font-medium text-foreground">
+                                      {field.type === "checkbox" ? (field.value ? "نعم" : "لا") : (field.value ?? "-") || "-"}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </div>
         </TabsContent>
         
@@ -564,15 +894,15 @@ export default function VisitDetailPage() {
       <Dialog open={isDiagnosisEditModalOpen} onOpenChange={setIsDiagnosisEditModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>تعديل التشخيص</DialogTitle>
+            <DialogTitle>تعديل {visitFields.diagnosis?.label || "التشخيص"}</DialogTitle>
           </DialogHeader>
           <div className="py-4">
-            <Label htmlFor="diagnosis" className="mb-2 block">التشخيص</Label>
+            <Label htmlFor="diagnosis" className="mb-2 block">{visitFields.diagnosis?.label || "التشخيص"}</Label>
             <Textarea
               id="diagnosis"
               value={editData.diagnosis}
               onChange={(e) => handleEditChange("diagnosis", e.target.value)}
-              placeholder="التشخيص المبدئي"
+              placeholder={visitFields.diagnosis?.placeholder || "التشخيص المبدئي"}
               rows={4}
             />
           </div>
@@ -590,15 +920,15 @@ export default function VisitDetailPage() {
       <Dialog open={isNotesEditModalOpen} onOpenChange={setIsNotesEditModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>تعديل الملاحظات</DialogTitle>
+            <DialogTitle>تعديل {visitFields.notes?.label || "الملاحظات"}</DialogTitle>
           </DialogHeader>
           <div className="py-4">
-            <Label htmlFor="notes" className="mb-2 block">ملاحظات</Label>
+            <Label htmlFor="notes" className="mb-2 block">{visitFields.notes?.label || "ملاحظات"}</Label>
             <Textarea
               id="notes"
               value={editData.notes}
               onChange={(e) => handleEditChange("notes", e.target.value)}
-              placeholder="ملاحظات إضافية"
+              placeholder={visitFields.notes?.placeholder || "ملاحظات إضافية"}
               rows={4}
             />
           </div>
@@ -607,6 +937,180 @@ export default function VisitDetailPage() {
               إلغاء
             </Button>
             <Button onClick={handleSaveNotes} disabled={isUpdating} className="w-[75%]">
+              {isUpdating ? "جاري الحفظ..." : "حفظ"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isTreatmentEditModalOpen} onOpenChange={setIsTreatmentEditModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>تعديل {visitFields.treatment?.label || "العلاج"}</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="treatment" className="mb-2 block">{visitFields.treatment?.label || "العلاج"}</Label>
+            <Textarea
+              id="treatment"
+              value={editData.treatment}
+              onChange={(e) => handleEditChange("treatment", e.target.value)}
+              placeholder={visitFields.treatment?.placeholder || "اكتب خطة العلاج هنا..."}
+              rows={4}
+            />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setIsTreatmentEditModalOpen(false)} className="w-[25%]">
+              إلغاء
+            </Button>
+            <Button onClick={handleSaveTreatment} disabled={isUpdating} className="w-[75%]">
+              {isUpdating ? "جاري الحفظ..." : "حفظ"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isFollowUpEditModalOpen} onOpenChange={setIsFollowUpEditModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>تعديل {visitFields.follow_up?.label || "المتابعة"}</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="follow_up" className="mb-2 block">{visitFields.follow_up?.label || "متابعة"}</Label>
+            <Textarea
+              id="follow_up"
+              value={editData.follow_up}
+              onChange={(e) => handleEditChange("follow_up", e.target.value)}
+              placeholder={visitFields.follow_up?.placeholder || "اكتب ملاحظات المتابعة هنا..."}
+              rows={4}
+            />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setIsFollowUpEditModalOpen(false)} className="w-[25%]">
+              إلغاء
+            </Button>
+            <Button onClick={handleSaveFollowUp} disabled={isUpdating} className="w-[75%]">
+              {isUpdating ? "جاري الحفظ..." : "حفظ"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isCustomFieldsEditModalOpen} onOpenChange={setIsCustomFieldsEditModalOpen}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>تعديل الحقول الإضافية</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">إضافة حقل</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-6 gap-2 items-end">
+                <div className="sm:col-span-3">
+                  <Label className="text-[10px] text-muted-foreground mb-1 block">اسم الحقل</Label>
+                  <Input
+                    value={newField.name}
+                    onChange={(e) => setNewField((prev) => ({ ...prev, name: e.target.value }))}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddCustomField();
+                      }
+                    }}
+                    placeholder="مثال: ضغط الدم"
+                    className="text-sm"
+                  />
+                </div>
+                <div className="sm:col-span-1">
+                  <Label className="text-[10px] text-muted-foreground mb-1 block">القسم</Label>
+                  <Select
+                    value={newField.section_id || "default"}
+                    onValueChange={(value) => setNewField((prev) => ({ ...prev, section_id: value }))}
+                    dir="rtl"
+                  >
+                    <SelectTrigger className="h-10 w-full justify-between text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="default">{visitSections?.items?.extra_fields?.title || "حقول إضافية"}</SelectItem>
+                      {visitCustomSections.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>{s.title}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="sm:col-span-1">
+                  <Label className="text-[10px] text-muted-foreground mb-1 block">النوع</Label>
+                  <Select
+                    value={newField.type}
+                    onValueChange={(value) => setNewField((prev) => ({ ...prev, type: value }))}
+                    dir="rtl"
+                  >
+                    <SelectTrigger className="h-10 w-full justify-between text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="text">نص</SelectItem>
+                      <SelectItem value="number">رقم</SelectItem>
+                      <SelectItem value="date">تاريخ</SelectItem>
+                      <SelectItem value="textarea">نص طويل</SelectItem>
+                      <SelectItem value="checkbox">صح/غلط</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="sm:col-span-1 gap-2"
+                  onClick={handleAddCustomField}
+                  disabled={!newField.name.trim()}
+                >
+                  <Plus className="size-4" />
+                  إضافة
+                </Button>
+              </div>
+
+              {editData.custom_fields?.length > 0 && (
+                <div className="space-y-4">
+                  {[{ id: "default", title: visitSections?.items?.extra_fields?.title || "حقول إضافية", enabled: true }, ...visitCustomSections]
+                    .filter((s) => s.enabled !== false)
+                    .map((s) => {
+                      const fields = (editData.custom_fields || []).filter(
+                        (f) => String(f?.section_id || "default") === String(s.id)
+                      );
+                      if (fields.length === 0) return null;
+                      return (
+                        <div key={s.id} className="space-y-2">
+                          <div className="text-sm font-semibold">{s.title}</div>
+                          <div className="space-y-2">
+                            {fields.map((field) => (
+                              <div key={field.id} className="rounded-lg border p-3 bg-card/50 space-y-2">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="text-sm font-semibold">{field.name}</div>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => handleRemoveCustomField(field.id)}
+                                  >
+                                    <X className="size-4 text-destructive" />
+                                  </Button>
+                                </div>
+                                {renderCustomFieldValueInput(field)}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button className="w-[25%]" variant="outline" onClick={() => setIsCustomFieldsEditModalOpen(false)}>
+              إلغاء
+            </Button>
+            <Button className="w-[75%]" onClick={handleSaveCustomFields} disabled={isUpdating}>
               {isUpdating ? "جاري الحفظ..." : "حفظ"}
             </Button>
           </DialogFooter>

@@ -1,9 +1,10 @@
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Button } from "../../components/ui/button"
 import { Textarea } from "../../components/ui/textarea"
 import { Input } from "../../components/ui/input"
 import { Label } from "../../components/ui/label"
 import { Plus, X, Loader2 } from "lucide-react"
+import { Checkbox } from "../../components/ui/checkbox"
 import useCreateVisit from "./useCreateVisit"
 import SpeechButton from "../../components/ui/SpeechButton"
 import { Switch } from "../../components/ui/switch"
@@ -18,6 +19,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { usePatientPlans, useCreatePatientPlan } from "./usePatientPlans"
 import useTreatmentTemplates from "../treatment-plans/useTreatmentTemplates"
 import { createFinancialRecord } from "../../services/apiFinancialRecords"
+import { useUserPreferences } from "../../hooks/useUserPreferences"
+import { flattenCustomFieldTemplates, mergeTemplatesIntoCustomFields, normalizeMedicalFieldsConfig } from "../../lib/medicalFieldsConfig"
 
 function AddPlanDialog({ open, onClose, patientId, onPlanCreated }) {
     const { data: templates, isLoading: isLoadingTemplates } = useTreatmentTemplates()
@@ -141,8 +144,12 @@ function AddPlanDialog({ open, onClose, patientId, onPlanCreated }) {
 export default function VisitCreateForm({ patientId, patientPlanId: externalPatientPlanId, appointmentId, onVisitCreated, onCancel }) {
     const [diagnosis, setDiagnosis] = useState("")
     const [notes, setNotes] = useState("")
+    const [treatment, setTreatment] = useState("")
+    const [followUp, setFollowUp] = useState("")
     const [medications, setMedications] = useState([])
     const [newMedication, setNewMedication] = useState({ name: "", using: "" })
+    const [customFields, setCustomFields] = useState([])
+    const [newField, setNewField] = useState({ name: "", type: "text", section_id: "default" })
     const [selectedPlanId, setSelectedPlanId] = useState(externalPatientPlanId || "")
     const [isAddPlanOpen, setIsAddPlanOpen] = useState(false)
     const [showPaymentDialog, setShowPaymentDialog] = useState(false)
@@ -153,6 +160,24 @@ export default function VisitCreateForm({ patientId, patientPlanId: externalPati
     // Fetch patient plans for this patient
     const { data: patientPlans, isLoading: isPlansLoading } = usePatientPlans(patientId)
     
+    const { data: preferences } = useUserPreferences()
+    const medicalFieldsConfig = useMemo(
+        () => normalizeMedicalFieldsConfig(preferences?.medical_fields_config),
+        [preferences?.medical_fields_config]
+    )
+    const visitFields = medicalFieldsConfig.visit.fields
+    const visitSections = medicalFieldsConfig.visit.sections
+    const visitCustomSections = medicalFieldsConfig.visit.customSections
+    const visitAllTemplates = useMemo(
+        () => flattenCustomFieldTemplates({ config: medicalFieldsConfig, context: "visit" }),
+        [medicalFieldsConfig]
+    )
+
+    useEffect(() => {
+        if (!visitAllTemplates || visitAllTemplates.length === 0) return
+        setCustomFields((prev) => mergeTemplatesIntoCustomFields(prev, visitAllTemplates))
+    }, [visitAllTemplates])
+
     const { mutate: createVisit, isPending: isCreating } = useCreateVisit()
     const selectedPlan = patientPlans?.find((p) => String(p.id) === String(selectedPlanId || externalPatientPlanId || ""))
 
@@ -177,6 +202,86 @@ export default function VisitCreateForm({ patientId, patientPlanId: externalPati
             const shouldAddSpace = !/[\s.،,؟!؛]$/u.test(prevNotes.trim());
             return prevNotes + (shouldAddSpace ? " " : "") + newTranscript;
         });
+    }
+
+    const handleAddCustomField = () => {
+        if (!newField.name.trim()) return
+        setCustomFields((prev) => [
+            ...prev,
+            {
+                id: crypto.randomUUID(),
+                name: newField.name.trim(),
+                type: newField.type,
+                section_id: newField.section_id || "default",
+                value: "",
+            },
+        ])
+        setNewField({ name: "", type: "text", section_id: newField.section_id || "default" })
+    }
+
+    const handleRemoveCustomField = (id) => {
+        setCustomFields((prev) => prev.filter((f) => f.id !== id))
+    }
+
+    const handleCustomFieldValueChange = (id, value) => {
+        setCustomFields((prev) => prev.map((f) => (f.id === id ? { ...f, value } : f)))
+    }
+
+    const renderCustomFieldValueInput = (field) => {
+        if (field.type === "textarea") {
+            return (
+                <Textarea
+                    value={field.value ?? ""}
+                    onChange={(e) => handleCustomFieldValueChange(field.id, e.target.value)}
+                    className="min-h-[80px] text-sm"
+                    placeholder={field.placeholder || ""}
+                />
+            )
+        }
+
+        if (field.type === "number") {
+            return (
+                <Input
+                    type="number"
+                    value={field.value ?? ""}
+                    onChange={(e) => handleCustomFieldValueChange(field.id, e.target.value)}
+                    className="text-sm"
+                    placeholder={field.placeholder || ""}
+                />
+            )
+        }
+
+        if (field.type === "date") {
+            return (
+                <Input
+                    type="date"
+                    value={field.value ?? ""}
+                    onChange={(e) => handleCustomFieldValueChange(field.id, e.target.value)}
+                    className="text-sm"
+                />
+            )
+        }
+
+        if (field.type === "checkbox") {
+            return (
+                <div className="flex items-center gap-2">
+                    <Checkbox
+                        checked={Boolean(field.value)}
+                        onCheckedChange={(checked) => handleCustomFieldValueChange(field.id, checked)}
+                    />
+                    <span className="text-sm text-muted-foreground">نعم / لا</span>
+                </div>
+            )
+        }
+
+        return (
+            <Input
+                value={field.value ?? ""}
+                onChange={(e) => handleCustomFieldValueChange(field.id, e.target.value)}
+                className="text-sm"
+                placeholder={field.placeholder || ""}
+            />
+        )
     }
 
     const handleSubmit = (e) => {
@@ -225,6 +330,14 @@ export default function VisitCreateForm({ patientId, patientPlanId: externalPati
             notes
         }
 
+        if (visitFields.treatment?.enabled !== false && treatment.trim()) {
+            visitData.treatment = treatment
+        }
+
+        if (visitFields.follow_up?.enabled !== false && followUp.trim()) {
+            visitData.follow_up = followUp
+        }
+
         // Add appointment_id if provided
         if (appointmentId) {
             // Note: In Supabase, foreign keys to 'appointments' might be named differently
@@ -252,6 +365,10 @@ export default function VisitCreateForm({ patientId, patientPlanId: externalPati
         if (validMedications.length > 0) {
             visitData.medications = validMedications
         }
+
+        if (customFields.length > 0) {
+            visitData.custom_fields = customFields
+        }
         
         createVisit(visitData, {
             onSuccess: (data) => {
@@ -259,8 +376,12 @@ export default function VisitCreateForm({ patientId, patientPlanId: externalPati
                 // Reset form
                 setDiagnosis("")
                 setNotes("")
+                setTreatment("")
+                setFollowUp("")
                 setMedications([])
                 setNewMedication({ name: "", using: "" })
+                setCustomFields([])
+                setNewField({ name: "", type: "text" })
                 setSelectedPlanId("")
                 
                 // Notify parent component
@@ -392,34 +513,158 @@ export default function VisitCreateForm({ patientId, patientPlanId: externalPati
                     </div>
                     
                     <div className="space-y-2">
-                        <Label htmlFor="diagnosis">التشخيص المبدئي *</Label>
+                        <Label htmlFor="diagnosis">{visitFields.diagnosis?.label || "التشخيص"} *</Label>
                         <Input
                             id="diagnosis"
                             value={diagnosis}
                             onChange={(e) => setDiagnosis(e.target.value)}
-                            placeholder="أدخل التشخيص المبدئي"
+                            placeholder={visitFields.diagnosis?.placeholder || "أدخل التشخيص المبدئي"}
                             required
                         />
                     </div>
 
-                    <div className="space-y-2">
-                        <Label htmlFor="notes">الملاحظات</Label>
-                        <div className="relative">
-                            <Textarea
-                                id="notes"
-                                value={notes}
-                                onChange={(e) => setNotes(e.target.value)}
-                                placeholder="اكتب الملاحظات أو استخدم الميكروفون للتحدث"
-                                rows={4}
-                            />
-                            <div className="absolute left-2 bottom-2">
-                                <SpeechButton 
-                                    onTranscriptChange={handleSpeechTranscript}
-                                    isDisabled={isCreating}
+                    {visitFields.notes?.enabled !== false && (
+                        <div className="space-y-2">
+                            <Label htmlFor="notes">{visitFields.notes?.label || "الملاحظات"}</Label>
+                            <div className="relative">
+                                <Textarea
+                                    id="notes"
+                                    value={notes}
+                                    onChange={(e) => setNotes(e.target.value)}
+                                    placeholder={visitFields.notes?.placeholder || "اكتب الملاحظات أو استخدم الميكروفون للتحدث"}
+                                    rows={4}
                                 />
+                                <div className="absolute left-2 bottom-2">
+                                    <SpeechButton 
+                                        onTranscriptChange={handleSpeechTranscript}
+                                        isDisabled={isCreating}
+                                    />
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    )}
+
+                    {visitFields.treatment?.enabled !== false && (
+                        <div className="space-y-2">
+                            <Label htmlFor="treatment">{visitFields.treatment?.label || "العلاج"}</Label>
+                            <Textarea
+                                id="treatment"
+                                value={treatment}
+                                onChange={(e) => setTreatment(e.target.value)}
+                                placeholder={visitFields.treatment?.placeholder || "اكتب خطة العلاج هنا..."}
+                                rows={4}
+                            />
+                        </div>
+                    )}
+
+                    {visitFields.follow_up?.enabled !== false && (
+                        <div className="space-y-2">
+                            <Label htmlFor="follow_up">{visitFields.follow_up?.label || "متابعة"}</Label>
+                            <Textarea
+                                id="follow_up"
+                                value={followUp}
+                                onChange={(e) => setFollowUp(e.target.value)}
+                                placeholder={visitFields.follow_up?.placeholder || "اكتب ملاحظات المتابعة هنا..."}
+                                rows={4}
+                            />
+                        </div>
+                    )}
+
+                    {(customFields.length > 0 || visitAllTemplates.length > 0) && (
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <Label>{visitSections?.items?.extra_fields?.title || "حقول إضافية"}</Label>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleAddCustomField}
+                                    disabled={!newField.name.trim()}
+                                    className="gap-1.5"
+                                >
+                                    <Plus className="w-4 h-4" />
+                                    إضافة
+                                </Button>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 rounded-[var(--radius)] bg-muted/30 border">
+                                <div className="space-y-2">
+                                    <Label className="text-xs">اسم الحقل</Label>
+                                    <Input
+                                        value={newField.name}
+                                        onChange={(e) => setNewField((prev) => ({ ...prev, name: e.target.value }))}
+                                        placeholder="مثال: ضغط الدم"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-xs">القسم</Label>
+                                    <Select
+                                        value={newField.section_id || "default"}
+                                        onValueChange={(v) => setNewField((prev) => ({ ...prev, section_id: v }))}
+                                        dir="rtl"
+                                    >
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="default">{visitSections?.items?.extra_fields?.title || "حقول إضافية"}</SelectItem>
+                                            {visitCustomSections.map((s) => (
+                                                <SelectItem key={s.id} value={s.id}>{s.title}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-xs">النوع</Label>
+                                    <Select value={newField.type} onValueChange={(v) => setNewField((prev) => ({ ...prev, type: v }))} dir="rtl">
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="text">نص</SelectItem>
+                                            <SelectItem value="number">رقم</SelectItem>
+                                            <SelectItem value="date">تاريخ</SelectItem>
+                                            <SelectItem value="textarea">نص طويل</SelectItem>
+                                            <SelectItem value="checkbox">صح/غلط</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+
+                            {customFields.length > 0 && (
+                                <div className="space-y-4">
+                                    {[{ id: "default", title: visitSections?.items?.extra_fields?.title || "حقول إضافية", enabled: true }, ...visitCustomSections]
+                                        .filter((s) => s.enabled !== false)
+                                        .map((s) => {
+                                            const fields = customFields.filter((f) => String(f?.section_id || "default") === String(s.id))
+                                            if (fields.length === 0) return null
+                                            return (
+                                                <div key={s.id} className="space-y-2">
+                                                    <h4 className="text-xs font-medium text-muted-foreground">{s.title}</h4>
+                                                    {fields.map((field) => (
+                                                        <div key={field.id} className="rounded-lg border p-3 bg-muted/20 space-y-2">
+                                                            <div className="flex items-center justify-between gap-2">
+                                                                <div className="text-sm font-semibold">{field.name}</div>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="shrink-0 h-6 w-6 text-destructive hover:text-destructive"
+                                                                    onClick={() => handleRemoveCustomField(field.id)}
+                                                                >
+                                                                    <X className="w-4 h-4" />
+                                                                </Button>
+                                                            </div>
+                                                            {renderCustomFieldValueInput(field)}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )
+                                        })}
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">

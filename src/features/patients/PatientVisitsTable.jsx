@@ -107,7 +107,7 @@ export default function PatientVisitsTable({ visits, isLoading, patientId, onVis
                                         </div>
 
                                         {/* Action Hint */}
-                                        <div className="w-8 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity border-r border-border/30 bg-muted/5">
+                                        <div className="w-8 flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity border-r border-border/30 bg-muted/5">
                                            <Eye className="w-4 h-4 text-primary/70" />
                                         </div>
                                     </div>

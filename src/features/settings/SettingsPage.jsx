@@ -1,4 +1,4 @@
-import { Key, User, Settings, Palette, Bell } from "lucide-react";
+import { Key, User, Settings, Palette, Bell, ClipboardList } from "lucide-react";
 import { useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import ChangePasswordTab from "./ChangePasswordTab";
@@ -6,12 +6,14 @@ import PersonalInfoTab from "./PersonalInfoTab";
 import NotificationsTab from "./NotificationsTab";
 import { PersonalizationSettings } from "../user-preferences/PersonalizationSettings";
 import { useLocation } from "react-router-dom";
+import MedicalFieldsSettingsTab from "./MedicalFieldsSettingsTab";
 
 const tabs = [
   { id: "personal", label: "بياناتك", fullLabel: "بياناتك الشخصية", icon: User },
   { id: "password", label: "الباسوورد", fullLabel: "غير الباسوورد", icon: Key },
   { id: "personalization", label: "المظهر", fullLabel: "المظهر والألوان", icon: Palette },
   { id: "notifications", label: "الإشعارات", fullLabel: "الإشعارات والإيميل", icon: Bell },
+  { id: "medical-fields", label: "الحقول", fullLabel: "تخصيص الحقول", icon: ClipboardList },
 ];
 
 export default function SettingsPage() {
@@ -36,7 +38,7 @@ export default function SettingsPage() {
       </div>
 
       <Tabs defaultValue="personal" className="w-full" style={{ direction: 'rtl' }}>
-        <TabsList className="grid grid-cols-2 md:grid-cols-4 w-full h-auto p-1 sm:p-1.5 bg-muted/50 rounded-[var(--radius)]">
+        <TabsList className="grid grid-cols-2 md:grid-cols-5 w-full h-auto p-1 sm:p-1.5 bg-muted/50 rounded-[var(--radius)]">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
@@ -69,6 +71,10 @@ export default function SettingsPage() {
 
         <TabsContent value="notifications" className="mt-4 sm:mt-6">
           <NotificationsTab />
+        </TabsContent>
+
+        <TabsContent value="medical-fields" className="mt-4 sm:mt-6">
+          <MedicalFieldsSettingsTab />
         </TabsContent>
       </Tabs>
     </div>

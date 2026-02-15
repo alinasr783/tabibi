@@ -499,7 +499,7 @@ function ChatSidebar({
                             }}
                             className={cn(
                               "absolute left-2 top-1/2 -translate-y-1/2",
-                              "opacity-0 group-hover:opacity-100 transition-opacity",
+                              "opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity",
                               "p-1 sm:p-1.5 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600"
                             )}
                           >

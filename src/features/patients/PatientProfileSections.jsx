@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { 
   Briefcase, MapPin, Heart, Shield, Activity, FileText, AlertTriangle, 
@@ -13,6 +13,8 @@ import { TagInput } from "../../components/ui/tag-input";
 import { Checkbox } from "../../components/ui/checkbox";
 import { updatePatient } from "../../services/apiPatients";
 import toast from "react-hot-toast";
+import { useUserPreferences } from "../../hooks/useUserPreferences";
+import { flattenCustomFieldTemplates, mergeTemplatesIntoCustomFields, normalizeMedicalFieldsConfig } from "../../lib/medicalFieldsConfig";
 
 // --- Shared Components ---
 
@@ -249,19 +251,33 @@ export function InsuranceForm({ patient, onCancel, onSuccess }) {
 
 export function CustomFieldsForm({ patient, onCancel, onSuccess }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [customFields, setCustomFields] = useState(
-    Array.isArray(patient.custom_fields) ? patient.custom_fields : []
+  const [customFields, setCustomFields] = useState(Array.isArray(patient.custom_fields) ? patient.custom_fields : []);
+  const [newField, setNewField] = useState({ name: "", type: "text", section_id: "default" });
+  const { data: preferences } = useUserPreferences();
+
+  const medicalFieldsConfig = useMemo(
+    () => normalizeMedicalFieldsConfig(preferences?.medical_fields_config),
+    [preferences?.medical_fields_config]
   );
-  const [newField, setNewField] = useState({ name: "", type: "text" });
+  const patientSections = medicalFieldsConfig.patient.sections;
+  const patientCustomSections = medicalFieldsConfig.patient.customSections;
+  const patientAllTemplates = useMemo(
+    () => flattenCustomFieldTemplates({ config: medicalFieldsConfig, context: "patient" }),
+    [medicalFieldsConfig]
+  );
+
+  useEffect(() => {
+    setCustomFields(mergeTemplatesIntoCustomFields(Array.isArray(patient.custom_fields) ? patient.custom_fields : [], patientAllTemplates));
+  }, [patient.custom_fields, patientAllTemplates]);
 
   const addField = () => {
     const name = newField.name.trim();
     if (!name) return;
     setCustomFields((prev) => [
       ...prev,
-      { id: crypto.randomUUID(), name, type: newField.type, value: "" },
+      { id: crypto.randomUUID(), name, type: newField.type, section_id: newField.section_id || "default", value: "" },
     ]);
-    setNewField({ name: "", type: "text" });
+    setNewField({ name: "", type: "text", section_id: newField.section_id || "default" });
   };
 
   const removeField = (id) => {
@@ -281,6 +297,7 @@ export function CustomFieldsForm({ patient, onCancel, onSuccess }) {
           value={field.value ?? ""}
           onChange={(e) => updateFieldValue(field.id, e.target.value)}
           className="min-h-[80px] text-sm"
+          placeholder={field.placeholder || ""}
         />
       );
     }
@@ -292,6 +309,7 @@ export function CustomFieldsForm({ patient, onCancel, onSuccess }) {
           value={field.value ?? ""}
           onChange={(e) => updateFieldValue(field.id, e.target.value)}
           className="text-sm"
+          placeholder={field.placeholder || ""}
         />
       );
     }
@@ -324,6 +342,7 @@ export function CustomFieldsForm({ patient, onCancel, onSuccess }) {
         value={field.value ?? ""}
         onChange={(e) => updateFieldValue(field.id, e.target.value)}
         className="text-sm"
+        placeholder={field.placeholder || ""}
       />
     );
   };
@@ -344,7 +363,7 @@ export function CustomFieldsForm({ patient, onCancel, onSuccess }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 items-end">
+      <div className="grid grid-cols-1 sm:grid-cols-6 gap-2 items-end">
         <div className="sm:col-span-3 space-y-2">
           <Label>اسم الحقل</Label>
           <Input
@@ -359,6 +378,25 @@ export function CustomFieldsForm({ patient, onCancel, onSuccess }) {
             placeholder="مثال: حساسية أدوية"
             className="h-11"
           />
+        </div>
+
+        <div className="sm:col-span-1 space-y-2">
+          <Label>القسم</Label>
+          <Select
+            value={newField.section_id || "default"}
+            onValueChange={(value) => setNewField((prev) => ({ ...prev, section_id: value }))}
+            dir="rtl"
+          >
+            <SelectTrigger className="h-11 justify-between">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="default">{patientSections?.items?.custom_fields?.title || "حقول إضافية"}</SelectItem>
+              {patientCustomSections.map((s) => (
+                <SelectItem key={s.id} value={s.id}>{s.title}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="sm:col-span-1 space-y-2">
@@ -395,24 +433,37 @@ export function CustomFieldsForm({ patient, onCancel, onSuccess }) {
       {customFields.length === 0 ? (
         <div className="text-sm text-muted-foreground">لا يوجد حقول إضافية</div>
       ) : (
-        <div className="space-y-2">
-          {customFields.map((field) => (
-            <div key={field.id} className="rounded-lg border p-3 bg-card/50 space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <div className="text-sm font-semibold">{field.name}</div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => removeField(field.id)}
-                >
-                  <X className="w-4 h-4 text-destructive" />
-                </Button>
-              </div>
-              {renderFieldInput(field)}
-            </div>
-          ))}
+        <div className="space-y-4">
+          {[{ id: "default", title: patientSections?.items?.custom_fields?.title || "حقول إضافية", enabled: true }, ...patientCustomSections]
+            .filter((s) => s.enabled !== false)
+            .map((s) => {
+              const fields = customFields.filter((f) => String(f?.section_id || "default") === String(s.id));
+              if (fields.length === 0) return null;
+              return (
+                <div key={s.id} className="space-y-2">
+                  <div className="text-sm font-semibold">{s.title}</div>
+                  <div className="space-y-2">
+                    {fields.map((field) => (
+                      <div key={field.id} className="rounded-lg border p-3 bg-card/50 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="text-sm font-semibold">{field.name}</div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => removeField(field.id)}
+                          >
+                            <X className="w-4 h-4 text-destructive" />
+                          </Button>
+                        </div>
+                        {renderFieldInput(field)}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
         </div>
       )}
 

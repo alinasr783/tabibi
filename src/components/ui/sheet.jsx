@@ -3,17 +3,14 @@ import { cn } from '../../lib/utils';
 
 // Simple Sheet implementation
 const Sheet = ({ open, onOpenChange, children }) => {
+  if (!open) return null;
   return (
     <div className="fixed inset-0 z-50">
-      {open && (
-        <>
-          <div 
-            className="fixed inset-0 bg-black/40" 
-            onClick={() => onOpenChange && onOpenChange(false)}
-          />
-          {children}
-        </>
-      )}
+      <div
+        className="fixed inset-0 bg-black/40"
+        onClick={() => onOpenChange && onOpenChange(false)}
+      />
+      {children}
     </div>
   );
 };

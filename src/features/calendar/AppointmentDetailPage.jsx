@@ -33,9 +33,10 @@ import {
   AlertTriangle,
   MessageCircle,
   History,
-  Trash2
+  Trash2,
+  ChevronDown
 } from "lucide-react";
-import {useState, useEffect} from "react";
+import {useEffect, useMemo, useState} from "react";
 import {useNavigate, useParams} from "react-router-dom";
 import useScrollToTop from "../../hooks/useScrollToTop";
 import {Button} from "../../components/ui/button";
@@ -69,15 +70,40 @@ import { getIntegration } from "../../services/integrationService";
 import generatePrescriptionPdfNew from "../../lib/generatePrescriptionPdfNew";
 import VisitCreateForm from "../patients/VisitCreateForm";
 import usePatientAppointments from "./usePatientAppointments";
+import { useUserPreferences } from "../../hooks/useUserPreferences";
+import {
+  flattenCustomFieldTemplates,
+  mergeTemplatesIntoCustomFields,
+  normalizeMedicalFieldsConfig,
+} from "../../lib/medicalFieldsConfig";
 
 export default function AppointmentDetailPage() {
   useScrollToTop(); // Auto scroll to top on page load
   const {appointmentId} = useParams();
   const {data: appointment, isLoading, error, refetch} = useAppointment(appointmentId);
   const {data: patientAppointments} = usePatientAppointments(appointment?.patient?.id);
+  const { data: preferences } = useUserPreferences();
   const navigate = useNavigate();
   const {handleAppointmentUpdate, isPending: isUpdating} = useUpdateAppointmentHandler();
   const {mutate: deleteAppointment, isPending: isDeleting} = useDeleteAppointment();
+
+  const medicalFieldsConfig = useMemo(
+    () => normalizeMedicalFieldsConfig(preferences?.medical_fields_config),
+    [preferences?.medical_fields_config]
+  );
+  const appointmentFields = medicalFieldsConfig.appointment.fields;
+  const appointmentSections = medicalFieldsConfig.appointment.sections;
+  const appointmentCustomSections = medicalFieldsConfig.appointment.customSections;
+  const appointmentAllTemplates = useMemo(
+    () => flattenCustomFieldTemplates({ config: medicalFieldsConfig, context: "appointment" }),
+    [medicalFieldsConfig]
+  );
+
+  const getMainSectionOrder = (key) => {
+    const order = appointmentSections?.order;
+    const idx = Array.isArray(order) ? order.indexOf(key) : -1;
+    return idx >= 0 ? idx : 999;
+  };
   
   const [hasGoogleCalendar, setHasGoogleCalendar] = useState(false);
 
@@ -131,7 +157,12 @@ export default function AppointmentDetailPage() {
     custom_fields: []
   });
 
-  const [newField, setNewField] = useState({ name: "", type: "text" });
+  const [mobileExpanded, setMobileExpanded] = useState({
+    patient_info: true,
+    medical_state: true,
+    extra_fields: false,
+    history: false,
+  });
 
   // Removed newVisitData state - will use VisitCreateForm directly
 
@@ -194,12 +225,11 @@ export default function AppointmentDetailPage() {
         status: appointment.status || "",
         diagnosis: appointment.diagnosis || "",
         treatment: appointment.treatment || "",
-        custom_fields: appointment.custom_fields || []
+        custom_fields: mergeTemplatesIntoCustomFields(appointment.custom_fields || [], appointmentAllTemplates)
       });
-      // Reset optimistic status when real data arrives
       setOptimisticStatus(null);
     }
-  }, [appointment]);
+  }, [appointment, appointmentAllTemplates]);
 
   const handleEditChange = (field, value) => {
     setEditData((prev) => ({...prev, [field]: value}));
@@ -214,12 +244,13 @@ export default function AppointmentDetailPage() {
         id: crypto.randomUUID(), 
         name: newField.name, 
         type: newField.type, 
+        section_id: newField.section_id || "default",
         value: "" 
       }
     ];
     
     setEditData(prev => ({ ...prev, custom_fields: newFields }));
-    setNewField({ name: "", type: "text" });
+    setNewField({ name: "", type: "text", section_id: newField.section_id || "default" });
   };
 
   const handleRemoveCustomField = (id) => {
@@ -241,6 +272,7 @@ export default function AppointmentDetailPage() {
           value={field.value ?? ""}
           onChange={(e) => handleCustomFieldValueChange(field.id, e.target.value)}
           className="min-h-[80px] text-sm"
+          placeholder={field.placeholder || ""}
         />
       );
     }
@@ -252,6 +284,7 @@ export default function AppointmentDetailPage() {
           value={field.value ?? ""}
           onChange={(e) => handleCustomFieldValueChange(field.id, e.target.value)}
           className="text-sm"
+          placeholder={field.placeholder || ""}
         />
       );
     }
@@ -284,6 +317,7 @@ export default function AppointmentDetailPage() {
         value={field.value ?? ""}
         onChange={(e) => handleCustomFieldValueChange(field.id, e.target.value)}
         className="text-sm"
+        placeholder={field.placeholder || ""}
       />
     );
   };
@@ -673,26 +707,38 @@ export default function AppointmentDetailPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Main Column */}
-          <div className="lg:col-span-2 space-y-4">
-            {/* Patient Info */}
-            <Card className="bg-card/70">
+          <div className="lg:col-span-2 flex flex-col gap-4">
+            {appointmentSections?.items?.patient_info?.enabled !== false && (
+            <Card className="bg-card/70" style={{ order: getMainSectionOrder("patient_info") }}>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-base">
                     <User className="size-5 text-primary" />
-                    معلومات المريض
+                    {appointmentSections?.items?.patient_info?.title || "معلومات المريض"}
                   </CardTitle>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    className="h-8 text-xs gap-1"
-                    onClick={() => navigate(`/patients/${appointment?.patient?.id}`)}>
-                    ملف المريض
-                    <ArrowLeft className="size-3" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 text-xs gap-1"
+                      onClick={() => navigate(`/patients/${appointment?.patient?.id}`)}
+                    >
+                      ملف المريض
+                      <ArrowLeft className="size-3" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 sm:hidden"
+                      onClick={() => setMobileExpanded((p) => ({ ...p, patient_info: !p.patient_info }))}
+                    >
+                      <ChevronDown className={`size-4 transition-transform ${mobileExpanded.patient_info ? "rotate-180" : ""}`} />
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className={`space-y-6 ${mobileExpanded.patient_info ? "block" : "hidden"} sm:block`}>
                 {/* Basic Info */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div className="flex items-center gap-3 p-2.5 rounded-lg border border-transparent hover:border-muted/30 hover:bg-muted/30 transition-all">
@@ -749,11 +795,11 @@ export default function AppointmentDetailPage() {
 
                 <Separator />
 
-                {/* Medical History */}
+                {medicalFieldsConfig.appointment.patient_info_subsections?.medical_history?.enabled !== false && (
                 <div className="space-y-3">
                    <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground/80">
                      <Activity className="size-4 text-orange-500" />
-                     الحالة الطبية
+                     {medicalFieldsConfig.appointment.patient_info_subsections?.medical_history?.title || "الحالة الطبية"}
                    </h4>
                    
                    {/* Chronic Diseases */}
@@ -788,15 +834,16 @@ export default function AppointmentDetailPage() {
                      )}
                    </div>
                 </div>
+                )}
 
                 {/* Insurance Info */}
-                {(appointment?.patient?.insurance_info && Object.keys(appointment?.patient?.insurance_info).length > 0) && (
+                {medicalFieldsConfig.appointment.patient_info_subsections?.insurance?.enabled !== false && (appointment?.patient?.insurance_info && Object.keys(appointment?.patient?.insurance_info).length > 0) && (
                   <>
                     <Separator />
                     <div className="space-y-3">
                       <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground/80">
                         <ShieldCheck className="size-4 text-blue-500" />
-                        التأمين
+                        {medicalFieldsConfig.appointment.patient_info_subsections?.insurance?.title || "التأمين"}
                       </h4>
                       <div className="bg-blue-50/50 rounded-lg p-3 border border-blue-100 grid grid-cols-2 gap-3">
                          <div>
@@ -817,49 +864,110 @@ export default function AppointmentDetailPage() {
                 )}
               </CardContent>
             </Card>
+            )}
 
-            {/* Notes & Medical Details */}
-            <Card className="bg-card/70">
+            {appointmentSections?.items?.medical_state?.enabled !== false && (
+            <Card className="bg-card/70" style={{ order: getMainSectionOrder("medical_state") }}>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-base">
                     <FileText className="size-5 text-primary" />
-                    الملاحظات والتشخيص
+                    {appointmentSections?.items?.medical_state?.title || "الملاحظات والتشخيص"}
                   </CardTitle>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 sm:hidden"
+                    onClick={() => setMobileExpanded((p) => ({ ...p, medical_state: !p.medical_state }))}
+                  >
+                    <ChevronDown className={`size-4 transition-transform ${mobileExpanded.medical_state ? "rotate-180" : ""}`} />
+                  </Button>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label className="text-xs text-muted-foreground mb-2 block">ملاحظات</Label>
-                  <Textarea
-                    className="min-h-[80px] text-sm"
-                    placeholder="اكتب ملاحظات هنا..."
-                    value={editData.notes}
-                    onChange={(e) => handleEditChange("notes", e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground mb-2 block">التشخيص</Label>
-                  <Textarea 
-                    className="min-h-[80px] text-sm"
-                    placeholder="اكتب التشخيص هنا..."
-                    value={editData.diagnosis}
-                    onChange={(e) => handleEditChange("diagnosis", e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground mb-2 block">العلاج</Label>
-                  <Textarea 
-                    className="min-h-[80px] text-sm"
-                    placeholder="اكتب خطة العلاج هنا..."
-                    value={editData.treatment}
-                    onChange={(e) => handleEditChange("treatment", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-3">
-                  <Label className="text-xs text-muted-foreground block">حقول إضافية</Label>
+              <CardContent className={`space-y-4 ${mobileExpanded.medical_state ? "block" : "hidden"} sm:block`}>
+                {appointmentFields.notes?.enabled !== false && (
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-2 block">
+                      {appointmentFields.notes?.label || "ملاحظات"}
+                    </Label>
+                    <Textarea
+                      className="min-h-[80px] text-sm"
+                      placeholder={appointmentFields.notes?.placeholder || "اكتب ملاحظات هنا..."}
+                      value={editData.notes}
+                      onChange={(e) => handleEditChange("notes", e.target.value)}
+                    />
+                  </div>
+                )}
+                {appointmentFields.diagnosis?.enabled !== false && (
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-2 block">
+                      {appointmentFields.diagnosis?.label || "التشخيص"}
+                    </Label>
+                    <Textarea 
+                      className="min-h-[80px] text-sm"
+                      placeholder={appointmentFields.diagnosis?.placeholder || "اكتب التشخيص هنا..."}
+                      value={editData.diagnosis}
+                      onChange={(e) => handleEditChange("diagnosis", e.target.value)}
+                    />
+                  </div>
+                )}
+                {appointmentFields.treatment?.enabled !== false && (
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-2 block">
+                      {appointmentFields.treatment?.label || "العلاج"}
+                    </Label>
+                    <Textarea 
+                      className="min-h-[80px] text-sm"
+                      placeholder={appointmentFields.treatment?.placeholder || "اكتب خطة العلاج هنا..."}
+                      value={editData.treatment}
+                      onChange={(e) => handleEditChange("treatment", e.target.value)}
+                    />
+                  </div>
+                )}
+                <Button 
+                  onClick={handleSaveEdit}
+                  disabled={isUpdating}
+                  size="sm"
+                  className="w-full sm:w-auto gap-2"
+                >
+                  {isUpdating ? (
+                    <>
+                      <Loader2 className="size-3.5 animate-spin" />
+                      بيحفظ...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="size-3.5" />
+                      احفظ التعديلات
+                    </>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+            )}
 
-                  <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 items-end">
+            {appointmentSections?.items?.extra_fields?.enabled !== false && (editData.custom_fields?.length > 0 || appointmentAllTemplates.length > 0) && (
+              <Card className="bg-card/70" style={{ order: getMainSectionOrder("extra_fields") }}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <FileText className="size-5 text-primary" />
+                      {appointmentSections?.items?.extra_fields?.title || "حقول إضافية"}
+                    </CardTitle>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 sm:hidden"
+                      onClick={() => setMobileExpanded((p) => ({ ...p, extra_fields: !p.extra_fields }))}
+                    >
+                      <ChevronDown className={`size-4 transition-transform ${mobileExpanded.extra_fields ? "rotate-180" : ""}`} />
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className={`space-y-4 ${mobileExpanded.extra_fields ? "block" : "hidden"} sm:block`}>
+                  <div className="grid grid-cols-1 sm:grid-cols-6 gap-2 items-end">
                     <div className="sm:col-span-3">
                       <Label className="text-[10px] text-muted-foreground mb-1 block">اسم الحقل</Label>
                       <Input
@@ -874,6 +982,25 @@ export default function AppointmentDetailPage() {
                         placeholder="مثال: ضغط الدم"
                         className="text-sm"
                       />
+                    </div>
+
+                    <div className="sm:col-span-1">
+                      <Label className="text-[10px] text-muted-foreground mb-1 block">القسم</Label>
+                      <Select
+                        value={newField.section_id || "default"}
+                        onValueChange={(value) => setNewField((prev) => ({ ...prev, section_id: value }))}
+                        dir="rtl"
+                      >
+                        <SelectTrigger className="h-10 w-full justify-between text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="default">{appointmentSections?.items?.extra_fields?.title || "حقول إضافية"}</SelectItem>
+                          {appointmentCustomSections.map((s) => (
+                            <SelectItem key={s.id} value={s.id}>{s.title}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     <div className="sm:col-span-1">
@@ -908,58 +1035,64 @@ export default function AppointmentDetailPage() {
                     </Button>
                   </div>
 
-                  {editData.custom_fields?.length > 0 && (
-                    <div className="space-y-2">
-                      {editData.custom_fields.map((field) => (
-                        <div key={field.id} className="rounded-lg border p-3 bg-card/50 space-y-2">
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="text-sm font-semibold">{field.name}</div>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => handleRemoveCustomField(field.id)}
-                            >
-                              <Trash2 className="size-4 text-destructive" />
-                            </Button>
+                  <div className="space-y-4">
+                    {[{ id: "default", title: appointmentSections?.items?.extra_fields?.title || "حقول إضافية", enabled: true }, ...appointmentCustomSections]
+                      .filter((s) => s.enabled !== false)
+                      .map((s) => {
+                        const fields = (editData.custom_fields || []).filter(
+                          (f) => String(f?.section_id || "default") === String(s.id)
+                        );
+                        if (fields.length === 0) return null;
+                        return (
+                          <div key={s.id} className="space-y-2">
+                            <div className="text-sm font-semibold">{s.title}</div>
+                            <div className="space-y-2">
+                              {fields.map((field) => (
+                                <div key={field.id} className="rounded-lg border p-3 bg-card/50 space-y-2">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div className="text-sm font-semibold">{field.name}</div>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={() => handleRemoveCustomField(field.id)}
+                                    >
+                                      <Trash2 className="size-4 text-destructive" />
+                                    </Button>
+                                  </div>
+                                  {renderCustomFieldValueInput(field)}
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                          {renderCustomFieldValueInput(field)}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <Button 
-                  onClick={handleSaveEdit}
-                  disabled={isUpdating}
-                  size="sm"
-                  className="w-full sm:w-auto gap-2"
-                >
-                  {isUpdating ? (
-                    <>
-                      <Loader2 className="size-3.5 animate-spin" />
-                      بيحفظ...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="size-3.5" />
-                      احفظ التعديلات
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
+                        );
+                      })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
-            {/* Patient History */}
-            <Card className="bg-card/70 border-muted/20 shadow-sm">
+            {appointmentSections?.items?.history?.enabled !== false && (
+            <Card className="bg-card/70 border-muted/20 shadow-sm" style={{ order: getMainSectionOrder("history") }}>
                <CardHeader className="pb-3">
-                 <CardTitle className="flex items-center gap-2 text-base">
-                   <History className="size-5 text-primary" />
-                   سجل زيارات المريض
-                 </CardTitle>
+                 <div className="flex items-center justify-between">
+                   <CardTitle className="flex items-center gap-2 text-base">
+                     <History className="size-5 text-primary" />
+                     {appointmentSections?.items?.history?.title || "سجل زيارات المريض"}
+                   </CardTitle>
+                   <Button
+                     type="button"
+                     variant="ghost"
+                     size="icon"
+                     className="h-8 w-8 sm:hidden"
+                     onClick={() => setMobileExpanded((p) => ({ ...p, history: !p.history }))}
+                   >
+                     <ChevronDown className={`size-4 transition-transform ${mobileExpanded.history ? "rotate-180" : ""}`} />
+                   </Button>
+                 </div>
                </CardHeader>
-               <CardContent>
+               <CardContent className={`${mobileExpanded.history ? "block" : "hidden"} sm:block`}>
                  {!patientAppointments ? (
                    <div className="space-y-3">
                       <Skeleton className="h-12 w-full rounded-lg" />
@@ -989,7 +1122,7 @@ export default function AppointmentDetailPage() {
                            <Badge variant="outline" className="font-normal h-6 text-xs">
                              {statusConfig[apt.status]?.label || apt.status}
                            </Badge>
-                           <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => navigate(`/appointments/${apt.id}`)}>
+                           <Button variant="ghost" size="icon" className="h-8 w-8 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity" onClick={() => navigate(`/appointments/${apt.id}`)}>
                              <ExternalLink className="size-3.5" />
                            </Button>
                          </div>
@@ -1004,6 +1137,7 @@ export default function AppointmentDetailPage() {
                  )}
                </CardContent>
             </Card>
+            )}
           </div>
 
           {/* Sidebar */}

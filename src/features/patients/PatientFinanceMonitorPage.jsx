@@ -239,7 +239,7 @@ export default function PatientFinanceMonitorPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 min-[360px]:grid-cols-2 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Card className="bg-white dark:bg-slate-900 border-border shadow-sm">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
@@ -253,7 +253,7 @@ export default function PatientFinanceMonitorPage() {
             ) : (
               <div className="flex items-center justify-between gap-3 min-w-0">
                 <p className="text-sm min-[360px]:text-base font-bold text-amber-700 dark:text-amber-400 min-w-0 flex-1 truncate" dir="ltr">
-                  {formatCurrency(summary?.totalCharges || 0)}
+                  {truncateEnd(formatCurrency(summary?.totalCharges || 0), 18)}
                 </p>
                 <div className="p-2 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-400">
                   <Wallet className="h-4 w-4" />
@@ -276,7 +276,7 @@ export default function PatientFinanceMonitorPage() {
             ) : (
               <div className="flex items-center justify-between gap-3 min-w-0">
                 <p className="text-sm min-[360px]:text-base font-bold text-emerald-700 dark:text-emerald-400 min-w-0 flex-1 truncate" dir="ltr">
-                  {formatCurrency(summary?.totalPayments || 0)}
+                  {truncateEnd(formatCurrency(summary?.totalPayments || 0), 18)}
                 </p>
                 <div className="p-2 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
                   <Wallet className="h-4 w-4" />
@@ -286,7 +286,7 @@ export default function PatientFinanceMonitorPage() {
           </CardContent>
         </Card>
 
-        <Card className="bg-white dark:bg-slate-900 border-border shadow-sm min-[360px]:col-span-2 sm:col-span-1">
+        <Card className="bg-white dark:bg-slate-900 border-border shadow-sm">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs font-medium text-slate-600 dark:text-slate-400">الرصيد</span>
@@ -300,7 +300,7 @@ export default function PatientFinanceMonitorPage() {
               <div className="flex items-center justify-between gap-3 min-w-0">
                 <div className="min-w-0">
                   <p className={`text-sm min-[360px]:text-base font-bold truncate ${(summary?.balance || 0) > 0 ? "text-rose-600" : "text-slate-900 dark:text-slate-100"}`} dir="ltr">
-                    {formatCurrency(summary?.balance || 0)}
+                    {truncateEnd(formatCurrency(summary?.balance || 0), 18)}
                   </p>
                   <p className="text-[11px] text-muted-foreground">
                     {(summary?.balance || 0) > 0 ? "على المريض" : "له رصيد"}

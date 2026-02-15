@@ -49,8 +49,11 @@ export async function getVisits(search, page, pageSize, filters = {}) {
       id,
       patient_id,
       diagnosis,
+      treatment,
+      follow_up,
       notes,
       medications,
+      custom_fields,
       created_at,
       patient:patients!inner(id, name, phone, gender)
     `, { count: "exact" })
@@ -98,8 +101,11 @@ export async function getVisitsByPatientId(patientId) {
       id,
       patient_id,
       diagnosis,
+      treatment,
+      follow_up,
       notes,
       medications,
+      custom_fields,
       created_at
     `)
         .eq("clinic_id", userData.clinic_id)
@@ -140,8 +146,11 @@ export async function getVisitById(visitId) {
       id,
       patient_id,
       diagnosis,
+      treatment,
+      follow_up,
       notes,
       medications,
+      custom_fields,
       created_at,
       patient:patients(phone, name, date_of_birth, age, age_unit, gender, medical_history, insurance_info)
     `)
