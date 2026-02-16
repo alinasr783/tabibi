@@ -131,6 +131,21 @@ export async function signup({ email, password, userData }) {
         }
     }
 
+    // Track signup from affiliate link (best-effort)
+    if (userData.role === "doctor" && userData.referralCode) {
+        try {
+            await supabase.from("affiliate_link_events").insert({
+                referral_code: userData.referralCode,
+                event_type: "signup",
+                path: window.location.pathname + window.location.search,
+                referrer: document.referrer || null,
+                user_agent: navigator.userAgent || null,
+            })
+        } catch (e) {
+            console.warn("Affiliate signup tracking failed (non-blocking):", e)
+        }
+    }
+
     // Apply affiliate referral if present (best-effort)
     if (userData.role === "doctor" && userData.referralCode) {
         try {

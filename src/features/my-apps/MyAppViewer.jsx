@@ -64,7 +64,7 @@ export default function MyAppViewer() {
   return (
     <div className="w-full h-full relative">
       <div className={`animate-in fade-in duration-300 ${appKey === 'tabibi_profile' ? '' : 'pb-24'}`}>
-        <Component />
+        <Component app={currentApp || null} appKey={appKey} />
       </div>
       
       {currentApp && appKey !== 'tabibi_profile' && appKey !== 'tabibi_affiliate' && (

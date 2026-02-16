@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS public.affiliate_link_events (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   referral_code text NOT NULL,
-  event_type text NOT NULL CHECK (event_type IN ('open')),
+  event_type text NOT NULL CHECK (event_type IN ('open', 'signup')),
   path text,
   referrer text,
   user_agent text,
@@ -18,7 +18,7 @@ CREATE POLICY "affiliate_link_events_insert_any"
   WITH CHECK (
     length(referral_code) >= 4
     AND length(referral_code) <= 64
-    AND event_type = 'open'
+    AND event_type IN ('open', 'signup')
   );
 
 DROP POLICY IF EXISTS "affiliate_link_events_select_own" ON public.affiliate_link_events;
@@ -34,4 +34,3 @@ CREATE POLICY "affiliate_link_events_select_own"
         AND au.referral_code = affiliate_link_events.referral_code
     )
   );
-

@@ -1,15 +1,17 @@
-import { useMemo, useRef, useState } from "react"
-import { useQuery } from "@tanstack/react-query"
-import { Copy, Check, QrCode, Sparkles, TrendingUp, Users, Wallet, Clock, Share2, Star, Target, ReceiptText, Download } from "lucide-react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { Copy, Check, QrCode, Sparkles, TrendingUp, Users, Wallet, Clock, Share2, Target, ReceiptText, Download, Settings, Award, Plus, Pencil, Trash2 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import DataTable from "@/components/ui/table"
+import { Progress } from "@/components/ui/progress"
 import QRCode from "react-qr-code"
 import toast from "react-hot-toast"
-import { getAffiliateCommissions, getAffiliateDashboard, getAffiliateFunnelStats, getAffiliateReferrals } from "@/services/apiAffiliate"
+import { deleteAffiliatePayoutMethod, getAffiliateCommissions, getAffiliateDashboard, getAffiliateFunnelStats, getAffiliatePayoutMethods, getAffiliateReferrals, getAffiliateWithdrawableBalance, getAffiliateWithdrawalRequests, requestAffiliateWithdrawal, setDefaultAffiliatePayoutMethod, upsertAffiliatePayoutMethod } from "@/services/apiAffiliate"
 import useAffiliateRealtime from "./useAffiliateRealtime"
+import { APPS_ICON_REGISTRY } from "@/features/tabibi-tools/appsRegistry"
 
 function formatEgp(amount) {
   const n = Number(amount || 0)
@@ -36,6 +38,22 @@ function computeLevel({ doctorsActive = 0, thisMonthEarnings = 0 }) {
   return starter
 }
 
+function computeProgressToNextLevel({ doctorsActive = 0 }) {
+  const active = Number(doctorsActive || 0)
+  if (active >= 20) return null
+  if (active >= 5) {
+    const currentBase = 5
+    const nextTarget = 20
+    const remaining = Math.max(nextTarget - active, 0)
+    const pct = Math.max(0, Math.min(100, Math.round(((active - currentBase) / (nextTarget - currentBase)) * 100)))
+    return { nextTitle: "احترافي", remaining, pct, nextTarget }
+  }
+  const nextTarget = 5
+  const remaining = Math.max(nextTarget - active, 0)
+  const pct = Math.max(0, Math.min(100, Math.round((active / nextTarget) * 100)))
+  return { nextTitle: "متقدم", remaining, pct, nextTarget }
+}
+
 function computeCurrentRate({ doctorsActive = 0 }) {
   if (doctorsActive >= 20) return 0.3
   if (doctorsActive >= 5) return 0.25
@@ -57,9 +75,37 @@ function statusLabel(status) {
   }
 }
 
-export default function AffiliateDashboardPage() {
+function StatCard({ icon: Icon, label, value, iconColorClass = "bg-primary/10 text-primary", onClick }) {
+  return (
+    <Card className={`bg-card/70 h-full ${onClick ? "cursor-pointer hover:bg-accent/50 transition-colors" : ""}`} onClick={onClick}>
+      <CardContent className="flex items-center gap-3 py-3">
+        <div className={`size-8 rounded-[calc(var(--radius)-4px)] grid place-items-center flex-shrink-0 ${iconColorClass}`}>
+          <Icon className="size-4" />
+        </div>
+        <div className="min-w-0">
+          <div className="text-xs text-muted-foreground truncate">{label}</div>
+          <div className="text-lg font-semibold truncate">{value}</div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+export default function AffiliateDashboardPage({ app }) {
+  const queryClient = useQueryClient()
   const [copied, setCopied] = useState(false)
   const [isQrOpen, setIsQrOpen] = useState(false)
+  const [tab, setTab] = useState("overview")
+  const [payoutForm, setPayoutForm] = useState({
+    id: null,
+    payout_method: "bank",
+    bank_name: "",
+    account_name: "",
+    iban: "",
+    wallet_phone: "",
+    notes: "",
+    make_default: true,
+  })
   const qrRef = useRef(null)
 
   useAffiliateRealtime()
@@ -71,10 +117,20 @@ export default function AffiliateDashboardPage() {
     refetchOnWindowFocus: false,
   })
 
+  const { data: funnel } = useQuery({
+    queryKey: ["affiliate-funnel"],
+    queryFn: getAffiliateFunnelStats,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  })
+
   const stats = data?.stats || {}
+  const signupsCount = Math.max(Number(stats.doctorsRegistered || 0), Number(funnel?.signups || 0))
+  const activeSubsCount = Math.max(Number(stats.doctorsActive || 0), Number(funnel?.activeSubscriptions || 0))
 
   const level = useMemo(() => computeLevel(stats), [stats])
   const currentRate = useMemo(() => computeCurrentRate(stats), [stats])
+  const progressToNext = useMemo(() => computeProgressToNextLevel(stats), [stats])
 
   const { data: referrals = [], isLoading: isReferralsLoading } = useQuery({
     queryKey: ["affiliate-referrals"],
@@ -90,9 +146,23 @@ export default function AffiliateDashboardPage() {
     refetchOnWindowFocus: false,
   })
 
-  const { data: funnel } = useQuery({
-    queryKey: ["affiliate-funnel"],
-    queryFn: getAffiliateFunnelStats,
+  const { data: payoutMethods = [], isLoading: isPayoutMethodsLoading } = useQuery({
+    queryKey: ["affiliate-payout-methods"],
+    queryFn: getAffiliatePayoutMethods,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  })
+
+  const { data: withdrawable = 0 } = useQuery({
+    queryKey: ["affiliate-withdrawable-balance"],
+    queryFn: getAffiliateWithdrawableBalance,
+    staleTime: 15_000,
+    refetchOnWindowFocus: false,
+  })
+
+  const { data: withdrawalRequests = [] } = useQuery({
+    queryKey: ["affiliate-withdrawal-requests"],
+    queryFn: getAffiliateWithdrawalRequests,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   })
@@ -158,80 +228,203 @@ export default function AffiliateDashboardPage() {
     URL.revokeObjectURL(url)
   }
 
+  const openPaymentSettings = () => {
+    setTab("payout")
+  }
+
+  const resetPayoutForm = () => {
+    setPayoutForm({
+      id: null,
+      payout_method: "bank",
+      bank_name: "",
+      account_name: "",
+      iban: "",
+      wallet_phone: "",
+      notes: "",
+      make_default: true,
+    })
+  }
+
+  const submitPayoutMethod = async (e) => {
+    e.preventDefault()
+    try {
+      await upsertAffiliatePayoutMethod(payoutForm)
+      await queryClient.invalidateQueries({ queryKey: ["affiliate-payout-methods"] })
+      toast.success(payoutForm?.id ? "تم تحديث طريقة الدفع" : "تمت إضافة طريقة دفع")
+      resetPayoutForm()
+    } catch {
+      toast.error("تعذر حفظ إعدادات الدفع")
+    }
+  }
+
+  const editPayoutMethod = (m) => {
+    setPayoutForm({
+      id: m?.id || null,
+      payout_method: m?.payout_method || "bank",
+      bank_name: m?.bank_name || "",
+      account_name: m?.account_name || "",
+      iban: m?.iban || "",
+      wallet_phone: m?.wallet_phone || "",
+      notes: m?.notes || "",
+      make_default: !!m?.is_default,
+    })
+  }
+
+  const markDefaultPayoutMethod = async (methodId) => {
+    try {
+      await setDefaultAffiliatePayoutMethod(methodId)
+      await queryClient.invalidateQueries({ queryKey: ["affiliate-payout-methods"] })
+      toast.success("تم تعيين الطريقة الافتراضية")
+    } catch {
+      toast.error("تعذر تعيين الطريقة الافتراضية")
+    }
+  }
+
+  const removePayoutMethod = async (methodId) => {
+    try {
+      await deleteAffiliatePayoutMethod(methodId)
+      await queryClient.invalidateQueries({ queryKey: ["affiliate-payout-methods"] })
+      toast.success("تم حذف طريقة الدفع")
+      if (payoutForm?.id === methodId) resetPayoutForm()
+    } catch {
+      toast.error("تعذر حذف طريقة الدفع")
+    }
+  }
+
+  const requestWithdrawal = async () => {
+    try {
+      await requestAffiliateWithdrawal()
+      await queryClient.invalidateQueries({ queryKey: ["affiliate-withdrawable-balance"] })
+      await queryClient.invalidateQueries({ queryKey: ["affiliate-withdrawal-requests"] })
+      toast.success("تم إرسال طلب السحب")
+    } catch (e) {
+      const msg = String(e?.message || "")
+      if (msg.includes("missing_payment_settings") || msg.includes("missing_payout_method")) {
+        toast.error("لازم تكمل إعدادات الدفع الأول")
+        openPaymentSettings()
+        return
+      }
+      if (msg.includes("no_withdrawable_balance")) {
+        toast.error("لا يوجد رصيد متاح للسحب حالياً")
+        return
+      }
+      toast.error("تعذر إرسال طلب السحب")
+    }
+  }
+
+  useEffect(() => {
+    if (!Array.isArray(payoutMethods) || payoutMethods.length === 0) return
+    const current = payoutMethods.find((m) => m.is_default) || payoutMethods[0]
+    if (!current || payoutForm?.id) return
+    setPayoutForm((p) => ({
+      ...p,
+      payout_method: current?.payout_method || "bank",
+      bank_name: current?.bank_name || "",
+      account_name: current?.account_name || "",
+      iban: current?.iban || "",
+      wallet_phone: current?.wallet_phone || "",
+      notes: current?.notes || "",
+      make_default: true,
+    }))
+  }, [payoutMethods, payoutForm?.id])
+
+  const AppIcon = APPS_ICON_REGISTRY[app?.icon_name] || Sparkles
+
   return (
     <div className="space-y-4 p-3 sm:p-4 md:p-6 pb-24 font-sans" dir="rtl" lang="ar">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-xl md:text-2xl font-bold text-foreground flex items-center gap-2">
-          <Sparkles className="size-5 text-primary" />
-          Tabibi Affiliate
-        </h1>
-        <p className="text-muted-foreground text-xs md:text-sm">
-          اربح عمولة شهرية متكررة مع كل طبيب يسجل ويفعّل اشتراكه
-        </p>
-      </div>
+      <Card className="bg-card/70">
+        <CardContent className="flex items-start gap-3 py-4">
+          <div className={`shrink-0 rounded-[calc(var(--radius)+6px)] p-3 ${app?.color || "bg-primary/10"} border border-border`}>
+            <AppIcon className="size-7 text-primary" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl md:text-2xl font-bold text-foreground truncate">{app?.title || "Tabibi Affiliate"}</h1>
+            <p className="text-muted-foreground text-xs md:text-sm mt-1">
+              {app?.short_description || "اربح عمولة شهرية متكررة مع كل طبيب يسجل ويفعّل اشتراكه"}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
-      <div className="bg-card p-3 rounded-xl border shadow-sm">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className="text-xs text-muted-foreground">مستواك الحالي</div>
-            <div className="mt-1 flex items-center gap-2">
-              <Badge variant="secondary" className="text-sm">
-                {level.badge} {level.title}
-              </Badge>
-              <Badge variant="outline" className="text-xs">
-                {level.rateHint}
-              </Badge>
+      {!data?.profile && (
+        <Card className="bg-card/70">
+          <CardContent className="p-4 text-sm">
+            <div className="font-semibold text-foreground">الـ Affiliate غير مفعّل على قاعدة البيانات</div>
+            <div className="text-muted-foreground mt-1">
+              نفّذ سكربت الـ SQL الخاص بالـ Affiliate على Supabase علشان تبدأ الإحصائيات تتحدث.
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card className="bg-card/70">
+        <CardContent className="py-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-xs text-muted-foreground">رتبتك الحالية</div>
+              <div className="mt-2 flex items-center gap-3">
+                <div className="size-10 rounded-[calc(var(--radius)+10px)] border border-border bg-primary/10 text-primary grid place-items-center">
+                  <Award className="size-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-lg font-semibold text-foreground truncate">{level.badge} {level.title}</div>
+                  <div className="text-xs text-muted-foreground truncate">شعار الإنجاز الخاص بك داخل البرنامج</div>
+                </div>
+              </div>
+              {progressToNext ? (
+                <div className="mt-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <div className="text-muted-foreground">
+                      باقي <span className="font-semibold text-foreground">{progressToNext.remaining}</span> طبيب نشط للترقية إلى{" "}
+                      <span className="font-semibold text-foreground">{progressToNext.nextTitle}</span>
+                    </div>
+                    <div className="text-muted-foreground">{progressToNext.pct}%</div>
+                  </div>
+                  <Progress value={progressToNext.pct} className="h-2" />
+                </div>
+              ) : (
+                <div className="mt-3 text-xs text-muted-foreground">أنت في أعلى مستوى حالياً</div>
+              )}
+            </div>
+            <div className="text-left shrink-0">
+              <div className="text-xs text-muted-foreground">نسبتك</div>
+              <div className="text-3xl font-extrabold tracking-tight text-foreground">{(currentRate * 100).toFixed(0)}%</div>
+              <Badge variant="secondary" className="mt-2">عمولة شهرية متكررة</Badge>
             </div>
           </div>
-          <div className="text-left shrink-0">
-            <div className="text-xs text-muted-foreground">نسبتك</div>
-            <div className="text-2xl font-bold text-foreground">{(currentRate * 100).toFixed(0)}%</div>
-          </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      <Tabs defaultValue="overview" dir="rtl" className="w-full">
+      <Tabs value={tab} onValueChange={setTab} dir="rtl" className="w-full">
         <div className="sticky top-2 z-20">
-          <TabsList className="grid grid-cols-3 w-full">
+          <TabsList className="grid grid-cols-4 w-full">
             <TabsTrigger value="overview">نظرة عامة</TabsTrigger>
             <TabsTrigger value="referrals">الإحالات</TabsTrigger>
             <TabsTrigger value="wallet">المحفظة</TabsTrigger>
+            <TabsTrigger value="payout">إعدادات الدفع</TabsTrigger>
           </TabsList>
         </div>
 
         <TabsContent value="overview" className="mt-4 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <Card className="border-0 shadow-md">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Target className="size-4 text-primary" />
-                  فتح الرابط
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-2xl font-bold">{funnel?.opens ?? 0}</CardContent>
-            </Card>
-            <Card className="border-0 shadow-md">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Users className="size-4 text-primary" />
-                  إنشاء حساب
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-2xl font-bold">{funnel?.signups ?? stats.doctorsRegistered ?? 0}</CardContent>
-            </Card>
-            <Card className="border-0 shadow-md">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <TrendingUp className="size-4 text-primary" />
-                  اشتراك مدفوع
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-2xl font-bold">{funnel?.activeSubscriptions ?? stats.doctorsActive ?? 0}</CardContent>
-            </Card>
+          <div className="grid grid-cols-2 gap-3">
+            <StatCard icon={Target} label="فتح الرابط" value={funnel?.opens ?? 0} />
+            <StatCard icon={Users} label="إنشاء حساب" value={signupsCount} />
+            <StatCard icon={TrendingUp} label="اشتراك مدفوع" value={activeSubsCount} />
+            <StatCard
+              icon={ReceiptText}
+              label="نسبة التحويل"
+              value={(() => {
+                const signups = signupsCount
+                const active = activeSubsCount
+                if (!signups) return "0%"
+                return `${Math.round((active / signups) * 100)}%`
+              })()}
+              iconColorClass="bg-emerald-500/10 text-emerald-700"
+            />
           </div>
 
           {Array.isArray(funnel?.plans) && funnel.plans.length > 0 && (
-            <Card className="border-0 shadow-md">
+            <Card className="bg-card/70">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <ReceiptText className="size-4 text-primary" />
@@ -249,7 +442,7 @@ export default function AffiliateDashboardPage() {
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <Card className="lg:col-span-2 border-0 shadow-md">
+            <Card className="lg:col-span-2 bg-card/70">
               <CardHeader className="flex flex-row items-start justify-between gap-3">
                 <div>
                   <CardTitle className="text-base flex items-center gap-2">
@@ -270,34 +463,18 @@ export default function AffiliateDashboardPage() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="bg-white rounded-[var(--radius)] border p-3">
-                  <div className="text-xs text-gray-600 break-all">{data?.referralLink}</div>
+                <div className="bg-background rounded-[var(--radius)] border border-border p-3">
+                  <div className="text-xs text-muted-foreground break-all">{data?.referralLink}</div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <Card className="border">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm flex items-center gap-2">
-                        <Users className="size-4 text-primary" />
-                        الأطباء المسجلين
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="text-2xl font-bold">{stats.doctorsRegistered ?? 0}</CardContent>
-                  </Card>
-                  <Card className="border">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm flex items-center gap-2">
-                        <TrendingUp className="size-4 text-primary" />
-                        الأطباء النشطين
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="text-2xl font-bold">{stats.doctorsActive ?? 0}</CardContent>
-                  </Card>
+                  <StatCard icon={Users} label="الأطباء المسجلين" value={stats.doctorsRegistered ?? 0} />
+                  <StatCard icon={TrendingUp} label="الأطباء النشطين" value={stats.doctorsActive ?? 0} />
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border-0 shadow-md">
+            <Card className="bg-card/70">
               <CardHeader>
                 <CardTitle className="text-sm flex items-center gap-2">
                   <QrCode className="size-4 text-primary" />
@@ -307,7 +484,7 @@ export default function AffiliateDashboardPage() {
               <CardContent className="space-y-3">
                 <button
                   type="button"
-                  className="w-full flex items-center justify-between rounded-[var(--radius)] border bg-white px-3 py-3 text-sm"
+                  className="w-full flex items-center justify-between rounded-[var(--radius)] border border-border bg-background px-3 py-3 text-sm"
                   onClick={() => setIsQrOpen((v) => !v)}
                 >
                   <span className="font-medium text-foreground">{isQrOpen ? "إخفاء QR Code" : "عرض QR Code"}</span>
@@ -315,7 +492,7 @@ export default function AffiliateDashboardPage() {
                 </button>
                 {isQrOpen && (
                   <div className="space-y-3">
-                    <div ref={qrRef} className="bg-white p-3 rounded-[var(--radius)] border flex items-center justify-center">
+                    <div ref={qrRef} className="bg-background p-3 rounded-[var(--radius)] border border-border flex items-center justify-center">
                       {data?.referralLink ? <QRCode value={data.referralLink} size={160} /> : <div className="w-[160px] h-[160px] bg-muted rounded-[var(--radius)]" />}
                     </div>
                     <Button
@@ -335,7 +512,7 @@ export default function AffiliateDashboardPage() {
             </Card>
           </div>
 
-          <Card className="border-0 shadow-md">
+          <Card className="bg-card/70">
             <CardContent className="p-4 text-sm text-muted-foreground">
               تفاصيل الأرباح وحركة المحفظة موجودة داخل تبويب <span className="font-semibold text-foreground">المحفظة</span>.
             </CardContent>
@@ -345,53 +522,24 @@ export default function AffiliateDashboardPage() {
         </TabsContent>
 
         <TabsContent value="referrals" className="mt-4 space-y-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Card className="border-0 shadow-md">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xs flex items-center gap-2">
-                  <Users className="size-4 text-primary" />
-                  حسابات
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-xl font-bold">{funnel?.signups ?? stats.doctorsRegistered ?? 0}</CardContent>
-            </Card>
-            <Card className="border-0 shadow-md">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xs flex items-center gap-2">
-                  <TrendingUp className="size-4 text-primary" />
-                  نشط
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-xl font-bold">{funnel?.activeSubscriptions ?? stats.doctorsActive ?? 0}</CardContent>
-            </Card>
-            <Card className="border-0 shadow-md">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xs flex items-center gap-2">
-                  <Target className="size-4 text-primary" />
-                  تحويل
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-xl font-bold">
-                {(() => {
-                  const signups = Number(funnel?.signups ?? stats.doctorsRegistered ?? 0)
-                  const active = Number(funnel?.activeSubscriptions ?? stats.doctorsActive ?? 0)
-                  if (!signups) return "0%"
-                  return `${Math.round((active / signups) * 100)}%`
-                })()}
-              </CardContent>
-            </Card>
-            <Card className="border-0 shadow-md">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xs flex items-center gap-2">
-                  <ReceiptText className="size-4 text-primary" />
-                  باقات
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-xl font-bold">{Array.isArray(funnel?.plans) ? funnel.plans.reduce((a, p) => a + Number(p.count || 0), 0) : 0}</CardContent>
-            </Card>
+          <div className="grid grid-cols-2 gap-3">
+            <StatCard icon={Users} label="حسابات" value={signupsCount} />
+            <StatCard icon={TrendingUp} label="نشط" value={activeSubsCount} />
+            <StatCard
+              icon={Target}
+              label="تحويل"
+              value={(() => {
+                const signups = signupsCount
+                const active = activeSubsCount
+                if (!signups) return "0%"
+                return `${Math.round((active / signups) * 100)}%`
+              })()}
+              iconColorClass="bg-emerald-500/10 text-emerald-700"
+            />
+            <StatCard icon={ReceiptText} label="باقات" value={Array.isArray(funnel?.plans) ? funnel.plans.reduce((a, p) => a + Number(p.count || 0), 0) : 0} />
           </div>
 
-          <Card className="border-0 shadow-md">
+          <Card className="bg-card/70">
             <CardHeader>
               <CardTitle className="text-sm flex items-center gap-2">
                 <Users className="size-4 text-primary" />
@@ -411,14 +559,30 @@ export default function AffiliateDashboardPage() {
                 data={referrals}
                 emptyLabel={isReferralsLoading ? "جاري التحميل..." : "لا توجد إحالات بعد"}
                 rowKey={(r) => r.id}
+                renderMobileItem={(r) => (
+                  <div className="rounded-xl border bg-background p-3 shadow-sm">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="font-semibold text-foreground truncate">{r.clinicName || "—"}</div>
+                        <div className="text-xs text-muted-foreground mt-1 truncate">
+                          {(r.planName || r.planId || "—")} • {r.billingPeriod === "annual" ? "سنوي" : r.billingPeriod === "monthly" ? "شهري" : r.billingPeriod || "—"}
+                        </div>
+                      </div>
+                      <div className="shrink-0">{r.isActive ? <Badge>نشط</Badge> : <Badge variant="secondary">غير نشط</Badge>}</div>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between gap-2">
+                      <div className="text-sm font-bold text-foreground">{r.subscriptionAmount ? formatEgp(r.subscriptionAmount) : "—"}</div>
+                      <div className="text-xs text-muted-foreground">{formatDateTime(r.createdAt)}</div>
+                    </div>
+                  </div>
+                )}
               />
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="wallet" className="mt-4 space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <Card className="border-0 shadow-md lg:col-span-2">
+          <Card className="bg-card/70">
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <Wallet className="size-4 text-primary" />
@@ -426,76 +590,40 @@ export default function AffiliateDashboardPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="bg-white border rounded-[var(--radius)] p-4">
-                    <div className="text-xs text-muted-foreground">متاح للسحب</div>
-                    <div className="text-xl font-bold mt-1">{formatEgp(walletSummary.availableToWithdraw)}</div>
-                  </div>
-                  <div className="bg-white border rounded-[var(--radius)] p-4">
-                    <div className="text-xs text-muted-foreground">قيد الاعتماد</div>
-                    <div className="text-xl font-bold mt-1">{formatEgp(walletSummary.pending)}</div>
-                  </div>
-                  <div className="bg-white border rounded-[var(--radius)] p-4">
-                    <div className="text-xs text-muted-foreground">إجمالي أرباحك</div>
-                    <div className="text-xl font-bold mt-1">{formatEgp(walletSummary.total)}</div>
-                  </div>
-                </div>
-
-                <div className="bg-white border rounded-[var(--radius)] p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-sm font-semibold text-foreground">نسبة الشريك الحالية</div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        تعتمد على عدد الأطباء النشطين (Starter / Growth / Pro Partner)
+                <div className="grid grid-cols-2 gap-3">
+                  <StatCard icon={Wallet} label="متاح للسحب" value={formatEgp(withdrawable)} iconColorClass="bg-emerald-500/10 text-emerald-700" />
+                  <StatCard icon={Clock} label="قيد الاعتماد" value={formatEgp(walletSummary.pending)} iconColorClass="bg-amber-500/10 text-amber-700" />
+                  <Card className="bg-card/70 col-span-2">
+                    <CardContent className="flex items-center gap-3 py-3">
+                      <div className="size-8 rounded-[calc(var(--radius)-4px)] bg-primary/10 text-primary grid place-items-center flex-shrink-0">
+                        <ReceiptText className="size-4" />
                       </div>
-                    </div>
-                    <Badge variant="outline" className="text-sm">
-                      {(currentRate * 100).toFixed(0)}%
-                    </Badge>
-                  </div>
+                      <div className="min-w-0">
+                        <div className="text-xs text-muted-foreground truncate">إجمالي أرباحك</div>
+                        <div className="text-lg font-semibold truncate">{formatEgp(walletSummary.total)}</div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
 
                 <div className="text-xs text-muted-foreground flex items-center gap-2">
                   <Clock className="size-4" />
-                  يتم اعتماد العمولة بعد 14 يوم كفترة أمان لمنع التلاعب.
+                  يتم اعتماد العمولة بعد 14 يوم كفترة أمان، إلا إذا تم تحويلها إلى Paid.
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-2">
-                  <Button disabled={true} className="w-full sm:w-auto">
-                    طلب سحب
+                  <Button onClick={requestWithdrawal} className="w-full sm:w-auto" disabled={withdrawable <= 0}>
+                    طلب سحب المتاح
                   </Button>
-                  <Button variant="outline" disabled={true} className="w-full sm:w-auto">
+                  <Button variant="outline" onClick={openPaymentSettings} className="w-full sm:w-auto gap-2">
+                    <Settings className="size-4" />
                     إعدادات الدفع
                   </Button>
                 </div>
               </CardContent>
-            </Card>
+          </Card>
 
-            <Card className="border-0 shadow-md">
-              <CardHeader>
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Star className="size-4 text-primary" />
-                  كيف تزيد دخلك؟
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="bg-white border rounded-[var(--radius)] p-4">
-                  <div className="text-sm font-semibold text-foreground">هدف سريع</div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    اوصل لـ 5 أطباء نشطين للترقية إلى Growth وزيادة النسبة.
-                  </div>
-                </div>
-                <div className="bg-white border rounded-[var(--radius)] p-4">
-                  <div className="text-sm font-semibold text-foreground">نصيحة</div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    استخدم زر مشاركة الرابط + QR مع أطباء العيادات والطلاب والصيادلة.
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card className="border-0 shadow-md">
+          <Card className="bg-card/70">
             <CardHeader>
               <CardTitle className="text-sm flex items-center gap-2">
                 <ReceiptText className="size-4 text-primary" />
@@ -521,9 +649,240 @@ export default function AffiliateDashboardPage() {
                 data={commissions}
                 emptyLabel={isCommissionsLoading ? "جاري التحميل..." : "لا توجد معاملات بعد"}
                 rowKey={(c) => c.id}
+                renderMobileItem={(c) => {
+                  const s = statusLabel(c.status)
+                  return (
+                    <div className="rounded-xl border bg-background p-3 shadow-sm">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="text-xs text-muted-foreground">المبلغ</div>
+                          <div className="text-lg font-extrabold text-foreground">{formatEgp(c.commissionAmount)}</div>
+                        </div>
+                        <Badge variant={s.variant}>{s.label}</Badge>
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                        <div className="rounded-[var(--radius)] border bg-white p-2">
+                          <div className="text-muted-foreground">النسبة</div>
+                          <div className="font-semibold text-foreground">{`${Math.round((Number(c.commissionRate || 0) || 0) * 100)}%`}</div>
+                        </div>
+                        <div className="rounded-[var(--radius)] border bg-white p-2">
+                          <div className="text-muted-foreground">تاريخ</div>
+                          <div className="font-semibold text-foreground">{formatDateTime(c.createdAt)}</div>
+                        </div>
+                        <div className="rounded-[var(--radius)] border bg-white p-2 col-span-2">
+                          <div className="text-muted-foreground">متاحة بعد</div>
+                          <div className="font-semibold text-foreground">{formatDateTime(c.availableAt)}</div>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                }}
               />
             </CardContent>
           </Card>
+
+          <Card className="bg-card/70">
+            <CardHeader>
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Wallet className="size-4 text-primary" />
+                طلبات السحب
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <DataTable
+                columns={[
+                  { header: "المبلغ", accessor: "amount", render: (r) => formatEgp(r.amount) },
+                  { header: "الحالة", accessor: "status", render: (r) => <Badge variant="secondary">{r.status}</Badge> },
+                  { header: "تاريخ", accessor: "created_at", render: (r) => formatDateTime(r.created_at) },
+                ]}
+                data={withdrawalRequests}
+                emptyLabel="لا توجد طلبات سحب"
+                rowKey={(r) => r.id}
+                renderMobileItem={(r) => (
+                  <div className="rounded-xl border bg-background p-3 shadow-sm">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="text-xs text-muted-foreground">المبلغ</div>
+                        <div className="text-lg font-extrabold text-foreground">{formatEgp(r.amount)}</div>
+                      </div>
+                      <Badge variant="secondary">{r.status}</Badge>
+                    </div>
+                    <div className="mt-3 text-xs text-muted-foreground flex items-center justify-between gap-2">
+                      <div>تاريخ</div>
+                      <div className="text-foreground font-semibold">{formatDateTime(r.created_at)}</div>
+                    </div>
+                    {r.admin_note ? (
+                      <div className="mt-2 text-xs rounded-[var(--radius)] border bg-white p-2">
+                        <div className="text-muted-foreground">ملاحظة</div>
+                        <div className="text-foreground font-semibold mt-1">{r.admin_note}</div>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="payout" className="mt-4 space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <Card className="bg-card/70">
+              <CardHeader className="flex flex-row items-start justify-between gap-3">
+                <div>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Settings className="size-4 text-primary" />
+                    طرق الدفع
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground mt-1">يمكنك إضافة أكثر من طريقة وتعيين واحدة افتراضية</p>
+                </div>
+                <Button type="button" variant="outline" size="sm" className="gap-2" onClick={resetPayoutForm}>
+                  <Plus className="size-4" />
+                  طريقة جديدة
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {isPayoutMethodsLoading ? (
+                  <div className="text-sm text-muted-foreground">جاري التحميل...</div>
+                ) : payoutMethods.length === 0 ? (
+                  <div className="text-sm text-muted-foreground">لا توجد طرق دفع بعد</div>
+                ) : (
+                  payoutMethods.map((m) => (
+                    <div key={m.id} className="rounded-[var(--radius)] border border-border bg-background p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <div className="font-semibold text-foreground">
+                              {m.payout_method === "bank" ? "حساب بنكي" : "محفظة"}
+                            </div>
+                            {m.is_default ? <Badge>افتراضية</Badge> : <Badge variant="secondary">إضافية</Badge>}
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1 break-words">
+                            {m.account_name ? `الاسم: ${m.account_name}` : "—"}
+                            {m.payout_method === "bank"
+                              ? ` • البنك: ${m.bank_name || "—"} • IBAN: ${m.iban || "—"}`
+                              : ` • الرقم: ${m.wallet_phone || "—"}`}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {!m.is_default && (
+                            <Button type="button" variant="outline" size="sm" onClick={() => markDefaultPayoutMethod(m.id)}>
+                              تعيين افتراضية
+                            </Button>
+                          )}
+                          <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => editPayoutMethod(m)}>
+                            <Pencil className="size-4" />
+                            تعديل
+                          </Button>
+                          <Button type="button" variant="destructive" size="sm" className="gap-2" onClick={() => removePayoutMethod(m.id)}>
+                            <Trash2 className="size-4" />
+                            حذف
+                          </Button>
+                        </div>
+                      </div>
+                      {m.notes ? <div className="text-xs text-muted-foreground mt-2">{m.notes}</div> : null}
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card/70">
+              <CardHeader className="flex flex-row items-start justify-between gap-3">
+                <div>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Settings className="size-4 text-primary" />
+                    {payoutForm?.id ? "تعديل طريقة الدفع" : "إضافة طريقة دفع"}
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground mt-1">استخدم البيانات الصحيحة لتسهيل تنفيذ السحب</p>
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={() => setTab("wallet")}>
+                  العودة للمحفظة
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={submitPayoutMethod} className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <div className="text-xs text-muted-foreground">طريقة الاستلام</div>
+                      <select
+                        className="w-full h-10 rounded-[var(--radius)] border border-border bg-background px-3 text-sm"
+                        value={payoutForm.payout_method}
+                        onChange={(e) => setPayoutForm((p) => ({ ...p, payout_method: e.target.value }))}
+                      >
+                        <option value="bank">حساب بنكي</option>
+                        <option value="wallet">محفظة (رقم)</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-xs text-muted-foreground">اسم صاحب الحساب</div>
+                      <input
+                        className="w-full h-10 rounded-[var(--radius)] border border-border bg-background px-3 text-sm"
+                        value={payoutForm.account_name}
+                        onChange={(e) => setPayoutForm((p) => ({ ...p, account_name: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+
+                  {payoutForm.payout_method === "bank" ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <div className="text-xs text-muted-foreground">اسم البنك</div>
+                        <input
+                          className="w-full h-10 rounded-[var(--radius)] border border-border bg-background px-3 text-sm"
+                          value={payoutForm.bank_name}
+                          onChange={(e) => setPayoutForm((p) => ({ ...p, bank_name: e.target.value }))}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-xs text-muted-foreground">IBAN</div>
+                        <input
+                          className="w-full h-10 rounded-[var(--radius)] border border-border bg-background px-3 text-sm"
+                          value={payoutForm.iban}
+                          onChange={(e) => setPayoutForm((p) => ({ ...p, iban: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <div className="text-xs text-muted-foreground">رقم المحفظة</div>
+                      <input
+                        className="w-full h-10 rounded-[var(--radius)] border border-border bg-background px-3 text-sm"
+                        value={payoutForm.wallet_phone}
+                        onChange={(e) => setPayoutForm((p) => ({ ...p, wallet_phone: e.target.value }))}
+                      />
+                    </div>
+                  )}
+
+                  <div className="space-y-1">
+                    <div className="text-xs text-muted-foreground">ملاحظات</div>
+                    <textarea
+                      className="w-full min-h-20 rounded-[var(--radius)] border border-border bg-background p-3 text-sm"
+                      value={payoutForm.notes}
+                      onChange={(e) => setPayoutForm((p) => ({ ...p, notes: e.target.value }))}
+                    />
+                  </div>
+
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={!!payoutForm.make_default}
+                      onChange={(e) => setPayoutForm((p) => ({ ...p, make_default: e.target.checked }))}
+                    />
+                    تعيين كافتراضية
+                  </label>
+
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Button type="submit" className="w-full sm:w-auto">
+                      {payoutForm?.id ? "حفظ التعديل" : "إضافة الطريقة"}
+                    </Button>
+                    <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={resetPayoutForm}>
+                      تفريغ النموذج
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

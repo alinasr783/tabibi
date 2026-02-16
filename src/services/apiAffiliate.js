@@ -312,6 +312,17 @@ export async function getAffiliateFunnelStats() {
     out.opens = opensCount
   } catch {}
 
+  try {
+    const { count: signupsCount = 0 } = await supabase
+      .from("affiliate_link_events")
+      .select("id", { count: "exact", head: true })
+      .eq("referral_code", referralCode)
+      .eq("event_type", "signup")
+    out.signups = signupsCount
+  } catch {
+    out.signups = 0
+  }
+
   let clinicIds = []
   try {
     const { data: referrals } = await supabase
@@ -320,7 +331,6 @@ export async function getAffiliateFunnelStats() {
       .eq("affiliate_user_id", profile.user_id)
       .limit(5000)
     clinicIds = (referrals || []).map((r) => r.clinic_id).filter(Boolean)
-    out.signups = clinicIds.length
   } catch {
     return out
   }
@@ -378,6 +388,100 @@ export async function getAffiliateCommissions() {
   } catch {
     return []
   }
+}
+
+export async function getAffiliatePayoutMethods() {
+  const profile = await ensureAffiliateProfile()
+  const { data, error } = await supabase
+    .from("affiliate_payout_methods")
+    .select("id, affiliate_user_id, payout_method, bank_name, account_name, iban, wallet_phone, notes, is_default, updated_at, created_at")
+    .eq("affiliate_user_id", profile.user_id)
+    .order("is_default", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(50)
+  if (error) throw error
+  return (data || []).map((m) => ({
+    id: m.id,
+    affiliate_user_id: m.affiliate_user_id,
+    payout_method: m.payout_method,
+    bank_name: m.bank_name,
+    account_name: m.account_name,
+    iban: m.iban,
+    wallet_phone: m.wallet_phone,
+    notes: m.notes,
+    is_default: !!m.is_default,
+    updated_at: m.updated_at,
+    created_at: m.created_at,
+  }))
+}
+
+export async function upsertAffiliatePayoutMethod(values) {
+  const payload = {
+    payout_method_id: values?.id || null,
+    payout_method: values?.payout_method || "bank",
+    bank_name: values?.bank_name || null,
+    account_name: values?.account_name || null,
+    iban: values?.iban || null,
+    wallet_phone: values?.wallet_phone || null,
+    notes: values?.notes || null,
+    make_default: values?.make_default !== false,
+  }
+  const { data, error } = await supabase.rpc("upsert_affiliate_payout_method", payload)
+  if (error) throw error
+  return data
+}
+
+export async function setDefaultAffiliatePayoutMethod(payoutMethodId) {
+  const { data, error } = await supabase.rpc("set_default_affiliate_payout_method", {
+    payout_method_id: payoutMethodId,
+  })
+  if (error) throw error
+  return data
+}
+
+export async function deleteAffiliatePayoutMethod(payoutMethodId) {
+  const { data, error } = await supabase.rpc("delete_affiliate_payout_method", {
+    payout_method_id: payoutMethodId,
+  })
+  if (error) throw error
+  return data
+}
+
+export async function getAffiliatePaymentSettings() {
+  try {
+    const list = await getAffiliatePayoutMethods()
+    return list.find((m) => m.is_default) || list[0] || null
+  } catch {
+    return null
+  }
+}
+
+export async function saveAffiliatePaymentSettings(values) {
+  return upsertAffiliatePayoutMethod({ ...values, make_default: true })
+}
+
+export async function getAffiliateWithdrawableBalance() {
+  const { data, error } = await supabase.rpc("get_affiliate_withdrawable_balance")
+  if (error) throw error
+  return Number(data || 0)
+}
+
+export async function requestAffiliateWithdrawal() {
+  const { data, error } = await supabase.rpc("request_affiliate_withdrawal")
+  if (error) throw error
+  return data
+}
+
+export async function getAffiliateWithdrawalRequests() {
+  const profile = await ensureAffiliateProfile()
+  const { data, error } = await supabase
+    .from("affiliate_withdrawal_requests")
+    .select("id, amount, status, admin_note, created_at, updated_at")
+    .eq("affiliate_user_id", profile.user_id)
+    .order("created_at", { ascending: false })
+    .limit(50)
+  if (error) throw error
+  return data || []
 }
 
 export async function applyReferralIfPresent({ user }) {
