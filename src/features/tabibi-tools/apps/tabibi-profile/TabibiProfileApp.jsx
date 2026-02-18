@@ -10,7 +10,7 @@ import { Badge } from "../../../../components/ui/badge";
 import { Separator } from "../../../../components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../../components/ui/tabs";
 import { Switch } from "../../../../components/ui/switch";
-import { ExternalLink, Copy, Check, User, MapPin, Phone, Stethoscope, Clock, Save, Loader2, Upload, Trash2, Plus, Award, GraduationCap, FileText, QrCode, Download, MessageCircle, ChevronUp, ChevronDown, Settings, BarChart3 } from "lucide-react";
+import { ExternalLink, Copy, Check, User, MapPin, Phone, Stethoscope, Clock, Save, Loader2, Upload, Trash2, Plus, Award, GraduationCap, FileText, QrCode, Download, MessageCircle, ChevronUp, ChevronDown, Settings, BarChart3, Eye, MousePointerClick, Share2, X } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import useUpdateProfile from "../../../settings/useUpdateProfile";
@@ -19,7 +19,16 @@ import { updateClinic } from "../../../../services/apiClinic";
 import supabase from "../../../../services/supabase";
 import WorkingHours from "../../../clinic/WorkingHours";
 import QRCode from "react-qr-code";
-import { defaultClinicProfileSettings, getClinicProfileAnalyticsCounts, getClinicProfileSettings, upsertClinicProfileSettings } from "../../../../services/apiClinicProfile";
+import { defaultClinicProfileSettings, getClinicProfileAnalyticsCounts, getClinicProfileAnalyticsTopCities, getClinicProfileSettings, upsertClinicProfileSettings } from "../../../../services/apiClinicProfile";
+import { SkeletonLine } from "../../../../components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../../../components/ui/select";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 export default function TabibiProfileApp() {
   const { user } = useAuth();
@@ -91,15 +100,25 @@ export default function TabibiProfileApp() {
 
   const [analyticsRangeDays, setAnalyticsRangeDays] = useState(30);
 
-  const { data: analyticsCounts, isLoading: isAnalyticsLoading } = useQuery({
+  const {
+    data: analyticsCounts,
+    isLoading: isAnalyticsLoading,
+    error: analyticsError,
+    refetch: refetchAnalyticsCounts,
+  } = useQuery({
     queryKey: ["clinic-profile-analytics", clinic?.clinic_uuid, analyticsRangeDays],
-    queryFn: async () => {
-      try {
-        return await getClinicProfileAnalyticsCounts({ clinicId: clinic?.clinic_uuid, days: analyticsRangeDays });
-      } catch {
-        return {};
-      }
-    },
+    queryFn: () => getClinicProfileAnalyticsCounts({ clinicId: clinic?.clinic_uuid, days: analyticsRangeDays }),
+    enabled: !!clinic?.clinic_uuid,
+  });
+
+  const {
+    data: analyticsTopCities,
+    isLoading: isCitiesLoading,
+    error: citiesError,
+    refetch: refetchTopCities,
+  } = useQuery({
+    queryKey: ["clinic-profile-analytics-top-cities", clinic?.clinic_uuid, analyticsRangeDays],
+    queryFn: () => getClinicProfileAnalyticsTopCities({ clinicId: clinic?.clinic_uuid, days: analyticsRangeDays, limit: 10 }),
     enabled: !!clinic?.clinic_uuid,
   });
 
@@ -304,7 +323,14 @@ export default function TabibiProfileApp() {
   const toggleStatItem = (key, enabled) => {
     setProfileSettings((prev) => {
       const items = Array.isArray(prev.stats?.items) ? prev.stats.items : [];
-      const nextItems = items.map((i) => (i.key === key ? { ...i, enabled } : i));
+      const bookingRangeKeys = new Set(["bookings_last_week", "bookings_last_month", "bookings_last_year"]);
+      const hasItem = items.some((i) => i?.key === key);
+      const baseItems = hasItem ? items : [...items, { key, enabled: false }];
+      const nextItems = baseItems.map((i) => {
+        if (i?.key === key) return { ...i, enabled };
+        if (enabled && bookingRangeKeys.has(key) && bookingRangeKeys.has(i?.key)) return { ...i, enabled: false };
+        return i;
+      });
       return { ...prev, stats: { ...prev.stats, items: nextItems } };
     });
   };
@@ -583,16 +609,16 @@ export default function TabibiProfileApp() {
       </div>
 
       <Tabs defaultValue="edit" className="w-full" dir="rtl">
-        <TabsList className="w-full justify-start flex-wrap">
-          <TabsTrigger value="edit" className="gap-2">
+        <TabsList className="grid w-full grid-cols-3 h-auto">
+          <TabsTrigger value="edit" className="gap-2 justify-center py-2 text-[11px] sm:text-sm w-full">
             <FileText className="h-4 w-4" />
             البيانات
           </TabsTrigger>
-          <TabsTrigger value="display" className="gap-2">
+          <TabsTrigger value="display" className="gap-2 justify-center py-2 text-[11px] sm:text-sm w-full">
             <Settings className="h-4 w-4" />
             إعدادات العرض
           </TabsTrigger>
-          <TabsTrigger value="analytics" className="gap-2">
+          <TabsTrigger value="analytics" className="gap-2 justify-center py-2 text-[11px] sm:text-sm w-full">
             <BarChart3 className="h-4 w-4" />
             إحصائيات
           </TabsTrigger>
@@ -1320,48 +1346,112 @@ export default function TabibiProfileApp() {
         </TabsContent>
 
         <TabsContent value="analytics" dir="rtl">
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5 text-primary" />
-                  إحصائيات الصفحة
-                </CardTitle>
-                <CardDescription>متابعة زيارات الصفحة ونقرات الأزرار</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between gap-4">
-                  <Label>الفترة</Label>
-                  <select
-                    value={analyticsRangeDays}
-                    onChange={(e) => setAnalyticsRangeDays(Number(e.target.value))}
-                    className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  >
-                    <option value={7}>آخر 7 أيام</option>
-                    <option value={30}>آخر 30 يوم</option>
-                    <option value={365}>آخر سنة</option>
-                  </select>
+          <div className="space-y-4 sm:space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <div className="size-9 rounded-[calc(var(--radius)-4px)] bg-primary/10 text-primary grid place-items-center flex-shrink-0">
+                  <BarChart3 className="size-4" />
+                </div>
+                <div>
+                  <h2 className="text-lg sm:text-2xl font-bold mb-1">إحصائيات</h2>
+                  <p className="text-xs sm:text-sm text-muted-foreground">متابعة زيارات الصفحة ونقرات الأزرار</p>
+                </div>
+              </div>
+
+              <div className="w-full sm:w-auto">
+                <Select value={String(analyticsRangeDays)} onValueChange={(v) => setAnalyticsRangeDays(Number(v))} dir="rtl">
+                  <SelectTrigger className="h-9 w-full sm:w-[160px] justify-between text-sm">
+                    <SelectValue placeholder="الفترة" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="7">آخر 7 أيام</SelectItem>
+                    <SelectItem value="30">آخر 30 يوم</SelectItem>
+                    <SelectItem value="365">آخر سنة</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {analyticsError || citiesError ? (
+              <Card className="border-destructive/30 bg-destructive/5">
+                <CardContent className="py-10 text-center space-y-3">
+                  <div className="mx-auto size-10 rounded-full bg-destructive/10 text-destructive grid place-items-center">
+                    <X className="size-5" />
+                  </div>
+                  <div className="text-base font-semibold">تعذر تحميل الإحصائيات</div>
+                  <div className="text-sm text-muted-foreground">حاول مرة أخرى أو تحقق من الاتصال.</div>
+                  <Button variant="outline" className="gap-2" onClick={() => { refetchAnalyticsCounts(); refetchTopCities(); }}>
+                    حاول تاني
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                  {[
+                    { key: "profile_view", label: "زيارات الصفحة", icon: Eye },
+                    { key: "booking_click", label: "ضغط احجز موعد الآن", icon: MousePointerClick },
+                    { key: "action_call", label: "ضغط اتصال", icon: Phone },
+                    { key: "action_whatsapp", label: "ضغط واتساب", icon: MessageCircle },
+                    { key: "action_share", label: "ضغط مشاركة", icon: Share2 },
+                    { key: "action_location", label: "ضغط الموقع", icon: MapPin },
+                  ].map((m) => {
+                    const Icon = m.icon;
+                    return (
+                      <Card key={m.key} className="bg-card/70">
+                        <CardContent className="flex items-center gap-3 py-3">
+                          <div className="size-8 rounded-[calc(var(--radius)-4px)] bg-primary/10 text-primary grid place-items-center flex-shrink-0">
+                            <Icon className="size-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-xs text-muted-foreground truncate">{m.label}</div>
+                            {isAnalyticsLoading ? (
+                              <SkeletonLine className="h-4 w-10" />
+                            ) : (
+                              <div className="text-lg font-semibold truncate">{analyticsCounts?.[m.key] ?? 0}</div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {[
-                    { key: "profile_view", label: "زيارات الصفحة" },
-                    { key: "booking_click", label: "ضغط احجز موعد الآن" },
-                    { key: "action_call", label: "ضغط اتصال" },
-                    { key: "action_whatsapp", label: "ضغط واتساب" },
-                    { key: "action_share", label: "ضغط مشاركة" },
-                    { key: "action_location", label: "ضغط الموقع" },
-                  ].map((m) => (
-                    <div key={m.key} className="rounded-xl border p-4 bg-muted/10">
-                      <div className="text-sm text-muted-foreground">{m.label}</div>
-                      <div className="text-3xl font-bold mt-2">
-                        {isAnalyticsLoading ? "…" : (analyticsCounts?.[m.key] ?? 0)}
-                      </div>
-                    </div>
-                  ))}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <MapPin className="w-4 h-4" />
+                        أماكن فتح الصفحة
+                      </CardTitle>
+                      <CardDescription>أعلى المدن/المناطق حسب عدد الزيارات</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {isCitiesLoading ? (
+                        <div className="flex justify-center py-10">
+                          <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                        </div>
+                      ) : (analyticsTopCities?.length || 0) === 0 ? (
+                        <div className="py-10 text-center text-sm text-muted-foreground">
+                          لا توجد بيانات مواقع كافية لهذه الفترة.
+                        </div>
+                      ) : (
+                        <div className="h-[260px] w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={analyticsTopCities} margin={{ top: 10, right: 10, left: 10, bottom: 28 }}>
+                              <XAxis dataKey="name" tick={{ fontSize: 12 }} interval={0} />
+                              <YAxis tick={{ fontSize: 12 }} />
+                              <Tooltip cursor={{ fill: "transparent" }} />
+                              <Bar dataKey="count" fill="#1AA19C" radius={[4, 4, 0, 0]} barSize={24} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
                 </div>
-              </CardContent>
-            </Card>
+              </>
+            )}
           </div>
         </TabsContent>
       </Tabs>

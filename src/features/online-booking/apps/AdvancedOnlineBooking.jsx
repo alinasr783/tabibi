@@ -19,7 +19,10 @@ import {
   Globe,
   BarChart2,
   FileX,
-  Ban
+  Ban,
+  Download,
+  MessageCircle,
+  Clock
 } from "lucide-react";
 import useClinic from "../../auth/useClinic";
 import useUpdateClinic from "../../clinic/useUpdateClinic";
@@ -39,7 +42,11 @@ export default function AdvancedOnlineBooking() {
   
   const [clinicFormData, setClinicFormData] = useState({
     booking_price: "",
-    online_booking_enabled: true
+    online_booking_enabled: true,
+    whatsapp_enabled: false,
+    whatsapp_number: "",
+    prevent_conflicts: false,
+    min_time_gap: 10,
   });
   
   const [showQRCode, setShowQRCode] = useState(false);
@@ -51,7 +58,11 @@ export default function AdvancedOnlineBooking() {
     
     setClinicFormData({
       booking_price: clinic.booking_price || "",
-      online_booking_enabled: clinic.online_booking_enabled !== undefined ? clinic.online_booking_enabled : true
+      online_booking_enabled: clinic.online_booking_enabled !== undefined ? clinic.online_booking_enabled : true,
+      whatsapp_enabled: !!clinic.whatsapp_enabled,
+      whatsapp_number: clinic.whatsapp_number || "",
+      prevent_conflicts: !!clinic.prevent_conflicts,
+      min_time_gap: clinic.min_time_gap ?? 10,
     });
   }, [clinic]);
   
@@ -97,6 +108,33 @@ export default function AdvancedOnlineBooking() {
     const link = getBookingLink();
     if (!link) return "";
     return `<iframe src="${link}" width="100%" height="600" frameborder="0"></iframe>`;
+  };
+
+  const downloadQRCode = () => {
+    const svg = document.getElementById("booking-qr-code");
+    if (!svg) return;
+
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    const img = new Image();
+
+    img.onload = () => {
+      canvas.width = img.width + 40;
+      canvas.height = img.height + 40;
+      ctx.fillStyle = "white";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 20, 20);
+
+      const pngFile = canvas.toDataURL("image/png");
+      const downloadLink = document.createElement("a");
+      downloadLink.download = `QR-Booking-${clinic?.name || "clinic"}.png`;
+      downloadLink.href = pngFile;
+      downloadLink.click();
+      toast.success("تم تحميل رمز QR بنجاح");
+    };
+
+    img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
   };
   
   const handleAcceptBooking = async (bookingId) => {
@@ -316,8 +354,24 @@ export default function AdvancedOnlineBooking() {
                 </div>
                 
                 {showQRCode && getBookingLink() && (
-                    <div className="mt-3 md:mt-4 p-3 md:p-4 bg-white rounded-lg inline-block">
-                    <QRCode value={getBookingLink()} size={120} className="w-full max-w-[120px] h-auto" />
+                    <div className="mt-3 md:mt-4 flex flex-col items-center gap-3">
+                        <div className="p-3 md:p-4 bg-white rounded-lg inline-block border shadow-sm">
+                            <QRCode 
+                                id="booking-qr-code"
+                                value={getBookingLink()} 
+                                size={120} 
+                                className="w-full max-w-[120px] h-auto" 
+                            />
+                        </div>
+                        <Button 
+                            onClick={downloadQRCode}
+                            variant="outline"
+                            size="sm"
+                            className="gap-2 text-xs"
+                        >
+                            <Download className="h-3 w-3" />
+                            تحميل QR Code
+                        </Button>
                     </div>
                 )}
                 
@@ -327,38 +381,100 @@ export default function AdvancedOnlineBooking() {
                 </CardContent>
             </Card>
             
-            {/* Booking Price Card */}
             <Card>
-                <CardHeader className="p-3 md:p-6">
-                <CardTitle className="flex items-center gap-2 text-base md:text-lg">
-                    <Calendar className="h-4 w-4 md:h-5 md:w-5" />
-                    سعر الحجز الإلكتروني
-                </CardTitle>
+                <CardHeader className="p-3 md:p-6 pb-2">
+                    <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+                        <Calendar className="h-4 w-4 md:h-5 md:w-5" />
+                        إعدادات الحجز
+                    </CardTitle>
                 </CardHeader>
                 <CardContent className="p-3 md:p-6 pt-0">
-                <form onSubmit={handleUpdateClinic} className="space-y-3 md:space-y-4">
-                    <div className="space-y-2">
-                    <Label htmlFor="bookingPrice" className="text-xs md:text-sm">سعر الحجز</Label>
-                    <Input
-                        id="bookingPrice"
-                        name="booking_price"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={clinicFormData.booking_price}
-                        onChange={handleClinicChange}
-                        placeholder="أدخل سعر الحجز"
-                        className="text-sm"
-                    />
-                    <p className="text-[10px] md:text-xs text-muted-foreground">
-                        سعر الحجز الذي سيظهر لمرضى العيادة عند الحجز الإلكتروني
-                    </p>
-                    </div>
-                    
-                    <Button type="submit" disabled={isUpdating} size="sm" className="w-full sm:w-auto">
-                    {isUpdating ? "جاري الحفظ..." : "حفظ السعر"}
-                    </Button>
-                </form>
+                    <form onSubmit={handleUpdateClinic} className="space-y-6">
+                        <div className="space-y-2">
+                            <Label htmlFor="bookingPrice" className="text-xs md:text-sm">سعر الحجز</Label>
+                            <Input
+                                id="bookingPrice"
+                                name="booking_price"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={clinicFormData.booking_price}
+                                onChange={handleClinicChange}
+                                placeholder="أدخل سعر الحجز"
+                                className="text-sm"
+                            />
+                        </div>
+
+                        <div className="space-y-4 pt-4 border-t">
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-0.5">
+                                    <Label className="text-sm font-medium flex items-center gap-2">
+                                        <MessageCircle className="w-4 h-4 text-[#25D366]" />
+                                        تفعيل زر واتساب
+                                    </Label>
+                                    <p className="text-xs text-muted-foreground">عرض زر واتساب للمرضى في صفحة الحجز</p>
+                                </div>
+                                <Switch 
+                                    checked={clinicFormData.whatsapp_enabled}
+                                    onCheckedChange={(checked) => setClinicFormData(prev => ({ ...prev, whatsapp_enabled: checked }))}
+                                />
+                            </div>
+                            
+                            {clinicFormData.whatsapp_enabled && (
+                                <div className="space-y-2 animate-in slide-in-from-top-2 duration-200">
+                                    <Label htmlFor="whatsappNumber" className="text-xs">رقم الواتساب</Label>
+                                    <Input
+                                        id="whatsappNumber"
+                                        name="whatsapp_number"
+                                        type="tel"
+                                        value={clinicFormData.whatsapp_number}
+                                        onChange={handleClinicChange}
+                                        placeholder="مثال: 201234567890"
+                                        className="text-sm"
+                                    />
+                                    <p className="text-[10px] text-muted-foreground">أدخل الرقم بالكود الدولي بدون علامة +</p>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="space-y-4 pt-4 border-t">
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-0.5">
+                                    <Label className="text-sm font-medium flex items-center gap-2">
+                                        <Clock className="w-4 h-4 text-primary" />
+                                        منع تضارب المواعيد
+                                    </Label>
+                                    <p className="text-xs text-muted-foreground">ضمان وجود فاصل زمني بين كل حجزين</p>
+                                </div>
+                                <Switch 
+                                    checked={clinicFormData.prevent_conflicts}
+                                    onCheckedChange={(checked) => setClinicFormData(prev => ({ ...prev, prevent_conflicts: checked }))}
+                                />
+                            </div>
+                            
+                            {clinicFormData.prevent_conflicts && (
+                                <div className="space-y-2 animate-in slide-in-from-top-2 duration-200">
+                                    <Label htmlFor="minTimeGap" className="text-xs">الوقت اللازم بين كل حجز (بالدقائق)</Label>
+                                    <div className="flex items-center gap-2">
+                                        <Input
+                                            id="minTimeGap"
+                                            name="min_time_gap"
+                                            type="number"
+                                            min="1"
+                                            value={clinicFormData.min_time_gap}
+                                            onChange={handleClinicChange}
+                                            className="text-sm flex-1"
+                                        />
+                                        <span className="text-xs text-muted-foreground">دقيقة</span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        
+                        <Button type="submit" disabled={isUpdating} size="sm" className="w-full">
+                            {isUpdating ? "جاري الحفظ..." : "حفظ الإعدادات"}
+                        </Button>
+                    </form>
                 </CardContent>
             </Card>
         </TabsContent>

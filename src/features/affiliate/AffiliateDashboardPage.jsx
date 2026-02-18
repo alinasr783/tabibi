@@ -96,6 +96,7 @@ export default function AffiliateDashboardPage({ app }) {
   const [copied, setCopied] = useState(false)
   const [isQrOpen, setIsQrOpen] = useState(false)
   const [tab, setTab] = useState("overview")
+  const [payoutFormMode, setPayoutFormMode] = useState("idle")
   const [payoutForm, setPayoutForm] = useState({
     id: null,
     payout_method: "bank",
@@ -251,13 +252,20 @@ export default function AffiliateDashboardPage({ app }) {
       await upsertAffiliatePayoutMethod(payoutForm)
       await queryClient.invalidateQueries({ queryKey: ["affiliate-payout-methods"] })
       toast.success(payoutForm?.id ? "تم تحديث طريقة الدفع" : "تمت إضافة طريقة دفع")
-      resetPayoutForm()
+      if (payoutForm?.id) {
+        setPayoutFormMode("idle")
+        resetPayoutForm()
+      } else {
+        setPayoutFormMode("new")
+        resetPayoutForm()
+      }
     } catch {
       toast.error("تعذر حفظ إعدادات الدفع")
     }
   }
 
   const editPayoutMethod = (m) => {
+    setPayoutFormMode("edit")
     setPayoutForm({
       id: m?.id || null,
       payout_method: m?.payout_method || "bank",
@@ -316,6 +324,7 @@ export default function AffiliateDashboardPage({ app }) {
     if (!Array.isArray(payoutMethods) || payoutMethods.length === 0) return
     const current = payoutMethods.find((m) => m.is_default) || payoutMethods[0]
     if (!current || payoutForm?.id) return
+    if (payoutFormMode !== "idle") return
     setPayoutForm((p) => ({
       ...p,
       payout_method: current?.payout_method || "bank",
@@ -368,30 +377,28 @@ export default function AffiliateDashboardPage({ app }) {
                 </div>
                 <div className="min-w-0">
                   <div className="text-lg font-semibold text-foreground truncate">{level.badge} {level.title}</div>
-                  <div className="text-xs text-muted-foreground truncate">شعار الإنجاز الخاص بك داخل البرنامج</div>
                 </div>
               </div>
-              {progressToNext ? (
-                <div className="mt-3 space-y-2">
-                  <div className="flex items-center justify-between gap-2 text-xs">
-                    <div className="text-muted-foreground">
-                      باقي <span className="font-semibold text-foreground">{progressToNext.remaining}</span> طبيب نشط للترقية إلى{" "}
-                      <span className="font-semibold text-foreground">{progressToNext.nextTitle}</span>
-                    </div>
-                    <div className="text-muted-foreground">{progressToNext.pct}%</div>
-                  </div>
-                  <Progress value={progressToNext.pct} className="h-2" />
-                </div>
-              ) : (
-                <div className="mt-3 text-xs text-muted-foreground">أنت في أعلى مستوى حالياً</div>
-              )}
             </div>
             <div className="text-left shrink-0">
               <div className="text-xs text-muted-foreground">نسبتك</div>
               <div className="text-3xl font-extrabold tracking-tight text-foreground">{(currentRate * 100).toFixed(0)}%</div>
-              <Badge variant="secondary" className="mt-2">عمولة شهرية متكررة</Badge>
             </div>
           </div>
+          {progressToNext ? (
+            <div className="mt-4 space-y-2">
+              <div className="flex items-center justify-between gap-2 text-xs">
+                <div className="text-muted-foreground">
+                  باقي <span className="font-semibold text-foreground">{progressToNext.remaining}</span> طبيب نشط للترقية إلى{" "}
+                  <span className="font-semibold text-foreground">{progressToNext.nextTitle}</span>
+                </div>
+                <div className="text-muted-foreground">{progressToNext.pct}%</div>
+              </div>
+              <Progress value={progressToNext.pct} className="h-2 w-full" />
+            </div>
+          ) : (
+            <div className="mt-4 text-xs text-muted-foreground">أنت في أعلى مستوى حالياً</div>
+          )}
         </CardContent>
       </Card>
 
@@ -401,7 +408,7 @@ export default function AffiliateDashboardPage({ app }) {
             <TabsTrigger value="overview">نظرة عامة</TabsTrigger>
             <TabsTrigger value="referrals">الإحالات</TabsTrigger>
             <TabsTrigger value="wallet">المحفظة</TabsTrigger>
-            <TabsTrigger value="payout">إعدادات الدفع</TabsTrigger>
+            <TabsTrigger value="payout">الإعدادات</TabsTrigger>
           </TabsList>
         </div>
 
@@ -735,7 +742,16 @@ export default function AffiliateDashboardPage({ app }) {
                   </CardTitle>
                   <p className="text-xs text-muted-foreground mt-1">يمكنك إضافة أكثر من طريقة وتعيين واحدة افتراضية</p>
                 </div>
-                <Button type="button" variant="outline" size="sm" className="gap-2" onClick={resetPayoutForm}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => {
+                    setPayoutFormMode("new")
+                    resetPayoutForm()
+                  }}
+                >
                   <Plus className="size-4" />
                   طريقة جديدة
                 </Button>
@@ -748,7 +764,7 @@ export default function AffiliateDashboardPage({ app }) {
                 ) : (
                   payoutMethods.map((m) => (
                     <div key={m.id} className="rounded-[var(--radius)] border border-border bg-background p-3">
-                      <div className="flex items-start justify-between gap-3">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <div className="font-semibold text-foreground">
@@ -763,17 +779,17 @@ export default function AffiliateDashboardPage({ app }) {
                               : ` • الرقم: ${m.wallet_phone || "—"}`}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                           {!m.is_default && (
-                            <Button type="button" variant="outline" size="sm" onClick={() => markDefaultPayoutMethod(m.id)}>
+                            <Button type="button" variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => markDefaultPayoutMethod(m.id)}>
                               تعيين افتراضية
                             </Button>
                           )}
-                          <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => editPayoutMethod(m)}>
+                          <Button type="button" variant="outline" size="sm" className="gap-2 w-full sm:w-auto" onClick={() => editPayoutMethod(m)}>
                             <Pencil className="size-4" />
                             تعديل
                           </Button>
-                          <Button type="button" variant="destructive" size="sm" className="gap-2" onClick={() => removePayoutMethod(m.id)}>
+                          <Button type="button" variant="destructive" size="sm" className="gap-2 w-full sm:w-auto" onClick={() => removePayoutMethod(m.id)}>
                             <Trash2 className="size-4" />
                             حذف
                           </Button>

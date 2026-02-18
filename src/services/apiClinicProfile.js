@@ -5,7 +5,9 @@ export const defaultClinicProfileSettings = {
     enabled: true,
     items: [
       { key: "open_now", enabled: true },
+      { key: "bookings_last_week", enabled: false },
       { key: "bookings_last_month", enabled: true },
+      { key: "bookings_last_year", enabled: false },
       { key: "rating", enabled: true, value: 4.9, max: 5 },
     ],
   },
@@ -184,4 +186,35 @@ export async function getClinicProfileAnalyticsCounts({ clinicId, days, eventTyp
   );
 
   return Object.fromEntries(pairs);
+}
+
+export async function getClinicProfileAnalyticsTopCities({ clinicId, days, limit }) {
+  if (!clinicId) throw new Error("clinicId is required");
+
+  const since = new Date();
+  since.setDate(since.getDate() - (days ?? 30));
+
+  const { data, error } = await supabase
+    .from("clinic_profile_analytics")
+    .select("metadata, created_at")
+    .eq("clinic_id", clinicId)
+    .eq("event_type", "profile_view")
+    .gte("created_at", since.toISOString())
+    .order("created_at", { ascending: false })
+    .range(0, 4999);
+
+  if (error) throw error;
+
+  const counts = new Map();
+  for (const row of data || []) {
+    const md = row?.metadata || {};
+    const raw = md.city || md.region || md.governorate || md.state || md.location;
+    const name = (typeof raw === "string" ? raw : raw ? String(raw) : "غير معروف").trim() || "غير معروف";
+    counts.set(name, (counts.get(name) || 0) + 1);
+  }
+
+  return Array.from(counts.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit ?? 10);
 }

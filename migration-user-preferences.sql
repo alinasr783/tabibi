@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS user_preferences (
   user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
   
   -- Theme & Color Customization
-  theme_mode TEXT DEFAULT 'system' CHECK (theme_mode IN ('light', 'dark', 'system')),
+  theme_mode TEXT DEFAULT 'light' CHECK (theme_mode IN ('light', 'dark', 'system')),
   primary_color VARCHAR(7) DEFAULT '#1AA19C',  -- Hex color code
   secondary_color VARCHAR(7) DEFAULT '#224FB5',
   accent_color VARCHAR(7) DEFAULT '#FF6B6B',

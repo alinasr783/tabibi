@@ -51,6 +51,45 @@ export default function TabibiAppsPage() {
     return map[period] || period;
   };
 
+  const formatInterval = (unit, count) => {
+    const n = Math.max(1, Number(count) || 1);
+    const labels = {
+      day: n === 1 ? "يوم" : "أيام",
+      week: n === 1 ? "أسبوع" : "أسابيع",
+      month: n === 1 ? "شهر" : "شهور",
+      year: n === 1 ? "سنة" : "سنوات",
+    };
+    const u = labels[unit] || (n === 1 ? "شهر" : "شهور");
+    return n === 1 ? u : `${n} ${u}`;
+  };
+
+  const getPricingLabel = (app) => {
+    const pricingType = app.pricing_type || ((Number(app.price) || 0) > 0 ? "paid" : "free");
+    const paymentType = app.payment_type || (app.billing_period === "one_time" ? "one_time" : "recurring");
+    const unit = app.billing_interval_unit || (app.billing_period === "yearly" ? "year" : "month");
+    const count = app.billing_interval_count ?? 1;
+    const trialUnit = app.trial_interval_unit || "day";
+    const trialCount = app.trial_interval_count ?? 7;
+
+    if (pricingType === "free") return "مجاني";
+
+    if (pricingType === "trial_then_paid") {
+      const paidPart =
+        paymentType === "one_time"
+          ? `${formatCurrency(app.price)} (مرة واحدة)`
+          : `${formatCurrency(app.price)} / ${formatInterval(unit, count)}`;
+      return `مجاني ${formatInterval(trialUnit, trialCount)} ثم ${paidPart}`;
+    }
+
+    if (paymentType === "one_time") return `${formatCurrency(app.price)} (مرة واحدة)`;
+
+    if (app.billing_interval_unit || app.billing_interval_count) {
+      return `${formatCurrency(app.price)} / ${formatInterval(unit, count)}`;
+    }
+
+    return `${formatCurrency(app.price)} / ${getBillingPeriodLabel(app.billing_period)}`;
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
@@ -147,7 +186,7 @@ export default function TabibiAppsPage() {
                   <div className="flex justify-between items-start gap-2">
                     <h3 className="font-bold text-sm sm:text-base text-foreground truncate">{app.title}</h3>
                     <span className="text-[10px] sm:text-xs font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full whitespace-nowrap">
-                      {formatCurrency(app.price)} / {getBillingPeriodLabel(app.billing_period)}
+                      {getPricingLabel(app)}
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
@@ -179,4 +218,3 @@ export default function TabibiAppsPage() {
   );
 }
 // Remove old static data
-

@@ -99,6 +99,7 @@ export default function DoctorProfilePage() {
   const { clinicId } = useParams();
   const navigate = useNavigate();
   const [contactModal, setContactModal] = useState({ show: false, type: null, list: [] }); // type: 'call' or 'whatsapp'
+  const [geoData, setGeoData] = useState(null);
 
   const { data: profile, isLoading, error } = useQuery({
     queryKey: ['public-doctor-profile', clinicId],
@@ -106,22 +107,46 @@ export default function DoctorProfilePage() {
     enabled: !!clinicId
   });
 
+  useEffect(() => {
+    const fetchGeo = async () => {
+      try {
+        const res = await fetch("https://ipapi.co/json/");
+        if (!res.ok) {
+          setGeoData({});
+          return;
+        }
+        const data = await res.json();
+        setGeoData(data || {});
+      } catch {
+        setGeoData({});
+      }
+    };
+    fetchGeo();
+  }, []);
+
   const logDailyProfileView = () => {
+    const metadata = {
+      city: geoData?.city || geoData?.region || null,
+      region: geoData?.region || null,
+      country: geoData?.country_name || null,
+      device_type: /Mobi|Android/i.test(navigator.userAgent) ? "mobile" : "desktop",
+    };
     try {
       const key = `tabibi_profile_viewed_${clinicId}_${new Date().toISOString().slice(0, 10)}`;
       if (localStorage.getItem(key)) return;
       localStorage.setItem(key, "1");
-      logClinicProfileEvent({ clinicId, eventType: "profile_view" });
+      logClinicProfileEvent({ clinicId, eventType: "profile_view", metadata });
     } catch {
-      logClinicProfileEvent({ clinicId, eventType: "profile_view" });
+      logClinicProfileEvent({ clinicId, eventType: "profile_view", metadata });
     }
   };
 
   useEffect(() => {
     if (!clinicId) return;
     if (!profile) return;
+    if (geoData === null) return;
     logDailyProfileView();
-  }, [clinicId, profile]);
+  }, [clinicId, profile, geoData]);
 
   const handleContactAction = (type) => {
     const contacts = profile?.doctor?.contacts || [];

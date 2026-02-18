@@ -154,13 +154,10 @@ export function UserPreferencesProvider({ children }) {
       );
     }
     
-    // Apply theme mode
-    if (preferences.theme_mode) {
-      applyThemeMode(preferences.theme_mode);
-    }
+    const mode = preferences.theme_mode || 'light';
+    applyThemeMode(mode);
     
-    // Setup listener for system theme changes
-    const cleanup = setupSystemThemeListener(preferences.theme_mode);
+    const cleanup = setupSystemThemeListener(mode);
     return cleanup;
   }, [preferences, isLoading, isLanding]);
 

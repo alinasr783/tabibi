@@ -25,7 +25,7 @@ export default function AppActionBar({ app, isInstalled, subscription, uninstall
     try {
       setIsPaymentLoading(true);
       const result = await initiatePayment({
-        amount: app.price,
+        amount: chargeAmount,
         type: 'app_purchase',
         metadata: {
           app_id: app.id,
@@ -106,8 +106,45 @@ export default function AppActionBar({ app, isInstalled, subscription, uninstall
     return map[period] || period;
   };
 
+  const formatInterval = (unit, count) => {
+    const n = Math.max(1, Number(count) || 1);
+    const labels = {
+      day: n === 1 ? "يوم" : "أيام",
+      week: n === 1 ? "أسبوع" : "أسابيع",
+      month: n === 1 ? "شهر" : "شهور",
+      year: n === 1 ? "سنة" : "سنوات",
+    };
+    const u = labels[unit] || (n === 1 ? "شهر" : "شهور");
+    return n === 1 ? u : `${n} ${u}`;
+  };
+
+  const pricingType = app.pricing_type || ((Number(app.price) || 0) > 0 ? "paid" : "free");
+  const paymentType = app.payment_type || (app.billing_period === "one_time" ? "one_time" : "recurring");
+  const intervalUnit = app.billing_interval_unit || (app.billing_period === "yearly" ? "year" : "month");
+  const intervalCount = app.billing_interval_count ?? 1;
+  const trialUnit = app.trial_interval_unit || "day";
+  const trialCount = app.trial_interval_count ?? 7;
+
+  const chargeAmount = pricingType === "paid" ? (Number(app.price) || 0) : 0;
+
+  const getPricingLabel = () => {
+    if (pricingType === "free") return "مجاني";
+    if (pricingType === "trial_then_paid") {
+      const paidPart =
+        paymentType === "one_time"
+          ? `${formatCurrency(app.price)} (مرة واحدة)`
+          : `${formatCurrency(app.price)} / ${formatInterval(intervalUnit, intervalCount)}`;
+      return `مجاني ${formatInterval(trialUnit, trialCount)} ثم ${paidPart}`;
+    }
+    if (paymentType === "one_time") return `${formatCurrency(app.price)} (مرة واحدة)`;
+    if (app.billing_interval_unit || app.billing_interval_count) {
+      return `${formatCurrency(app.price)} / ${formatInterval(intervalUnit, intervalCount)}`;
+    }
+    return `${formatCurrency(app.price)} / ${getBillingPeriodLabel(app.billing_period)}`;
+  };
+
   const walletBalance = wallet?.balance || 0;
-  const canAfford = walletBalance >= app.price;
+  const canAfford = walletBalance >= chargeAmount;
 
   const isIntegrationSupported = app.integration_type && app.integration_type !== 'none';
   const isIntegrated = subscription?.isIntegrated;
@@ -118,7 +155,7 @@ export default function AppActionBar({ app, isInstalled, subscription, uninstall
         <div className="max-w-4xl mx-auto p-4 flex items-center justify-between gap-4">
           <div className="hidden md:block">
             <p className="font-bold">{app.title}</p>
-            <p className="text-xs text-muted-foreground">{formatCurrency(app.price)} / {getBillingPeriodLabel(app.billing_period)}</p>
+            <p className="text-xs text-muted-foreground">{getPricingLabel()}</p>
           </div>
         
           <div className="flex items-center gap-2 w-full md:w-auto">

@@ -5,7 +5,7 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { useUserPreferences, useUpdateUserPreferences } from '../../hooks/useUserPreferences';
-import { Loader2, Check, X, Palette, Menu, Bell, Settings, RotateCcw } from 'lucide-react';
+import { Loader2, Check, Palette, Bell, Settings, RotateCcw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { cn } from '../../lib/utils';
 import { resetToDefaultSettings } from '../../services/apiAskTabibi';
@@ -23,9 +23,7 @@ export function PersonalizationSettings() {
     accent: '#FF6B6B',
   });
 
-  const [_menuItems, setMenuItems] = useState([]);
-  const [sidebarStyle, setSidebarStyle] = useState('default');
-  const [themeMode, setThemeMode] = useState('system');
+  const [themeMode, setThemeMode] = useState('light');
   const [isResetting, setIsResetting] = useState(false);
 
   // Sync state with preferences when loaded
@@ -36,9 +34,7 @@ export function PersonalizationSettings() {
         secondary: preferences.secondary_color || '#224FB5',
         accent: preferences.accent_color || '#FF6B6B',
       });
-      setMenuItems(preferences.menu_items || []);
-      setSidebarStyle(preferences.sidebar_style || 'default');
-      setThemeMode(preferences.theme_mode || 'system');
+      setThemeMode(preferences.theme_mode || 'light');
     }
   }, [preferences]);
 
@@ -57,7 +53,6 @@ export function PersonalizationSettings() {
       // Update local state
       setColorState(defaultColors);
       setThemeMode('light');
-      setSidebarStyle('default');
       toast.success(result.message);
     } catch (error) {
       toast.error('حدث خطأ في إعادة الإعدادات');
@@ -82,18 +77,6 @@ export function PersonalizationSettings() {
         toast.error('حدث خطأ في حفظ الألوان');
       },
     });
-  };
-
-  const handleSidebarStyleChange = (style) => {
-    setSidebarStyle(style);
-    updatePreferences(
-      { sidebar_style: style },
-      {
-        onSuccess: () => {
-          toast.success('تم تحديث نمط الشريط الجانبي');
-        },
-      }
-    );
   };
 
   const handleThemeModeChange = (mode) => {
@@ -150,14 +133,10 @@ export function PersonalizationSettings() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4 h-auto">
+        <TabsList className="grid w-full grid-cols-3 h-auto">
           <TabsTrigger value="colors" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-1 sm:px-3 text-[10px] sm:text-sm">
             <Palette className="w-4 h-4" />
             <span>الألوان</span>
-          </TabsTrigger>
-          <TabsTrigger value="layout" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-1 sm:px-3 text-[10px] sm:text-sm">
-            <Menu className="w-4 h-4" />
-            <span>التخطيط</span>
           </TabsTrigger>
           <TabsTrigger value="theme" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-1 sm:px-3 text-[10px] sm:text-sm">
             <Settings className="w-4 h-4" />
@@ -259,38 +238,6 @@ export function PersonalizationSettings() {
                   </>
                 )}
               </Button>
-            </div>
-          </Card>
-        </TabsContent>
-
-        {/* Layout Tab */}
-        <TabsContent value="layout" className="space-y-4 mt-4">
-          <Card className="p-3 sm:p-6">
-            <div className="space-y-4">
-              <div>
-                <Label className="mb-3 block text-sm font-medium">نمط الشريط الجانبي</Label>
-                <div className="grid grid-cols-1 gap-3">
-                  {[
-                    { value: 'default', label: 'عادي', description: 'عرض كامل مع أيقونات والنصوص' },
-                    { value: 'compact', label: 'مضغوط', description: 'عرض مضغوط مع أيقونات فقط' },
-                    { value: 'full', label: 'ممتد', description: 'عرض ممتد مع معلومات إضافية' },
-                  ].map((style) => (
-                    <button
-                      key={style.value}
-                      onClick={() => handleSidebarStyleChange(style.value)}
-                      className={cn(
-                        'p-3 sm:p-4 rounded-[var(--radius)] border-2 transition-all text-right',
-                        sidebarStyle === style.value
-                          ? 'border-primary bg-primary/10'
-                          : 'border-border hover:border-primary/50'
-                      )}
-                    >
-                      <p className="font-semibold text-sm">{style.label}</p>
-                      <p className="text-xs text-muted-foreground">{style.description}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
             </div>
           </Card>
         </TabsContent>

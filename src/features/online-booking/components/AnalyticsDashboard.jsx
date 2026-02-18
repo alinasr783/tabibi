@@ -1,21 +1,64 @@
 import { useQuery } from "@tanstack/react-query";
 import { getAnalyticsSummary } from "../apiAnalytics";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Eye, CheckCircle, Ban, MapPin, Loader2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { SkeletonLine } from "@/components/ui/skeleton";
 
 export default function AnalyticsDashboard({ clinicId }) {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['booking-analytics', clinicId],
     queryFn: () => getAnalyticsSummary(clinicId),
     enabled: !!clinicId
   });
 
   if (isLoading) {
-    return <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+    return (
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[0, 1, 2, 3].map((i) => (
+          <Card key={i} className="bg-card/70">
+            <CardContent className="flex items-center gap-3 py-3">
+              <div className="size-8 rounded-[calc(var(--radius)-4px)] bg-primary/10 text-primary grid place-items-center flex-shrink-0">
+                <Loader2 className="size-4 animate-spin" />
+              </div>
+              <div className="min-w-0 w-full">
+                <SkeletonLine className="h-3 w-24" />
+                <SkeletonLine className="h-5 w-12 mt-2" />
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
   }
 
-  if (!data) return null;
+  if (error) {
+    return (
+      <Card className="border-destructive/30 bg-destructive/5">
+        <CardContent className="py-10 text-center space-y-3">
+          <div className="mx-auto size-10 rounded-full bg-destructive/10 text-destructive grid place-items-center">
+            <Ban className="size-5" />
+          </div>
+          <div className="text-base font-semibold">تعذر تحميل الإحصائيات</div>
+          <div className="text-sm text-muted-foreground">حاول مرة أخرى أو تحقق من الاتصال.</div>
+          <Button type="button" variant="outline" onClick={() => refetch()}>
+            حاول تاني
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!data) {
+    return (
+      <Card className="bg-card/70">
+        <CardContent className="py-10 text-center text-sm text-muted-foreground">
+          لا توجد بيانات متاحة حالياً.
+        </CardContent>
+      </Card>
+    );
+  }
 
   const stats = [
     {
@@ -48,14 +91,14 @@ export default function AnalyticsDashboard({ clinicId }) {
     <div className="space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {stats.map((stat, i) => (
-          <Card key={i}>
-            <CardContent className="p-4 flex items-center gap-4">
-              <div className={`p-3 rounded-full ${stat.color}`}>
+          <Card key={i} className="bg-card/70">
+            <CardContent className="flex items-center gap-3 py-3">
+              <div className="size-8 rounded-[calc(var(--radius)-4px)] bg-primary/10 text-primary grid place-items-center flex-shrink-0">
                 {stat.icon}
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">{stat.title}</p>
-                <p className="text-xl font-bold">{stat.value}</p>
+              <div className="min-w-0">
+                <div className="text-xs text-muted-foreground truncate">{stat.title}</div>
+                <div className="text-lg font-semibold truncate">{stat.value}</div>
               </div>
             </CardContent>
           </Card>
@@ -73,17 +116,11 @@ export default function AnalyticsDashboard({ clinicId }) {
           <CardContent>
             <div className="h-[250px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.topLocations} layout="vertical" margin={{ right: 20, left: 10 }}>
-                  <XAxis type="number" hide reversed />
-                  <YAxis 
-                    dataKey="name" 
-                    type="category" 
-                    width={110} 
-                    tick={{fontSize: 12}} 
-                    orientation="right"
-                  />
+                <BarChart data={data.topLocations} margin={{ top: 10, right: 10, left: 10, bottom: 28 }}>
+                  <XAxis dataKey="name" tick={{ fontSize: 12 }} interval={0} />
+                  <YAxis tick={{ fontSize: 12 }} />
                   <Tooltip cursor={{fill: 'transparent'}} />
-                  <Bar dataKey="count" fill="#1AA19C" radius={[4, 0, 0, 4]} barSize={20} />
+                  <Bar dataKey="count" fill="#1AA19C" radius={[4, 4, 0, 0]} barSize={24} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

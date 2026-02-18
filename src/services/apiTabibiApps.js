@@ -21,6 +21,13 @@ export async function getApps() {
     color: app.color || "bg-primary/10",
     price: app.price ?? 0,
     billing_period: app.billing_period || "monthly",
+    pricing_type: app.pricing_type ?? null,
+    payment_type: app.payment_type ?? null,
+    billing_interval_unit: app.billing_interval_unit ?? null,
+    billing_interval_count: app.billing_interval_count ?? null,
+    trial_interval_unit: app.trial_interval_unit ?? null,
+    trial_interval_count: app.trial_interval_count ?? null,
+    currency: app.currency ?? null,
     features: app.features || [],
     screenshots: app.screenshots || [],
     icon_name: app.icon_name || null, // Check if this exists in tabibi_apps, if not it will be undefined/null which is fine
@@ -71,6 +78,13 @@ export async function getAppById(id) {
     color: app.color || "bg-primary/10",
     price: app.price ?? 0,
     billing_period: app.billing_period || "monthly",
+    pricing_type: app.pricing_type ?? null,
+    payment_type: app.payment_type ?? null,
+    billing_interval_unit: app.billing_interval_unit ?? null,
+    billing_interval_count: app.billing_interval_count ?? null,
+    trial_interval_unit: app.trial_interval_unit ?? null,
+    trial_interval_count: app.trial_interval_count ?? null,
+    currency: app.currency ?? null,
     features: app.features || [],
     screenshots: app.screenshots || [],
     icon_name: app.icon_name || null,
@@ -104,6 +118,13 @@ export async function getInstalledApps(clinicId) {
     color: item.app?.color || "bg-primary/10",
     price: item.app?.price ?? 0,
     billing_period: item.app?.billing_period || "monthly",
+    pricing_type: item.app?.pricing_type ?? null,
+    payment_type: item.app?.payment_type ?? null,
+    billing_interval_unit: item.app?.billing_interval_unit ?? null,
+    billing_interval_count: item.app?.billing_interval_count ?? null,
+    trial_interval_unit: item.app?.trial_interval_unit ?? null,
+    trial_interval_count: item.app?.trial_interval_count ?? null,
+    currency: item.app?.currency ?? null,
     features: item.app?.features || [],
     screenshots: item.app?.screenshots || [],
     icon_name: item.app?.icon_name || null,
@@ -117,6 +138,34 @@ export async function getInstalledApps(clinicId) {
     expiresAt: item.current_period_end,
     status: item.status
   }));
+}
+
+function resolvePricingType(appRow) {
+  if (appRow?.pricing_type) return appRow.pricing_type;
+  return (Number(appRow?.price) || 0) > 0 ? "paid" : "free";
+}
+
+function resolvePaymentType(appRow) {
+  if (appRow?.payment_type) return appRow.payment_type;
+  return appRow?.billing_period === "one_time" ? "one_time" : "recurring";
+}
+
+function addInterval(date, unit, count) {
+  const d = new Date(date);
+  const n = Math.max(1, Number(count) || 1);
+  if (unit === "day") d.setDate(d.getDate() + n);
+  else if (unit === "week") d.setDate(d.getDate() + n * 7);
+  else if (unit === "year") d.setFullYear(d.getFullYear() + n);
+  else d.setMonth(d.getMonth() + n);
+  return d;
+}
+
+function legacyBillingPeriodFromInterval(paymentType, unit, count) {
+  if (paymentType === "one_time") return "one_time";
+  const n = Math.max(1, Number(count) || 1);
+  if (n === 1 && unit === "month") return "monthly";
+  if (n === 1 && unit === "year") return "yearly";
+  return "custom";
 }
 
 async function collectClinicData(clinicId) {
@@ -233,49 +282,111 @@ export async function installApp(clinicId, appId) {
   // Get App details for price/monthly model
   const { data: app } = await supabase
     .from("tabibi_apps")
-    .select("price, billing_period")
+    .select("price, billing_period, pricing_type, payment_type, billing_interval_unit, billing_interval_count, trial_interval_unit, trial_interval_count, currency")
     .eq("id", appId)
     .single();
 
-  const periodEnd = new Date();
-  // Default renewal logic based on billing period
-  if (app?.billing_period === 'yearly') {
-    periodEnd.setFullYear(periodEnd.getFullYear() + 1);
-  } else {
-    periodEnd.setMonth(periodEnd.getMonth() + 1);
-  }
+  const pricingType = resolvePricingType(app);
+  const paymentType = resolvePaymentType(app);
+  const unit = app?.billing_interval_unit || (app?.billing_period === "yearly" ? "year" : "month");
+  const count = app?.billing_interval_count ?? 1;
+  const trialUnit = app?.trial_interval_unit || "day";
+  const trialCount = app?.trial_interval_count ?? 7;
+  const now = new Date();
+
+  const isFirstTrial =
+    pricingType === "trial_then_paid" && (!existing || existing.trial_end == null);
+
+  const chargeNow = pricingType === "paid" ? (app?.price || 0) : isFirstTrial ? 0 : (pricingType === "trial_then_paid" ? (app?.price || 0) : 0);
+
+  const periodEnd =
+    paymentType === "one_time"
+      ? null
+      : isFirstTrial
+        ? addInterval(now, trialUnit, trialCount)
+        : addInterval(now, unit, count);
+
+  const legacyBillingPeriod = legacyBillingPeriodFromInterval(paymentType, unit, count);
+  const trialEnd = isFirstTrial && paymentType !== "one_time" ? periodEnd : null;
 
   let resultData;
 
   if (existing) {
     // Reactivate
-    const { data, error } = await supabase
+    const baseUpdate = { 
+      status: "active",
+      current_period_start: now.toISOString(),
+      current_period_end: periodEnd ? periodEnd.toISOString() : null,
+      billing_period: legacyBillingPeriod,
+      amount: chargeNow,
+      updated_at: now.toISOString(),
+      pricing_type: pricingType,
+      payment_type: paymentType,
+      interval_unit: unit,
+      interval_count: Number(count) || 1,
+      trial_interval_unit: pricingType === "trial_then_paid" ? trialUnit : null,
+      trial_interval_count: pricingType === "trial_then_paid" ? Number(trialCount) || 7 : null,
+      trial_end: trialEnd ? trialEnd.toISOString() : null,
+      currency: app?.currency || "EGP",
+    };
+
+    let data;
+    let error;
+    ({ data, error } = await supabase
       .from("app_subscriptions")
-      .update({ 
-        status: "active",
-        current_period_start: new Date().toISOString(),
-        current_period_end: periodEnd.toISOString()
-      })
+      .update(baseUpdate)
       .eq("id", existing.id)
       .select()
-      .single();
+      .single());
+
+    if (error && String(error.message || "").toLowerCase().includes("column")) {
+      const { pricing_type, payment_type, interval_unit, interval_count, trial_interval_unit, trial_interval_count, trial_end, currency, ...fallback } = baseUpdate;
+      ({ data, error } = await supabase
+        .from("app_subscriptions")
+        .update(fallback)
+        .eq("id", existing.id)
+        .select()
+        .single());
+    }
     if (error) throw error;
     resultData = data;
   } else {
     // New Subscription
-    const { data, error } = await supabase
+    const baseInsert = { 
+      clinic_id: clinicId, 
+      app_id: appId,
+      current_period_start: now.toISOString(),
+      current_period_end: periodEnd ? periodEnd.toISOString() : null,
+      status: 'active',
+      billing_period: legacyBillingPeriod,
+      amount: chargeNow,
+      auto_renew: paymentType !== "one_time",
+      pricing_type: pricingType,
+      payment_type: paymentType,
+      interval_unit: unit,
+      interval_count: Number(count) || 1,
+      trial_interval_unit: pricingType === "trial_then_paid" ? trialUnit : null,
+      trial_interval_count: pricingType === "trial_then_paid" ? Number(trialCount) || 7 : null,
+      trial_end: trialEnd ? trialEnd.toISOString() : null,
+      currency: app?.currency || "EGP",
+    };
+
+    let data;
+    let error;
+    ({ data, error } = await supabase
       .from("app_subscriptions")
-      .insert([{ 
-        clinic_id: clinicId, 
-        app_id: appId,
-        current_period_end: periodEnd.toISOString(),
-        status: 'active',
-        billing_period: app?.billing_period || 'monthly',
-        amount: app?.price || 0,
-        auto_renew: true
-      }])
+      .insert([baseInsert])
       .select()
-      .single();
+      .single());
+
+    if (error && String(error.message || "").toLowerCase().includes("column")) {
+      const { pricing_type, payment_type, interval_unit, interval_count, trial_interval_unit, trial_interval_count, trial_end, currency, ...fallback } = baseInsert;
+      ({ data, error } = await supabase
+        .from("app_subscriptions")
+        .insert([fallback])
+        .select()
+        .single());
+    }
 
     if (error) throw error;
     resultData = data;

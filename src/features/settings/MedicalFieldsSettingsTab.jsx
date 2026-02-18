@@ -574,7 +574,11 @@ export default function MedicalFieldsSettingsTab() {
         </Button>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 z-40 sm:hidden border-t bg-background/95 backdrop-blur px-3 py-2">
+      <div
+        className={`fixed bottom-0 left-0 right-0 z-40 sm:hidden border-t bg-background/95 backdrop-blur px-3 py-2 ${
+          mobilePanel ? "hidden" : ""
+        }`}
+      >
         <Button onClick={handleSave} disabled={isPending} className="w-full gap-2 h-11">
           {isPending ? (
             <>
@@ -617,9 +621,24 @@ export default function MedicalFieldsSettingsTab() {
         <SheetContent side="bottom" className="h-[88vh] rounded-t-2xl border-t p-0">
           <SheetHeader className="p-4 flex items-center justify-between">
             <SheetTitle>{mobilePanelTitle}</SheetTitle>
-            <Button type="button" variant="ghost" size="sm" onClick={() => setMobilePanel(null)}>
-              إغلاق
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button type="button" onClick={handleSave} disabled={isPending} className="gap-2 h-9">
+                {isPending ? (
+                  <>
+                    <Loader2 className="size-3.5 animate-spin" />
+                    بيحفظ...
+                  </>
+                ) : (
+                  <>
+                    <Save className="size-3.5" />
+                    حفظ
+                  </>
+                )}
+              </Button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setMobilePanel(null)}>
+                إغلاق
+              </Button>
+            </div>
           </SheetHeader>
           <div className="p-4 space-y-4 overflow-y-auto h-[calc(88vh-72px)]">
             {mobilePanel === "appointment" && (
