@@ -37,6 +37,7 @@ import PaymentCallback from "./pages/PaymentCallback";
 import Settings from "./pages/Settings";
 import Integrations from "./pages/Integrations";
 import Signup from "./pages/Signup";
+import EmailConfirmed from "./pages/EmailConfirmed";
 import AffiliateEntry from "./pages/AffiliateEntry";
 import AffiliateDashboard from "./pages/AffiliateDashboard";
 import TreatmentPlans from "./pages/TreatmentPlans";
@@ -65,6 +66,7 @@ const MemoizedLogin = memo(Login);
 const MemoizedPlanConfirmation = memo(PlanConfirmation);
 const MemoizedPaymentCallback = memo(PaymentCallback);
 const MemoizedSignup = memo(Signup);
+const MemoizedEmailConfirmed = memo(EmailConfirmed);
 const MemoizedAffiliateEntry = memo(AffiliateEntry);
 const MemoizedAffiliateDashboard = memo(AffiliateDashboard);
 const MemoizedBooking = memo(Booking);
@@ -126,6 +128,7 @@ function AppRoutes() {
           </PublicRoute>
         }
       />
+      <Route path="/auth/confirmed" element={<MemoizedEmailConfirmed />} />
       <Route path="/affiliate" element={<MemoizedAffiliateEntry />} />
       <Route
         element={

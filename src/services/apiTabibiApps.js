@@ -1,7 +1,50 @@
 import supabase from "./supabase";
 
-export async function getApps() {
-  // Use tabibi_apps table
+function isSchemaMismatchError(error) {
+  const msg = String(error?.message || "").toLowerCase();
+  return (
+    (msg.includes("relation") && msg.includes("does not exist")) ||
+    (msg.includes("column") && msg.includes("does not exist")) ||
+    (msg.includes("schema cache") && msg.includes("could not find"))
+  );
+}
+
+function mapMarketplaceAppToUi(appRow) {
+  const isPaid = !!appRow?.is_paid;
+  const hasTrial = !!appRow?.has_free_trial && Number(appRow?.trial_days || 0) > 0;
+  const pricingType = hasTrial ? "trial_then_paid" : isPaid ? "paid" : "free";
+  const priceMonthly = Number(appRow?.price_monthly || 0);
+  const trialDays = Number(appRow?.trial_days || 7);
+
+  return {
+    id: appRow.id,
+    title: appRow.title,
+    short_description: appRow.short_description,
+    full_description: appRow.full_description,
+    category: appRow.category,
+    image_url: appRow.icon_url || appRow.cover_image_url || null,
+    color: "bg-primary/10",
+    price: priceMonthly,
+    billing_period: "monthly",
+    pricing_type: pricingType,
+    payment_type: "recurring",
+    billing_interval_unit: "month",
+    billing_interval_count: 1,
+    trial_interval_unit: hasTrial ? "day" : null,
+    trial_interval_count: hasTrial ? trialDays : null,
+    currency: "EGP",
+    features: [],
+    screenshots: [],
+    icon_name: null,
+    preview_link: null,
+    component_key: appRow.slug,
+    integration_type: "none",
+    integration_target: null,
+    latest_version: null,
+  };
+}
+
+async function getAppsLegacy() {
   const { data, error } = await supabase
     .from("tabibi_apps")
     .select("*")
@@ -9,15 +52,14 @@ export async function getApps() {
     .order("id");
 
   if (error) throw error;
-  
-  // Shape data to match UI expectations
+
   return (data || []).map((app) => ({
     id: app.id,
     title: app.title,
     short_description: app.short_description,
     full_description: app.full_description,
     category: app.category,
-    image_url: app.image_url, // tabibi_apps uses image_url
+    image_url: app.image_url,
     color: app.color || "bg-primary/10",
     price: app.price ?? 0,
     billing_period: app.billing_period || "monthly",
@@ -30,9 +72,31 @@ export async function getApps() {
     currency: app.currency ?? null,
     features: app.features || [],
     screenshots: app.screenshots || [],
-    icon_name: app.icon_name || null, // Check if this exists in tabibi_apps, if not it will be undefined/null which is fine
+    icon_name: app.icon_name || null,
     preview_link: app.preview_link || null,
   }));
+}
+
+async function getAppsV2() {
+  const { data, error } = await supabase
+    .from("tabibi_marketplace_apps")
+    .select(
+      "id, title, slug, short_description, full_description, icon_url, cover_image_url, category, is_paid, price_monthly, price_yearly, has_free_trial, trial_days, kill_switch_active"
+    )
+    .eq("kill_switch_active", false)
+    .order("id");
+
+  if (error) throw error;
+  return (data || []).map(mapMarketplaceAppToUi);
+}
+
+export async function getApps() {
+  try {
+    return await getAppsV2();
+  } catch (e) {
+    if (!isSchemaMismatchError(e)) throw e;
+    return await getAppsLegacy();
+  }
 }
 
 export async function incrementAppViews(appId) {
@@ -59,7 +123,37 @@ export async function incrementAppViews(appId) {
 }
 
 export async function getAppById(id) {
-  // Use tabibi_apps table
+  const appId = Number(id);
+
+  try {
+    const { data: app, error } = await supabase
+      .from("tabibi_marketplace_apps")
+      .select(
+        "id, title, slug, short_description, full_description, icon_url, cover_image_url, category, is_paid, price_monthly, price_yearly, has_free_trial, trial_days, kill_switch_active"
+      )
+      .eq("id", appId)
+      .single();
+
+    if (error) throw error;
+
+    const mapped = mapMarketplaceAppToUi(app);
+
+    const { data: latest, error: latestError } = await supabase
+      .from("tabibi_app_versions")
+      .select("version_number")
+      .eq("app_id", appId)
+      .eq("status", "approved")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (latestError && !isSchemaMismatchError(latestError)) throw latestError;
+
+    return { ...mapped, latest_version: latest?.version_number ?? null };
+  } catch (e) {
+    if (!isSchemaMismatchError(e)) throw e;
+  }
+
   const { data: app, error } = await supabase
     .from("tabibi_apps")
     .select("*")
@@ -89,26 +183,72 @@ export async function getAppById(id) {
     screenshots: app.screenshots || [],
     icon_name: app.icon_name || null,
     preview_link: app.preview_link || null,
-    integration_type: app.integration_type || 'none',
+    integration_type: app.integration_type || "none",
     integration_target: app.integration_target || null,
-    latest_version: null, // Legacy doesn't support versions
+    latest_version: null,
   };
 }
 
 export async function getInstalledApps(clinicId) {
-  // Use app_subscriptions table joined with tabibi_apps
+  try {
+    const { data, error } = await supabase
+      .from("tabibi_app_installations")
+      .select(
+        `
+        id,
+        clinic_id,
+        app_id,
+        installed_version_id,
+        status,
+        trial_ends_at,
+        current_period_end,
+        settings,
+        created_at,
+        updated_at,
+        app:tabibi_marketplace_apps(
+          id, title, slug, short_description, full_description, icon_url, cover_image_url, category, is_paid, price_monthly, price_yearly, has_free_trial, trial_days, kill_switch_active
+        ),
+        version:tabibi_app_versions(id, version_number)
+      `
+      )
+      .eq("clinic_id", clinicId)
+      .in("status", ["active", "trialing", "past_due"]);
+
+    if (error) throw error;
+
+    return (data || [])
+      .filter((row) => row?.app && row.app.kill_switch_active !== true)
+      .map((row) => {
+        const app = mapMarketplaceAppToUi(row.app);
+        return {
+          ...app,
+          component_key: row.app.slug,
+          isIntegrated: false,
+          subscriptionId: row.id,
+          installedAt: row.created_at,
+          expiresAt: row.current_period_end,
+          status: row.status,
+          latest_version: row?.version?.version_number ?? null,
+        };
+      });
+  } catch (e) {
+    if (!isSchemaMismatchError(e)) throw e;
+  }
+
   const { data, error } = await supabase
     .from("app_subscriptions")
-    .select(`
+    .select(
+      `
       *,
       app:tabibi_apps(*)
-    `)
+    `
+    )
     .eq("clinic_id", clinicId)
     .eq("status", "active");
 
   if (error) throw error;
-  
-  return data.map(item => ({
+
+  return (data || []).map((item) => ({
     id: item.app?.id,
     title: item.app?.title,
     short_description: item.app?.short_description,
@@ -130,14 +270,105 @@ export async function getInstalledApps(clinicId) {
     icon_name: item.app?.icon_name || null,
     preview_link: item.app?.preview_link || null,
     component_key: item.app?.component_key,
-    integration_type: item.app?.integration_type || 'none',
+    integration_type: item.app?.integration_type || "none",
     integration_target: item.app?.integration_target || null,
     isIntegrated: item.is_integrated,
     subscriptionId: item.id,
     installedAt: item.created_at,
     expiresAt: item.current_period_end,
-    status: item.status
+    status: item.status,
   }));
+}
+
+async function installAppV2(clinicId, appId) {
+  const numericAppId = Number(appId);
+
+  const { data: appRow, error: appError } = await supabase
+    .from("tabibi_marketplace_apps")
+    .select("id, is_paid, price_monthly, has_free_trial, trial_days, kill_switch_active")
+    .eq("id", numericAppId)
+    .single();
+
+  if (appError) throw appError;
+  if (appRow.kill_switch_active === true) throw new Error("app_disabled");
+
+  const { data: version, error: versionError } = await supabase
+    .from("tabibi_app_versions")
+    .select("id")
+    .eq("app_id", numericAppId)
+    .eq("status", "approved")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (versionError) throw versionError;
+
+  const { data: existing, error: existingError } = await supabase
+    .from("tabibi_app_installations")
+    .select("id, trial_ends_at")
+    .eq("clinic_id", clinicId)
+    .eq("app_id", numericAppId)
+    .maybeSingle();
+
+  if (existingError) throw existingError;
+
+  const hasTrial = !!appRow.has_free_trial && Number(appRow.trial_days || 0) > 0;
+  const now = new Date();
+  const isFirstTrial = hasTrial && (!existing || !existing.trial_ends_at);
+
+  const trialEndsAt = isFirstTrial
+    ? new Date(now.getTime() + Number(appRow.trial_days || 7) * 24 * 60 * 60 * 1000)
+    : null;
+
+  const isPaid = !!appRow.is_paid && Number(appRow.price_monthly || 0) > 0;
+  const currentPeriodEnd = isPaid && !isFirstTrial
+    ? new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+    : isPaid && isFirstTrial
+      ? trialEndsAt
+      : null;
+
+  const payload = {
+    clinic_id: clinicId,
+    app_id: numericAppId,
+    installed_version_id: version?.id || null,
+    auto_update: true,
+    status: isFirstTrial ? "trialing" : "active",
+    trial_ends_at: trialEndsAt ? trialEndsAt.toISOString() : existing?.trial_ends_at || null,
+    current_period_end: currentPeriodEnd ? currentPeriodEnd.toISOString() : null,
+    is_frozen: false,
+    settings: {},
+    updated_at: now.toISOString(),
+  };
+
+  if (existing?.id) {
+    const { data, error } = await supabase
+      .from("tabibi_app_installations")
+      .update(payload)
+      .eq("id", existing.id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  const { data, error } = await supabase
+    .from("tabibi_app_installations")
+    .insert([payload])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+async function uninstallAppV2(clinicId, appId) {
+  const numericAppId = Number(appId);
+  const { error } = await supabase
+    .from("tabibi_app_installations")
+    .update({ status: "cancelled", updated_at: new Date().toISOString() })
+    .eq("clinic_id", clinicId)
+    .eq("app_id", numericAppId);
+  if (error) throw error;
 }
 
 function resolvePricingType(appRow) {
@@ -271,6 +502,17 @@ async function submitAppData(appId, clinicId, data) {
 }
 
 export async function installApp(clinicId, appId) {
+  try {
+    return await installAppV2(clinicId, appId);
+  } catch (e) {
+    if (!isSchemaMismatchError(e)) {
+      const msg = String(e?.message || "").toLowerCase();
+      const isRls = msg.includes("row-level security") || msg.includes("permission denied");
+      if (isRls) throw e;
+    }
+    if (!isSchemaMismatchError(e)) throw e;
+  }
+
   // Check if subscription exists (active or cancelled)
   const { data: existing } = await supabase
     .from("app_subscriptions")
@@ -429,6 +671,18 @@ export async function subscribeWithWallet(clinicId, appId) {
 }
 
 export async function uninstallApp(clinicId, appId) {
+  try {
+    await uninstallAppV2(clinicId, appId);
+    return;
+  } catch (e) {
+    if (!isSchemaMismatchError(e)) {
+      const msg = String(e?.message || "").toLowerCase();
+      const isRls = msg.includes("row-level security") || msg.includes("permission denied");
+      if (isRls) throw e;
+    }
+    if (!isSchemaMismatchError(e)) throw e;
+  }
+
   // Cancel subscription (don't delete)
   const { error } = await supabase
     .from("app_subscriptions")
