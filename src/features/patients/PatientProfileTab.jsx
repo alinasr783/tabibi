@@ -1,6 +1,6 @@
 import { 
   Briefcase, MapPin, Heart, Shield, Activity, FileText, AlertTriangle, 
-  Droplet, Scissors, Users, Mail, Phone, User, Edit, ShieldCheck, ChevronDown
+  Droplet, Scissors, Users, Mail, Phone, User, ShieldCheck, ChevronDown
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
@@ -101,11 +101,6 @@ export default function PatientProfileTab({ patient }) {
             .filter((x) => x.def);
           return (
             <Card key={key} className="relative group bg-card/70">
-              <div className="absolute top-4 left-4 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                <Button variant="ghost" size="sm" onClick={() => setEditingSection("personal")}>
-                  <Edit className="w-4 h-4 text-muted-foreground" />
-                </Button>
-              </div>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base font-bold flex items-center gap-2">
@@ -136,6 +131,16 @@ export default function PatientProfileTab({ patient }) {
                     />
                   ))}
                 </div>
+                <div className="mt-4 flex justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full sm:w-auto"
+                    onClick={() => setEditingSection("personal")}
+                  >
+                    تعديل
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           );
@@ -145,11 +150,6 @@ export default function PatientProfileTab({ patient }) {
           const title = it.title || "الملف الطبي";
           return (
             <Card key={key} className="relative group bg-card/70">
-              <div className="absolute top-4 left-4 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                <Button variant="ghost" size="sm" onClick={() => setEditingSection("medical")}>
-                  <Edit className="w-4 h-4 text-muted-foreground" />
-                </Button>
-              </div>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base font-bold flex items-center gap-2">
@@ -237,6 +237,16 @@ export default function PatientProfileTab({ patient }) {
                     )}
                   </div>
                 </div>
+                <div className="pt-2 flex justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full sm:w-auto"
+                    onClick={() => setEditingSection("medical")}
+                  >
+                    تعديل
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           );
@@ -246,11 +256,6 @@ export default function PatientProfileTab({ patient }) {
           const title = it.title || "التأمين الصحي";
           return (
             <Card key={key} className="relative group bg-card/70">
-              <div className="absolute top-4 left-4 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                <Button variant="ghost" size="sm" onClick={() => setEditingSection("insurance")}>
-                  <Edit className="w-4 h-4 text-muted-foreground" />
-                </Button>
-              </div>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base font-bold flex items-center gap-2">
@@ -285,6 +290,16 @@ export default function PatientProfileTab({ patient }) {
                     </span>
                   </div>
                 </div>
+                <div className="mt-4 flex justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full sm:w-auto"
+                    onClick={() => setEditingSection("insurance")}
+                  >
+                    تعديل
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           );
@@ -295,11 +310,6 @@ export default function PatientProfileTab({ patient }) {
           const groups = [{ id: "default", title, enabled: true }, ...patientCustomSections].filter((s) => s.enabled !== false);
           return (
             <Card key={key} className="relative group bg-card/70">
-              <div className="absolute top-4 left-4 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                <Button variant="ghost" size="sm" onClick={() => setEditingSection("custom")}>
-                  <Edit className="w-4 h-4 text-muted-foreground" />
-                </Button>
-              </div>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base font-bold flex items-center gap-2">
@@ -344,6 +354,16 @@ export default function PatientProfileTab({ patient }) {
                     );
                   })
                 )}
+                <div className="pt-2 flex justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full sm:w-auto"
+                    onClick={() => setEditingSection("custom")}
+                  >
+                    تعديل
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           );
