@@ -1,6 +1,99 @@
 -- WARNING: This schema is for context only and is not meant to be run.
 -- Table order and constraints may not be valid for execution.
 
+CREATE TABLE public.affiliate_commissions (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  affiliate_user_id uuid NOT NULL,
+  clinic_id uuid NOT NULL,
+  subscription_id bigint NOT NULL UNIQUE,
+  base_amount numeric NOT NULL DEFAULT 0,
+  commission_rate numeric NOT NULL DEFAULT 0.1,
+  commission_amount numeric NOT NULL,
+  status text NOT NULL DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'approved'::text, 'paid'::text, 'void'::text])),
+  available_at timestamp with time zone NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  paid_at timestamp with time zone,
+  withdrawal_request_id uuid,
+  CONSTRAINT affiliate_commissions_pkey PRIMARY KEY (id),
+  CONSTRAINT affiliate_commissions_affiliate_user_id_fkey FOREIGN KEY (affiliate_user_id) REFERENCES public.affiliate_users(user_id),
+  CONSTRAINT affiliate_commissions_subscription_id_fkey FOREIGN KEY (subscription_id) REFERENCES public.subscriptions(id),
+  CONSTRAINT affiliate_commissions_withdrawal_request_id_fkey FOREIGN KEY (withdrawal_request_id) REFERENCES public.affiliate_withdrawal_requests(id)
+);
+CREATE TABLE public.affiliate_link_events (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  referral_code text NOT NULL,
+  event_type text NOT NULL CHECK (event_type = 'open'::text),
+  path text,
+  referrer text,
+  user_agent text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT affiliate_link_events_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.affiliate_payment_settings (
+  affiliate_user_id uuid NOT NULL,
+  payout_method text NOT NULL DEFAULT 'bank'::text CHECK (payout_method = ANY (ARRAY['bank'::text, 'wallet'::text])),
+  bank_name text,
+  account_name text,
+  iban text,
+  wallet_phone text,
+  notes text,
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT affiliate_payment_settings_pkey PRIMARY KEY (affiliate_user_id),
+  CONSTRAINT affiliate_payment_settings_affiliate_user_id_fkey FOREIGN KEY (affiliate_user_id) REFERENCES public.affiliate_users(user_id)
+);
+CREATE TABLE public.affiliate_payout_methods (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  affiliate_user_id uuid NOT NULL,
+  payout_method text NOT NULL DEFAULT 'bank'::text CHECK (payout_method = ANY (ARRAY['bank'::text, 'wallet'::text])),
+  bank_name text,
+  account_name text,
+  iban text,
+  wallet_phone text,
+  notes text,
+  is_default boolean NOT NULL DEFAULT false,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT affiliate_payout_methods_pkey PRIMARY KEY (id),
+  CONSTRAINT affiliate_payout_methods_affiliate_user_id_fkey FOREIGN KEY (affiliate_user_id) REFERENCES public.affiliate_users(user_id)
+);
+CREATE TABLE public.affiliate_referrals (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  affiliate_user_id uuid NOT NULL,
+  clinic_id uuid NOT NULL UNIQUE,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT affiliate_referrals_pkey PRIMARY KEY (id),
+  CONSTRAINT affiliate_referrals_affiliate_user_id_fkey FOREIGN KEY (affiliate_user_id) REFERENCES public.affiliate_users(user_id)
+);
+CREATE TABLE public.affiliate_users (
+  user_id uuid NOT NULL,
+  referral_code text NOT NULL UNIQUE,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT affiliate_users_pkey PRIMARY KEY (user_id),
+  CONSTRAINT affiliate_users_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.affiliate_withdrawal_items (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  request_id uuid NOT NULL,
+  commission_id bigint NOT NULL UNIQUE,
+  CONSTRAINT affiliate_withdrawal_items_pkey PRIMARY KEY (id),
+  CONSTRAINT affiliate_withdrawal_items_request_id_fkey FOREIGN KEY (request_id) REFERENCES public.affiliate_withdrawal_requests(id),
+  CONSTRAINT affiliate_withdrawal_items_commission_id_fkey FOREIGN KEY (commission_id) REFERENCES public.affiliate_commissions(id)
+);
+CREATE TABLE public.affiliate_withdrawal_requests (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  affiliate_user_id uuid NOT NULL,
+  amount numeric NOT NULL CHECK (amount > 0::numeric),
+  status text NOT NULL DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text, 'processed'::text, 'paid'::text])),
+  payout_snapshot jsonb NOT NULL DEFAULT '{}'::jsonb,
+  admin_note text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  payout_method_id uuid,
+  CONSTRAINT affiliate_withdrawal_requests_pkey PRIMARY KEY (id),
+  CONSTRAINT affiliate_withdrawal_requests_affiliate_user_id_fkey FOREIGN KEY (affiliate_user_id) REFERENCES public.affiliate_users(user_id),
+  CONSTRAINT affiliate_withdrawal_requests_payout_method_id_fkey FOREIGN KEY (payout_method_id) REFERENCES public.affiliate_payout_methods(id)
+);
 CREATE TABLE public.ai_agent_profile (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   name text NOT NULL,
@@ -47,11 +140,15 @@ CREATE TABLE public.app_requests (
   description text,
   image_url text,
   screenshots jsonb DEFAULT '[]'::jsonb,
-  links jsonb DEFAULT '[]'::jsonb,
+  links jsonb DEFAULT '{}'::jsonb,
   status text DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'in_review'::text, 'approved'::text, 'rejected'::text])),
   admin_notes text,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
+  marketing_plan text,
+  marketing_channels text,
+  can_market boolean NOT NULL DEFAULT false,
+  attachments jsonb NOT NULL DEFAULT '[]'::jsonb,
   CONSTRAINT app_requests_pkey PRIMARY KEY (id),
   CONSTRAINT app_requests_developer_id_fkey FOREIGN KEY (developer_id) REFERENCES public.app_developers(id)
 );
@@ -68,6 +165,14 @@ CREATE TABLE public.app_subscriptions (
   amount numeric,
   auto_renew boolean DEFAULT true,
   is_integrated boolean DEFAULT false,
+  pricing_type text,
+  payment_type text,
+  interval_unit text,
+  interval_count integer,
+  trial_interval_unit text,
+  trial_interval_count integer,
+  trial_end timestamp with time zone,
+  currency text,
   CONSTRAINT app_subscriptions_pkey PRIMARY KEY (id),
   CONSTRAINT app_subscriptions_app_id_fkey FOREIGN KEY (app_id) REFERENCES public.tabibi_apps(id)
 );
@@ -86,7 +191,7 @@ CREATE TABLE public.appointments (
   treatment text,
   custom_fields jsonb NOT NULL DEFAULT '[]'::jsonb,
   CONSTRAINT appointments_pkey PRIMARY KEY (id),
-  CONSTRAINT appointment_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(id)
+  CONSTRAINT appointments_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(id)
 );
 CREATE TABLE public.articles (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -189,7 +294,8 @@ CREATE TABLE public.clinic_wallets (
   currency text DEFAULT 'EGP'::text,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT clinic_wallets_pkey PRIMARY KEY (id)
+  CONSTRAINT clinic_wallets_pkey PRIMARY KEY (id),
+  CONSTRAINT clinic_wallets_clinic_id_fkey FOREIGN KEY (clinic_id) REFERENCES public.clinics(clinic_uuid)
 );
 CREATE TABLE public.clinics (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
@@ -301,10 +407,10 @@ CREATE TABLE public.financial_records (
   visit_id bigint,
   reference_key text,
   CONSTRAINT financial_records_pkey PRIMARY KEY (id),
-  CONSTRAINT financial_records_visit_id_fkey FOREIGN KEY (visit_id) REFERENCES public.visits(id),
   CONSTRAINT financial_records_appointment_id_fkey FOREIGN KEY (appointment_id) REFERENCES public.appointments(id),
   CONSTRAINT financial_records_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(id),
-  CONSTRAINT financial_records_patient_plan_id_fkey FOREIGN KEY (patient_plan_id) REFERENCES public.patient_plans(id)
+  CONSTRAINT financial_records_patient_plan_id_fkey FOREIGN KEY (patient_plan_id) REFERENCES public.patient_plans(id),
+  CONSTRAINT financial_records_visit_id_fkey FOREIGN KEY (visit_id) REFERENCES public.visits(id)
 );
 CREATE TABLE public.integrations (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -427,6 +533,102 @@ CREATE TABLE public.subscriptions (
   CONSTRAINT subscriptions_pkey PRIMARY KEY (id),
   CONSTRAINT subscriptions_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES public.plans(id)
 );
+CREATE TABLE public.tabibi_app_audit_logs (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  app_id bigint NOT NULL,
+  clinic_id uuid NOT NULL,
+  action text NOT NULL,
+  resource text,
+  metadata jsonb,
+  severity text DEFAULT 'info'::text,
+  timestamp timestamp with time zone DEFAULT now(),
+  CONSTRAINT tabibi_app_audit_logs_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.tabibi_app_event_subscriptions (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  app_id bigint NOT NULL,
+  event_type text NOT NULL,
+  handler_function_name text,
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT tabibi_app_event_subscriptions_pkey PRIMARY KEY (id),
+  CONSTRAINT tabibi_app_event_subscriptions_app_id_fkey FOREIGN KEY (app_id) REFERENCES public.tabibi_marketplace_apps(id)
+);
+CREATE TABLE public.tabibi_app_installations (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  clinic_id uuid NOT NULL,
+  app_id bigint NOT NULL,
+  installed_version_id uuid,
+  auto_update boolean DEFAULT true,
+  status text DEFAULT 'active'::text CHECK (status = ANY (ARRAY['active'::text, 'trialing'::text, 'past_due'::text, 'cancelled'::text, 'suspended'::text])),
+  trial_ends_at timestamp with time zone,
+  current_period_end timestamp with time zone,
+  is_frozen boolean DEFAULT false,
+  settings jsonb DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT tabibi_app_installations_pkey PRIMARY KEY (id),
+  CONSTRAINT tabibi_app_installations_app_id_fkey FOREIGN KEY (app_id) REFERENCES public.tabibi_marketplace_apps(id),
+  CONSTRAINT tabibi_app_installations_installed_version_id_fkey FOREIGN KEY (installed_version_id) REFERENCES public.tabibi_app_versions(id)
+);
+CREATE TABLE public.tabibi_app_reviews (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  app_id bigint NOT NULL,
+  clinic_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  rating integer CHECK (rating >= 1 AND rating <= 5),
+  comment text,
+  is_verified_purchase boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT tabibi_app_reviews_pkey PRIMARY KEY (id),
+  CONSTRAINT tabibi_app_reviews_app_id_fkey FOREIGN KEY (app_id) REFERENCES public.tabibi_marketplace_apps(id)
+);
+CREATE TABLE public.tabibi_app_schema_requests (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  app_id bigint NOT NULL,
+  developer_id uuid NOT NULL,
+  table_name text NOT NULL,
+  sql_structure text NOT NULL,
+  purpose text NOT NULL,
+  status text DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'approved'::text, 'applied'::text, 'rejected'::text])),
+  admin_response text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT tabibi_app_schema_requests_pkey PRIMARY KEY (id),
+  CONSTRAINT tabibi_app_schema_requests_app_id_fkey FOREIGN KEY (app_id) REFERENCES public.tabibi_marketplace_apps(id),
+  CONSTRAINT tabibi_app_schema_requests_developer_id_fkey FOREIGN KEY (developer_id) REFERENCES public.tabibi_developers(id)
+);
+CREATE TABLE public.tabibi_app_scopes (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  scope_code text NOT NULL UNIQUE,
+  description text NOT NULL,
+  category text NOT NULL,
+  risk_level text DEFAULT 'low'::text CHECK (risk_level = ANY (ARRAY['low'::text, 'medium'::text, 'high'::text, 'critical'::text])),
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT tabibi_app_scopes_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.tabibi_app_version_scopes (
+  version_id uuid NOT NULL,
+  scope_id uuid NOT NULL,
+  justification text,
+  CONSTRAINT tabibi_app_version_scopes_pkey PRIMARY KEY (version_id, scope_id),
+  CONSTRAINT tabibi_app_version_scopes_version_id_fkey FOREIGN KEY (version_id) REFERENCES public.tabibi_app_versions(id),
+  CONSTRAINT tabibi_app_version_scopes_scope_id_fkey FOREIGN KEY (scope_id) REFERENCES public.tabibi_app_scopes(id)
+);
+CREATE TABLE public.tabibi_app_versions (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  app_id bigint NOT NULL,
+  version_number text NOT NULL,
+  js_entry_point text,
+  css_bundle text,
+  status text DEFAULT 'draft'::text CHECK (status = ANY (ARRAY['draft'::text, 'submitted'::text, 'in_review'::text, 'approved'::text, 'rejected'::text, 'archived'::text])),
+  reviewer_notes text,
+  rejection_reason text,
+  changelog text,
+  created_at timestamp with time zone DEFAULT now(),
+  published_at timestamp with time zone,
+  CONSTRAINT tabibi_app_versions_pkey PRIMARY KEY (id),
+  CONSTRAINT tabibi_app_versions_app_id_fkey FOREIGN KEY (app_id) REFERENCES public.tabibi_marketplace_apps(id)
+);
 CREATE TABLE public.tabibi_apps (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   created_at timestamp with time zone DEFAULT now(),
@@ -446,11 +648,57 @@ CREATE TABLE public.tabibi_apps (
   developer_id uuid,
   submission_schema jsonb DEFAULT '{}'::jsonb,
   images jsonb DEFAULT '[]'::jsonb,
-  views_count integer DEFAULT 0,
+  views_count bigint DEFAULT 0,
   integration_type text DEFAULT 'none'::text CHECK (integration_type = ANY (ARRAY['none'::text, 'full'::text, 'partial'::text])),
   integration_target text,
+  icon_name text,
+  pricing_type text CHECK (pricing_type = ANY (ARRAY['free'::text, 'paid'::text, 'trial_then_paid'::text])),
+  payment_type text CHECK (payment_type = ANY (ARRAY['one_time'::text, 'recurring'::text])),
+  billing_interval_unit text CHECK (billing_interval_unit = ANY (ARRAY['day'::text, 'week'::text, 'month'::text, 'year'::text])),
+  billing_interval_count integer CHECK (billing_interval_count IS NULL OR billing_interval_count > 0),
+  trial_interval_unit text CHECK (trial_interval_unit IS NULL OR (trial_interval_unit = ANY (ARRAY['day'::text, 'week'::text, 'month'::text, 'year'::text]))),
+  trial_interval_count integer CHECK (trial_interval_count IS NULL OR trial_interval_count > 0),
+  currency text,
   CONSTRAINT tabibi_apps_pkey PRIMARY KEY (id),
   CONSTRAINT tabibi_apps_developer_id_fkey FOREIGN KEY (developer_id) REFERENCES public.app_developers(id)
+);
+CREATE TABLE public.tabibi_developers (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  name text NOT NULL,
+  email text NOT NULL,
+  website text,
+  verification_status text DEFAULT 'unverified'::text CHECK (verification_status = ANY (ARRAY['unverified'::text, 'pending'::text, 'verified'::text, 'suspended'::text])),
+  developer_key text DEFAULT encode(gen_random_bytes(16), 'hex'::text) UNIQUE,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT tabibi_developers_pkey PRIMARY KEY (id),
+  CONSTRAINT tabibi_developers_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.tabibi_marketplace_apps (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  developer_id uuid NOT NULL,
+  title text NOT NULL,
+  slug text NOT NULL UNIQUE,
+  short_description text,
+  full_description text,
+  icon_url text,
+  cover_image_url text,
+  category text,
+  tags ARRAY,
+  is_paid boolean DEFAULT false,
+  price_monthly numeric DEFAULT 0,
+  price_yearly numeric DEFAULT 0,
+  has_free_trial boolean DEFAULT false,
+  trial_days integer DEFAULT 0,
+  is_featured boolean DEFAULT false,
+  kill_switch_active boolean DEFAULT false,
+  kill_switch_reason text,
+  install_count bigint DEFAULT 0,
+  average_rating numeric DEFAULT 0.00,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT tabibi_marketplace_apps_pkey PRIMARY KEY (id),
+  CONSTRAINT tabibi_marketplace_apps_developer_id_fkey FOREIGN KEY (developer_id) REFERENCES public.tabibi_developers(id)
 );
 CREATE TABLE public.transactions (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -484,7 +732,7 @@ CREATE TABLE public.treatment_templates (
 CREATE TABLE public.user_preferences (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL UNIQUE,
-  theme_mode text DEFAULT 'system'::text CHECK (theme_mode = ANY (ARRAY['light'::text, 'dark'::text, 'system'::text])),
+  theme_mode text DEFAULT 'light'::text CHECK (theme_mode = ANY (ARRAY['light'::text, 'dark'::text, 'system'::text])),
   primary_color character varying DEFAULT '#1AA19C'::character varying,
   secondary_color character varying DEFAULT '#224FB5'::character varying,
   accent_color character varying DEFAULT '#FF6B6B'::character varying,
@@ -555,6 +803,27 @@ CREATE TABLE public.wallet_transactions (
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT wallet_transactions_pkey PRIMARY KEY (id),
   CONSTRAINT wallet_transactions_wallet_id_fkey FOREIGN KEY (wallet_id) REFERENCES public.clinic_wallets(id)
+);
+CREATE TABLE public.whatsapp_message_logs (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  clinic_id uuid NOT NULL,
+  patient_id bigint,
+  appointment_id bigint,
+  message_type text,
+  status text DEFAULT 'sent'::text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT whatsapp_message_logs_pkey PRIMARY KEY (id),
+  CONSTRAINT whatsapp_message_logs_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(id),
+  CONSTRAINT whatsapp_message_logs_appointment_id_fkey FOREIGN KEY (appointment_id) REFERENCES public.appointments(id)
+);
+CREATE TABLE public.whatsapp_settings (
+  clinic_id uuid NOT NULL UNIQUE,
+  enabled boolean DEFAULT false,
+  whatsapp_number text,
+  reminder_days_before integer DEFAULT 1,
+  reminder_time text DEFAULT '09:00'::text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now()
 );
 CREATE TABLE public.withdrawal_requests (
   id uuid NOT NULL DEFAULT gen_random_uuid(),

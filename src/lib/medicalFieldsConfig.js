@@ -1,11 +1,10 @@
 export const DEFAULT_MEDICAL_FIELDS_CONFIG = {
   appointment: {
     sections: {
-      order: ["patient_info", "medical_state", "extra_fields", "history"],
+      order: ["patient_info", "medical_state", "history"],
       items: {
         patient_info: { enabled: true, title: "بيانات المريض" },
         medical_state: { enabled: true, title: "الملاحظات والتشخيص" },
-        extra_fields: { enabled: true, title: "حقول إضافية" },
         history: { enabled: true, title: "سجل زيارات المريض" },
       },
     },
@@ -18,13 +17,21 @@ export const DEFAULT_MEDICAL_FIELDS_CONFIG = {
       diagnosis: { enabled: true, label: "التشخيص", placeholder: "اكتب التشخيص هنا..." },
       treatment: { enabled: true, label: "العلاج", placeholder: "اكتب خطة العلاج هنا..." },
     },
-    extraFieldsTemplates: [],
+    sectionTemplates: {
+      patient_info: [],
+      medical_state: [],
+      history: [],
+    },
     customSections: [],
   },
   visit: {
     sections: {
+      order: ["diagnosis", "notes", "treatment", "follow_up"],
       items: {
-        extra_fields: { enabled: true, title: "حقول إضافية" },
+        diagnosis: { enabled: true, title: "التشخيص" },
+        notes: { enabled: true, title: "ملاحظات" },
+        treatment: { enabled: true, title: "العلاج" },
+        follow_up: { enabled: true, title: "متابعة" },
       },
     },
     fields: {
@@ -33,17 +40,21 @@ export const DEFAULT_MEDICAL_FIELDS_CONFIG = {
       treatment: { enabled: true, label: "العلاج", placeholder: "اكتب خطة العلاج هنا..." },
       follow_up: { enabled: true, label: "متابعة", placeholder: "اكتب ملاحظات المتابعة هنا..." },
     },
-    extraFieldsTemplates: [],
+    sectionTemplates: {
+      diagnosis: [],
+      notes: [],
+      treatment: [],
+      follow_up: [],
+    },
     customSections: [],
   },
   patient: {
     sections: {
-      order: ["personal", "medical", "insurance", "custom_fields"],
+      order: ["personal", "medical", "insurance"],
       items: {
         personal: { enabled: true, title: "البيانات الشخصية" },
         medical: { enabled: true, title: "الملف الطبي" },
         insurance: { enabled: true, title: "التأمين الصحي" },
-        custom_fields: { enabled: true, title: "حقول إضافية" },
       },
       personalFields: {
         order: ["job", "marital_status", "address", "phone", "email", "blood_type"],
@@ -57,10 +68,41 @@ export const DEFAULT_MEDICAL_FIELDS_CONFIG = {
         },
       },
     },
-    extraFieldsTemplates: [],
     customSections: [],
+    sectionTemplates: {
+      personal: [],
+      medical: [],
+      insurance: [],
+    },
+    fields: {
+      personal: {
+        job: { enabled: true, label: "الوظيفة", placeholder: "مثال: مهندس، مدرس" },
+        marital_status: { enabled: true, label: "الحالة الاجتماعية", placeholder: "" },
+        phone: { enabled: true, label: "رقم الهاتف", placeholder: "" },
+        email: { enabled: true, label: "البريد الإلكتروني", placeholder: "" },
+        blood_type: { enabled: true, label: "فصيلة الدم", placeholder: "" },
+        address: { enabled: true, label: "العنوان", placeholder: "العنوان بالتفصيل" },
+      },
+      medical: {
+        chronic_diseases: { enabled: true, label: "الأمراض المزمنة", placeholder: "اكتب المرض واضغط Enter" },
+        allergies: { enabled: true, label: "الحساسية", placeholder: "اكتب مسبب الحساسية واضغط Enter" },
+        past_surgeries: { enabled: true, label: "العمليات السابقة", placeholder: "اكتب العملية واضغط Enter" },
+        family_history: { enabled: true, label: "التاريخ العائلي", placeholder: "اكتب المرض الوراثي واضغط Enter" },
+      },
+      insurance: {
+        provider_name: { enabled: true, label: "شركة التأمين", placeholder: "اسم الشركة" },
+        policy_number: { enabled: true, label: "رقم البوليصة", placeholder: "رقم الكارت/البوليصة" },
+        coverage_percent: { enabled: true, label: "نسبة التغطية (%)", placeholder: "مثال: 80" },
+      },
+    },
   },
 };
+
+const CUSTOM_SECTION_PREFIX = "custom:";
+
+function customSectionOrderKey(id) {
+  return `${CUSTOM_SECTION_PREFIX}${String(id)}`;
+}
 
 function isPlainObject(val) {
   return typeof val === "object" && val !== null && !Array.isArray(val);
@@ -86,6 +128,7 @@ function normalizeTemplates(arr, sectionId) {
       name: String(t.name || ""),
       type: String(t.type || "text"),
       placeholder: typeof t.placeholder === "string" ? t.placeholder : "",
+      options: Array.isArray(t.options) ? t.options.map((x) => String(x).trim()).filter(Boolean) : [],
       enabled: t.enabled !== false,
       section_id: typeof t.section_id === "string" ? t.section_id : (sectionId || ""),
     }))
@@ -133,34 +176,122 @@ function normalizeCustomSections(arr) {
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 }
 
+function removeSectionKeysFromOrder(order, removedKeys) {
+  const removed = new Set((Array.isArray(removedKeys) ? removedKeys : []).map(String));
+  return (Array.isArray(order) ? order.map(String) : []).filter((k) => !removed.has(String(k)));
+}
+
+function normalizeTemplatesBySection(map, sectionKeys) {
+  const base = isPlainObject(map) ? map : {};
+  const out = {};
+  for (const key of sectionKeys) {
+    out[key] = normalizeTemplates(base[key], key);
+  }
+  return out;
+}
+
+function ensureCustomSectionsInOrder(order, customSections) {
+  const out = Array.isArray(order) ? order.map(String).filter(Boolean) : [];
+  const existing = new Set(out);
+  for (const s of Array.isArray(customSections) ? customSections : []) {
+    const key = customSectionOrderKey(s?.id);
+    if (!existing.has(key)) {
+      out.push(key);
+      existing.add(key);
+    }
+  }
+  return out;
+}
+
+function sortCustomSectionsByOrder(order, customSections) {
+  const ord = Array.isArray(order) ? order.map(String) : [];
+  const idxByKey = new Map(ord.map((k, idx) => [k, idx]));
+  const list = Array.isArray(customSections) ? customSections.slice() : [];
+  return list
+    .sort((a, b) => {
+      const ai = idxByKey.get(customSectionOrderKey(a.id));
+      const bi = idxByKey.get(customSectionOrderKey(b.id));
+      if (typeof ai === "number" && typeof bi === "number") return ai - bi;
+      if (typeof ai === "number") return -1;
+      if (typeof bi === "number") return 1;
+      return (a.order ?? 0) - (b.order ?? 0);
+    })
+    .map((s, i) => ({ ...s, order: i }));
+}
+
+function normalizePatientFieldGroup(group, defaults) {
+  const base = isPlainObject(group) ? group : {};
+  const out = {};
+  for (const key of Object.keys(defaults || {})) {
+    const it = base[key];
+    const d = defaults[key] || {};
+    out[key] = {
+      enabled: (isPlainObject(it) ? it.enabled : undefined) !== false,
+      label: typeof (isPlainObject(it) ? it.label : undefined) === "string" ? it.label : String(d.label || ""),
+      placeholder:
+        typeof (isPlainObject(it) ? it.placeholder : undefined) === "string"
+          ? it.placeholder
+          : typeof d.placeholder === "string"
+            ? d.placeholder
+            : "",
+    };
+  }
+  return out;
+}
+
 export function normalizeMedicalFieldsConfig(raw) {
   const merged = deepMerge(DEFAULT_MEDICAL_FIELDS_CONFIG, isPlainObject(raw) ? raw : {});
 
   merged.appointment = merged.appointment || {};
   merged.appointment.sections = merged.appointment.sections || {};
   merged.appointment.sections.items = normalizeSectionItems(merged.appointment.sections.items);
-  merged.appointment.sections.order = normalizeOrder(
-    merged.appointment.sections.order,
-    Object.keys(DEFAULT_MEDICAL_FIELDS_CONFIG.appointment.sections.items)
+  merged.appointment.sections.order = ensureCustomSectionsInOrder(
+    normalizeOrder(
+      removeSectionKeysFromOrder(merged.appointment.sections.order, ["extra_fields"]),
+      Object.keys(DEFAULT_MEDICAL_FIELDS_CONFIG.appointment.sections.items)
+    ),
+    merged.appointment.customSections
   );
   merged.appointment.patient_info_subsections = normalizeSectionItems(merged.appointment.patient_info_subsections);
   merged.appointment.fields = merged.appointment.fields || {};
-  merged.appointment.extraFieldsTemplates = normalizeTemplates(merged.appointment.extraFieldsTemplates, "default");
-  merged.appointment.customSections = normalizeCustomSections(merged.appointment.customSections);
+  merged.appointment.sectionTemplates = normalizeTemplatesBySection(
+    merged.appointment.sectionTemplates,
+    Object.keys(DEFAULT_MEDICAL_FIELDS_CONFIG.appointment.sections.items)
+  );
+  merged.appointment.customSections = sortCustomSectionsByOrder(
+    merged.appointment.sections.order,
+    normalizeCustomSections(merged.appointment.customSections)
+  );
 
   merged.visit = merged.visit || {};
   merged.visit.sections = merged.visit.sections || {};
   merged.visit.sections.items = normalizeSectionItems(merged.visit.sections.items);
+  merged.visit.sections.order = ensureCustomSectionsInOrder(
+    normalizeOrder(
+      removeSectionKeysFromOrder(merged.visit.sections.order, ["extra_fields"]),
+      Object.keys(DEFAULT_MEDICAL_FIELDS_CONFIG.visit.sections.items)
+    ),
+    merged.visit.customSections
+  );
   merged.visit.fields = merged.visit.fields || {};
-  merged.visit.extraFieldsTemplates = normalizeTemplates(merged.visit.extraFieldsTemplates, "default");
-  merged.visit.customSections = normalizeCustomSections(merged.visit.customSections);
+  merged.visit.sectionTemplates = normalizeTemplatesBySection(
+    merged.visit.sectionTemplates,
+    Object.keys(DEFAULT_MEDICAL_FIELDS_CONFIG.visit.sections.items)
+  );
+  merged.visit.customSections = sortCustomSectionsByOrder(
+    merged.visit.sections.order,
+    normalizeCustomSections(merged.visit.customSections)
+  );
 
   merged.patient = merged.patient || {};
   merged.patient.sections = merged.patient.sections || {};
   merged.patient.sections.items = normalizeSectionItems(merged.patient.sections.items);
-  merged.patient.sections.order = normalizeOrder(
-    merged.patient.sections.order,
-    Object.keys(DEFAULT_MEDICAL_FIELDS_CONFIG.patient.sections.items)
+  merged.patient.sections.order = ensureCustomSectionsInOrder(
+    normalizeOrder(
+      removeSectionKeysFromOrder(merged.patient.sections.order, ["custom_fields"]),
+      Object.keys(DEFAULT_MEDICAL_FIELDS_CONFIG.patient.sections.items)
+    ),
+    merged.patient.customSections
   );
   merged.patient.sections.personalFields = merged.patient.sections.personalFields || {};
   merged.patient.sections.personalFields.order = normalizeOrder(
@@ -171,19 +302,38 @@ export function normalizeMedicalFieldsConfig(raw) {
     ...(DEFAULT_MEDICAL_FIELDS_CONFIG.patient.sections.personalFields.labels || {}),
     ...(isPlainObject(merged.patient.sections.personalFields.labels) ? merged.patient.sections.personalFields.labels : {}),
   };
-  merged.patient.extraFieldsTemplates = normalizeTemplates(merged.patient.extraFieldsTemplates, "default");
-  merged.patient.customSections = normalizeCustomSections(merged.patient.customSections);
+  merged.patient.customSections = sortCustomSectionsByOrder(
+    merged.patient.sections.order,
+    normalizeCustomSections(merged.patient.customSections)
+  );
+  merged.patient.sectionTemplates = normalizeTemplatesBySection(
+    merged.patient.sectionTemplates,
+    Object.keys(DEFAULT_MEDICAL_FIELDS_CONFIG.patient.sections.items)
+  );
+  merged.patient.fields = merged.patient.fields || {};
+  merged.patient.fields.personal = normalizePatientFieldGroup(
+    merged.patient.fields.personal,
+    DEFAULT_MEDICAL_FIELDS_CONFIG.patient.fields.personal
+  );
+  merged.patient.fields.medical = normalizePatientFieldGroup(
+    merged.patient.fields.medical,
+    DEFAULT_MEDICAL_FIELDS_CONFIG.patient.fields.medical
+  );
+  merged.patient.fields.insurance = normalizePatientFieldGroup(
+    merged.patient.fields.insurance,
+    DEFAULT_MEDICAL_FIELDS_CONFIG.patient.fields.insurance
+  );
 
   return merged;
 }
 
 export function flattenCustomFieldTemplates({ config, context }) {
   const ctx = config?.[context] || {};
-  const base = Array.isArray(ctx.extraFieldsTemplates) ? ctx.extraFieldsTemplates : [];
+  const builtin = isPlainObject(ctx.sectionTemplates) ? Object.values(ctx.sectionTemplates).flat() : [];
   const custom = Array.isArray(ctx.customSections)
     ? ctx.customSections.flatMap((s) => (Array.isArray(s.templates) ? s.templates : []))
     : [];
-  return [...base, ...custom];
+  return [...builtin, ...custom];
 }
 
 export function mergeTemplatesIntoCustomFields(existing, templates) {
@@ -205,6 +355,7 @@ export function mergeTemplatesIntoCustomFields(existing, templates) {
           name: t.name,
           type: t.type,
           placeholder: t.placeholder || merged[idx].placeholder || "",
+          options: Array.isArray(t.options) ? t.options : (Array.isArray(merged[idx].options) ? merged[idx].options : []),
           section_id: t.section_id || merged[idx].section_id || "",
         };
       }
@@ -215,8 +366,9 @@ export function mergeTemplatesIntoCustomFields(existing, templates) {
       name: t.name,
       type: t.type,
       placeholder: t.placeholder || "",
+      options: Array.isArray(t.options) ? t.options : [],
       section_id: t.section_id || "",
-      value: "",
+      value: t.type === "checkbox" ? false : t.type === "multiselect" ? [] : "",
     });
   }
 

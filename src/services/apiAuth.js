@@ -6,6 +6,21 @@ import {
   assertCountLimit,
 } from "./subscriptionEnforcement"
 
+function translateSupabaseAuthErrorMessage(message) {
+  const raw = message || ""
+  const m = raw.toLowerCase()
+
+  if (m.includes("email rate limit exceeded") || (m.includes("rate limit") && m.includes("email"))) {
+    return "تم تجاوز حد إرسال رسائل التأكيد على الإيميل. استنى شوية (10-15 دقيقة) وجرب تاني."
+  }
+
+  if (m.includes("rate limit exceeded")) {
+    return "تم تجاوز الحد المسموح للمحاولات مؤقتًا. استنى شوية وجرب تاني."
+  }
+
+  return raw
+}
+
 // Check if email already exists
 export async function checkEmailExists(email) {
     const { data, error } = await supabase
@@ -92,7 +107,7 @@ export async function signup({ email, password, userData }) {
         if (error.message.includes("already registered") || error.message.includes("already exists")) {
             throw new Error("الإيميل ده موجود قبل كده، جرب إيميل تاني")
         }
-        throw new Error(error.message)
+        throw new Error(translateSupabaseAuthErrorMessage(error.message))
     }
 
     // Insert user data into users table
@@ -503,7 +518,7 @@ export async function addSecretary({ name, email, password, phone, clinicId, per
     },
   });
 
-  if (authError) throw authError;
+  if (authError) throw new Error(translateSupabaseAuthErrorMessage(authError.message));
 
   // Immediately restore the original session to prevent logout
   if (currentSession) {

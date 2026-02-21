@@ -36,6 +36,8 @@ import { Label } from "../../components/ui/label";
 import { SkeletonLine } from "../../components/ui/skeleton";
 import { Textarea } from "../../components/ui/textarea";
 import { Checkbox } from "../../components/ui/checkbox";
+import { Switch } from "../../components/ui/switch";
+import { Progress } from "../../components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -83,6 +85,12 @@ export default function VisitDetailPage() {
     () => flattenCustomFieldTemplates({ config: medicalFieldsConfig, context: "visit" }),
     [medicalFieldsConfig]
   );
+
+  const getVisitSectionOrder = (key) => {
+    const order = visitSections?.order;
+    const idx = Array.isArray(order) ? order.indexOf(key) : -1;
+    return idx >= 0 ? idx * 100 : 999 * 100;
+  };
   
   // New State for Dialogs
   const [isAppointmentDialogOpen, setIsAppointmentDialogOpen] = useState(false);
@@ -105,7 +113,7 @@ export default function VisitDetailPage() {
     custom_fields: [],
   });
 
-  const [newField, setNewField] = useState({ name: "", type: "text", section_id: "default" });
+  const [newField, setNewField] = useState({ name: "", type: "text", section_id: "notes", optionsText: "" });
 
   // Attachments Hook
   const { uploadAttachment, isUploading: isUploadingAttachment } = usePatientAttachments(visit?.patient_id);
@@ -164,15 +172,27 @@ export default function VisitDetailPage() {
   // Initialize edit data when visit loads
   useEffect(() => {
     if (!visit) return;
+    const builtinSectionKeys = Array.isArray(visitSections?.order)
+      ? visitSections.order.filter((k) => !String(k).startsWith("custom:"))
+      : ["diagnosis", "notes", "treatment", "follow_up"];
+    const knownSectionIds = new Set([
+      ...builtinSectionKeys.map(String),
+      ...(visitCustomSections || []).map((s) => String(s?.id)),
+    ]);
     setEditData({
       diagnosis: visit.diagnosis || "",
       treatment: visit.treatment || "",
       follow_up: visit.follow_up || "",
       notes: visit.notes || "",
       medications: visit.medications ? [...visit.medications] : [],
-      custom_fields: mergeTemplatesIntoCustomFields(visit.custom_fields || [], visitAllTemplates),
+      custom_fields: mergeTemplatesIntoCustomFields(visit.custom_fields || [], visitAllTemplates).map((f) => {
+        const rawSection = String(f?.section_id || "notes");
+        const mapped = rawSection === "default" ? "notes" : rawSection;
+        if (!knownSectionIds.has(mapped)) return { ...f, section_id: "notes" };
+        return { ...f, section_id: mapped };
+      }),
     });
-  }, [visit, visitAllTemplates]);
+  }, [visit, visitAllTemplates, visitCustomSections]);
 
   const handleEditChange = (field, value) => {
     setEditData((prev) => ({
@@ -274,31 +294,51 @@ export default function VisitDetailPage() {
   };
 
   const openCustomFieldsEditModal = () => {
+    const builtinSectionKeys = Array.isArray(visitSections?.order)
+      ? visitSections.order.filter((k) => !String(k).startsWith("custom:"))
+      : ["diagnosis", "notes", "treatment", "follow_up"];
+    const knownSectionIds = new Set([
+      ...builtinSectionKeys.map(String),
+      ...(visitCustomSections || []).map((s) => String(s?.id)),
+    ]);
     setEditData({
       diagnosis: visit?.diagnosis || "",
       treatment: visit?.treatment || "",
       follow_up: visit?.follow_up || "",
       notes: visit?.notes || "",
       medications: visit?.medications ? [...visit.medications] : [],
-      custom_fields: mergeTemplatesIntoCustomFields(visit?.custom_fields || [], visitAllTemplates),
+      custom_fields: mergeTemplatesIntoCustomFields(visit?.custom_fields || [], visitAllTemplates).map((f) => {
+        const rawSection = String(f?.section_id || "notes");
+        const mapped = rawSection === "default" ? "notes" : rawSection;
+        if (!knownSectionIds.has(mapped)) return { ...f, section_id: "notes" };
+        return { ...f, section_id: mapped };
+      }),
     });
     setIsCustomFieldsEditModalOpen(true);
   };
 
   const handleAddCustomField = () => {
     if (!newField.name.trim()) return;
+    const options =
+      newField.type === "select" || newField.type === "multiselect"
+        ? String(newField.optionsText || "")
+            .split(",")
+            .map((x) => x.trim())
+            .filter(Boolean)
+        : [];
     const next = [
       ...(Array.isArray(editData.custom_fields) ? editData.custom_fields : []),
       {
         id: crypto.randomUUID(),
         name: newField.name.trim(),
         type: newField.type,
-        section_id: newField.section_id || "default",
-        value: "",
+        section_id: newField.section_id || "notes",
+        options,
+        value: newField.type === "checkbox" ? false : newField.type === "multiselect" ? [] : newField.type === "progress" ? 50 : "",
       },
     ];
     setEditData((prev) => ({ ...prev, custom_fields: next }));
-    setNewField({ name: "", type: "text", section_id: newField.section_id || "default" });
+    setNewField({ name: "", type: "text", section_id: newField.section_id || "notes", optionsText: "" });
   };
 
   const handleRemoveCustomField = (id) => {
@@ -350,12 +390,78 @@ export default function VisitDetailPage() {
 
     if (field.type === "checkbox") {
       return (
-        <div className="flex items-center gap-2">
-          <Checkbox
+        <div className="flex items-center gap-3">
+          <Switch
             checked={Boolean(field.value)}
             onCheckedChange={(checked) => handleCustomFieldValueChange(field.id, checked)}
           />
-          <span className="text-sm text-muted-foreground">نعم / لا</span>
+          <span className="text-sm text-muted-foreground">{Boolean(field.value) ? "نعم" : "لا"}</span>
+        </div>
+      );
+    }
+
+    if (field.type === "progress") {
+      const raw = Number(field.value);
+      const value = Number.isFinite(raw) ? Math.min(100, Math.max(1, raw)) : 50;
+      return (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">النسبة</span>
+            <span className="text-sm font-semibold">{value}%</span>
+          </div>
+          <Progress value={value} />
+          <input
+            type="range"
+            min={1}
+            max={100}
+            value={value}
+            onChange={(e) => handleCustomFieldValueChange(field.id, Number(e.target.value))}
+            className="w-full accent-primary"
+          />
+        </div>
+      );
+    }
+
+    if (field.type === "select") {
+      const options = Array.isArray(field.options) ? field.options : [];
+      return (
+        <Select value={String(field.value ?? "")} onValueChange={(v) => handleCustomFieldValueChange(field.id, v)} dir="rtl">
+          <SelectTrigger className="h-10 w-full justify-between text-sm">
+            <SelectValue placeholder={field.placeholder || "اختار"} />
+          </SelectTrigger>
+          <SelectContent>
+            {options.map((opt) => (
+              <SelectItem key={opt} value={opt}>
+                {opt}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      );
+    }
+
+    if (field.type === "multiselect") {
+      const options = Array.isArray(field.options) ? field.options : [];
+      const current = Array.isArray(field.value) ? field.value : [];
+      return (
+        <div className="space-y-2">
+          {options.length === 0 ? (
+            <div className="text-sm text-muted-foreground">لا توجد اختيارات</div>
+          ) : (
+            options.map((opt) => (
+              <label key={opt} className="flex items-center gap-2">
+                <Checkbox
+                  checked={current.includes(opt)}
+                  onCheckedChange={(checked) => {
+                    const isOn = Boolean(checked);
+                    const next = isOn ? Array.from(new Set([...current, opt])) : current.filter((x) => x !== opt);
+                    handleCustomFieldValueChange(field.id, next);
+                  }}
+                />
+                <span className="text-sm text-muted-foreground">{opt}</span>
+              </label>
+            ))
+          )}
         </div>
       );
     }
@@ -739,117 +845,203 @@ export default function VisitDetailPage() {
         </TabsList>
         
         <TabsContent value="details" className="space-y-4 mt-4">
-          <div className="grid grid-cols-1 gap-4">
-            {visitFields.diagnosis?.enabled !== false && (
-              <Card className="bg-card/50">
+          <div className="flex flex-col gap-4">
+            {visitSections?.items?.diagnosis?.enabled !== false && visitFields.diagnosis?.enabled !== false && (
+              <Card className="bg-card/50" style={{ order: getVisitSectionOrder("diagnosis") }}>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between gap-2 text-muted-foreground mb-2">
                     <div className="flex items-center gap-2">
                       <FileText className="w-4 h-4" />
-                      <span className="text-xs font-medium">{visitFields.diagnosis?.label || "التشخيص"}</span>
+                      <span className="text-xs font-medium">
+                        {visitSections?.items?.diagnosis?.title || visitFields.diagnosis?.label || "التشخيص"}
+                      </span>
                     </div>
                     <Button variant="ghost" size="sm" onClick={openDiagnosisEditModal} className="h-6 w-6 p-1">
                       <Edit className="w-3 h-3" />
                     </Button>
                   </div>
                   <p className="text-sm text-right whitespace-pre-wrap">{visit?.diagnosis || "لا يوجد"}</p>
+                  {customFields.filter((f) => String(f?.section_id || "") === "diagnosis").length > 0 && (
+                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {customFields
+                        .filter((f) => String(f?.section_id || "") === "diagnosis")
+                        .map((field) => (
+                          <div key={field.id} className="p-2.5 rounded-lg border bg-card/50">
+                            <div className="text-xs text-muted-foreground mb-1">{field.name}</div>
+                            <div className="text-sm font-medium text-foreground">
+                              {field.type === "checkbox"
+                                ? field.value
+                                  ? "نعم"
+                                  : "لا"
+                                : Array.isArray(field.value)
+                                  ? field.value.join(", ") || "-"
+                                  : (field.value ?? "-") || "-"}
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
 
-            {visitFields.notes?.enabled !== false && (
-              <Card className="bg-card/50">
+            {visitSections?.items?.notes?.enabled !== false && visitFields.notes?.enabled !== false && (
+              <Card className="bg-card/50" style={{ order: getVisitSectionOrder("notes") }}>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between gap-2 text-muted-foreground mb-2">
                     <div className="flex items-center gap-2">
                       <FileText className="w-4 h-4" />
-                      <span className="text-xs font-medium">{visitFields.notes?.label || "ملاحظات"}</span>
+                      <span className="text-xs font-medium">
+                        {visitSections?.items?.notes?.title || visitFields.notes?.label || "ملاحظات"}
+                      </span>
                     </div>
                     <Button variant="ghost" size="sm" onClick={openNotesEditModal} className="h-6 w-6 p-1">
                       <Edit className="w-3 h-3" />
                     </Button>
                   </div>
                   <p className="text-sm whitespace-pre-wrap text-right">{visit?.notes || "لا يوجد"}</p>
+                  {customFields.filter((f) => String(f?.section_id || "") === "notes").length > 0 && (
+                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {customFields
+                        .filter((f) => String(f?.section_id || "") === "notes")
+                        .map((field) => (
+                          <div key={field.id} className="p-2.5 rounded-lg border bg-card/50">
+                            <div className="text-xs text-muted-foreground mb-1">{field.name}</div>
+                            <div className="text-sm font-medium text-foreground">
+                              {field.type === "checkbox"
+                                ? field.value
+                                  ? "نعم"
+                                  : "لا"
+                                : Array.isArray(field.value)
+                                  ? field.value.join(", ") || "-"
+                                  : (field.value ?? "-") || "-"}
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
 
-            {visitFields.treatment?.enabled !== false && (
-              <Card className="bg-card/50">
+            {visitSections?.items?.treatment?.enabled !== false && visitFields.treatment?.enabled !== false && (
+              <Card className="bg-card/50" style={{ order: getVisitSectionOrder("treatment") }}>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between gap-2 text-muted-foreground mb-2">
                     <div className="flex items-center gap-2">
                       <FileText className="w-4 h-4" />
-                      <span className="text-xs font-medium">{visitFields.treatment?.label || "العلاج"}</span>
+                      <span className="text-xs font-medium">
+                        {visitSections?.items?.treatment?.title || visitFields.treatment?.label || "العلاج"}
+                      </span>
                     </div>
                     <Button variant="ghost" size="sm" onClick={openTreatmentEditModal} className="h-6 w-6 p-1">
                       <Edit className="w-3 h-3" />
                     </Button>
                   </div>
                   <p className="text-sm whitespace-pre-wrap text-right">{visit?.treatment || "لا يوجد"}</p>
+                  {customFields.filter((f) => String(f?.section_id || "") === "treatment").length > 0 && (
+                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {customFields
+                        .filter((f) => String(f?.section_id || "") === "treatment")
+                        .map((field) => (
+                          <div key={field.id} className="p-2.5 rounded-lg border bg-card/50">
+                            <div className="text-xs text-muted-foreground mb-1">{field.name}</div>
+                            <div className="text-sm font-medium text-foreground">
+                              {field.type === "checkbox"
+                                ? field.value
+                                  ? "نعم"
+                                  : "لا"
+                                : Array.isArray(field.value)
+                                  ? field.value.join(", ") || "-"
+                                  : (field.value ?? "-") || "-"}
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
 
-            {visitFields.follow_up?.enabled !== false && (
-              <Card className="bg-card/50">
+            {visitSections?.items?.follow_up?.enabled !== false && visitFields.follow_up?.enabled !== false && (
+              <Card className="bg-card/50" style={{ order: getVisitSectionOrder("follow_up") }}>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between gap-2 text-muted-foreground mb-2">
                     <div className="flex items-center gap-2">
                       <FileText className="w-4 h-4" />
-                      <span className="text-xs font-medium">{visitFields.follow_up?.label || "متابعة"}</span>
+                      <span className="text-xs font-medium">
+                        {visitSections?.items?.follow_up?.title || visitFields.follow_up?.label || "متابعة"}
+                      </span>
                     </div>
                     <Button variant="ghost" size="sm" onClick={openFollowUpEditModal} className="h-6 w-6 p-1">
                       <Edit className="w-3 h-3" />
                     </Button>
                   </div>
                   <p className="text-sm whitespace-pre-wrap text-right">{visit?.follow_up || "لا يوجد"}</p>
-                </CardContent>
-              </Card>
-            )}
-
-            {visitSections?.items?.extra_fields?.enabled !== false && (customFields.length > 0 || visitAllTemplates.length > 0) && (
-              <Card className="bg-card/50">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between gap-2 text-muted-foreground mb-2">
-                    <div className="flex items-center gap-2">
-                      <FileText className="w-4 h-4" />
-                      <span className="text-xs font-medium">{visitSections?.items?.extra_fields?.title || "حقول إضافية"}</span>
-                    </div>
-                    <Button variant="ghost" size="sm" onClick={openCustomFieldsEditModal} className="h-6 w-6 p-1">
-                      <Edit className="w-3 h-3" />
-                    </Button>
-                  </div>
-                  {customFields.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-right">لا يوجد</p>
-                  ) : (
-                    <div className="space-y-4">
-                      {[{ id: "default", title: visitSections?.items?.extra_fields?.title || "حقول إضافية", enabled: true }, ...visitCustomSections]
-                        .filter((s) => s.enabled !== false)
-                        .map((s) => {
-                          const fields = customFields.filter((f) => String(f?.section_id || "default") === String(s.id));
-                          if (fields.length === 0) return null;
-                          return (
-                            <div key={s.id} className="space-y-2">
-                              <div className="text-sm font-semibold">{s.title}</div>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                {fields.map((field) => (
-                                  <div key={field.id} className="p-2.5 rounded-lg border bg-card/50">
-                                    <div className="text-xs text-muted-foreground mb-1">{field.name}</div>
-                                    <div className="text-sm font-medium text-foreground">
-                                      {field.type === "checkbox" ? (field.value ? "نعم" : "لا") : (field.value ?? "-") || "-"}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
+                  {customFields.filter((f) => String(f?.section_id || "") === "follow_up").length > 0 && (
+                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {customFields
+                        .filter((f) => String(f?.section_id || "") === "follow_up")
+                        .map((field) => (
+                          <div key={field.id} className="p-2.5 rounded-lg border bg-card/50">
+                            <div className="text-xs text-muted-foreground mb-1">{field.name}</div>
+                            <div className="text-sm font-medium text-foreground">
+                              {field.type === "checkbox"
+                                ? field.value
+                                  ? "نعم"
+                                  : "لا"
+                                : Array.isArray(field.value)
+                                  ? field.value.join(", ") || "-"
+                                  : (field.value ?? "-") || "-"}
                             </div>
-                          );
-                        })}
+                          </div>
+                        ))}
                     </div>
                   )}
                 </CardContent>
               </Card>
             )}
+
+            {visitCustomSections
+              .filter((s) => s.enabled !== false)
+              .map((s) => {
+                const fields = customFields.filter((f) => String(f?.section_id || "") === String(s.id));
+                return (
+                  <Card key={s.id} className="bg-card/50" style={{ order: getVisitSectionOrder(`custom:${s.id}`) }}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between gap-2 text-muted-foreground mb-2">
+                        <div className="flex items-center gap-2">
+                          <FileText className="w-4 h-4" />
+                          <span className="text-xs font-medium">{s.title}</span>
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={openCustomFieldsEditModal} className="h-6 w-6 p-1">
+                          <Edit className="w-3 h-3" />
+                        </Button>
+                      </div>
+                      {fields.length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-right">لا يوجد</p>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {fields.map((field) => (
+                            <div key={field.id} className="p-2.5 rounded-lg border bg-card/50">
+                              <div className="text-xs text-muted-foreground mb-1">{field.name}</div>
+                              <div className="text-sm font-medium text-foreground">
+                                {field.type === "checkbox"
+                                  ? field.value
+                                    ? "نعم"
+                                    : "لا"
+                                  : Array.isArray(field.value)
+                                    ? field.value.join(", ") || "-"
+                                    : (field.value ?? "-") || "-"}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
           </div>
         </TabsContent>
         
@@ -998,7 +1190,7 @@ export default function VisitDetailPage() {
       <Dialog open={isCustomFieldsEditModalOpen} onOpenChange={setIsCustomFieldsEditModalOpen}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>تعديل الحقول الإضافية</DialogTitle>
+            <DialogTitle>تعديل الحقول</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-3">
@@ -1022,7 +1214,7 @@ export default function VisitDetailPage() {
                 <div className="sm:col-span-1">
                   <Label className="text-[10px] text-muted-foreground mb-1 block">القسم</Label>
                   <Select
-                    value={newField.section_id || "default"}
+                    value={newField.section_id || "notes"}
                     onValueChange={(value) => setNewField((prev) => ({ ...prev, section_id: value }))}
                     dir="rtl"
                   >
@@ -1030,10 +1222,27 @@ export default function VisitDetailPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="default">{visitSections?.items?.extra_fields?.title || "حقول إضافية"}</SelectItem>
-                      {visitCustomSections.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>{s.title}</SelectItem>
-                      ))}
+                      {(Array.isArray(visitSections?.order) ? visitSections.order : [])
+                        .map(String)
+                        .filter(Boolean)
+                        .map((k) => {
+                          if (k.startsWith("custom:")) {
+                            const id = k.slice("custom:".length);
+                            const cs = visitCustomSections.find((s) => String(s?.id) === id);
+                            if (!cs || cs.enabled === false) return null;
+                            return (
+                              <SelectItem key={k} value={id}>
+                                {cs.title}
+                              </SelectItem>
+                            );
+                          }
+                          if ((visitSections?.items?.[k] || {}).enabled === false) return null;
+                          return (
+                            <SelectItem key={k} value={k}>
+                              {visitSections?.items?.[k]?.title || k}
+                            </SelectItem>
+                          );
+                        })}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1053,6 +1262,9 @@ export default function VisitDetailPage() {
                       <SelectItem value="date">تاريخ</SelectItem>
                       <SelectItem value="textarea">نص طويل</SelectItem>
                       <SelectItem value="checkbox">صح/غلط</SelectItem>
+                      <SelectItem value="select">اختيار</SelectItem>
+                      <SelectItem value="multiselect">اختيارات متعددة</SelectItem>
+                      <SelectItem value="progress">نسبة (1-100)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1068,20 +1280,72 @@ export default function VisitDetailPage() {
                 </Button>
               </div>
 
-              {editData.custom_fields?.length > 0 && (
-                <div className="space-y-4">
-                  {[{ id: "default", title: visitSections?.items?.extra_fields?.title || "حقول إضافية", enabled: true }, ...visitCustomSections]
-                    .filter((s) => s.enabled !== false)
-                    .map((s) => {
-                      const fields = (editData.custom_fields || []).filter(
-                        (f) => String(f?.section_id || "default") === String(s.id)
-                      );
-                      if (fields.length === 0) return null;
+              {(newField.type === "select" || newField.type === "multiselect") && (
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">الاختيارات (افصل بينهم بفاصلة)</Label>
+                  <Input
+                    value={newField.optionsText || ""}
+                    onChange={(e) => setNewField((prev) => ({ ...prev, optionsText: e.target.value }))}
+                    className="text-sm"
+                    placeholder="مثال: خفيف, متوسط, شديد"
+                  />
+                </div>
+              )}
+
+              <div className="space-y-4">
+                {(Array.isArray(visitSections?.order) ? visitSections.order : [])
+                  .map(String)
+                  .filter(Boolean)
+                  .map((k) => {
+                    if (k.startsWith("custom:")) {
+                      const id = k.slice("custom:".length);
+                      const cs = visitCustomSections.find((s) => String(s?.id) === id);
+                      if (!cs || cs.enabled === false) return null;
+                      const fields = (editData.custom_fields || []).filter((f) => String(f?.section_id || "notes") === id);
+                      const hasTemplate = visitAllTemplates.some((t) => String(t?.section_id || "") === id);
+                      if (fields.length === 0 && !hasTemplate) return null;
                       return (
-                        <div key={s.id} className="space-y-2">
-                          <div className="text-sm font-semibold">{s.title}</div>
+                        <div key={k} className="space-y-2">
+                          <div className="text-sm font-semibold">{cs.title}</div>
                           <div className="space-y-2">
-                            {fields.map((field) => (
+                            {fields.length === 0 ? (
+                              <div className="text-sm text-muted-foreground">لا يوجد حقول</div>
+                            ) : (
+                              fields.map((field) => (
+                                <div key={field.id} className="rounded-lg border p-3 bg-card/50 space-y-2">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div className="text-sm font-semibold">{field.name}</div>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={() => handleRemoveCustomField(field.id)}
+                                    >
+                                      <X className="size-4 text-destructive" />
+                                    </Button>
+                                  </div>
+                                  {renderCustomFieldValueInput(field)}
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    if ((visitSections?.items?.[k] || {}).enabled === false) return null;
+                    const fields = (editData.custom_fields || []).filter((f) => String(f?.section_id || "notes") === k);
+                    const hasTemplate = visitAllTemplates.some((t) => String(t?.section_id || "") === k);
+                    if (fields.length === 0 && !hasTemplate) return null;
+                    return (
+                      <div key={k} className="space-y-2">
+                        <div className="text-sm font-semibold">{visitSections?.items?.[k]?.title || k}</div>
+                        <div className="space-y-2">
+                          {fields.length === 0 ? (
+                            <div className="text-sm text-muted-foreground">لا يوجد حقول</div>
+                          ) : (
+                            fields.map((field) => (
                               <div key={field.id} className="rounded-lg border p-3 bg-card/50 space-y-2">
                                 <div className="flex items-center justify-between gap-2">
                                   <div className="text-sm font-semibold">{field.name}</div>
@@ -1097,13 +1361,13 @@ export default function VisitDetailPage() {
                                 </div>
                                 {renderCustomFieldValueInput(field)}
                               </div>
-                            ))}
-                          </div>
+                            ))
+                          )}
                         </div>
-                      );
-                    })}
-                </div>
-              )}
+                      </div>
+                    );
+                  })}
+              </div>
             </div>
           </div>
           <DialogFooter className="gap-2">

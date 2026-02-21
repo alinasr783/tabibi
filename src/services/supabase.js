@@ -7,7 +7,7 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || runtimeEnv.VITE_SUPABAS
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || runtimeEnv.VITE_SUPABASE_ANON_KEY
 
 if (!supabaseUrl || !supabaseKey) {
-    console.error('Missing Supabase Environment Variables!', { supabaseUrl, supabaseKey })
+    console.error('Missing Supabase Environment Variables!', { hasUrl: !!supabaseUrl, hasAnonKey: !!supabaseKey })
 }
 
 const debugFetch = async (...args) => {
@@ -32,7 +32,9 @@ const debugFetch = async (...args) => {
                     headersObj[k] = v;
                 }
             }
-        } catch { }
+        } catch (e) {
+            if (enabled) dbg("supabase/headerParseError", { message: e?.message });
+        }
         dbg("supabase/request", { method, url, headers: headersObj });
     }
 
@@ -84,25 +86,33 @@ const debugFetch = async (...args) => {
         }
     }
 
-    const res = await fetch(...sanitizedArgs);
+    try {
+        const res = await fetch(...sanitizedArgs);
 
-    if (shouldLog && !res.ok) {
-        try {
-            const cloned = res.clone();
-            const text = await cloned.text();
-            dbg("supabase/responseError", { url, status: res.status, body: text });
-        } catch {
-            dbg("supabase/responseError", { url, status: res.status });
+        if (shouldLog && !res.ok) {
+            try {
+                const cloned = res.clone();
+                const text = await cloned.text();
+                dbg("supabase/responseError", { url, status: res.status, body: text });
+            } catch {
+                dbg("supabase/responseError", { url, status: res.status });
+            }
         }
-    }
 
-    return res;
+        return res;
+    } catch (e) {
+        if (enabled) dbg("supabase/fetchError", { url, method, message: e?.message });
+        return new Response(JSON.stringify({ message: "Network error", url }), {
+            status: 503,
+            headers: { "Content-Type": "application/json" },
+        });
+    }
 };
 
 const supabase = createClient(supabaseUrl, supabaseKey, {
     auth: {
         persistSession: true,
-        autoRefreshToken: true,
+        autoRefreshToken: false,
         detectSessionInUrl: true,
         storage: window.localStorage,
     },

@@ -16,6 +16,7 @@ import { flattenCustomFieldTemplates, mergeTemplatesIntoCustomFields, normalizeM
 
 export default function PatientProfileTab({ patient }) {
   const [editingSection, setEditingSection] = useState(null); // 'personal', 'medical', 'insurance'
+  const [fieldsModal, setFieldsModal] = useState({ open: false, sectionId: null, title: "" });
   const [displayPatient, setDisplayPatient] = useState(patient);
   const { data: preferences } = useUserPreferences();
 
@@ -25,6 +26,8 @@ export default function PatientProfileTab({ patient }) {
   );
   const patientSections = medicalFieldsConfig.patient.sections;
   const patientCustomSections = medicalFieldsConfig.patient.customSections;
+  const patientFieldsConfig = medicalFieldsConfig.patient.fields;
+  const patientSectionTemplates = medicalFieldsConfig.patient.sectionTemplates;
   const patientAllTemplates = useMemo(
     () => flattenCustomFieldTemplates({ config: medicalFieldsConfig, context: "patient" }),
     [medicalFieldsConfig]
@@ -55,7 +58,7 @@ export default function PatientProfileTab({ patient }) {
 
   const sectionOrder = Array.isArray(patientSections?.order)
     ? patientSections.order
-    : ["personal", "medical", "insurance", "custom_fields"];
+    : ["personal", "medical", "insurance"];
   const sectionItems = patientSections?.items || {};
 
   const personalFieldOrder = Array.isArray(patientSections?.personalFields?.order)
@@ -73,8 +76,17 @@ export default function PatientProfileTab({ patient }) {
   };
 
   const enabledSectionKeys = useMemo(
-    () => sectionOrder.filter((k) => (sectionItems[k] || {}).enabled !== false),
-    [sectionOrder, sectionItems]
+    () =>
+      sectionOrder.filter((k) => {
+        const key = String(k);
+        if (key.startsWith("custom:")) {
+          const id = key.slice("custom:".length);
+          const cs = patientCustomSections.find((s) => String(s?.id) === id);
+          return !!cs && cs.enabled !== false;
+        }
+        return (sectionItems[key] || {}).enabled !== false;
+      }),
+    [sectionOrder, sectionItems, patientCustomSections]
   );
   const enabledSectionKeysKey = enabledSectionKeys.join("|");
   const [mobileOpen, setMobileOpen] = useState({});
@@ -91,6 +103,72 @@ export default function PatientProfileTab({ patient }) {
   return (
     <div className="space-y-6" dir="rtl">
       {sectionOrder.map((key) => {
+        if (String(key).startsWith("custom:")) {
+          const sectionId = String(key).slice("custom:".length);
+          const cs = patientCustomSections.find((s) => String(s?.id) === sectionId);
+          if (!cs || cs.enabled === false) return null;
+          const fields = customFields.filter((f) => String(f?.section_id || "") === sectionId);
+          const hasTemplates = Array.isArray(cs.templates) && cs.templates.length > 0;
+          return (
+            <Card key={key} className="relative group bg-card/70">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base font-bold flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-primary" />
+                    {cs.title}
+                  </CardTitle>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 sm:hidden"
+                    onClick={() => setMobileOpen((p) => ({ ...p, [key]: !p[key] }))}
+                  >
+                    <ChevronDown className={`w-4 h-4 transition-transform ${mobileOpen[key] ? "rotate-180" : ""}`} />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className={`space-y-4 ${mobileOpen[key] ? "block" : "hidden"} sm:block`}>
+                {fields.length === 0 ? (
+                  <div className="text-sm text-muted-foreground">لا يوجد</div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {fields.map((field) => (
+                      <div
+                        key={field.id}
+                        className="p-2.5 rounded-lg border border-transparent hover:border-muted/30 hover:bg-muted/30 transition-all"
+                      >
+                        <div className="text-xs text-muted-foreground mb-1">{field.name}</div>
+                        <div className="text-sm font-medium text-foreground">
+                          {field.type === "checkbox"
+                            ? field.value
+                              ? "نعم"
+                              : "لا"
+                            : Array.isArray(field.value)
+                              ? field.value.join(", ") || "-"
+                              : (field.value ?? "-") || "-"}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {(fields.length > 0 || hasTemplates) && (
+                  <div className="pt-2 flex justify-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full sm:w-auto"
+                      onClick={() => setFieldsModal({ open: true, sectionId, title: cs.title })}
+                    >
+                      تعديل الحقول
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        }
+
         const it = sectionItems[key] || {};
         if (it.enabled === false) return null;
 
@@ -99,6 +177,10 @@ export default function PatientProfileTab({ patient }) {
           const fields = personalFieldOrder
             .map((fieldKey) => ({ fieldKey, def: personalFieldDefs[fieldKey] }))
             .filter((x) => x.def);
+          const cfg = patientFieldsConfig?.personal || {};
+          const enabledFields = fields.filter((x) => (cfg?.[x.fieldKey]?.enabled ?? true) !== false);
+          const extra = customFields.filter((f) => String(f?.section_id || "") === "personal");
+          const hasTemplates = Array.isArray(patientSectionTemplates?.personal) && patientSectionTemplates.personal.length > 0;
           return (
             <Card key={key} className="relative group bg-card/70">
               <CardHeader className="pb-3">
@@ -120,18 +202,39 @@ export default function PatientProfileTab({ patient }) {
               </CardHeader>
               <CardContent className={`${mobileOpen[key] ? "block" : "hidden"} sm:block`}>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                  {fields.map(({ fieldKey, def }) => (
+                  {enabledFields.map(({ fieldKey, def }) => (
                     <InfoItem
                       key={fieldKey}
                       icon={def.icon}
-                      label={personalFieldLabels[fieldKey] || fieldKey}
+                      label={cfg?.[fieldKey]?.label || personalFieldLabels[fieldKey] || fieldKey}
                       value={def.value()}
                       dir={def.dir}
                       className={def.className}
                     />
                   ))}
                 </div>
-                <div className="mt-4 flex justify-end">
+                {(extra.length > 0 || hasTemplates) && (
+                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {extra.map((field) => (
+                      <div
+                        key={field.id}
+                        className="p-2.5 rounded-lg border border-transparent hover:border-muted/30 hover:bg-muted/30 transition-all"
+                      >
+                        <div className="text-xs text-muted-foreground mb-1">{field.name}</div>
+                        <div className="text-sm font-medium text-foreground">
+                          {field.type === "checkbox"
+                            ? field.value
+                              ? "نعم"
+                              : "لا"
+                            : Array.isArray(field.value)
+                              ? field.value.join(", ") || "-"
+                              : (field.value ?? "-") || "-"}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="mt-4 flex justify-end gap-2">
                   <Button
                     type="button"
                     variant="outline"
@@ -140,6 +243,16 @@ export default function PatientProfileTab({ patient }) {
                   >
                     تعديل
                   </Button>
+                  {(extra.length > 0 || hasTemplates) && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full sm:w-auto"
+                      onClick={() => setFieldsModal({ open: true, sectionId: "personal", title })}
+                    >
+                      تعديل الحقول
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -148,6 +261,13 @@ export default function PatientProfileTab({ patient }) {
 
         if (key === "medical") {
           const title = it.title || "الملف الطبي";
+          const cfg = patientFieldsConfig?.medical || {};
+          const showChronic = (cfg?.chronic_diseases?.enabled ?? true) !== false;
+          const showAllergies = (cfg?.allergies?.enabled ?? true) !== false;
+          const showSurgeries = (cfg?.past_surgeries?.enabled ?? true) !== false;
+          const showFamily = (cfg?.family_history?.enabled ?? true) !== false;
+          const extra = customFields.filter((f) => String(f?.section_id || "") === "medical");
+          const hasTemplates = Array.isArray(patientSectionTemplates?.medical) && patientSectionTemplates.medical.length > 0;
           return (
             <Card key={key} className="relative group bg-card/70">
               <CardHeader className="pb-3">
@@ -168,76 +288,116 @@ export default function PatientProfileTab({ patient }) {
                 </div>
               </CardHeader>
               <CardContent className={`space-y-4 ${mobileOpen[key] ? "block" : "hidden"} sm:block`}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-orange-50/50 rounded-lg p-3 border border-orange-100">
-                    <h4 className="text-xs font-medium text-orange-800 mb-2 flex items-center gap-2">
-                      <Activity className="w-3.5 h-3.5" /> الأمراض المزمنة
-                    </h4>
-                    <div className="flex flex-wrap gap-1.5">
-                      {medicalHistory.chronic_diseases && medicalHistory.chronic_diseases.length > 0 ? (
-                        medicalHistory.chronic_diseases.map((disease, idx) => (
-                          <Badge key={idx} variant="outline" className="bg-white text-orange-700 border-orange-200">
-                            {disease}
-                          </Badge>
-                        ))
-                      ) : (
-                        <span className="text-xs text-muted-foreground">لا يوجد</span>
-                      )}
-                    </div>
-                  </div>
+                {(showChronic || showAllergies || showSurgeries || showFamily) ? (
+                  <>
+                    {(showChronic || showAllergies) && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {showChronic && (
+                          <div className="bg-orange-50/50 rounded-lg p-3 border border-orange-100">
+                            <h4 className="text-xs font-medium text-orange-800 mb-2 flex items-center gap-2">
+                              <Activity className="w-3.5 h-3.5" /> {cfg?.chronic_diseases?.label || "الأمراض المزمنة"}
+                            </h4>
+                            <div className="flex flex-wrap gap-1.5">
+                              {medicalHistory.chronic_diseases && medicalHistory.chronic_diseases.length > 0 ? (
+                                medicalHistory.chronic_diseases.map((disease, idx) => (
+                                  <Badge key={idx} variant="outline" className="bg-white text-orange-700 border-orange-200">
+                                    {disease}
+                                  </Badge>
+                                ))
+                              ) : (
+                                <span className="text-xs text-muted-foreground">لا يوجد</span>
+                              )}
+                            </div>
+                          </div>
+                        )}
 
-                  <div className="bg-red-50/50 rounded-lg p-3 border border-red-100">
-                    <h4 className="text-xs font-medium text-red-800 mb-2 flex items-center gap-2">
-                      <AlertTriangle className="w-3.5 h-3.5" /> الحساسية
-                    </h4>
-                    <div className="flex flex-wrap gap-1.5">
-                      {medicalHistory.allergies && medicalHistory.allergies.length > 0 ? (
-                        medicalHistory.allergies.map((allergy, idx) => (
-                          <Badge key={idx} variant="outline" className="bg-white text-red-700 border-red-200">
-                            {allergy}
-                          </Badge>
-                        ))
-                      ) : (
-                        <span className="text-xs text-muted-foreground">لا يوجد</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <Separator />
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <h4 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
-                      <Scissors className="w-4 h-4" /> العمليات السابقة
-                    </h4>
-                    {medicalHistory.past_surgeries && medicalHistory.past_surgeries.length > 0 ? (
-                      <ul className="list-disc list-inside text-sm space-y-1">
-                        {medicalHistory.past_surgeries.map((surgery, idx) => (
-                          <li key={idx}>{surgery}</li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <span className="text-sm text-gray-400">لا يوجد</span>
+                        {showAllergies && (
+                          <div className="bg-red-50/50 rounded-lg p-3 border border-red-100">
+                            <h4 className="text-xs font-medium text-red-800 mb-2 flex items-center gap-2">
+                              <AlertTriangle className="w-3.5 h-3.5" /> {cfg?.allergies?.label || "الحساسية"}
+                            </h4>
+                            <div className="flex flex-wrap gap-1.5">
+                              {medicalHistory.allergies && medicalHistory.allergies.length > 0 ? (
+                                medicalHistory.allergies.map((allergy, idx) => (
+                                  <Badge key={idx} variant="outline" className="bg-white text-red-700 border-red-200">
+                                    {allergy}
+                                  </Badge>
+                                ))
+                              ) : (
+                                <span className="text-xs text-muted-foreground">لا يوجد</span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     )}
-                  </div>
 
-                  <div>
-                    <h4 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
-                      <Users className="w-4 h-4" /> التاريخ العائلي
-                    </h4>
-                    {medicalHistory.family_history && medicalHistory.family_history.length > 0 ? (
-                      <ul className="list-disc list-inside text-sm space-y-1">
-                        {medicalHistory.family_history.map((history, idx) => (
-                          <li key={idx}>{history}</li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <span className="text-sm text-gray-400">لا يوجد</span>
+                    {(showSurgeries || showFamily) && (
+                      <>
+                        {(showChronic || showAllergies) && <Separator />}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {showSurgeries && (
+                            <div>
+                              <h4 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
+                                <Scissors className="w-4 h-4" /> {cfg?.past_surgeries?.label || "العمليات السابقة"}
+                              </h4>
+                              {medicalHistory.past_surgeries && medicalHistory.past_surgeries.length > 0 ? (
+                                <ul className="list-disc list-inside text-sm space-y-1">
+                                  {medicalHistory.past_surgeries.map((surgery, idx) => (
+                                    <li key={idx}>{surgery}</li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <span className="text-sm text-gray-400">لا يوجد</span>
+                              )}
+                            </div>
+                          )}
+
+                          {showFamily && (
+                            <div>
+                              <h4 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
+                                <Users className="w-4 h-4" /> {cfg?.family_history?.label || "التاريخ العائلي"}
+                              </h4>
+                              {medicalHistory.family_history && medicalHistory.family_history.length > 0 ? (
+                                <ul className="list-disc list-inside text-sm space-y-1">
+                                  {medicalHistory.family_history.map((history, idx) => (
+                                    <li key={idx}>{history}</li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <span className="text-sm text-gray-400">لا يوجد</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </>
                     )}
+                  </>
+                ) : (
+                  <div className="text-sm text-muted-foreground">لا يوجد</div>
+                )}
+                {(extra.length > 0 || hasTemplates) && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {extra.map((field) => (
+                      <div
+                        key={field.id}
+                        className="p-2.5 rounded-lg border border-transparent hover:border-muted/30 hover:bg-muted/30 transition-all"
+                      >
+                        <div className="text-xs text-muted-foreground mb-1">{field.name}</div>
+                        <div className="text-sm font-medium text-foreground">
+                          {field.type === "checkbox"
+                            ? field.value
+                              ? "نعم"
+                              : "لا"
+                            : Array.isArray(field.value)
+                              ? field.value.join(", ") || "-"
+                              : (field.value ?? "-") || "-"}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
-                <div className="pt-2 flex justify-end">
+                )}
+                <div className="pt-2 flex justify-end gap-2">
                   <Button
                     type="button"
                     variant="outline"
@@ -246,6 +406,16 @@ export default function PatientProfileTab({ patient }) {
                   >
                     تعديل
                   </Button>
+                  {(extra.length > 0 || hasTemplates) && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full sm:w-auto"
+                      onClick={() => setFieldsModal({ open: true, sectionId: "medical", title })}
+                    >
+                      تعديل الحقول
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -254,6 +424,12 @@ export default function PatientProfileTab({ patient }) {
 
         if (key === "insurance") {
           const title = it.title || "التأمين الصحي";
+          const cfg = patientFieldsConfig?.insurance || {};
+          const showProvider = (cfg?.provider_name?.enabled ?? true) !== false;
+          const showPolicy = (cfg?.policy_number?.enabled ?? true) !== false;
+          const showCoverage = (cfg?.coverage_percent?.enabled ?? true) !== false;
+          const extra = customFields.filter((f) => String(f?.section_id || "") === "insurance");
+          const hasTemplates = Array.isArray(patientSectionTemplates?.insurance) && patientSectionTemplates.insurance.length > 0;
           return (
             <Card key={key} className="relative group bg-card/70">
               <CardHeader className="pb-3">
@@ -275,22 +451,49 @@ export default function PatientProfileTab({ patient }) {
               </CardHeader>
               <CardContent className={`${mobileOpen[key] ? "block" : "hidden"} sm:block`}>
                 <div className="bg-blue-50/50 rounded-lg p-4 border border-blue-100 grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="space-y-1">
-                    <span className="text-xs text-blue-600/80 block">شركة التأمين</span>
-                    <span className="text-sm font-medium text-blue-900">{insuranceInfo.provider_name || "-"}</span>
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-xs text-blue-600/80 block">رقم البوليصة</span>
-                    <span className="text-sm font-medium text-blue-900">{insuranceInfo.policy_number || "-"}</span>
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-xs text-blue-600/80 block">نسبة التغطية</span>
-                    <span className="text-sm font-medium text-blue-900">
-                      {insuranceInfo.coverage_percent ? `%${insuranceInfo.coverage_percent}` : "-"}
-                    </span>
-                  </div>
+                  {showProvider && (
+                    <div className="space-y-1">
+                      <span className="text-xs text-blue-600/80 block">{cfg?.provider_name?.label || "شركة التأمين"}</span>
+                      <span className="text-sm font-medium text-blue-900">{insuranceInfo.provider_name || "-"}</span>
+                    </div>
+                  )}
+                  {showPolicy && (
+                    <div className="space-y-1">
+                      <span className="text-xs text-blue-600/80 block">{cfg?.policy_number?.label || "رقم البوليصة"}</span>
+                      <span className="text-sm font-medium text-blue-900">{insuranceInfo.policy_number || "-"}</span>
+                    </div>
+                  )}
+                  {showCoverage && (
+                    <div className="space-y-1">
+                      <span className="text-xs text-blue-600/80 block">{cfg?.coverage_percent?.label || "نسبة التغطية"}</span>
+                      <span className="text-sm font-medium text-blue-900">
+                        {insuranceInfo.coverage_percent ? `%${insuranceInfo.coverage_percent}` : "-"}
+                      </span>
+                    </div>
+                  )}
                 </div>
-                <div className="mt-4 flex justify-end">
+                {(extra.length > 0 || hasTemplates) && (
+                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {extra.map((field) => (
+                      <div
+                        key={field.id}
+                        className="p-2.5 rounded-lg border border-transparent hover:border-muted/30 hover:bg-muted/30 transition-all"
+                      >
+                        <div className="text-xs text-muted-foreground mb-1">{field.name}</div>
+                        <div className="text-sm font-medium text-foreground">
+                          {field.type === "checkbox"
+                            ? field.value
+                              ? "نعم"
+                              : "لا"
+                            : Array.isArray(field.value)
+                              ? field.value.join(", ") || "-"
+                              : (field.value ?? "-") || "-"}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="mt-4 flex justify-end gap-2">
                   <Button
                     type="button"
                     variant="outline"
@@ -299,70 +502,16 @@ export default function PatientProfileTab({ patient }) {
                   >
                     تعديل
                   </Button>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        }
-
-        if (key === "custom_fields") {
-          const title = it.title || "حقول إضافية";
-          const groups = [{ id: "default", title, enabled: true }, ...patientCustomSections].filter((s) => s.enabled !== false);
-          return (
-            <Card key={key} className="relative group bg-card/70">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base font-bold flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-primary" />
-                    {title}
-                  </CardTitle>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 sm:hidden"
-                    onClick={() => setMobileOpen((p) => ({ ...p, [key]: !p[key] }))}
-                  >
-                    <ChevronDown className={`w-4 h-4 transition-transform ${mobileOpen[key] ? "rotate-180" : ""}`} />
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className={`space-y-4 ${mobileOpen[key] ? "block" : "hidden"} sm:block`}>
-                {customFields.length === 0 ? (
-                  <div className="text-sm text-muted-foreground">لا يوجد</div>
-                ) : (
-                  groups.map((g) => {
-                    const fields = customFields.filter((f) => String(f?.section_id || "default") === String(g.id));
-                    if (fields.length === 0) return null;
-                    return (
-                      <div key={g.id} className="space-y-2">
-                        <div className="text-sm font-semibold">{g.title}</div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          {fields.map((field) => (
-                            <div
-                              key={field.id}
-                              className="p-2.5 rounded-lg border border-transparent hover:border-muted/30 hover:bg-muted/30 transition-all"
-                            >
-                              <div className="text-xs text-muted-foreground mb-1">{field.name}</div>
-                              <div className="text-sm font-medium text-foreground">
-                                {field.type === "checkbox" ? (field.value ? "نعم" : "لا") : (field.value ?? "-") || "-"}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-                <div className="pt-2 flex justify-end">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full sm:w-auto"
-                    onClick={() => setEditingSection("custom")}
-                  >
-                    تعديل
-                  </Button>
+                  {(extra.length > 0 || hasTemplates) && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full sm:w-auto"
+                      onClick={() => setFieldsModal({ open: true, sectionId: "insurance", title })}
+                    >
+                      تعديل الحقول
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -392,10 +541,12 @@ export default function PatientProfileTab({ patient }) {
         onSuccess={handleUpdateSuccess}
       />
       <CustomFieldsEditModal
-        open={editingSection === 'custom'}
-        onOpenChange={(open) => !open && setEditingSection(null)}
+        open={fieldsModal.open}
+        onOpenChange={(open) => !open && setFieldsModal({ open: false, sectionId: null, title: "" })}
         patient={patientWithTemplateFields}
         onSuccess={handleUpdateSuccess}
+        sectionId={fieldsModal.sectionId}
+        title={fieldsModal.title ? `تعديل حقول ${fieldsModal.title}` : "تعديل الحقول"}
       />
     </div>
   );

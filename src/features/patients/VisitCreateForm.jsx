@@ -8,6 +8,7 @@ import { Checkbox } from "../../components/ui/checkbox"
 import useCreateVisit from "./useCreateVisit"
 import SpeechButton from "../../components/ui/SpeechButton"
 import { Switch } from "../../components/ui/switch"
+import { Progress } from "../../components/ui/progress"
 import {
   Select,
   SelectContent,
@@ -149,7 +150,7 @@ export default function VisitCreateForm({ patientId, patientPlanId: externalPati
     const [medications, setMedications] = useState([])
     const [newMedication, setNewMedication] = useState({ name: "", using: "" })
     const [customFields, setCustomFields] = useState([])
-    const [newField, setNewField] = useState({ name: "", type: "text", section_id: "default" })
+    const [newField, setNewField] = useState({ name: "", type: "text", section_id: "notes", optionsText: "" })
     const [selectedPlanId, setSelectedPlanId] = useState(externalPatientPlanId || "")
     const [isAddPlanOpen, setIsAddPlanOpen] = useState(false)
     const [showPaymentDialog, setShowPaymentDialog] = useState(false)
@@ -206,17 +207,25 @@ export default function VisitCreateForm({ patientId, patientPlanId: externalPati
 
     const handleAddCustomField = () => {
         if (!newField.name.trim()) return
+        const options =
+            newField.type === "select" || newField.type === "multiselect"
+                ? String(newField.optionsText || "")
+                      .split(",")
+                      .map((x) => x.trim())
+                      .filter(Boolean)
+                : []
         setCustomFields((prev) => [
             ...prev,
             {
                 id: crypto.randomUUID(),
                 name: newField.name.trim(),
                 type: newField.type,
-                section_id: newField.section_id || "default",
-                value: "",
+                section_id: newField.section_id || "notes",
+                options,
+                value: newField.type === "checkbox" ? false : newField.type === "multiselect" ? [] : newField.type === "progress" ? 50 : "",
             },
         ])
-        setNewField({ name: "", type: "text", section_id: newField.section_id || "default" })
+        setNewField({ name: "", type: "text", section_id: newField.section_id || "notes", optionsText: "" })
     }
 
     const handleRemoveCustomField = (id) => {
@@ -264,12 +273,78 @@ export default function VisitCreateForm({ patientId, patientPlanId: externalPati
 
         if (field.type === "checkbox") {
             return (
-                <div className="flex items-center gap-2">
-                    <Checkbox
+                <div className="flex items-center gap-3">
+                    <Switch
                         checked={Boolean(field.value)}
                         onCheckedChange={(checked) => handleCustomFieldValueChange(field.id, checked)}
                     />
-                    <span className="text-sm text-muted-foreground">نعم / لا</span>
+                    <span className="text-sm text-muted-foreground">{Boolean(field.value) ? "نعم" : "لا"}</span>
+                </div>
+            )
+        }
+
+        if (field.type === "progress") {
+            const raw = Number(field.value)
+            const value = Number.isFinite(raw) ? Math.min(100, Math.max(1, raw)) : 50
+            return (
+                <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">النسبة</span>
+                        <span className="text-sm font-semibold">{value}%</span>
+                    </div>
+                    <Progress value={value} />
+                    <input
+                        type="range"
+                        min={1}
+                        max={100}
+                        value={value}
+                        onChange={(e) => handleCustomFieldValueChange(field.id, Number(e.target.value))}
+                        className="w-full accent-primary"
+                    />
+                </div>
+            )
+        }
+
+        if (field.type === "select") {
+            const options = Array.isArray(field.options) ? field.options : []
+            return (
+                <Select value={String(field.value ?? "")} onValueChange={(v) => handleCustomFieldValueChange(field.id, v)} dir="rtl">
+                    <SelectTrigger className="w-full">
+                        <SelectValue placeholder={field.placeholder || "اختار"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {options.map((opt) => (
+                            <SelectItem key={opt} value={opt}>
+                                {opt}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            )
+        }
+
+        if (field.type === "multiselect") {
+            const options = Array.isArray(field.options) ? field.options : []
+            const current = Array.isArray(field.value) ? field.value : []
+            return (
+                <div className="space-y-2">
+                    {options.length === 0 ? (
+                        <div className="text-sm text-muted-foreground">لا توجد اختيارات</div>
+                    ) : (
+                        options.map((opt) => (
+                            <label key={opt} className="flex items-center gap-2">
+                                <Checkbox
+                                    checked={current.includes(opt)}
+                                    onCheckedChange={(checked) => {
+                                        const isOn = Boolean(checked)
+                                        const next = isOn ? Array.from(new Set([...current, opt])) : current.filter((x) => x !== opt)
+                                        handleCustomFieldValueChange(field.id, next)
+                                    }}
+                                />
+                                <span className="text-sm text-muted-foreground">{opt}</span>
+                            </label>
+                        ))
+                    )}
                 </div>
             )
         }
@@ -570,10 +645,10 @@ export default function VisitCreateForm({ patientId, patientPlanId: externalPati
                         </div>
                     )}
 
-                    {(customFields.length > 0 || visitAllTemplates.length > 0) && (
+                    {(customFields.length > 0 || visitAllTemplates.length > 0 || visitCustomSections.length > 0) && (
                         <div className="space-y-4">
                             <div className="flex items-center justify-between">
-                                <Label>{visitSections?.items?.extra_fields?.title || "حقول إضافية"}</Label>
+                                <Label>الحقول</Label>
                                 <Button
                                     type="button"
                                     variant="outline"
@@ -599,7 +674,7 @@ export default function VisitCreateForm({ patientId, patientPlanId: externalPati
                                 <div className="space-y-2">
                                     <Label className="text-xs">القسم</Label>
                                     <Select
-                                        value={newField.section_id || "default"}
+                                        value={newField.section_id || "notes"}
                                         onValueChange={(v) => setNewField((prev) => ({ ...prev, section_id: v }))}
                                         dir="rtl"
                                     >
@@ -607,10 +682,27 @@ export default function VisitCreateForm({ patientId, patientPlanId: externalPati
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="default">{visitSections?.items?.extra_fields?.title || "حقول إضافية"}</SelectItem>
-                                            {visitCustomSections.map((s) => (
-                                                <SelectItem key={s.id} value={s.id}>{s.title}</SelectItem>
-                                            ))}
+                                            {(Array.isArray(visitSections?.order) ? visitSections.order : [])
+                                              .map(String)
+                                              .filter(Boolean)
+                                              .map((k) => {
+                                                if (k.startsWith("custom:")) {
+                                                  const id = k.slice("custom:".length);
+                                                  const cs = visitCustomSections.find((s) => String(s?.id) === id);
+                                                  if (!cs || cs.enabled === false) return null;
+                                                  return (
+                                                    <SelectItem key={k} value={id}>
+                                                      {cs.title}
+                                                    </SelectItem>
+                                                  );
+                                                }
+                                                if ((visitSections?.items?.[k] || {}).enabled === false) return null;
+                                                return (
+                                                  <SelectItem key={k} value={k}>
+                                                    {visitSections?.items?.[k]?.title || k}
+                                                  </SelectItem>
+                                                );
+                                              })}
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -626,6 +718,9 @@ export default function VisitCreateForm({ patientId, patientPlanId: externalPati
                                             <SelectItem value="date">تاريخ</SelectItem>
                                             <SelectItem value="textarea">نص طويل</SelectItem>
                                             <SelectItem value="checkbox">صح/غلط</SelectItem>
+                                            <SelectItem value="select">اختيار</SelectItem>
+                                            <SelectItem value="multiselect">اختيارات متعددة</SelectItem>
+                                            <SelectItem value="progress">نسبة (1-100)</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -633,34 +728,66 @@ export default function VisitCreateForm({ patientId, patientPlanId: externalPati
 
                             {customFields.length > 0 && (
                                 <div className="space-y-4">
-                                    {[{ id: "default", title: visitSections?.items?.extra_fields?.title || "حقول إضافية", enabled: true }, ...visitCustomSections]
-                                        .filter((s) => s.enabled !== false)
-                                        .map((s) => {
-                                            const fields = customFields.filter((f) => String(f?.section_id || "default") === String(s.id))
-                                            if (fields.length === 0) return null
-                                            return (
-                                                <div key={s.id} className="space-y-2">
-                                                    <h4 className="text-xs font-medium text-muted-foreground">{s.title}</h4>
-                                                    {fields.map((field) => (
-                                                        <div key={field.id} className="rounded-lg border p-3 bg-muted/20 space-y-2">
-                                                            <div className="flex items-center justify-between gap-2">
-                                                                <div className="text-sm font-semibold">{field.name}</div>
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    className="shrink-0 h-6 w-6 text-destructive hover:text-destructive"
-                                                                    onClick={() => handleRemoveCustomField(field.id)}
-                                                                >
-                                                                    <X className="w-4 h-4" />
-                                                                </Button>
-                                                            </div>
-                                                            {renderCustomFieldValueInput(field)}
-                                                        </div>
-                                                    ))}
+                                    {(Array.isArray(visitSections?.order) ? visitSections.order : [])
+                                      .map(String)
+                                      .filter(Boolean)
+                                      .map((k) => {
+                                        if (k.startsWith("custom:")) {
+                                          const id = k.slice("custom:".length);
+                                          const cs = visitCustomSections.find((s) => String(s?.id) === id);
+                                          if (!cs || cs.enabled === false) return null;
+                                          const fields = customFields.filter((f) => String(f?.section_id || "notes") === id);
+                                          if (fields.length === 0) return null;
+                                          return (
+                                            <div key={k} className="space-y-2">
+                                              <h4 className="text-xs font-medium text-muted-foreground">{cs.title}</h4>
+                                              {fields.map((field) => (
+                                                <div key={field.id} className="rounded-lg border p-3 bg-muted/20 space-y-2">
+                                                  <div className="flex items-center justify-between gap-2">
+                                                    <div className="text-sm font-semibold">{field.name}</div>
+                                                    <Button
+                                                      type="button"
+                                                      variant="ghost"
+                                                      size="icon"
+                                                      className="shrink-0 h-6 w-6 text-destructive hover:text-destructive"
+                                                      onClick={() => handleRemoveCustomField(field.id)}
+                                                    >
+                                                      <X className="w-4 h-4" />
+                                                    </Button>
+                                                  </div>
+                                                  {renderCustomFieldValueInput(field)}
                                                 </div>
-                                            )
-                                        })}
+                                              ))}
+                                            </div>
+                                          );
+                                        }
+
+                                        if ((visitSections?.items?.[k] || {}).enabled === false) return null;
+                                        const fields = customFields.filter((f) => String(f?.section_id || "notes") === k);
+                                        if (fields.length === 0) return null;
+                                        return (
+                                          <div key={k} className="space-y-2">
+                                            <h4 className="text-xs font-medium text-muted-foreground">{visitSections?.items?.[k]?.title || k}</h4>
+                                            {fields.map((field) => (
+                                              <div key={field.id} className="rounded-lg border p-3 bg-muted/20 space-y-2">
+                                                <div className="flex items-center justify-between gap-2">
+                                                  <div className="text-sm font-semibold">{field.name}</div>
+                                                  <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="shrink-0 h-6 w-6 text-destructive hover:text-destructive"
+                                                    onClick={() => handleRemoveCustomField(field.id)}
+                                                  >
+                                                    <X className="w-4 h-4" />
+                                                  </Button>
+                                                </div>
+                                                {renderCustomFieldValueInput(field)}
+                                              </div>
+                                            ))}
+                                          </div>
+                                        );
+                                      })}
                                 </div>
                             )}
                         </div>

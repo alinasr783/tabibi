@@ -54,6 +54,8 @@ import {Label} from "../../components/ui/label";
 import {Skeleton} from "../../components/ui/skeleton";
 import {Textarea} from "../../components/ui/textarea";
 import { Checkbox } from "../../components/ui/checkbox";
+import { Switch } from "../../components/ui/switch";
+import { Progress } from "../../components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -102,7 +104,7 @@ export default function AppointmentDetailPage() {
   const getMainSectionOrder = (key) => {
     const order = appointmentSections?.order;
     const idx = Array.isArray(order) ? order.indexOf(key) : -1;
-    return idx >= 0 ? idx : 999;
+    return idx >= 0 ? idx * 100 : 999 * 100;
   };
   
   const [hasGoogleCalendar, setHasGoogleCalendar] = useState(false);
@@ -160,7 +162,6 @@ export default function AppointmentDetailPage() {
   const [mobileExpanded, setMobileExpanded] = useState({
     patient_info: true,
     medical_state: true,
-    extra_fields: false,
     history: false,
   });
 
@@ -218,6 +219,13 @@ export default function AppointmentDetailPage() {
 
   useEffect(() => {
     if (appointment) {
+      const builtinSectionKeys = Array.isArray(appointmentSections?.order)
+        ? appointmentSections.order.filter((k) => !String(k).startsWith("custom:"))
+        : ["patient_info", "medical_state", "history"];
+      const knownSectionIds = new Set([
+        ...builtinSectionKeys.map(String),
+        ...(appointmentCustomSections || []).map((s) => String(s?.id)),
+      ]);
       setEditData({
         date: appointment.date || "",
         notes: appointment.notes || "",
@@ -225,32 +233,19 @@ export default function AppointmentDetailPage() {
         status: appointment.status || "",
         diagnosis: appointment.diagnosis || "",
         treatment: appointment.treatment || "",
-        custom_fields: mergeTemplatesIntoCustomFields(appointment.custom_fields || [], appointmentAllTemplates)
+        custom_fields: mergeTemplatesIntoCustomFields(appointment.custom_fields || [], appointmentAllTemplates).map((f) => {
+          const sectionId = String(f?.section_id || "medical_state");
+          const mapped = sectionId === "default" ? "medical_state" : sectionId;
+          if (!knownSectionIds.has(mapped)) return { ...f, section_id: "medical_state" };
+          return { ...f, section_id: mapped };
+        })
       });
       setOptimisticStatus(null);
     }
-  }, [appointment, appointmentAllTemplates]);
+  }, [appointment, appointmentAllTemplates, appointmentCustomSections]);
 
   const handleEditChange = (field, value) => {
     setEditData((prev) => ({...prev, [field]: value}));
-  };
-
-  const handleAddCustomField = () => {
-    if (!newField.name.trim()) return;
-    
-    const newFields = [
-      ...editData.custom_fields,
-      { 
-        id: crypto.randomUUID(), 
-        name: newField.name, 
-        type: newField.type, 
-        section_id: newField.section_id || "default",
-        value: "" 
-      }
-    ];
-    
-    setEditData(prev => ({ ...prev, custom_fields: newFields }));
-    setNewField({ name: "", type: "text", section_id: newField.section_id || "default" });
   };
 
   const handleRemoveCustomField = (id) => {
@@ -302,12 +297,78 @@ export default function AppointmentDetailPage() {
 
     if (field.type === "checkbox") {
       return (
-        <div className="flex items-center gap-2">
-          <Checkbox
+        <div className="flex items-center gap-3">
+          <Switch
             checked={Boolean(field.value)}
             onCheckedChange={(checked) => handleCustomFieldValueChange(field.id, checked)}
           />
-          <span className="text-sm text-muted-foreground">نعم / لا</span>
+          <span className="text-sm text-muted-foreground">{Boolean(field.value) ? "نعم" : "لا"}</span>
+        </div>
+      );
+    }
+
+    if (field.type === "progress") {
+      const raw = Number(field.value);
+      const value = Number.isFinite(raw) ? Math.min(100, Math.max(1, raw)) : 50;
+      return (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">النسبة</span>
+            <span className="text-sm font-semibold">{value}%</span>
+          </div>
+          <Progress value={value} />
+          <input
+            type="range"
+            min={1}
+            max={100}
+            value={value}
+            onChange={(e) => handleCustomFieldValueChange(field.id, Number(e.target.value))}
+            className="w-full accent-primary"
+          />
+        </div>
+      );
+    }
+
+    if (field.type === "select") {
+      const options = Array.isArray(field.options) ? field.options : [];
+      return (
+        <Select value={String(field.value ?? "")} onValueChange={(v) => handleCustomFieldValueChange(field.id, v)} dir="rtl">
+          <SelectTrigger className="h-10 w-full justify-between text-sm">
+            <SelectValue placeholder={field.placeholder || "اختار"} />
+          </SelectTrigger>
+          <SelectContent>
+            {options.map((opt) => (
+              <SelectItem key={opt} value={opt}>
+                {opt}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      );
+    }
+
+    if (field.type === "multiselect") {
+      const options = Array.isArray(field.options) ? field.options : [];
+      const current = Array.isArray(field.value) ? field.value : [];
+      return (
+        <div className="space-y-2">
+          {options.length === 0 ? (
+            <div className="text-sm text-muted-foreground">لا توجد اختيارات</div>
+          ) : (
+            options.map((opt) => (
+              <label key={opt} className="flex items-center gap-2">
+                <Checkbox
+                  checked={current.includes(opt)}
+                  onCheckedChange={(checked) => {
+                    const isOn = Boolean(checked);
+                    const next = isOn ? Array.from(new Set([...current, opt])) : current.filter((x) => x !== opt);
+                    handleCustomFieldValueChange(field.id, next);
+                  }}
+                />
+                <span className="text-sm text-muted-foreground">{opt}</span>
+              </label>
+            ))
+          )}
         </div>
       );
     }
@@ -862,6 +923,34 @@ export default function AppointmentDetailPage() {
                     </div>
                   </>
                 )}
+
+                {(editData.custom_fields || []).filter((f) => String(f?.section_id || "") === "patient_info").length > 0 && (
+                  <>
+                    <Separator />
+                    <div className="space-y-2">
+                      <div className="text-sm font-semibold">{appointmentSections?.items?.patient_info?.title || "بيانات المريض"}</div>
+                      {(editData.custom_fields || [])
+                        .filter((f) => String(f?.section_id || "") === "patient_info")
+                        .map((field) => (
+                          <div key={field.id} className="rounded-lg border p-3 bg-card/50 space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="text-sm font-semibold">{field.name}</div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => handleRemoveCustomField(field.id)}
+                              >
+                                <Trash2 className="size-4 text-destructive" />
+                              </Button>
+                            </div>
+                            {renderCustomFieldValueInput(field)}
+                          </div>
+                        ))}
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
             )}
@@ -925,6 +1014,32 @@ export default function AppointmentDetailPage() {
                     />
                   </div>
                 )}
+
+                <div className="space-y-2">
+                  {(editData.custom_fields || [])
+                    .filter((f) => String(f?.section_id || "") === "medical_state")
+                    .map((field) => (
+                      <div key={field.id} className="rounded-lg border p-3 bg-card/50 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="text-sm font-semibold">{field.name}</div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => handleRemoveCustomField(field.id)}
+                          >
+                            <Trash2 className="size-4 text-destructive" />
+                          </Button>
+                        </div>
+                        {renderCustomFieldValueInput(field)}
+                      </div>
+                    ))}
+                  {(editData.custom_fields || []).filter((f) => String(f?.section_id || "") === "medical_state").length === 0 &&
+                    appointmentAllTemplates.some((t) => String(t?.section_id || "") === "medical_state") && (
+                      <div className="text-sm text-muted-foreground">لا يوجد حقول</div>
+                    )}
+                </div>
                 <Button 
                   onClick={handleSaveEdit}
                   disabled={isUpdating}
@@ -947,131 +1062,50 @@ export default function AppointmentDetailPage() {
             </Card>
             )}
 
-            {appointmentSections?.items?.extra_fields?.enabled !== false && (editData.custom_fields?.length > 0 || appointmentAllTemplates.length > 0) && (
-              <Card className="bg-card/70" style={{ order: getMainSectionOrder("extra_fields") }}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <FileText className="size-5 text-primary" />
-                      {appointmentSections?.items?.extra_fields?.title || "حقول إضافية"}
-                    </CardTitle>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 sm:hidden"
-                      onClick={() => setMobileExpanded((p) => ({ ...p, extra_fields: !p.extra_fields }))}
-                    >
-                      <ChevronDown className={`size-4 transition-transform ${mobileExpanded.extra_fields ? "rotate-180" : ""}`} />
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className={`space-y-4 ${mobileExpanded.extra_fields ? "block" : "hidden"} sm:block`}>
-                  <div className="grid grid-cols-1 sm:grid-cols-6 gap-2 items-end">
-                    <div className="sm:col-span-3">
-                      <Label className="text-[10px] text-muted-foreground mb-1 block">اسم الحقل</Label>
-                      <Input
-                        value={newField.name}
-                        onChange={(e) => setNewField((prev) => ({ ...prev, name: e.target.value }))}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            handleAddCustomField();
-                          }
-                        }}
-                        placeholder="مثال: ضغط الدم"
-                        className="text-sm"
-                      />
-                    </div>
+            
 
-                    <div className="sm:col-span-1">
-                      <Label className="text-[10px] text-muted-foreground mb-1 block">القسم</Label>
-                      <Select
-                        value={newField.section_id || "default"}
-                        onValueChange={(value) => setNewField((prev) => ({ ...prev, section_id: value }))}
-                        dir="rtl"
-                      >
-                        <SelectTrigger className="h-10 w-full justify-between text-sm">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="default">{appointmentSections?.items?.extra_fields?.title || "حقول إضافية"}</SelectItem>
-                          {appointmentCustomSections.map((s) => (
-                            <SelectItem key={s.id} value={s.id}>{s.title}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="sm:col-span-1">
-                      <Label className="text-[10px] text-muted-foreground mb-1 block">النوع</Label>
-                      <Select
-                        value={newField.type}
-                        onValueChange={(value) => setNewField((prev) => ({ ...prev, type: value }))}
-                        dir="rtl"
-                      >
-                        <SelectTrigger className="h-10 w-full justify-between text-sm">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="text">نص</SelectItem>
-                          <SelectItem value="number">رقم</SelectItem>
-                          <SelectItem value="date">تاريخ</SelectItem>
-                          <SelectItem value="textarea">نص طويل</SelectItem>
-                          <SelectItem value="checkbox">صح/غلط</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="sm:col-span-1 gap-2"
-                      onClick={handleAddCustomField}
-                      disabled={!newField.name.trim()}
-                    >
-                      <Plus className="size-4" />
-                      إضافة
-                    </Button>
-                  </div>
-
-                  <div className="space-y-4">
-                    {[{ id: "default", title: appointmentSections?.items?.extra_fields?.title || "حقول إضافية", enabled: true }, ...appointmentCustomSections]
-                      .filter((s) => s.enabled !== false)
-                      .map((s) => {
-                        const fields = (editData.custom_fields || []).filter(
-                          (f) => String(f?.section_id || "default") === String(s.id)
-                        );
-                        if (fields.length === 0) return null;
-                        return (
-                          <div key={s.id} className="space-y-2">
-                            <div className="text-sm font-semibold">{s.title}</div>
-                            <div className="space-y-2">
-                              {fields.map((field) => (
-                                <div key={field.id} className="rounded-lg border p-3 bg-card/50 space-y-2">
-                                  <div className="flex items-center justify-between gap-2">
-                                    <div className="text-sm font-semibold">{field.name}</div>
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8"
-                                      onClick={() => handleRemoveCustomField(field.id)}
-                                    >
-                                      <Trash2 className="size-4 text-destructive" />
-                                    </Button>
-                                  </div>
-                                  {renderCustomFieldValueInput(field)}
-                                </div>
-                              ))}
+            {appointmentCustomSections
+              .filter((s) => s.enabled !== false)
+              .map((s) => {
+                const fields = (editData.custom_fields || []).filter(
+                  (f) => String(f?.section_id || "") === String(s.id)
+                );
+                const hasTemplate = appointmentAllTemplates.some((t) => String(t?.section_id || "") === String(s.id));
+                if (fields.length === 0 && !hasTemplate) return null;
+                return (
+                  <Card key={s.id} className="bg-card/70" style={{ order: getMainSectionOrder(`custom:${s.id}`) }}>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <FileText className="size-5 text-primary" />
+                        {s.title}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      {fields.length === 0 ? (
+                        <div className="text-sm text-muted-foreground">لا يوجد حقول</div>
+                      ) : (
+                        fields.map((field) => (
+                          <div key={field.id} className="rounded-lg border p-3 bg-card/50 space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="text-sm font-semibold">{field.name}</div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => handleRemoveCustomField(field.id)}
+                              >
+                                <Trash2 className="size-4 text-destructive" />
+                              </Button>
                             </div>
+                            {renderCustomFieldValueInput(field)}
                           </div>
-                        );
-                      })}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+                        ))
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
 
             {appointmentSections?.items?.history?.enabled !== false && (
             <Card className="bg-card/70 border-muted/20 shadow-sm" style={{ order: getMainSectionOrder("history") }}>
