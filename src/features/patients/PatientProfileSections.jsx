@@ -346,6 +346,12 @@ export function CustomFieldsForm({ patient, sectionId, onCancel, onSuccess }) {
     () => flattenCustomFieldTemplates({ config: medicalFieldsConfig, context: "patient" }),
     [medicalFieldsConfig]
   );
+  const isBuiltinSection = ["personal", "medical", "insurance"].includes(String(sectionId || ""));
+  const builtinTemplateIds = useMemo(() => {
+    if (!isBuiltinSection) return new Set();
+    const list = Array.isArray(medicalFieldsConfig?.patient?.sectionTemplates?.[sectionId]) ? medicalFieldsConfig.patient.sectionTemplates[sectionId] : [];
+    return new Set(list.filter((t) => t?.enabled !== false).map((t) => String(t.id)));
+  }, [isBuiltinSection, medicalFieldsConfig, sectionId]);
 
   useEffect(() => {
     const builtinSectionKeys = Array.isArray(patientSections?.order)
@@ -357,9 +363,10 @@ export function CustomFieldsForm({ patient, sectionId, onCancel, onSuccess }) {
     ]);
     setCustomFields(
       mergeTemplatesIntoCustomFields(Array.isArray(patient.custom_fields) ? patient.custom_fields : [], patientAllTemplates).map((f) => {
-        const rawSection = String(f?.section_id || "personal");
+        const rawSection = typeof f?.section_id === "string" ? f.section_id : "";
         const mapped = rawSection === "default" ? "personal" : rawSection;
-        if (!knownSectionIds.has(mapped)) return { ...f, section_id: "personal" };
+        if (!mapped) return { ...f, section_id: "" };
+        if (!knownSectionIds.has(mapped)) return { ...f, section_id: mapped };
         return { ...f, section_id: mapped };
       })
     );
@@ -643,7 +650,8 @@ export function CustomFieldsForm({ patient, sectionId, onCancel, onSuccess }) {
           <div className="text-sm font-semibold">الحقول</div>
           <div className="space-y-2">
             {customFields
-              .filter((f) => String(f?.section_id || "personal") === String(sectionId || "personal"))
+              .filter((f) => String(f?.section_id || "") === String(sectionId || "personal"))
+              .filter((f) => (isBuiltinSection ? builtinTemplateIds.has(String(f?.id)) : true))
               .map((field) => (
                 <div key={field.id} className="rounded-lg border p-3 bg-card/50 space-y-2">
                   <div className="flex items-center justify-between gap-2">
@@ -661,7 +669,9 @@ export function CustomFieldsForm({ patient, sectionId, onCancel, onSuccess }) {
                   {renderFieldInput(field)}
                 </div>
               ))}
-            {customFields.filter((f) => String(f?.section_id || "personal") === String(sectionId || "personal")).length === 0 && (
+            {customFields
+              .filter((f) => String(f?.section_id || "") === String(sectionId || "personal"))
+              .filter((f) => (isBuiltinSection ? builtinTemplateIds.has(String(f?.id)) : true)).length === 0 && (
               <div className="text-sm text-muted-foreground">لا يوجد حقول</div>
             )}
           </div>
@@ -671,7 +681,7 @@ export function CustomFieldsForm({ patient, sectionId, onCancel, onSuccess }) {
           patientCustomSections
             .filter((s) => s.enabled !== false)
             .map((s) => {
-              const fields = customFields.filter((f) => String(f?.section_id || "personal") === String(s.id));
+              const fields = customFields.filter((f) => String(f?.section_id || "") === String(s.id));
               return (
                 <div key={s.id} className="space-y-2">
                   <div className="text-sm font-semibold">{s.title}</div>

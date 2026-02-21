@@ -100,6 +100,16 @@ export default function PatientProfileTab({ patient }) {
     });
   }, [enabledSectionKeysKey]);
 
+  const builtinSectionTemplateIds = useMemo(() => {
+    const out = {};
+    const keys = ["personal", "medical", "insurance"];
+    for (const k of keys) {
+      const list = Array.isArray(patientSectionTemplates?.[k]) ? patientSectionTemplates[k] : [];
+      out[k] = new Set(list.filter((t) => t?.enabled !== false).map((t) => String(t.id)));
+    }
+    return out;
+  }, [patientSectionTemplates]);
+
   return (
     <div className="space-y-6" dir="rtl">
       {sectionOrder.map((key) => {
@@ -179,7 +189,9 @@ export default function PatientProfileTab({ patient }) {
             .filter((x) => x.def);
           const cfg = patientFieldsConfig?.personal || {};
           const enabledFields = fields.filter((x) => (cfg?.[x.fieldKey]?.enabled ?? true) !== false);
-          const extra = customFields.filter((f) => String(f?.section_id || "") === "personal");
+          const extra = customFields.filter(
+            (f) => String(f?.section_id || "") === "personal" && builtinSectionTemplateIds.personal.has(String(f?.id))
+          );
           const hasTemplates = Array.isArray(patientSectionTemplates?.personal) && patientSectionTemplates.personal.length > 0;
           return (
             <Card key={key} className="relative group bg-card/70">
@@ -266,7 +278,9 @@ export default function PatientProfileTab({ patient }) {
           const showAllergies = (cfg?.allergies?.enabled ?? true) !== false;
           const showSurgeries = (cfg?.past_surgeries?.enabled ?? true) !== false;
           const showFamily = (cfg?.family_history?.enabled ?? true) !== false;
-          const extra = customFields.filter((f) => String(f?.section_id || "") === "medical");
+          const extra = customFields.filter(
+            (f) => String(f?.section_id || "") === "medical" && builtinSectionTemplateIds.medical.has(String(f?.id))
+          );
           const hasTemplates = Array.isArray(patientSectionTemplates?.medical) && patientSectionTemplates.medical.length > 0;
           return (
             <Card key={key} className="relative group bg-card/70">
@@ -428,7 +442,9 @@ export default function PatientProfileTab({ patient }) {
           const showProvider = (cfg?.provider_name?.enabled ?? true) !== false;
           const showPolicy = (cfg?.policy_number?.enabled ?? true) !== false;
           const showCoverage = (cfg?.coverage_percent?.enabled ?? true) !== false;
-          const extra = customFields.filter((f) => String(f?.section_id || "") === "insurance");
+          const extra = customFields.filter(
+            (f) => String(f?.section_id || "") === "insurance" && builtinSectionTemplateIds.insurance.has(String(f?.id))
+          );
           const hasTemplates = Array.isArray(patientSectionTemplates?.insurance) && patientSectionTemplates.insurance.length > 0;
           return (
             <Card key={key} className="relative group bg-card/70">
