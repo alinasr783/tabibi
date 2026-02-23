@@ -44,6 +44,35 @@ function mapMarketplaceAppToUi(appRow) {
   };
 }
 
+function mapTabibiAppToUi(appRow) {
+  return {
+    id: appRow.id,
+    title: appRow.title,
+    short_description: appRow.short_description,
+    full_description: appRow.full_description,
+    category: appRow.category,
+    image_url: appRow.image_url,
+    color: appRow.color || "bg-primary/10",
+    price: appRow.price ?? 0,
+    billing_period: appRow.billing_period || "monthly",
+    pricing_type: appRow.pricing_type ?? null,
+    payment_type: appRow.payment_type ?? null,
+    billing_interval_unit: appRow.billing_interval_unit ?? null,
+    billing_interval_count: appRow.billing_interval_count ?? null,
+    trial_interval_unit: appRow.trial_interval_unit ?? null,
+    trial_interval_count: appRow.trial_interval_count ?? null,
+    currency: appRow.currency ?? null,
+    features: appRow.features || [],
+    screenshots: appRow.screenshots || [],
+    icon_name: appRow.icon_name || null,
+    preview_link: appRow.preview_link || null,
+    component_key: appRow.component_key ?? null,
+    integration_type: appRow.integration_type || "none",
+    integration_target: appRow.integration_target || null,
+    latest_version: null,
+  };
+}
+
 async function getAppsLegacy() {
   const { data, error } = await supabase
     .from("tabibi_apps")
@@ -53,28 +82,7 @@ async function getAppsLegacy() {
 
   if (error) throw error;
 
-  return (data || []).map((app) => ({
-    id: app.id,
-    title: app.title,
-    short_description: app.short_description,
-    full_description: app.full_description,
-    category: app.category,
-    image_url: app.image_url,
-    color: app.color || "bg-primary/10",
-    price: app.price ?? 0,
-    billing_period: app.billing_period || "monthly",
-    pricing_type: app.pricing_type ?? null,
-    payment_type: app.payment_type ?? null,
-    billing_interval_unit: app.billing_interval_unit ?? null,
-    billing_interval_count: app.billing_interval_count ?? null,
-    trial_interval_unit: app.trial_interval_unit ?? null,
-    trial_interval_count: app.trial_interval_count ?? null,
-    currency: app.currency ?? null,
-    features: app.features || [],
-    screenshots: app.screenshots || [],
-    icon_name: app.icon_name || null,
-    preview_link: app.preview_link || null,
-  }));
+  return (data || []).map(mapTabibiAppToUi);
 }
 
 async function getAppsV2() {
@@ -92,10 +100,10 @@ async function getAppsV2() {
 
 export async function getApps() {
   try {
-    return await getAppsV2();
+    return await getAppsLegacy();
   } catch (e) {
     if (!isSchemaMismatchError(e)) throw e;
-    return await getAppsLegacy();
+    return await getAppsV2();
   }
 }
 
@@ -127,74 +135,96 @@ export async function getAppById(id) {
 
   try {
     const { data: app, error } = await supabase
-      .from("tabibi_marketplace_apps")
-      .select(
-        "id, title, slug, short_description, full_description, icon_url, cover_image_url, category, is_paid, price_monthly, price_yearly, has_free_trial, trial_days, kill_switch_active"
-      )
+      .from("tabibi_apps")
+      .select("*")
       .eq("id", appId)
       .single();
 
     if (error) throw error;
-
-    const mapped = mapMarketplaceAppToUi(app);
-
-    const { data: latest, error: latestError } = await supabase
-      .from("tabibi_app_versions")
-      .select("version_number")
-      .eq("app_id", appId)
-      .eq("status", "approved")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (latestError && !isSchemaMismatchError(latestError)) throw latestError;
-
-    return { ...mapped, latest_version: latest?.version_number ?? null };
+    return mapTabibiAppToUi(app);
   } catch (e) {
     if (!isSchemaMismatchError(e)) throw e;
   }
 
   const { data: app, error } = await supabase
-    .from("tabibi_apps")
-    .select("*")
-    .eq("id", id)
+    .from("tabibi_marketplace_apps")
+    .select(
+      "id, title, slug, short_description, full_description, icon_url, cover_image_url, category, is_paid, price_monthly, price_yearly, has_free_trial, trial_days, kill_switch_active"
+    )
+    .eq("id", appId)
     .single();
 
   if (error) throw error;
 
-  return {
-    id: app.id,
-    title: app.title,
-    short_description: app.short_description,
-    full_description: app.full_description,
-    category: app.category,
-    image_url: app.image_url,
-    color: app.color || "bg-primary/10",
-    price: app.price ?? 0,
-    billing_period: app.billing_period || "monthly",
-    pricing_type: app.pricing_type ?? null,
-    payment_type: app.payment_type ?? null,
-    billing_interval_unit: app.billing_interval_unit ?? null,
-    billing_interval_count: app.billing_interval_count ?? null,
-    trial_interval_unit: app.trial_interval_unit ?? null,
-    trial_interval_count: app.trial_interval_count ?? null,
-    currency: app.currency ?? null,
-    features: app.features || [],
-    screenshots: app.screenshots || [],
-    icon_name: app.icon_name || null,
-    preview_link: app.preview_link || null,
-    integration_type: app.integration_type || "none",
-    integration_target: app.integration_target || null,
-    latest_version: null,
-  };
+  const mapped = mapMarketplaceAppToUi(app);
+
+  const { data: latest, error: latestError } = await supabase
+    .from("tabibi_app_versions")
+    .select("version_number")
+    .eq("app_id", appId)
+    .eq("status", "approved")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (latestError && !isSchemaMismatchError(latestError)) throw latestError;
+
+  return { ...mapped, latest_version: latest?.version_number ?? null };
 }
 
 export async function getInstalledApps(clinicId) {
   try {
     const { data, error } = await supabase
-      .from("tabibi_app_installations")
+      .from("app_subscriptions")
       .select(
         `
+        *,
+        app:tabibi_apps(*)
+      `
+      )
+      .eq("clinic_id", clinicId)
+      .eq("status", "active");
+
+    if (error) throw error;
+
+    return (data || []).map((item) => ({
+      id: item.app?.id,
+      title: item.app?.title,
+      short_description: item.app?.short_description,
+      full_description: item.app?.full_description,
+      category: item.app?.category,
+      image_url: item.app?.image_url,
+      color: item.app?.color || "bg-primary/10",
+      price: item.app?.price ?? 0,
+      billing_period: item.app?.billing_period || "monthly",
+      pricing_type: item.app?.pricing_type ?? null,
+      payment_type: item.app?.payment_type ?? null,
+      billing_interval_unit: item.app?.billing_interval_unit ?? null,
+      billing_interval_count: item.app?.billing_interval_count ?? null,
+      trial_interval_unit: item.app?.trial_interval_unit ?? null,
+      trial_interval_count: item.app?.trial_interval_count ?? null,
+      currency: item.app?.currency ?? null,
+      features: item.app?.features || [],
+      screenshots: item.app?.screenshots || [],
+      icon_name: item.app?.icon_name || null,
+      preview_link: item.app?.preview_link || null,
+      component_key: item.app?.component_key,
+      integration_type: item.app?.integration_type || "none",
+      integration_target: item.app?.integration_target || null,
+      isIntegrated: item.is_integrated,
+      subscriptionId: item.id,
+      installedAt: item.created_at,
+      expiresAt: item.current_period_end,
+      status: item.status,
+    }));
+  } catch (e) {
+    if (!isSchemaMismatchError(e)) throw e;
+  }
+
+  const { data, error } = await supabase
+    .from("tabibi_app_installations")
+    .select(
+      `
         id,
         clinic_id,
         app_id,
@@ -209,75 +239,28 @@ export async function getInstalledApps(clinicId) {
           id, title, slug, short_description, full_description, icon_url, cover_image_url, category, is_paid, price_monthly, price_yearly, has_free_trial, trial_days, kill_switch_active
         ),
         version:tabibi_app_versions(id, version_number)
-      `
-      )
-      .eq("clinic_id", clinicId)
-      .in("status", ["active", "trialing", "past_due"]);
-
-    if (error) throw error;
-
-    return (data || [])
-      .filter((row) => row?.app && row.app.kill_switch_active !== true)
-      .map((row) => {
-        const app = mapMarketplaceAppToUi(row.app);
-        return {
-          ...app,
-          component_key: row.app.slug,
-          isIntegrated: false,
-          subscriptionId: row.id,
-          installedAt: row.created_at,
-          expiresAt: row.current_period_end,
-          status: row.status,
-          latest_version: row?.version?.version_number ?? null,
-        };
-      });
-  } catch (e) {
-    if (!isSchemaMismatchError(e)) throw e;
-  }
-
-  const { data, error } = await supabase
-    .from("app_subscriptions")
-    .select(
-      `
-      *,
-      app:tabibi_apps(*)
     `
     )
     .eq("clinic_id", clinicId)
-    .eq("status", "active");
+    .in("status", ["active", "trialing", "past_due"]);
 
   if (error) throw error;
 
-  return (data || []).map((item) => ({
-    id: item.app?.id,
-    title: item.app?.title,
-    short_description: item.app?.short_description,
-    full_description: item.app?.full_description,
-    category: item.app?.category,
-    image_url: item.app?.image_url,
-    color: item.app?.color || "bg-primary/10",
-    price: item.app?.price ?? 0,
-    billing_period: item.app?.billing_period || "monthly",
-    pricing_type: item.app?.pricing_type ?? null,
-    payment_type: item.app?.payment_type ?? null,
-    billing_interval_unit: item.app?.billing_interval_unit ?? null,
-    billing_interval_count: item.app?.billing_interval_count ?? null,
-    trial_interval_unit: item.app?.trial_interval_unit ?? null,
-    trial_interval_count: item.app?.trial_interval_count ?? null,
-    currency: item.app?.currency ?? null,
-    features: item.app?.features || [],
-    screenshots: item.app?.screenshots || [],
-    icon_name: item.app?.icon_name || null,
-    preview_link: item.app?.preview_link || null,
-    component_key: item.app?.component_key,
-    integration_type: item.app?.integration_type || "none",
-    integration_target: item.app?.integration_target || null,
-    isIntegrated: item.is_integrated,
-    subscriptionId: item.id,
-    installedAt: item.created_at,
-    expiresAt: item.current_period_end,
-    status: item.status,
-  }));
+  return (data || [])
+    .filter((row) => row?.app && row.app.kill_switch_active !== true)
+    .map((row) => {
+      const app = mapMarketplaceAppToUi(row.app);
+      return {
+        ...app,
+        component_key: row.app.slug,
+        isIntegrated: false,
+        subscriptionId: row.id,
+        installedAt: row.created_at,
+        expiresAt: row.current_period_end,
+        status: row.status,
+        latest_version: row?.version?.version_number ?? null,
+      };
+    });
 }
 
 async function installAppV2(clinicId, appId) {
@@ -503,7 +486,133 @@ async function submitAppData(appId, clinicId, data) {
 
 export async function installApp(clinicId, appId) {
   try {
-    return await installAppV2(clinicId, appId);
+    const { data: existing } = await supabase
+      .from("app_subscriptions")
+      .select("*")
+      .eq("clinic_id", clinicId)
+      .eq("app_id", appId)
+      .maybeSingle();
+
+    const { data: app } = await supabase
+      .from("tabibi_apps")
+      .select("price, billing_period, pricing_type, payment_type, billing_interval_unit, billing_interval_count, trial_interval_unit, trial_interval_count, currency")
+      .eq("id", appId)
+      .single();
+
+    const pricingType = resolvePricingType(app);
+    const paymentType = resolvePaymentType(app);
+    const unit = app?.billing_interval_unit || (app?.billing_period === "yearly" ? "year" : "month");
+    const count = app?.billing_interval_count ?? 1;
+    const trialUnit = app?.trial_interval_unit || "day";
+    const trialCount = app?.trial_interval_count ?? 7;
+    const now = new Date();
+
+    const isFirstTrial =
+      pricingType === "trial_then_paid" && (!existing || existing.trial_end == null);
+
+    const chargeNow = pricingType === "paid" ? (app?.price || 0) : isFirstTrial ? 0 : (pricingType === "trial_then_paid" ? (app?.price || 0) : 0);
+
+    const periodEnd =
+      paymentType === "one_time"
+        ? null
+        : isFirstTrial
+          ? addInterval(now, trialUnit, trialCount)
+          : addInterval(now, unit, count);
+
+    const legacyBillingPeriod = legacyBillingPeriodFromInterval(paymentType, unit, count);
+    const trialEnd = isFirstTrial && paymentType !== "one_time" ? periodEnd : null;
+
+    let resultData;
+
+    if (existing) {
+      const baseUpdate = { 
+        status: "active",
+        current_period_start: now.toISOString(),
+        current_period_end: periodEnd ? periodEnd.toISOString() : null,
+        billing_period: legacyBillingPeriod,
+        amount: chargeNow,
+        updated_at: now.toISOString(),
+        pricing_type: pricingType,
+        payment_type: paymentType,
+        interval_unit: unit,
+        interval_count: Number(count) || 1,
+        trial_interval_unit: pricingType === "trial_then_paid" ? trialUnit : null,
+        trial_interval_count: pricingType === "trial_then_paid" ? Number(trialCount) || 7 : null,
+        trial_end: trialEnd ? trialEnd.toISOString() : null,
+        currency: app?.currency || "EGP",
+      };
+
+      let data;
+      let error;
+      ({ data, error } = await supabase
+        .from("app_subscriptions")
+        .update(baseUpdate)
+        .eq("id", existing.id)
+        .select()
+        .single());
+
+      if (error && String(error.message || "").toLowerCase().includes("column")) {
+        const { pricing_type: _pricing_type, payment_type: _payment_type, interval_unit: _interval_unit, interval_count: _interval_count, trial_interval_unit: _trial_interval_unit, trial_interval_count: _trial_interval_count, trial_end: _trial_end, currency: _currency, ...fallback } = baseUpdate;
+        ({ data, error } = await supabase
+          .from("app_subscriptions")
+          .update(fallback)
+          .eq("id", existing.id)
+          .select()
+          .single());
+      }
+      if (error) throw error;
+      resultData = data;
+    } else {
+      const baseInsert = { 
+        clinic_id: clinicId, 
+        app_id: appId,
+        current_period_start: now.toISOString(),
+        current_period_end: periodEnd ? periodEnd.toISOString() : null,
+        status: 'active',
+        billing_period: legacyBillingPeriod,
+        amount: chargeNow,
+        auto_renew: paymentType !== "one_time",
+        pricing_type: pricingType,
+        payment_type: paymentType,
+        interval_unit: unit,
+        interval_count: Number(count) || 1,
+        trial_interval_unit: pricingType === "trial_then_paid" ? trialUnit : null,
+        trial_interval_count: pricingType === "trial_then_paid" ? Number(trialCount) || 7 : null,
+        trial_end: trialEnd ? trialEnd.toISOString() : null,
+        currency: app?.currency || "EGP",
+      };
+
+      let data;
+      let error;
+      ({ data, error } = await supabase
+        .from("app_subscriptions")
+        .insert([baseInsert])
+        .select()
+        .single());
+
+      if (error && String(error.message || "").toLowerCase().includes("column")) {
+        const { pricing_type: _pricing_type, payment_type: _payment_type, interval_unit: _interval_unit, interval_count: _interval_count, trial_interval_unit: _trial_interval_unit, trial_interval_count: _trial_interval_count, trial_end: _trial_end, currency: _currency, ...fallback } = baseInsert;
+        ({ data, error } = await supabase
+          .from("app_subscriptions")
+          .insert([fallback])
+          .select()
+          .single());
+      }
+
+      if (error) throw error;
+      resultData = data;
+    }
+
+    try {
+      console.log("Auto-submitting app data for app:", appId);
+      const appData = await collectClinicData(clinicId);
+      await submitAppData(appId, clinicId, appData);
+      console.log("App data submitted successfully");
+    } catch (e) {
+      console.error("Failed to auto-submit app data:", e);
+    }
+
+    return resultData;
   } catch (e) {
     if (!isSchemaMismatchError(e)) {
       const msg = String(e?.message || "").toLowerCase();
@@ -513,139 +622,7 @@ export async function installApp(clinicId, appId) {
     if (!isSchemaMismatchError(e)) throw e;
   }
 
-  // Check if subscription exists (active or cancelled)
-  const { data: existing } = await supabase
-    .from("app_subscriptions")
-    .select("*")
-    .eq("clinic_id", clinicId)
-    .eq("app_id", appId)
-    .maybeSingle();
-
-  // Get App details for price/monthly model
-  const { data: app } = await supabase
-    .from("tabibi_apps")
-    .select("price, billing_period, pricing_type, payment_type, billing_interval_unit, billing_interval_count, trial_interval_unit, trial_interval_count, currency")
-    .eq("id", appId)
-    .single();
-
-  const pricingType = resolvePricingType(app);
-  const paymentType = resolvePaymentType(app);
-  const unit = app?.billing_interval_unit || (app?.billing_period === "yearly" ? "year" : "month");
-  const count = app?.billing_interval_count ?? 1;
-  const trialUnit = app?.trial_interval_unit || "day";
-  const trialCount = app?.trial_interval_count ?? 7;
-  const now = new Date();
-
-  const isFirstTrial =
-    pricingType === "trial_then_paid" && (!existing || existing.trial_end == null);
-
-  const chargeNow = pricingType === "paid" ? (app?.price || 0) : isFirstTrial ? 0 : (pricingType === "trial_then_paid" ? (app?.price || 0) : 0);
-
-  const periodEnd =
-    paymentType === "one_time"
-      ? null
-      : isFirstTrial
-        ? addInterval(now, trialUnit, trialCount)
-        : addInterval(now, unit, count);
-
-  const legacyBillingPeriod = legacyBillingPeriodFromInterval(paymentType, unit, count);
-  const trialEnd = isFirstTrial && paymentType !== "one_time" ? periodEnd : null;
-
-  let resultData;
-
-  if (existing) {
-    // Reactivate
-    const baseUpdate = { 
-      status: "active",
-      current_period_start: now.toISOString(),
-      current_period_end: periodEnd ? periodEnd.toISOString() : null,
-      billing_period: legacyBillingPeriod,
-      amount: chargeNow,
-      updated_at: now.toISOString(),
-      pricing_type: pricingType,
-      payment_type: paymentType,
-      interval_unit: unit,
-      interval_count: Number(count) || 1,
-      trial_interval_unit: pricingType === "trial_then_paid" ? trialUnit : null,
-      trial_interval_count: pricingType === "trial_then_paid" ? Number(trialCount) || 7 : null,
-      trial_end: trialEnd ? trialEnd.toISOString() : null,
-      currency: app?.currency || "EGP",
-    };
-
-    let data;
-    let error;
-    ({ data, error } = await supabase
-      .from("app_subscriptions")
-      .update(baseUpdate)
-      .eq("id", existing.id)
-      .select()
-      .single());
-
-    if (error && String(error.message || "").toLowerCase().includes("column")) {
-      const { pricing_type, payment_type, interval_unit, interval_count, trial_interval_unit, trial_interval_count, trial_end, currency, ...fallback } = baseUpdate;
-      ({ data, error } = await supabase
-        .from("app_subscriptions")
-        .update(fallback)
-        .eq("id", existing.id)
-        .select()
-        .single());
-    }
-    if (error) throw error;
-    resultData = data;
-  } else {
-    // New Subscription
-    const baseInsert = { 
-      clinic_id: clinicId, 
-      app_id: appId,
-      current_period_start: now.toISOString(),
-      current_period_end: periodEnd ? periodEnd.toISOString() : null,
-      status: 'active',
-      billing_period: legacyBillingPeriod,
-      amount: chargeNow,
-      auto_renew: paymentType !== "one_time",
-      pricing_type: pricingType,
-      payment_type: paymentType,
-      interval_unit: unit,
-      interval_count: Number(count) || 1,
-      trial_interval_unit: pricingType === "trial_then_paid" ? trialUnit : null,
-      trial_interval_count: pricingType === "trial_then_paid" ? Number(trialCount) || 7 : null,
-      trial_end: trialEnd ? trialEnd.toISOString() : null,
-      currency: app?.currency || "EGP",
-    };
-
-    let data;
-    let error;
-    ({ data, error } = await supabase
-      .from("app_subscriptions")
-      .insert([baseInsert])
-      .select()
-      .single());
-
-    if (error && String(error.message || "").toLowerCase().includes("column")) {
-      const { pricing_type, payment_type, interval_unit, interval_count, trial_interval_unit, trial_interval_count, trial_end, currency, ...fallback } = baseInsert;
-      ({ data, error } = await supabase
-        .from("app_subscriptions")
-        .insert([fallback])
-        .select()
-        .single());
-    }
-
-    if (error) throw error;
-    resultData = data;
-  }
-
-  // Auto-submit app data on installation/activation
-  try {
-    console.log("Auto-submitting app data for app:", appId);
-    const appData = await collectClinicData(clinicId);
-    await submitAppData(appId, clinicId, appData);
-    console.log("App data submitted successfully");
-  } catch (e) {
-    console.error("Failed to auto-submit app data:", e);
-    // Continue without failing the installation
-  }
-
-  return resultData;
+  return await installAppV2(clinicId, appId);
 }
 
 export async function subscribeWithWallet(clinicId, appId) {
@@ -672,7 +649,14 @@ export async function subscribeWithWallet(clinicId, appId) {
 
 export async function uninstallApp(clinicId, appId) {
   try {
-    await uninstallAppV2(clinicId, appId);
+    // Cancel subscription (don't delete)
+    const { error } = await supabase
+      .from("app_subscriptions")
+      .update({ status: 'cancelled', is_integrated: false })
+      .eq("clinic_id", clinicId)
+      .eq("app_id", appId);
+
+    if (error) throw error;
     return;
   } catch (e) {
     if (!isSchemaMismatchError(e)) {
@@ -683,14 +667,7 @@ export async function uninstallApp(clinicId, appId) {
     if (!isSchemaMismatchError(e)) throw e;
   }
 
-  // Cancel subscription (don't delete)
-  const { error } = await supabase
-    .from("app_subscriptions")
-    .update({ status: 'cancelled', is_integrated: false })
-    .eq("clinic_id", clinicId)
-    .eq("app_id", appId);
-
-  if (error) throw error;
+  await uninstallAppV2(clinicId, appId);
 }
 
 export async function toggleAppIntegration(subscriptionId, isIntegrated) {
