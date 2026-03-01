@@ -1,1028 +1,131 @@
-Download the React DevTools for a better development experience: https://react.dev/link/react-devtools
-main.jsx:26 ✅ Service Worker registered: ServiceWorkerRegistration {installing: null, waiting: null, active: ServiceWorker, navigationPreload: NavigationPreloadManager, scope: 'http://localhost:3001/', …}
-AutoPaymentRecorder.jsx:30 AutoPaymentRecorder: Not authenticated or no clinic ID
-apiAuth.js:124 getCurrentUser: Starting user data fetch
-apiAuth.js:128 getCurrentUser: Attempting to fetch session
-OfflineContext.jsx:34 Initializing offline database...
-AutoPaymentRecorder.jsx:30 AutoPaymentRecorder: Not authenticated or no clinic ID
-OfflineContext.jsx:34 Initializing offline database...
-2OfflineContext.jsx:37 Offline database initialized successfully
-apiAuth.js:142 getCurrentUser: Session found, fetching user data for user_id: 295dc901-f614-41a4-96c2-664dca756b1b
-apiAuth.js:169 getCurrentUser: Attempting to fetch user data with timeout
-apiAuth.js:146 getCurrentUser: Creating user data promise
-apiAuth.js:171 getCurrentUser: User data fetched successfully: {user_id: '295dc901-f614-41a4-96c2-664dca756b1b', email: 'alinasrtest1@gmail.com', name: 'Omar Mohamed', phone: '01158954611', role: 'doctor', …}
-apiAuth.js:204 getCurrentUser: Merged user data: {id: '295dc901-f614-41a4-96c2-664dca756b1b', aud: 'authenticated', role: 'doctor', email: 'alinasrtest1@gmail.com', email_confirmed_at: '2025-12-13T22:36:22.814519Z', …}
-AutoPaymentRecorder.jsx:40 AutoPaymentRecorder: Setting up real-time subscriptions
-apiPlan.js:6 === DEBUG: getCurrentPlan started ===
-apiPlan.js:7 Session data: {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6Iml1VEhtSzd6MzY2OHA3VF…sc2V9.cLAoecyHmBR3isOMbSm80FpSsLR7PLXo8HDobszVm48', token_type: 'bearer', expires_in: 3600, expires_at: 1767250258, refresh_token: '77bq6ru7ieeu', …}
-apiPlan.js:20 User data result: {userData: {…}, userError: null}
-apiPlan.js:33 Fetching active subscription for clinic_id: 74568805-6260-4309-9204-9b11ab4d41f6
-apiPlan.js:41 Subscription data result: {data: {…}, error: null}
-apiPlan.js:53 Returning plan data: {id: 33, created_at: '2025-12-15T11:25:13.820925+00:00', plan_id: 'premium', status: 'active', current_period_start: '2025-12-15T11:25:13.993+00:00', …}
-apiPlan.js:54 === DEBUG: getCurrentPlan completed ===
-PermissionGuard.jsx:9 PermissionGuard - User data: {id: '295dc901-f614-41a4-96c2-664dca756b1b', aud: 'authenticated', role: 'doctor', email: 'alinasrtest1@gmail.com', email_confirmed_at: '2025-12-13T22:36:22.814519Z', …}
-PermissionGuard.jsx:9 PermissionGuard - User data: {id: '295dc901-f614-41a4-96c2-664dca756b1b', aud: 'authenticated', role: 'doctor', email: 'alinasrtest1@gmail.com', email_confirmed_at: '2025-12-13T22:36:22.814519Z', …}
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'pending', fetchStatus: 'fetching', isPending: true, isSuccess: false, isError: false, …}
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'pending', fetchStatus: 'fetching', isPending: true, isSuccess: false, isError: false, …}
-apiClinic.js:4 getCurrentClinic: Starting clinic data fetch
-apiClinic.js:10 getCurrentClinic: Getting user data for user_id: 295dc901-f614-41a4-96c2-664dca756b1b
-apiPlan.js:6 === DEBUG: getCurrentPlan started ===
-apiPlan.js:7 Session data: {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6Iml1VEhtSzd6MzY2OHA3VF…sc2V9.cLAoecyHmBR3isOMbSm80FpSsLR7PLXo8HDobszVm48', token_type: 'bearer', expires_in: 3600, expires_at: 1767250258, refresh_token: '77bq6ru7ieeu', …}
-AutoPaymentRecorder.jsx:143 AutoPaymentRecorder: Successfully subscribed to visit changes
-AutoPaymentRecorder.jsx:205 AutoPaymentRecorder: Successfully subscribed to appointment changes
-apiClinic.js:20 getCurrentClinic: User data retrieved: {clinic_id: '74568805-6260-4309-9204-9b11ab4d41f6'}
-apiClinic.js:26 getCurrentClinic: Querying clinic with clinic_uuid: 74568805-6260-4309-9204-9b11ab4d41f6
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'pending', fetchStatus: 'fetching', isPending: true, isSuccess: false, isError: false, …}
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'pending', fetchStatus: 'fetching', isPending: true, isSuccess: false, isError: false, …}
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 285
-ActionRenderer.jsx:1333 📝 First 200 chars: في العيادة دي، فيه 39 حجز كلي، بس مش كل الحجوزات دي من النت، فيه بعض الحجوزات اللي بيتعملوا بشكل مباشر من العيادة. مفيش معلومات واضحة عن عدد الحجوزات اللي بتيجي من النت بشكل دقيق، بس ممكن نقول إن عدد 
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 1
-ActionRenderer.jsx:1515 🔍 Action segments: 0
-ActionRenderer.jsx:1516 🔍 Action types: []
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 285
-ActionRenderer.jsx:1333 📝 First 200 chars: في العيادة دي، فيه 39 حجز كلي، بس مش كل الحجوزات دي من النت، فيه بعض الحجوزات اللي بيتعملوا بشكل مباشر من العيادة. مفيش معلومات واضحة عن عدد الحجوزات اللي بتيجي من النت بشكل دقيق، بس ممكن نقول إن عدد 
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 1
-ActionRenderer.jsx:1515 🔍 Action segments: 0
-ActionRenderer.jsx:1516 🔍 Action types: []
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 387
-ActionRenderer.jsx:1333 📝 First 200 chars: أحسن حاجة هي نبدأ نعمل تقرير عن العيادة، فيه 27 مريض وحجوزات 39، وده بيفيد إننا ماشيين بالطريق الصحيح. 
-
-فيه 30 ميعاد مؤكد و9 ميعاد في انتظار، وده يبقى ليه تأثير على الإيرادات، لأن الإيرادات الإجمالية
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 1
-ActionRenderer.jsx:1515 🔍 Action segments: 0
-ActionRenderer.jsx:1516 🔍 Action types: []
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 387
-ActionRenderer.jsx:1333 📝 First 200 chars: أحسن حاجة هي نبدأ نعمل تقرير عن العيادة، فيه 27 مريض وحجوزات 39، وده بيفيد إننا ماشيين بالطريق الصحيح. 
-
-فيه 30 ميعاد مؤكد و9 ميعاد في انتظار، وده يبقى ليه تأثير على الإيرادات، لأن الإيرادات الإجمالية
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 1
-ActionRenderer.jsx:1515 🔍 Action segments: 0
-ActionRenderer.jsx:1516 🔍 Action types: []
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-apiPlan.js:20 User data result: {userData: {…}, userError: null}
-apiPlan.js:33 Fetching active subscription for clinic_id: 74568805-6260-4309-9204-9b11ab4d41f6
-apiClinic.js:38 getCurrentClinic: Clinic data retrieved: {id: 18, clinic_uuid: '74568805-6260-4309-9204-9b11ab4d41f6', name: 'عيادة الدكتور عمر محمد ', address: '15 شارع الجامعة - القاهرة', booking_price: 500, …}
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'pending', fetchStatus: 'fetching', isPending: true, isSuccess: false, isError: false, …}
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'pending', fetchStatus: 'fetching', isPending: true, isSuccess: false, isError: false, …}
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 285
-ActionRenderer.jsx:1333 📝 First 200 chars: في العيادة دي، فيه 39 حجز كلي، بس مش كل الحجوزات دي من النت، فيه بعض الحجوزات اللي بيتعملوا بشكل مباشر من العيادة. مفيش معلومات واضحة عن عدد الحجوزات اللي بتيجي من النت بشكل دقيق، بس ممكن نقول إن عدد 
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 1
-ActionRenderer.jsx:1515 🔍 Action segments: 0
-ActionRenderer.jsx:1516 🔍 Action types: []
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 285
-ActionRenderer.jsx:1333 📝 First 200 chars: في العيادة دي، فيه 39 حجز كلي، بس مش كل الحجوزات دي من النت، فيه بعض الحجوزات اللي بيتعملوا بشكل مباشر من العيادة. مفيش معلومات واضحة عن عدد الحجوزات اللي بتيجي من النت بشكل دقيق، بس ممكن نقول إن عدد 
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 1
-ActionRenderer.jsx:1515 🔍 Action segments: 0
-ActionRenderer.jsx:1516 🔍 Action types: []
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 387
-ActionRenderer.jsx:1333 📝 First 200 chars: أحسن حاجة هي نبدأ نعمل تقرير عن العيادة، فيه 27 مريض وحجوزات 39، وده بيفيد إننا ماشيين بالطريق الصحيح. 
-
-فيه 30 ميعاد مؤكد و9 ميعاد في انتظار، وده يبقى ليه تأثير على الإيرادات، لأن الإيرادات الإجمالية
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 1
-ActionRenderer.jsx:1515 🔍 Action segments: 0
-ActionRenderer.jsx:1516 🔍 Action types: []
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 387
-ActionRenderer.jsx:1333 📝 First 200 chars: أحسن حاجة هي نبدأ نعمل تقرير عن العيادة، فيه 27 مريض وحجوزات 39، وده بيفيد إننا ماشيين بالطريق الصحيح. 
-
-فيه 30 ميعاد مؤكد و9 ميعاد في انتظار، وده يبقى ليه تأثير على الإيرادات، لأن الإيرادات الإجمالية
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 1
-ActionRenderer.jsx:1515 🔍 Action segments: 0
-ActionRenderer.jsx:1516 🔍 Action types: []
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-apiPlan.js:41 Subscription data result: {data: {…}, error: null}
-apiPlan.js:53 Returning plan data: {id: 33, created_at: '2025-12-15T11:25:13.820925+00:00', plan_id: 'premium', status: 'active', current_period_start: '2025-12-15T11:25:13.993+00:00', …}
-apiPlan.js:54 === DEBUG: getCurrentPlan completed ===
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 285
-ActionRenderer.jsx:1333 📝 First 200 chars: في العيادة دي، فيه 39 حجز كلي، بس مش كل الحجوزات دي من النت، فيه بعض الحجوزات اللي بيتعملوا بشكل مباشر من العيادة. مفيش معلومات واضحة عن عدد الحجوزات اللي بتيجي من النت بشكل دقيق، بس ممكن نقول إن عدد 
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 1
-ActionRenderer.jsx:1515 🔍 Action segments: 0
-ActionRenderer.jsx:1516 🔍 Action types: []
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 285
-ActionRenderer.jsx:1333 📝 First 200 chars: في العيادة دي، فيه 39 حجز كلي، بس مش كل الحجوزات دي من النت، فيه بعض الحجوزات اللي بيتعملوا بشكل مباشر من العيادة. مفيش معلومات واضحة عن عدد الحجوزات اللي بتيجي من النت بشكل دقيق، بس ممكن نقول إن عدد 
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 1
-ActionRenderer.jsx:1515 🔍 Action segments: 0
-ActionRenderer.jsx:1516 🔍 Action types: []
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 387
-ActionRenderer.jsx:1333 📝 First 200 chars: أحسن حاجة هي نبدأ نعمل تقرير عن العيادة، فيه 27 مريض وحجوزات 39، وده بيفيد إننا ماشيين بالطريق الصحيح. 
-
-فيه 30 ميعاد مؤكد و9 ميعاد في انتظار، وده يبقى ليه تأثير على الإيرادات، لأن الإيرادات الإجمالية
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 1
-ActionRenderer.jsx:1515 🔍 Action segments: 0
-ActionRenderer.jsx:1516 🔍 Action types: []
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 387
-ActionRenderer.jsx:1333 📝 First 200 chars: أحسن حاجة هي نبدأ نعمل تقرير عن العيادة، فيه 27 مريض وحجوزات 39، وده بيفيد إننا ماشيين بالطريق الصحيح. 
-
-فيه 30 ميعاد مؤكد و9 ميعاد في انتظار، وده يبقى ليه تأثير على الإيرادات، لأن الإيرادات الإجمالية
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 1
-ActionRenderer.jsx:1515 🔍 Action segments: 0
-ActionRenderer.jsx:1516 🔍 Action types: []
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-useUnreadNotifications.js:102 Real-time subscription status: CLOSED
-useUnreadNotifications.js:102 Real-time subscription status: CHANNEL_ERROR
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 285
-ActionRenderer.jsx:1333 📝 First 200 chars: في العيادة دي، فيه 39 حجز كلي، بس مش كل الحجوزات دي من النت، فيه بعض الحجوزات اللي بيتعملوا بشكل مباشر من العيادة. مفيش معلومات واضحة عن عدد الحجوزات اللي بتيجي من النت بشكل دقيق، بس ممكن نقول إن عدد 
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 1
-ActionRenderer.jsx:1515 🔍 Action segments: 0
-ActionRenderer.jsx:1516 🔍 Action types: []
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 285
-ActionRenderer.jsx:1333 📝 First 200 chars: في العيادة دي، فيه 39 حجز كلي، بس مش كل الحجوزات دي من النت، فيه بعض الحجوزات اللي بيتعملوا بشكل مباشر من العيادة. مفيش معلومات واضحة عن عدد الحجوزات اللي بتيجي من النت بشكل دقيق، بس ممكن نقول إن عدد 
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 1
-ActionRenderer.jsx:1515 🔍 Action segments: 0
-ActionRenderer.jsx:1516 🔍 Action types: []
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 387
-ActionRenderer.jsx:1333 📝 First 200 chars: أحسن حاجة هي نبدأ نعمل تقرير عن العيادة، فيه 27 مريض وحجوزات 39، وده بيفيد إننا ماشيين بالطريق الصحيح. 
-
-فيه 30 ميعاد مؤكد و9 ميعاد في انتظار، وده يبقى ليه تأثير على الإيرادات، لأن الإيرادات الإجمالية
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 1
-ActionRenderer.jsx:1515 🔍 Action segments: 0
-ActionRenderer.jsx:1516 🔍 Action types: []
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 387
-ActionRenderer.jsx:1333 📝 First 200 chars: أحسن حاجة هي نبدأ نعمل تقرير عن العيادة، فيه 27 مريض وحجوزات 39، وده بيفيد إننا ماشيين بالطريق الصحيح. 
-
-فيه 30 ميعاد مؤكد و9 ميعاد في انتظار، وده يبقى ليه تأثير على الإيرادات، لأن الإيرادات الإجمالية
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 1
-ActionRenderer.jsx:1515 🔍 Action segments: 0
-ActionRenderer.jsx:1516 🔍 Action types: []
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 159
-ActionRenderer.jsx:1333 📝 First 200 chars: عندك **0** موعد النهاردة (السبت 27 ديسمبر 2025).
-
-```action
-{"type": "button", "label": "عرض كل المواعيد", "navigate": "/appointments", "icon": "Calendar"}
-```
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 2
-ActionRenderer.jsx:1515 🔍 Action segments: 1
-ActionRenderer.jsx:1516 🔍 Action types: ['button']
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 159
-ActionRenderer.jsx:1333 📝 First 200 chars: عندك **0** موعد النهاردة (السبت 27 ديسمبر 2025).
-
-```action
-{"type": "button", "label": "عرض كل المواعيد", "navigate": "/appointments", "icon": "Calendar"}
-```
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 2
-ActionRenderer.jsx:1515 🔍 Action segments: 1
-ActionRenderer.jsx:1516 🔍 Action types: ['button']
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-useChat.js:175 🚀 ========================================
-useChat.js:176 🚀 Starting AI Pipeline
-useChat.js:177 🚀 User Message: اعملي رسم بياني خطي بيوضح عدد الحجوزات اليومية اللي بيتجي من العيادة مقارنة باللي بتيجي من النت
-useChat.js:178 🚀 ========================================
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 159
-ActionRenderer.jsx:1333 📝 First 200 chars: عندك **0** موعد النهاردة (السبت 27 ديسمبر 2025).
-
-```action
-{"type": "button", "label": "عرض كل المواعيد", "navigate": "/appointments", "icon": "Calendar"}
-```
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 2
-ActionRenderer.jsx:1515 🔍 Action segments: 1
-ActionRenderer.jsx:1516 🔍 Action types: ['button']
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 159
-ActionRenderer.jsx:1333 📝 First 200 chars: عندك **0** موعد النهاردة (السبت 27 ديسمبر 2025).
-
-```action
-{"type": "button", "label": "عرض كل المواعيد", "navigate": "/appointments", "icon": "Calendar"}
-```
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 2
-ActionRenderer.jsx:1515 🔍 Action segments: 1
-ActionRenderer.jsx:1516 🔍 Action types: ['button']
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-useChat.js:183 ✅ User message saved
-aiPipeline.js:99 🤖 [٨:٢٢:٢٨ ص] [IDLE] === بداية Pipeline ===
-useChat.js:153 [Pipeline] 🤖 === بداية Pipeline === 
-aiPipeline.js:99 🤖 [٨:٢٢:٢٨ ص] [IDLE] السؤال: اعملي رسم بياني خطي بيوضح عدد الحجوزات اليومية اللي بيتجي من العيادة مقارنة باللي بتيجي من النت
-useChat.js:153 [Pipeline] 🤖 السؤال: اعملي رسم بياني خطي بيوضح عدد الحجوزات اليومية اللي بيتجي من العيادة مقارنة باللي بتيجي من النت 
-aiPipeline.js:99 📋 [٨:٢٢:٢٨ ص] [PLANNING] المرحلة: بخطط...
-useChat.js:153 [Pipeline] 📋 المرحلة: بخطط... 
-useChat.js:159 📍 Phase Changed: planning
-aiPipeline.js:99 📋 [٨:٢٢:٢٨ ص] [PLANNING] بدأت مرحلة التخطيط مع Cerebras
-useChat.js:153 [Pipeline] 📋 بدأت مرحلة التخطيط مع Cerebras 
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 159
-ActionRenderer.jsx:1333 📝 First 200 chars: عندك **0** موعد النهاردة (السبت 27 ديسمبر 2025).
-
-```action
-{"type": "button", "label": "عرض كل المواعيد", "navigate": "/appointments", "icon": "Calendar"}
-```
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 2
-ActionRenderer.jsx:1515 🔍 Action segments: 1
-ActionRenderer.jsx:1516 🔍 Action types: ['button']
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 159
-ActionRenderer.jsx:1333 📝 First 200 chars: عندك **0** موعد النهاردة (السبت 27 ديسمبر 2025).
-
-```action
-{"type": "button", "label": "عرض كل المواعيد", "navigate": "/appointments", "icon": "Calendar"}
-```
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 2
-ActionRenderer.jsx:1515 🔍 Action segments: 1
-ActionRenderer.jsx:1516 🔍 Action types: ['button']
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-aiPipeline.js:99 📋 [٨:٢٢:٢٩ ص] [PLANNING] خلصت التخطيط
-aiPipeline.js:101 📦 Data: {requests: Array(2), data: {…}, actions: Array(2), building: {…}}
-useChat.js:153 [Pipeline] 📋 خلصت التخطيط {requests: Array(2), data: {…}, actions: Array(2), building: {…}}
-aiPipeline.js:200 
-📋 ==================== TODO LIST ====================
-aiPipeline.js:201 📝 Requests: (2) ['رسم بياني خطي', 'مقارنة بين حجوزات العيادة والنت']
-aiPipeline.js:202 💾 Data: {tables: Array(2), fields: Array(2), queries: Array(2)}
-aiPipeline.js:203 ⚡ Actions: (2) ['تحليل البيانات', 'عرض النتائج']
-aiPipeline.js:204 🎨 Building: {responseType: 'chart', chartType: 'line', components: Array(4)}
-aiPipeline.js:205 🔍 RESPONSE TYPE: chart
-aiPipeline.js:206 🔍 CHART TYPE: line
-aiPipeline.js:207 📋 ====================================================
-
-aiPipeline.js:99 🤔 [٨:٢٢:٢٩ ص] [THINKING] المرحلة: بفكر...
-useChat.js:153 [Pipeline] 🤔 المرحلة: بفكر... 
-useChat.js:159 📍 Phase Changed: thinking
-aiPipeline.js:99 🤔 [٨:٢٢:٢٩ ص] [THINKING] بدأت مرحلة التفكير - بناء استعلامات SQL
-useChat.js:153 [Pipeline] 🤔 بدأت مرحلة التفكير - بناء استعلامات SQL 
-aiPipeline.js:99 🤔 [٨:٢٢:٢٩ ص] [THINKING] البيانات المطلوبة:
-aiPipeline.js:101 📦 Data: {tables: Array(2), fields: Array(2), queries: Array(2)}
-useChat.js:153 [Pipeline] 🤔 البيانات المطلوبة: {tables: Array(2), fields: Array(2), queries: Array(2)}
-aiPipeline.js:99 🤔 [٨:٢٢:٢٩ ص] [THINKING] تم بناء الاستعلامات:
-aiPipeline.js:101 📦 Data: (2) [{…}, {…}]
-useChat.js:153 [Pipeline] 🤔 تم بناء الاستعلامات: (2) [{…}, {…}]
-aiPipeline.js:99 📊 [٨:٢٢:٢٩ ص] [DATA_FETCHING] المرحلة: بجيب البيانات...
-useChat.js:153 [Pipeline] 📊 المرحلة: بجيب البيانات... 
-useChat.js:159 📍 Phase Changed: data_fetching
-aiPipeline.js:99 📊 [٨:٢٢:٢٩ ص] [DATA_FETCHING] بدأت مرحلة جلب البيانات من Supabase
-useChat.js:153 [Pipeline] 📊 بدأت مرحلة جلب البيانات من Supabase 
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 159
-ActionRenderer.jsx:1333 📝 First 200 chars: عندك **0** موعد النهاردة (السبت 27 ديسمبر 2025).
-
-```action
-{"type": "button", "label": "عرض كل المواعيد", "navigate": "/appointments", "icon": "Calendar"}
-```
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 2
-ActionRenderer.jsx:1515 🔍 Action segments: 1
-ActionRenderer.jsx:1516 🔍 Action types: ['button']
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 159
-ActionRenderer.jsx:1333 📝 First 200 chars: عندك **0** موعد النهاردة (السبت 27 ديسمبر 2025).
-
-```action
-{"type": "button", "label": "عرض كل المواعيد", "navigate": "/appointments", "icon": "Calendar"}
-```
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 2
-ActionRenderer.jsx:1515 🔍 Action segments: 1
-ActionRenderer.jsx:1516 🔍 Action types: ['button']
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-aiPipeline.js:99 📊 [٨:٢٢:٣١ ص] [DATA_FETCHING] تم جلب كل بيانات السياق
-useChat.js:153 [Pipeline] 📊 تم جلب كل بيانات السياق 
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 159
-ActionRenderer.jsx:1333 📝 First 200 chars: عندك **0** موعد النهاردة (السبت 27 ديسمبر 2025).
-
-```action
-{"type": "button", "label": "عرض كل المواعيد", "navigate": "/appointments", "icon": "Calendar"}
-```
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 2
-ActionRenderer.jsx:1515 🔍 Action segments: 1
-ActionRenderer.jsx:1516 🔍 Action types: ['button']
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 159
-ActionRenderer.jsx:1333 📝 First 200 chars: عندك **0** موعد النهاردة (السبت 27 ديسمبر 2025).
-
-```action
-{"type": "button", "label": "عرض كل المواعيد", "navigate": "/appointments", "icon": "Calendar"}
-```
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 2
-ActionRenderer.jsx:1515 🔍 Action segments: 1
-ActionRenderer.jsx:1516 🔍 Action types: ['button']
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-aiPipeline.js:99 📊 [٨:٢٢:٣٢ ص] [DATA_FETCHING] تم جلب إحصائيات لوحة التحكم
-useChat.js:153 [Pipeline] 📊 تم جلب إحصائيات لوحة التحكم 
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 159
-ActionRenderer.jsx:1333 📝 First 200 chars: عندك **0** موعد النهاردة (السبت 27 ديسمبر 2025).
-
-```action
-{"type": "button", "label": "عرض كل المواعيد", "navigate": "/appointments", "icon": "Calendar"}
-```
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 2
-ActionRenderer.jsx:1515 🔍 Action segments: 1
-ActionRenderer.jsx:1516 🔍 Action types: ['button']
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 159
-ActionRenderer.jsx:1333 📝 First 200 chars: عندك **0** موعد النهاردة (السبت 27 ديسمبر 2025).
-
-```action
-{"type": "button", "label": "عرض كل المواعيد", "navigate": "/appointments", "icon": "Calendar"}
-```
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 2
-ActionRenderer.jsx:1515 🔍 Action segments: 1
-ActionRenderer.jsx:1516 🔍 Action types: ['button']
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-requests.js:1  GET https://hvbjysojjrdkszuvczbc.supabase.co/rest/v1/%D8%AD%D8%AC%D9%88%D8%B2%D8%A7%D8%AA_%D8%A7%D9%84%D8%B9%D9%8A%D8%A7%D8%AF%D8%A9?select=%D8%AA%D8%A7%D8%B1%D9%8A%D8%AE_%D8%A7%D9%84%D8%AD%D8%AC%D8%B2%2C%D8%B9%D8%AF%D8%AF_%D8%A7%D9%84%D8%AD%D8%AC%D9%88%D8%B2%D8%A7%D8%AA&clinic_id=eq.74568805-6260-4309-9204-9b11ab4d41f6&limit=50 404 (Not Found)
-_$initInterceptor.s.fetch @ requests.js:1
-(anonymous) @ traffic.js:1
-fetch @ traffic.js:1
-(anonymous) @ @supabase_supabase-js.js?v=fb9236d8:6866
-(anonymous) @ @supabase_supabase-js.js?v=fb9236d8:6884
-await in (anonymous)
-then @ @supabase_supabase-js.js?v=fb9236d8:111Understand this error
-aiPipeline.js:99 📊 [٨:٢٢:٣٣ ص] [DATA_FETCHING] تم جلب بيانات حجوزات_العيادة:
-aiPipeline.js:101 📦 Data: {count: 0}
-useChat.js:153 [Pipeline] 📊 تم جلب بيانات حجوزات_العيادة: {count: 0}
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 159
-ActionRenderer.jsx:1333 📝 First 200 chars: عندك **0** موعد النهاردة (السبت 27 ديسمبر 2025).
-
-```action
-{"type": "button", "label": "عرض كل المواعيد", "navigate": "/appointments", "icon": "Calendar"}
-```
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 2
-ActionRenderer.jsx:1515 🔍 Action segments: 1
-ActionRenderer.jsx:1516 🔍 Action types: ['button']
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 159
-ActionRenderer.jsx:1333 📝 First 200 chars: عندك **0** موعد النهاردة (السبت 27 ديسمبر 2025).
-
-```action
-{"type": "button", "label": "عرض كل المواعيد", "navigate": "/appointments", "icon": "Calendar"}
-```
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 2
-ActionRenderer.jsx:1515 🔍 Action segments: 1
-ActionRenderer.jsx:1516 🔍 Action types: ['button']
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-requests.js:1  GET https://hvbjysojjrdkszuvczbc.supabase.co/rest/v1/%D8%AD%D8%AC%D9%88%D8%B2%D8%A7%D8%AA_%D8%A7%D9%84%D9%86%D8%AA?select=%D8%AA%D8%A7%D8%B1%D9%8A%D8%AE_%D8%A7%D9%84%D8%AD%D8%AC%D8%B2%2C%D8%B9%D8%AF%D8%AF_%D8%A7%D9%84%D8%AD%D8%AC%D9%88%D8%B2%D8%A7%D8%AA&clinic_id=eq.74568805-6260-4309-9204-9b11ab4d41f6&limit=50 404 (Not Found)
-_$initInterceptor.s.fetch @ requests.js:1
-(anonymous) @ traffic.js:1
-fetch @ traffic.js:1
-(anonymous) @ @supabase_supabase-js.js?v=fb9236d8:6866
-(anonymous) @ @supabase_supabase-js.js?v=fb9236d8:6884
-await in (anonymous)
-then @ @supabase_supabase-js.js?v=fb9236d8:111Understand this error
-aiPipeline.js:99 📊 [٨:٢٢:٣٣ ص] [DATA_FETCHING] تم جلب بيانات حجوزات_النت:
-aiPipeline.js:101 📦 Data: {count: 0}
-useChat.js:153 [Pipeline] 📊 تم جلب بيانات حجوزات_النت: {count: 0}
-aiPipeline.js:99 📊 [٨:٢٢:٣٣ ص] [DATA_FETCHING] اكتملت مرحلة جلب البيانات
-aiPipeline.js:101 📦 Data: {hasContext: true, hasStats: true, specificTables: Array(2)}
-useChat.js:153 [Pipeline] 📊 اكتملت مرحلة جلب البيانات {hasContext: true, hasStats: true, specificTables: Array(2)}
-aiPipeline.js:99 📖 [٨:٢٢:٣٣ ص] [READING] المرحلة: بقرأ البيانات...
-useChat.js:153 [Pipeline] 📖 المرحلة: بقرأ البيانات... 
-useChat.js:159 📍 Phase Changed: reading
-aiPipeline.js:99 📖 [٨:٢٢:٣٣ ص] [READING] بدأت مرحلة القراءة مع Deepseek
-useChat.js:153 [Pipeline] 📖 بدأت مرحلة القراءة مع Deepseek 
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 159
-ActionRenderer.jsx:1333 📝 First 200 chars: عندك **0** موعد النهاردة (السبت 27 ديسمبر 2025).
-
-```action
-{"type": "button", "label": "عرض كل المواعيد", "navigate": "/appointments", "icon": "Calendar"}
-```
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 2
-ActionRenderer.jsx:1515 🔍 Action segments: 1
-ActionRenderer.jsx:1516 🔍 Action types: ['button']
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 159
-ActionRenderer.jsx:1333 📝 First 200 chars: عندك **0** موعد النهاردة (السبت 27 ديسمبر 2025).
-
-```action
-{"type": "button", "label": "عرض كل المواعيد", "navigate": "/appointments", "icon": "Calendar"}
-```
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 2
-ActionRenderer.jsx:1515 🔍 Action segments: 1
-ActionRenderer.jsx:1516 🔍 Action types: ['button']
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-requests.js:1  POST https://openrouter.ai/api/v1/chat/completions 402 (Payment Required)
-_$initInterceptor.s.fetch @ requests.js:1
-(anonymous) @ traffic.js:1
-fetch @ traffic.js:1
-readingPhase @ aiPipeline.js:419
-run @ aiPipeline.js:818Understand this error
-aiPipeline.js:99 📖 [٨:٢٢:٣٤ ص] [READING] خطأ في مرحلة القراءة، جاري استخدام Groq...
-aiPipeline.js:101 📦 Data: Deepseek API error: 402
-useChat.js:153 [Pipeline] 📖 خطأ في مرحلة القراءة، جاري استخدام Groq... Deepseek API error: 402
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 159
-ActionRenderer.jsx:1333 📝 First 200 chars: عندك **0** موعد النهاردة (السبت 27 ديسمبر 2025).
-
-```action
-{"type": "button", "label": "عرض كل المواعيد", "navigate": "/appointments", "icon": "Calendar"}
-```
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 2
-ActionRenderer.jsx:1515 🔍 Action segments: 1
-ActionRenderer.jsx:1516 🔍 Action types: ['button']
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 159
-ActionRenderer.jsx:1333 📝 First 200 chars: عندك **0** موعد النهاردة (السبت 27 ديسمبر 2025).
-
-```action
-{"type": "button", "label": "عرض كل المواعيد", "navigate": "/appointments", "icon": "Calendar"}
-```
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 2
-ActionRenderer.jsx:1515 🔍 Action segments: 1
-ActionRenderer.jsx:1516 🔍 Action types: ['button']
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-aiPipeline.js:99 🎨 [٨:٢٢:٣٦ ص] [VISUALIZATION] المرحلة: برسم البيانات...
-useChat.js:153 [Pipeline] 🎨 المرحلة: برسم البيانات... 
-useChat.js:159 📍 Phase Changed: visualization
-aiPipeline.js:99 🎨 [٨:٢٢:٣٦ ص] [VISUALIZATION] بدأت مرحلة تحضير الرسومات والمكونات
-useChat.js:153 [Pipeline] 🎨 بدأت مرحلة تحضير الرسومات والمكونات 
-aiPipeline.js:99 🎨 [٨:٢٢:٣٦ ص] [VISUALIZATION] نوع الرد المطلوب: chart
-useChat.js:153 [Pipeline] 🎨 نوع الرد المطلوب: chart 
-aiPipeline.js:488 
-🎨 ==================== VISUALIZATION CHECK ====================
-aiPipeline.js:489 🔍 User Message: اعملي رسم بياني خطي بيوضح عدد الحجوزات اليومية اللي بيتجي من العيادة مقارنة باللي بتيجي من النت
-aiPipeline.js:490 🔍 Has Chart Keywords: true
-aiPipeline.js:491 🔍 Current visualizationType: chart
-aiPipeline.js:503 🔍 Final visualizationType: chart
-aiPipeline.js:504 🎨 ============================================================
-
-aiPipeline.js:99 🎨 [٨:٢٢:٣٦ ص] [VISUALIZATION] بحضّر بيانات الرسم البياني...
-useChat.js:153 [Pipeline] 🎨 بحضّر بيانات الرسم البياني... 
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 159
-ActionRenderer.jsx:1333 📝 First 200 chars: عندك **0** موعد النهاردة (السبت 27 ديسمبر 2025).
-
-```action
-{"type": "button", "label": "عرض كل المواعيد", "navigate": "/appointments", "icon": "Calendar"}
-```
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 2
-ActionRenderer.jsx:1515 🔍 Action segments: 1
-ActionRenderer.jsx:1516 🔍 Action types: ['button']
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 159
-ActionRenderer.jsx:1333 📝 First 200 chars: عندك **0** موعد النهاردة (السبت 27 ديسمبر 2025).
-
-```action
-{"type": "button", "label": "عرض كل المواعيد", "navigate": "/appointments", "icon": "Calendar"}
-```
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 2
-ActionRenderer.jsx:1515 🔍 Action segments: 1
-ActionRenderer.jsx:1516 🔍 Action types: ['button']
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-requests.js:1  POST https://api.groq.com/openai/v1/chat/completions net::ERR_ABORTED 429 (Too Many Requests)
-_$initInterceptor.s.fetch @ requests.js:1
-(anonymous) @ traffic.js:1
-fetch @ traffic.js:1
-fetchWithTimeout @ openai.js?v=fb9236d8:6651
-makeRequest @ openai.js?v=fb9236d8:6555
-await in makeRequest
-request @ openai.js?v=fb9236d8:6528
-methodRequest @ openai.js?v=fb9236d8:6523
-post @ openai.js?v=fb9236d8:6511
-create @ openai.js?v=fb9236d8:3021
-visualizationPhase @ aiPipeline.js:552
-run @ aiPipeline.js:822Understand this error
-requests.js:1  POST https://api.groq.com/openai/v1/chat/completions 429 (Too Many Requests)
-_$initInterceptor.s.fetch @ requests.js:1
-(anonymous) @ traffic.js:1
-fetch @ traffic.js:1
-fetchWithTimeout @ openai.js?v=fb9236d8:6651
-makeRequest @ openai.js?v=fb9236d8:6555
-await in makeRequest
-retryRequest @ openai.js?v=fb9236d8:6695
-await in retryRequest
-makeRequest @ openai.js?v=fb9236d8:6600
-await in makeRequest
-request @ openai.js?v=fb9236d8:6528
-methodRequest @ openai.js?v=fb9236d8:6523
-post @ openai.js?v=fb9236d8:6511
-create @ openai.js?v=fb9236d8:3021
-visualizationPhase @ aiPipeline.js:552
-run @ aiPipeline.js:822Understand this error
-requests.js:1  POST https://api.groq.com/openai/v1/chat/completions 429 (Too Many Requests)
-_$initInterceptor.s.fetch @ requests.js:1
-(anonymous) @ traffic.js:1
-fetch @ traffic.js:1
-fetchWithTimeout @ openai.js?v=fb9236d8:6651
-makeRequest @ openai.js?v=fb9236d8:6555
-await in makeRequest
-retryRequest @ openai.js?v=fb9236d8:6695
-await in retryRequest
-makeRequest @ openai.js?v=fb9236d8:6600
-await in makeRequest
-retryRequest @ openai.js?v=fb9236d8:6695
-await in retryRequest
-makeRequest @ openai.js?v=fb9236d8:6600
-await in makeRequest
-request @ openai.js?v=fb9236d8:6528
-methodRequest @ openai.js?v=fb9236d8:6523
-post @ openai.js?v=fb9236d8:6511
-create @ openai.js?v=fb9236d8:3021
-visualizationPhase @ aiPipeline.js:552
-run @ aiPipeline.js:822Understand this error
-aiPipeline.js:99 🎨 [٨:٢٢:٣٨ ص] [VISUALIZATION] خطأ في تحضير الرسم البياني
-aiPipeline.js:101 📦 Data: 429 Rate limit reached for model `llama-3.3-70b-versatile` in organization `org_01kdd9wp5ne4ka0jm6r72kkqz2` service tier `on_demand` on tokens per minute (TPM): Limit 12000, Used 7341, Requested 10361. Please try again in 28.51s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing
-useChat.js:153 [Pipeline] 🎨 خطأ في تحضير الرسم البياني 429 Rate limit reached for model `llama-3.3-70b-versatile` in organization `org_01kdd9wp5ne4ka0jm6r72kkqz2` service tier `on_demand` on tokens per minute (TPM): Limit 12000, Used 7341, Requested 10361. Please try again in 28.51s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing
-aiPipeline.js:99 🔨 [٨:٢٢:٣٨ ص] [BUILDING] المرحلة: ببني الرد...
-useChat.js:153 [Pipeline] 🔨 المرحلة: ببني الرد... 
-useChat.js:159 📍 Phase Changed: building
-aiPipeline.js:99 🔨 [٨:٢٢:٣٨ ص] [BUILDING] بدأت مرحلة بناء الرد النهائي مع Grok
-useChat.js:153 [Pipeline] 🔨 بدأت مرحلة بناء الرد النهائي مع Grok 
-aiPipeline.js:99 🔨 [٨:٢٢:٣٨ ص] [BUILDING] بستخدم Grok لبناء الرد...
-useChat.js:153 [Pipeline] 🔨 بستخدم Grok لبناء الرد... 
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 159
-ActionRenderer.jsx:1333 📝 First 200 chars: عندك **0** موعد النهاردة (السبت 27 ديسمبر 2025).
-
-```action
-{"type": "button", "label": "عرض كل المواعيد", "navigate": "/appointments", "icon": "Calendar"}
-```
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 2
-ActionRenderer.jsx:1515 🔍 Action segments: 1
-ActionRenderer.jsx:1516 🔍 Action types: ['button']
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 159
-ActionRenderer.jsx:1333 📝 First 200 chars: عندك **0** موعد النهاردة (السبت 27 ديسمبر 2025).
-
-```action
-{"type": "button", "label": "عرض كل المواعيد", "navigate": "/appointments", "icon": "Calendar"}
-```
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 2
-ActionRenderer.jsx:1515 🔍 Action segments: 1
-ActionRenderer.jsx:1516 🔍 Action types: ['button']
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 159
-ActionRenderer.jsx:1333 📝 First 200 chars: عندك **0** موعد النهاردة (السبت 27 ديسمبر 2025).
-
-```action
-{"type": "button", "label": "عرض كل المواعيد", "navigate": "/appointments", "icon": "Calendar"}
-```
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 2
-ActionRenderer.jsx:1515 🔍 Action segments: 1
-ActionRenderer.jsx:1516 🔍 Action types: ['button']
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 159
-ActionRenderer.jsx:1333 📝 First 200 chars: عندك **0** موعد النهاردة (السبت 27 ديسمبر 2025).
-
-```action
-{"type": "button", "label": "عرض كل المواعيد", "navigate": "/appointments", "icon": "Calendar"}
-```
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 2
-ActionRenderer.jsx:1515 🔍 Action segments: 1
-ActionRenderer.jsx:1516 🔍 Action types: ['button']
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 159
-ActionRenderer.jsx:1333 📝 First 200 chars: عندك **0** موعد النهاردة (السبت 27 ديسمبر 2025).
-
-```action
-{"type": "button", "label": "عرض كل المواعيد", "navigate": "/appointments", "icon": "Calendar"}
-```
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 2
-ActionRenderer.jsx:1515 🔍 Action segments: 1
-ActionRenderer.jsx:1516 🔍 Action types: ['button']
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 159
-ActionRenderer.jsx:1333 📝 First 200 chars: عندك **0** موعد النهاردة (السبت 27 ديسمبر 2025).
-
-```action
-{"type": "button", "label": "عرض كل المواعيد", "navigate": "/appointments", "icon": "Calendar"}
-```
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 2
-ActionRenderer.jsx:1515 🔍 Action segments: 1
-ActionRenderer.jsx:1516 🔍 Action types: ['button']
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 159
-ActionRenderer.jsx:1333 📝 First 200 chars: عندك **0** موعد النهاردة (السبت 27 ديسمبر 2025).
-
-```action
-{"type": "button", "label": "عرض كل المواعيد", "navigate": "/appointments", "icon": "Calendar"}
-```
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 2
-ActionRenderer.jsx:1515 🔍 Action segments: 1
-ActionRenderer.jsx:1516 🔍 Action types: ['button']
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 159
-ActionRenderer.jsx:1333 📝 First 200 chars: عندك **0** موعد النهاردة (السبت 27 ديسمبر 2025).
-
-```action
-{"type": "button", "label": "عرض كل المواعيد", "navigate": "/appointments", "icon": "Calendar"}
-```
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 2
-ActionRenderer.jsx:1515 🔍 Action segments: 1
-ActionRenderer.jsx:1516 🔍 Action types: ['button']
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-aiPipeline.js:660 
-🔨 ==================== BUILDING PHASE ====================
-aiPipeline.js:661 🔍 Visualization Data Type: text
-aiPipeline.js:662 🔍 Has Chart Data: false
-aiPipeline.js:676 ⚠️ NO CHART/TABLE TAG APPENDED
-aiPipeline.js:677 ⚠️ Reason: type=text, hasData=false
-aiPipeline.js:679 🔨 ========================================================
-
-aiPipeline.js:99 🔨 [٨:٢٢:٣٩ ص] [BUILDING] اكتمل بناء الرد مع Grok
-aiPipeline.js:101 📦 Data: {length: 365}
-useChat.js:153 [Pipeline] 🔨 اكتمل بناء الرد مع Grok {length: 365}
-aiPipeline.js:99 ✅ [٨:٢٢:٣٩ ص] [COMPLETE] المرحلة: خلصت!
-useChat.js:153 [Pipeline] ✅ المرحلة: خلصت! 
-useChat.js:159 📍 Phase Changed: complete
-aiPipeline.js:99 ✅ [٨:٢٢:٣٩ ص] [COMPLETE] === انتهاء Pipeline بنجاح ===
-useChat.js:153 [Pipeline] ✅ === انتهاء Pipeline بنجاح === 
-useChat.js:205 ✅ Pipeline completed
-useChat.js:206 📝 AI Response length: 365
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 365
-ActionRenderer.jsx:1333 📝 First 200 chars: في الحقيقة، مفيش بيانات كفاية عن الحجوزات اليومية اللي بيتجي من النت، علشان كده مش هتقدر تعمل رسم بياني دقيق. بس ممكن نقول إن العيادة ليها 39 حجز، وده عدد كويس.لو حددنا كمية الحجوزات اليومية اللي بتيج
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 1
-ActionRenderer.jsx:1515 🔍 Action segments: 0
-ActionRenderer.jsx:1516 🔍 Action types: []
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 159
-ActionRenderer.jsx:1333 📝 First 200 chars: عندك **0** موعد النهاردة (السبت 27 ديسمبر 2025).
-
-```action
-{"type": "button", "label": "عرض كل المواعيد", "navigate": "/appointments", "icon": "Calendar"}
-```
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 2
-ActionRenderer.jsx:1515 🔍 Action segments: 1
-ActionRenderer.jsx:1516 🔍 Action types: ['button']
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 159
-ActionRenderer.jsx:1333 📝 First 200 chars: عندك **0** موعد النهاردة (السبت 27 ديسمبر 2025).
-
-```action
-{"type": "button", "label": "عرض كل المواعيد", "navigate": "/appointments", "icon": "Calendar"}
-```
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 2
-ActionRenderer.jsx:1515 🔍 Action segments: 1
-ActionRenderer.jsx:1516 🔍 Action types: ['button']
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-useChat.js:256 ✅ Assistant message saved
-useChat.js:269 🎉 ========================================
-useChat.js:270 🎉 Pipeline Completed Successfully!
-useChat.js:271 🎉 ========================================
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 159
-ActionRenderer.jsx:1333 📝 First 200 chars: عندك **0** موعد النهاردة (السبت 27 ديسمبر 2025).
-
-```action
-{"type": "button", "label": "عرض كل المواعيد", "navigate": "/appointments", "icon": "Calendar"}
-```
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 2
-ActionRenderer.jsx:1515 🔍 Action segments: 1
-ActionRenderer.jsx:1516 🔍 Action types: ['button']
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 159
-ActionRenderer.jsx:1333 📝 First 200 chars: عندك **0** موعد النهاردة (السبت 27 ديسمبر 2025).
-
-```action
-{"type": "button", "label": "عرض كل المواعيد", "navigate": "/appointments", "icon": "Calendar"}
-```
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 2
-ActionRenderer.jsx:1515 🔍 Action segments: 1
-ActionRenderer.jsx:1516 🔍 Action types: ['button']
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 365
-ActionRenderer.jsx:1333 📝 First 200 chars: في الحقيقة، مفيش بيانات كفاية عن الحجوزات اليومية اللي بيتجي من النت، علشان كده مش هتقدر تعمل رسم بياني دقيق. بس ممكن نقول إن العيادة ليها 39 حجز، وده عدد كويس.لو حددنا كمية الحجوزات اليومية اللي بتيج
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 1
-ActionRenderer.jsx:1515 🔍 Action segments: 0
-ActionRenderer.jsx:1516 🔍 Action types: []
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 365
-ActionRenderer.jsx:1333 📝 First 200 chars: في الحقيقة، مفيش بيانات كفاية عن الحجوزات اليومية اللي بيتجي من النت، علشان كده مش هتقدر تعمل رسم بياني دقيق. بس ممكن نقول إن العيادة ليها 39 حجز، وده عدد كويس.لو حددنا كمية الحجوزات اليومية اللي بتيج
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 1
-ActionRenderer.jsx:1515 🔍 Action segments: 0
-ActionRenderer.jsx:1516 🔍 Action types: []
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-usePlan.js:11 === DEBUG: usePlan hook result === Proxy(Object) {status: 'success', fetchStatus: 'idle', isPending: false, isSuccess: true, isError: false, …}
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 159
-ActionRenderer.jsx:1333 📝 First 200 chars: عندك **0** موعد النهاردة (السبت 27 ديسمبر 2025).
-
-```action
-{"type": "button", "label": "عرض كل المواعيد", "navigate": "/appointments", "icon": "Calendar"}
-```
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 2
-ActionRenderer.jsx:1515 🔍 Action segments: 1
-ActionRenderer.jsx:1516 🔍 Action types: ['button']
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 159
-ActionRenderer.jsx:1333 📝 First 200 chars: عندك **0** موعد النهاردة (السبت 27 ديسمبر 2025).
-
-```action
-{"type": "button", "label": "عرض كل المواعيد", "navigate": "/appointments", "icon": "Calendar"}
-```
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 2
-ActionRenderer.jsx:1515 🔍 Action segments: 1
-ActionRenderer.jsx:1516 🔍 Action types: ['button']
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 365
-ActionRenderer.jsx:1333 📝 First 200 chars: في الحقيقة، مفيش بيانات كفاية عن الحجوزات اليومية اللي بيتجي من النت، علشان كده مش هتقدر تعمل رسم بياني دقيق. بس ممكن نقول إن العيادة ليها 39 حجز، وده عدد كويس.لو حددنا كمية الحجوزات اليومية اللي بتيج
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 1
-ActionRenderer.jsx:1515 🔍 Action segments: 0
-ActionRenderer.jsx:1516 🔍 Action types: []
-ActionRenderer.jsx:1517 🔍 ============================================================
-
-ActionRenderer.jsx:1331 
-🔍 ==================== PARSING AI RESPONSE ====================
-ActionRenderer.jsx:1332 📝 Content Length: 365
-ActionRenderer.jsx:1333 📝 First 200 chars: في الحقيقة، مفيش بيانات كفاية عن الحجوزات اليومية اللي بيتجي من النت، علشان كده مش هتقدر تعمل رسم بياني دقيق. بس ممكن نقول إن العيادة ليها 39 حجز، وده عدد كويس.لو حددنا كمية الحجوزات اليومية اللي بتيج
-ActionRenderer.jsx:1351 🔍 Has [CHART:...] tag: false
-ActionRenderer.jsx:1352 🔍 Has [TABLE:...] tag: false
-ActionRenderer.jsx:1514 🔍 Total segments: 1
-ActionRenderer.jsx:1515 🔍 Action segments: 0
-ActionRenderer.jsx:1516 🔍 Action types: []
-ActionRenderer.jsx:1517 🔍 ============================================================
+Name
+Type
+Description
+amount*
+
+number
+
+Amount MUST be in EGP and EasyKash will convert it to the provided currency
+
+currency*
+
+string
+
+Available currency list: 
+
+EGP
+
+USD
+
+SAR
+
+EUR
+
+paymentOptions
+
+array of numbers
+
+Note: the below payment options will ONLY appear if they are enabled to your business account.
+Must be an array of numbers represents the payment option
+
+Options: 
+
+1 (for Cash through AMAN)
+
+2 (for Credit & Debit Card)
+
+3 (for Qassatly)
+
+4 (for Mobile Wallet)
+
+5 (for Cash Through Fawry)
+
+6 (for Meeza)
+
+8 (for 6 Months - NBE installments)
+
+9 (for 12 Months - NBE installments)
+
+10 (for 18 Months - NBE installments)
+17 (for ValU)
+18 (for 6 months - Banque Misr installments)
+19 (for 12 months - Banque Misr installments)
+20 (for 18 months - Banque Misr installments)
+21 (for Aman installments)
+22 (for Souhoula)
+23 (for Contact)
+24 (for Mogo/MidTakseet)
+25 (for Blnk)
+26 (for 6 months installments - Multiple Banks)
+27 (for 12 months installments - Multiple Banks)
+28 (for 18 months installments - Multiple Banks)
+29 (for Halan)
+31 (for Apple Pay)
+32 (for TRU)
+33 (for Klivvr)
+
+cashExpiry
+
+number
+
+Must be a number (reflects time in hours i.e: 12 means 12 hours) 
+
+If not given, a default value of 3 will be taken
+
+name*
+
+string
+
+Buyer's name
+
+email*
+
+string
+
+Buyer's email
+
+mobile*
+
+string
+
+Buyer’s mobile number as string
+
+redirectUrl*
+
+string
+
+The link to redirect back to your website
+
+customerReference*
+
+number
+
+Product's reference number of the Direct Pay customer
+
+Request Body Example:
+
+Copy
+{
+    "amount": 10,
+    "currency": "EGP",
+    "paymentOptions": [
+        2,
+        3,
+        4,
+        5,
+        6
+    ],
+    "cashExpiry": 3,
+    "name": "John Doe",
+    "email": "JohnDoe@example.com",
+    "mobile": "01010101010",
+    "redirectUrl": "https://www.yourshop.com/",
+    "customerReference": 123
+}
+
+
+Copy
+{
+    "redirectUrl"="https://www.easykash.net/DirectPayV1/{productCode}"
+}
+The user must be redirected to the link received in the previous response to be able to proceed with payment.

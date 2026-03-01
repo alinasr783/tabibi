@@ -3165,6 +3165,7 @@ export async function resetToDefaultSettings() {
       accent_color: '#FF6B6B',
       sidebar_style: 'default',
       sidebar_collapsed: false,
+      sidebar_large_screen_behavior: 'persistent',
       menu_items: [],
       dashboard_widgets: [],
     };

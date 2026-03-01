@@ -752,6 +752,7 @@ CREATE TABLE public.user_preferences (
   timezone text DEFAULT 'Africa/Cairo'::text,
   tabibi_ai_settings jsonb DEFAULT '{}'::jsonb,
   medical_fields_config jsonb DEFAULT '{}'::jsonb,
+  sidebar_large_screen_behavior text NOT NULL DEFAULT 'persistent'::text CHECK (sidebar_large_screen_behavior = ANY (ARRAY['persistent'::text, 'toggle'::text])),
   CONSTRAINT user_preferences_pkey PRIMARY KEY (id),
   CONSTRAINT user_preferences_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );

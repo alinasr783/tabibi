@@ -1,225 +1,547 @@
-CREATE OR REPLACE FUNCTION public.tabibi_require_active_subscription(p_clinic_id uuid)
-RETURNS public.subscriptions
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, pg_temp
-SET row_security = off
-AS $$
-DECLARE
-  s public.subscriptions;
-BEGIN
-  SELECT *
-  INTO s
-  FROM public.subscriptions
-  WHERE clinic_id = p_clinic_id
-    AND status = 'active'
-  ORDER BY created_at DESC
-  LIMIT 1;
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
 
-  IF s.id IS NULL THEN
-    RAISE EXCEPTION 'لا يوجد اشتراك مفعل. برجاء الاشتراك في باقة للاستمرار.';
-  END IF;
-
-  IF s.current_period_end IS NOT NULL AND s.current_period_end <= now() THEN
-    RAISE EXCEPTION 'انتهت صلاحية الاشتراك. برجاء تجديد الباقة.';
-  END IF;
-
-  RETURN s;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION public.tabibi_get_plan_limits(p_clinic_id uuid)
-RETURNS jsonb
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, pg_temp
-SET row_security = off
-AS $$
-DECLARE
-  s public.subscriptions;
-  lim jsonb;
-BEGIN
-  s := public.tabibi_require_active_subscription(p_clinic_id);
-  SELECT limits INTO lim FROM public.plans WHERE id = s.plan_id;
-  RETURN COALESCE(lim, '{}'::jsonb);
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION public.tabibi_enforce_patients_limits()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, pg_temp
-SET row_security = off
-AS $$
-DECLARE
-  lim jsonb;
-  max_patients int;
-  month_start timestamptz;
-  month_end timestamptz;
-  current_count bigint;
-BEGIN
-  lim := public.tabibi_get_plan_limits(NEW.clinic_id);
-  max_patients := COALESCE((lim->>'max_patients')::int, -1);
-
-  IF max_patients = -1 THEN
-    RETURN NEW;
-  END IF;
-
-  month_start := date_trunc('month', now());
-  month_end := month_start + interval '1 month';
-
-  SELECT count(*)
-  INTO current_count
-  FROM public.patients p
-  WHERE p.clinic_id = NEW.clinic_id
-    AND p.created_at >= month_start
-    AND p.created_at < month_end;
-
-  IF current_count >= max_patients THEN
-    RAISE EXCEPTION 'لقد تجاوزت الحد المسموح من المرضى لهذا الشهر. يرجى ترقية الباقة.';
-  END IF;
-
-  RETURN NEW;
-END;
-$$;
-
-DROP TRIGGER IF EXISTS tabibi_enforce_patients_limits ON public.patients;
-CREATE TRIGGER tabibi_enforce_patients_limits
-BEFORE INSERT ON public.patients
-FOR EACH ROW
-EXECUTE FUNCTION public.tabibi_enforce_patients_limits();
-
-CREATE OR REPLACE FUNCTION public.tabibi_enforce_appointments_limits()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, pg_temp
-SET row_security = off
-AS $$
-DECLARE
-  lim jsonb;
-  max_appointments int;
-  appointment_ts timestamptz;
-  month_start timestamptz;
-  month_end timestamptz;
-  current_count bigint;
-BEGIN
-  lim := public.tabibi_get_plan_limits(NEW.clinic_id);
-  max_appointments := COALESCE((lim->>'max_appointments')::int, -1);
-
-  IF max_appointments = -1 THEN
-    RETURN NEW;
-  END IF;
-
-  IF NEW.date IS NULL OR length(NEW.date) = 0 THEN
-    RAISE EXCEPTION 'تاريخ الموعد مطلوب';
-  END IF;
-
-  appointment_ts := NEW.date::timestamptz;
-  month_start := date_trunc('month', appointment_ts);
-  month_end := month_start + interval '1 month';
-
-  SELECT count(*)
-  INTO current_count
-  FROM public.appointments a
-  WHERE a.clinic_id = NEW.clinic_id
-    AND a.date IS NOT NULL
-    AND a.date::timestamptz >= month_start
-    AND a.date::timestamptz < month_end;
-
-  IF current_count >= max_appointments THEN
-    RAISE EXCEPTION 'لقد تجاوزت الحد المسموح من المواعيد لهذا الشهر. يرجى ترقية الباقة.';
-  END IF;
-
-  RETURN NEW;
-END;
-$$;
-
-DROP TRIGGER IF EXISTS tabibi_enforce_appointments_limits ON public.appointments;
-CREATE TRIGGER tabibi_enforce_appointments_limits
-BEFORE INSERT ON public.appointments
-FOR EACH ROW
-EXECUTE FUNCTION public.tabibi_enforce_appointments_limits();
-
-CREATE OR REPLACE FUNCTION public.tabibi_enforce_treatment_templates_limits()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, pg_temp
-SET row_security = off
-AS $$
-DECLARE
-  lim jsonb;
-  max_templates int;
-  current_count bigint;
-BEGIN
-  lim := public.tabibi_get_plan_limits(NEW.clinic_id);
-  max_templates := COALESCE((lim->>'max_treatment_templates')::int, -1);
-
-  IF max_templates = -1 THEN
-    RETURN NEW;
-  END IF;
-
-  SELECT count(*)
-  INTO current_count
-  FROM public.treatment_templates t
-  WHERE t.clinic_id = NEW.clinic_id;
-
-  IF current_count >= max_templates THEN
-    RAISE EXCEPTION 'لقد تجاوزت الحد المسموح من الخطط العلاجية. يرجى ترقية الباقة.';
-  END IF;
-
-  RETURN NEW;
-END;
-$$;
-
-DROP TRIGGER IF EXISTS tabibi_enforce_treatment_templates_limits ON public.treatment_templates;
-CREATE TRIGGER tabibi_enforce_treatment_templates_limits
-BEFORE INSERT ON public.treatment_templates
-FOR EACH ROW
-EXECUTE FUNCTION public.tabibi_enforce_treatment_templates_limits();
-
-CREATE OR REPLACE FUNCTION public.tabibi_enforce_secretaries_limits()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, pg_temp
-SET row_security = off
-AS $$
-DECLARE
-  lim jsonb;
-  max_secretaries int;
-  current_count bigint;
-BEGIN
-  IF NEW.role IS DISTINCT FROM 'secretary' THEN
-    RETURN NEW;
-  END IF;
-
-  lim := public.tabibi_get_plan_limits(NEW.clinic_id);
-  max_secretaries := COALESCE((lim->>'secretary')::int, (lim->>'max_secretaries')::int, -1);
-
-  IF max_secretaries = -1 THEN
-    RETURN NEW;
-  END IF;
-
-  SELECT count(*)
-  INTO current_count
-  FROM public.users u
-  WHERE u.clinic_id = NEW.clinic_id
-    AND u.role = 'secretary';
-
-  IF current_count >= max_secretaries THEN
-    RAISE EXCEPTION 'لقد تجاوزت الحد المسموح من السكرتارية. يرجى ترقية الباقة.';
-  END IF;
-
-  RETURN NEW;
-END;
-$$;
-
-DROP TRIGGER IF EXISTS tabibi_enforce_secretaries_limits ON public.users;
-CREATE TRIGGER tabibi_enforce_secretaries_limits
-BEFORE INSERT ON public.users
-FOR EACH ROW
-EXECUTE FUNCTION public.tabibi_enforce_secretaries_limits();
-
+CREATE TABLE public.ai_agent_profile (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  bio text,
+  avatar_url text,
+  banner_url text,
+  skills jsonb DEFAULT '[]'::jsonb,
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT ai_agent_profile_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.app_data_submissions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  app_id bigint NOT NULL,
+  clinic_id uuid,
+  submission_type text NOT NULL,
+  data jsonb NOT NULL DEFAULT '{}'::jsonb,
+  status text DEFAULT 'new'::text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT app_data_submissions_pkey PRIMARY KEY (id),
+  CONSTRAINT app_data_submissions_app_id_fkey FOREIGN KEY (app_id) REFERENCES public.tabibi_apps(id),
+  CONSTRAINT app_data_submissions_clinic_id_fkey FOREIGN KEY (clinic_id) REFERENCES public.clinics(clinic_uuid)
+);
+CREATE TABLE public.app_developers (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL UNIQUE,
+  name text NOT NULL,
+  company_name text,
+  email text NOT NULL,
+  phone text,
+  website text,
+  status text DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'approved'::text, 'suspended'::text])),
+  api_key text UNIQUE,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT app_developers_pkey PRIMARY KEY (id),
+  CONSTRAINT app_developers_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.app_requests (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  developer_id uuid NOT NULL,
+  title text NOT NULL,
+  description text,
+  image_url text,
+  screenshots jsonb DEFAULT '[]'::jsonb,
+  links jsonb DEFAULT '[]'::jsonb,
+  status text DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'in_review'::text, 'approved'::text, 'rejected'::text])),
+  admin_notes text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT app_requests_pkey PRIMARY KEY (id),
+  CONSTRAINT app_requests_developer_id_fkey FOREIGN KEY (developer_id) REFERENCES public.app_developers(id)
+);
+CREATE TABLE public.app_subscriptions (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  clinic_id uuid NOT NULL,
+  app_id bigint,
+  status text DEFAULT 'active'::text CHECK (status = ANY (ARRAY['active'::text, 'expired'::text, 'cancelled'::text, 'past_due'::text])),
+  current_period_start timestamp with time zone DEFAULT now(),
+  current_period_end timestamp with time zone,
+  billing_period text,
+  amount numeric,
+  auto_renew boolean DEFAULT true,
+  is_integrated boolean DEFAULT false,
+  CONSTRAINT app_subscriptions_pkey PRIMARY KEY (id),
+  CONSTRAINT app_subscriptions_app_id_fkey FOREIGN KEY (app_id) REFERENCES public.tabibi_apps(id)
+);
+CREATE TABLE public.appointments (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  patient_id bigint,
+  date text,
+  notes text,
+  status text,
+  price bigint,
+  from text,
+  clinic_id uuid,
+  age bigint,
+  diagnosis text,
+  treatment text,
+  custom_fields jsonb NOT NULL DEFAULT '[]'::jsonb,
+  CONSTRAINT appointments_pkey PRIMARY KEY (id),
+  CONSTRAINT appointment_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(id)
+);
+CREATE TABLE public.articles (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  slug text NOT NULL UNIQUE,
+  title text NOT NULL,
+  content text NOT NULL,
+  excerpt text,
+  featured_image text,
+  author_name text DEFAULT 'فريق طبيبي'::text,
+  published_at timestamp with time zone DEFAULT now(),
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  status text DEFAULT 'published'::text CHECK (status = ANY (ARRAY['draft'::text, 'published'::text, 'archived'::text])),
+  meta_title text,
+  meta_description text,
+  keywords ARRAY,
+  views_count integer DEFAULT 0,
+  CONSTRAINT articles_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.blocked_phones (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  clinic_id uuid NOT NULL,
+  phone_number text NOT NULL,
+  reason text,
+  created_at timestamp with time zone DEFAULT now(),
+  created_by uuid,
+  CONSTRAINT blocked_phones_pkey PRIMARY KEY (id),
+  CONSTRAINT blocked_phones_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id)
+);
+CREATE TABLE public.booking_analytics (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  clinic_id uuid NOT NULL,
+  visitor_id text,
+  ip_address text,
+  country text,
+  city text,
+  device_type text,
+  browser text,
+  event_type text CHECK (event_type = ANY (ARRAY['view'::text, 'conversion'::text, 'blocked_attempt'::text])),
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT booking_analytics_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.booking_drafts (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  clinic_id uuid NOT NULL,
+  visitor_id text,
+  session_id text,
+  current_step integer,
+  patient_name text,
+  patient_phone text,
+  selected_date text,
+  selected_time text,
+  form_data jsonb,
+  ip_address text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  status text DEFAULT 'in_progress'::text CHECK (status = ANY (ARRAY['in_progress'::text, 'completed'::text, 'abandoned'::text])),
+  CONSTRAINT booking_drafts_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.chat_conversations (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  clinic_id text NOT NULL,
+  title text DEFAULT 'محادثة جديدة'::text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  is_archived boolean DEFAULT false,
+  CONSTRAINT chat_conversations_pkey PRIMARY KEY (id),
+  CONSTRAINT chat_conversations_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.chat_messages (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  conversation_id uuid NOT NULL,
+  role text NOT NULL CHECK (role = ANY (ARRAY['user'::text, 'assistant'::text, 'system'::text])),
+  content text NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT chat_messages_pkey PRIMARY KEY (id),
+  CONSTRAINT chat_messages_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.chat_conversations(id)
+);
+CREATE TABLE public.clinic_wallets (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  clinic_id uuid NOT NULL UNIQUE,
+  balance numeric NOT NULL DEFAULT 0.00,
+  currency text DEFAULT 'EGP'::text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT clinic_wallets_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.clinics (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  name text,
+  address text,
+  booking_price integer,
+  available_time jsonb,
+  current_plan text,
+  clinic_uuid uuid DEFAULT gen_random_uuid() UNIQUE,
+  online_booking_enabled boolean DEFAULT true,
+  clinic_id_bigint bigint,
+  whatsapp_enabled boolean DEFAULT false,
+  whatsapp_number text,
+  prevent_conflicts boolean DEFAULT false,
+  min_time_gap integer DEFAULT 30,
+  CONSTRAINT clinics_pkey PRIMARY KEY (id),
+  CONSTRAINT clinics_current_plan_fkey FOREIGN KEY (current_plan) REFERENCES public.plans(id)
+);
+CREATE TABLE public.daily_email_logs (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  clinic_id uuid,
+  email_to text NOT NULL,
+  appointments_count integer NOT NULL DEFAULT 0,
+  sent_at timestamp with time zone DEFAULT now(),
+  status text DEFAULT 'sent'::text CHECK (status = ANY (ARRAY['sent'::text, 'failed'::text, 'skipped'::text])),
+  error_message text,
+  CONSTRAINT daily_email_logs_pkey PRIMARY KEY (id),
+  CONSTRAINT daily_email_logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.developer_transactions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  wallet_id uuid NOT NULL,
+  amount numeric NOT NULL,
+  type text NOT NULL CHECK (type = ANY (ARRAY['earning'::text, 'withdrawal'::text, 'refund'::text, 'adjustment'::text])),
+  description text,
+  reference_id text,
+  reference_type text,
+  status text DEFAULT 'completed'::text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT developer_transactions_pkey PRIMARY KEY (id),
+  CONSTRAINT developer_transactions_wallet_id_fkey FOREIGN KEY (wallet_id) REFERENCES public.developer_wallets(id)
+);
+CREATE TABLE public.developer_wallets (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  developer_id uuid NOT NULL UNIQUE,
+  balance numeric NOT NULL DEFAULT 0.00,
+  currency text DEFAULT 'EGP'::text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT developer_wallets_pkey PRIMARY KEY (id),
+  CONSTRAINT developer_wallets_developer_id_fkey FOREIGN KEY (developer_id) REFERENCES public.app_developers(id)
+);
+CREATE TABLE public.discount_redemptions (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  discount_id bigint NOT NULL,
+  clinic_id uuid,
+  appointment_id bigint,
+  patient_plan_id bigint,
+  subscription_id bigint,
+  redeemed_by bigint,
+  amount_discounted numeric,
+  CONSTRAINT discount_redemptions_pkey PRIMARY KEY (id),
+  CONSTRAINT discount_redemptions_discount_id_fkey FOREIGN KEY (discount_id) REFERENCES public.discounts(id),
+  CONSTRAINT discount_redemptions_appointment_id_fkey FOREIGN KEY (appointment_id) REFERENCES public.appointments(id),
+  CONSTRAINT discount_redemptions_patient_plan_id_fkey FOREIGN KEY (patient_plan_id) REFERENCES public.patient_plans(id),
+  CONSTRAINT discount_redemptions_subscription_id_fkey FOREIGN KEY (subscription_id) REFERENCES public.subscriptions(id),
+  CONSTRAINT discount_redemptions_redeemed_by_fkey FOREIGN KEY (redeemed_by) REFERENCES public.users(id)
+);
+CREATE TABLE public.discounts (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  code text,
+  is_percentage boolean,
+  value real,
+  is_active boolean,
+  plan_id text,
+  max_uses integer,
+  used_count integer DEFAULT 0,
+  expiration_date timestamp with time zone,
+  message text,
+  billing_period text DEFAULT 'both'::text CHECK (billing_period = ANY (ARRAY['monthly'::text, 'annual'::text, 'both'::text])),
+  CONSTRAINT discounts_pkey PRIMARY KEY (id),
+  CONSTRAINT discounts_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES public.plans(id)
+);
+CREATE TABLE public.fcm_tokens (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  token text NOT NULL,
+  device_type text DEFAULT 'web'::text,
+  created_at timestamp with time zone DEFAULT now(),
+  last_updated timestamp with time zone DEFAULT now(),
+  CONSTRAINT fcm_tokens_pkey PRIMARY KEY (id),
+  CONSTRAINT fcm_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.financial_records (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  clinic_id bigint NOT NULL,
+  appointment_id bigint,
+  patient_id bigint,
+  patient_plan_id bigint,
+  amount numeric NOT NULL,
+  type text NOT NULL CHECK (type = ANY (ARRAY['income'::text, 'expense'::text, 'charge'::text])),
+  description text NOT NULL,
+  recorded_at timestamp with time zone DEFAULT now(),
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT financial_records_pkey PRIMARY KEY (id),
+  CONSTRAINT financial_records_appointment_id_fkey FOREIGN KEY (appointment_id) REFERENCES public.appointments(id),
+  CONSTRAINT financial_records_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(id),
+  CONSTRAINT financial_records_patient_plan_id_fkey FOREIGN KEY (patient_plan_id) REFERENCES public.patient_plans(id)
+);
+CREATE TABLE public.integrations (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  clinic_id uuid,
+  provider text NOT NULL,
+  integration_type text NOT NULL,
+  access_token text,
+  refresh_token text,
+  expires_at timestamp with time zone,
+  scope text,
+  token_type text,
+  id_token text,
+  is_active boolean DEFAULT true,
+  settings jsonb DEFAULT '{}'::jsonb,
+  metadata jsonb DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT integrations_pkey PRIMARY KEY (id),
+  CONSTRAINT integrations_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.notifications (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  type character varying NOT NULL,
+  title character varying NOT NULL,
+  message text,
+  clinic_id uuid NOT NULL,
+  is_read boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  related_id character varying,
+  appointment_id bigint,
+  patient_id bigint,
+  image_url text,
+  action_link text,
+  action_text text,
+  action_buttons jsonb,
+  CONSTRAINT notifications_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.patient_attachments (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone DEFAULT now(),
+  patient_id bigint,
+  clinic_id uuid,
+  file_name text,
+  file_url text NOT NULL,
+  file_type text,
+  category text,
+  description text,
+  CONSTRAINT patient_attachments_pkey PRIMARY KEY (id),
+  CONSTRAINT patient_attachments_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(id)
+);
+CREATE TABLE public.patient_plans (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  template_id bigint,
+  total_sessions integer,
+  completed_sessions integer,
+  status text,
+  patient_id bigint,
+  total_price bigint,
+  clinic_id uuid,
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT patient_plans_pkey PRIMARY KEY (id),
+  CONSTRAINT patient_plans_template_id_fkey FOREIGN KEY (template_id) REFERENCES public.treatment_templates(id),
+  CONSTRAINT patient_plans_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(id)
+);
+CREATE TABLE public.patients (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  name text,
+  phone text,
+  address text,
+  date_of_birth text,
+  blood_type text,
+  gender text,
+  clinic_id uuid,
+  age integer,
+  updated_at timestamp with time zone DEFAULT now(),
+  age_unit text DEFAULT 'years'::text,
+  job text,
+  marital_status text,
+  email text,
+  notes text,
+  medical_history jsonb DEFAULT '{}'::jsonb,
+  insurance_info jsonb DEFAULT '{}'::jsonb,
+  custom_fields jsonb NOT NULL DEFAULT '[]'::jsonb,
+  CONSTRAINT patients_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.plan_pricing (
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  price real,
+  id text NOT NULL,
+  features jsonb,
+  popular boolean,
+  name text,
+  description text,
+  CONSTRAINT plan_pricing_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.plans (
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  id text NOT NULL,
+  name text,
+  limits jsonb,
+  price numeric,
+  CONSTRAINT plans_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.subscriptions (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  plan_id text,
+  status text DEFAULT 'active'::text,
+  current_period_start timestamp with time zone,
+  current_period_end timestamp with time zone,
+  payment_method text,
+  billing_period text DEFAULT 'monthly'::text CHECK (billing_period = ANY (ARRAY['monthly'::text, 'annual'::text])),
+  amount numeric,
+  clinic_id uuid,
+  CONSTRAINT subscriptions_pkey PRIMARY KEY (id),
+  CONSTRAINT subscriptions_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES public.plans(id)
+);
+CREATE TABLE public.tabibi_apps (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  title text NOT NULL,
+  short_description text,
+  full_description text,
+  price numeric DEFAULT 0,
+  billing_period text DEFAULT 'monthly'::text CHECK (billing_period = ANY (ARRAY['monthly'::text, 'yearly'::text, 'one_time'::text])),
+  image_url text,
+  category text,
+  features jsonb DEFAULT '[]'::jsonb,
+  screenshots jsonb DEFAULT '[]'::jsonb,
+  component_key text UNIQUE,
+  is_active boolean DEFAULT true,
+  color text,
+  preview_link text,
+  developer_id uuid,
+  submission_schema jsonb DEFAULT '{}'::jsonb,
+  images jsonb DEFAULT '[]'::jsonb,
+  views_count integer DEFAULT 0,
+  integration_type text DEFAULT 'none'::text CHECK (integration_type = ANY (ARRAY['none'::text, 'full'::text, 'partial'::text])),
+  integration_target text,
+  CONSTRAINT tabibi_apps_pkey PRIMARY KEY (id),
+  CONSTRAINT tabibi_apps_developer_id_fkey FOREIGN KEY (developer_id) REFERENCES public.app_developers(id)
+);
+CREATE TABLE public.transactions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  reference_number integer NOT NULL DEFAULT nextval('transactions_reference_number_seq'::regclass),
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  user_id uuid,
+  clinic_id uuid,
+  easykash_ref text,
+  amount numeric NOT NULL,
+  currency text DEFAULT 'EGP'::text,
+  status USER-DEFINED DEFAULT 'pending'::payment_status,
+  type USER-DEFINED NOT NULL,
+  metadata jsonb DEFAULT '{}'::jsonb,
+  response_data jsonb DEFAULT '{}'::jsonb,
+  CONSTRAINT transactions_pkey PRIMARY KEY (id),
+  CONSTRAINT transactions_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.treatment_templates (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  name text,
+  session_count integer,
+  session_price integer,
+  description text,
+  clinic_id uuid,
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT treatment_templates_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.user_preferences (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL UNIQUE,
+  theme_mode text DEFAULT 'system'::text CHECK (theme_mode = ANY (ARRAY['light'::text, 'dark'::text, 'system'::text])),
+  primary_color character varying DEFAULT '#1AA19C'::character varying,
+  secondary_color character varying DEFAULT '#224FB5'::character varying,
+  accent_color character varying DEFAULT '#FF6B6B'::character varying,
+  logo_url text,
+  company_name text,
+  menu_items jsonb DEFAULT '[]'::jsonb,
+  sidebar_collapsed boolean DEFAULT false,
+  sidebar_style text DEFAULT 'default'::text CHECK (sidebar_style = ANY (ARRAY['default'::text, 'compact'::text, 'full'::text])),
+  language text DEFAULT 'ar'::text CHECK (language = ANY (ARRAY['ar'::text, 'en'::text])),
+  notifications_enabled boolean DEFAULT true,
+  sound_notifications boolean DEFAULT true,
+  dashboard_widgets jsonb DEFAULT '[]'::jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  daily_appointments_email_enabled boolean DEFAULT false,
+  daily_appointments_email_time text DEFAULT '07:00'::text,
+  timezone text DEFAULT 'Africa/Cairo'::text,
+  tabibi_ai_settings jsonb DEFAULT '{}'::jsonb,
+  CONSTRAINT user_preferences_pkey PRIMARY KEY (id),
+  CONSTRAINT user_preferences_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.users (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  name text,
+  phone text,
+  role text,
+  permissions text,
+  email text,
+  user_id text,
+  clinic_id uuid,
+  auth_uid uuid,
+  clinic_id_bigint bigint,
+  avatar_url text,
+  bio text,
+  education jsonb DEFAULT '[]'::jsonb,
+  certificates jsonb DEFAULT '[]'::jsonb,
+  specialty text,
+  banner_url text,
+  contacts jsonb DEFAULT '[]'::jsonb,
+  CONSTRAINT users_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.visits (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  patient_id bigint,
+  diagnosis text,
+  notes text,
+  medications jsonb,
+  clinic_id uuid,
+  patient_plan_id bigint,
+  CONSTRAINT visits_pkey PRIMARY KEY (id),
+  CONSTRAINT visits_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(id)
+);
+CREATE TABLE public.wallet_transactions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  wallet_id uuid NOT NULL,
+  amount numeric NOT NULL,
+  type text NOT NULL CHECK (type = ANY (ARRAY['deposit'::text, 'payment'::text, 'refund'::text, 'adjustment'::text, 'bonus'::text])),
+  description text,
+  reference_type text,
+  reference_id text,
+  status text DEFAULT 'completed'::text CHECK (status = ANY (ARRAY['pending'::text, 'completed'::text, 'failed'::text, 'cancelled'::text])),
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT wallet_transactions_pkey PRIMARY KEY (id),
+  CONSTRAINT wallet_transactions_wallet_id_fkey FOREIGN KEY (wallet_id) REFERENCES public.clinic_wallets(id)
+);
+CREATE TABLE public.withdrawal_requests (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  developer_id uuid NOT NULL,
+  wallet_id uuid NOT NULL,
+  amount numeric NOT NULL,
+  status text DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text, 'processed'::text])),
+  bank_details text,
+  admin_note text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT withdrawal_requests_pkey PRIMARY KEY (id),
+  CONSTRAINT withdrawal_requests_developer_id_fkey FOREIGN KEY (developer_id) REFERENCES public.app_developers(id),
+  CONSTRAINT withdrawal_requests_wallet_id_fkey FOREIGN KEY (wallet_id) REFERENCES public.developer_wallets(id)
+);

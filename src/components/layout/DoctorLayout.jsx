@@ -27,6 +27,7 @@ import { useState, useEffect } from "react";
 import { useUnreadNotifications } from "../../features/Notifications/useUnreadNotifications";
 import useFcmToken from "../../hooks/useFcmToken";
 import useGoogleCalendarSync from "../../features/calendar/useGoogleCalendarSync";
+import { useUserPreferences } from "../../hooks/useUserPreferences";
 
 // Config for navigation items with Groups
 const NAV_ITEMS_CONFIG = [
@@ -99,6 +100,9 @@ export default function DoctorLayout() {
   const [expandedGroups, setExpandedGroups] = useState(GROUPS_ORDER);
   const { unreadCount = 0, loading } = useUnreadNotifications();
   const location = useLocation();
+  const { data: preferences } = useUserPreferences();
+  const sidebarLargeScreenBehavior = preferences?.sidebar_large_screen_behavior || "persistent";
+  const isToggleOnLargeScreens = sidebarLargeScreenBehavior === "toggle";
   
   // Initialize FCM Token for notifications
   useFcmToken();
@@ -123,7 +127,7 @@ export default function DoctorLayout() {
 
   // Function to close sidebar on mobile after clicking a nav item
   const handleNavItemClick = () => {
-    if (window.innerWidth < 768) {
+    if (window.innerWidth < 768 || isToggleOnLargeScreens) {
       requestAnimationFrame(() => setIsSidebarOpen(false));
     }
   };
@@ -168,6 +172,10 @@ export default function DoctorLayout() {
     };
   }, []);
 
+  useEffect(() => {
+    setIsSidebarOpen(false);
+  }, [sidebarLargeScreenBehavior]);
+
   // Check if current page is Tabibi App Details (needs full width control)
   const isAppDetails = /^\/tabibi-apps\/\d+$/.test(location.pathname);
 
@@ -182,20 +190,19 @@ export default function DoctorLayout() {
 
   return (
     <div dir="rtl" className="flex h-screen">
-      {/* Floating Mobile menu button - Always visible and floating on small screens at the top */}
+      {/* Floating Mobile menu button */}
       <button
-        className="md:hidden fixed top-6 left-6 z-[9999] p-3 rounded-full bg-primary text-primary-foreground shadow-lg menu-button"
+        className={`${isToggleOnLargeScreens ? '' : 'md:hidden'} fixed top-6 left-6 z-[9999] p-3 rounded-full bg-primary text-primary-foreground shadow-lg menu-button`}
         onClick={() => {
-          // Prevent synchronous layout thrash during React commit
           requestAnimationFrame(() => setIsSidebarOpen((v) => !v));
         }}>
         <Menu className="size-6" />
       </button>
 
-      {/* Sidebar overlay for mobile */}
+      {/* Sidebar overlay */}
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-[9998] md:hidden"
+          className={`fixed inset-0 bg-black/50 z-[9998] ${isToggleOnLargeScreens ? '' : 'md:hidden'}`}
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
@@ -204,7 +211,7 @@ export default function DoctorLayout() {
       <aside
         className={`sidebar fixed top-0 left-0 w-64 transform transition-transform duration-300 ease-in-out z-[9999]
           ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} 
-          md:translate-x-0 md:static md:flex md:w-56 lg:w-60 xl:w-64 flex-shrink-0 flex-col border-e border-border bg-card h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]`}>
+          ${isToggleOnLargeScreens ? "md:w-56 lg:w-60 xl:w-64" : "md:translate-x-0 md:static md:flex md:w-56 lg:w-60 xl:w-64"} flex-shrink-0 flex-col border-e border-border bg-card h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]`}>
         <Link
           to="/"
           onClick={() => setIsSidebarOpen(false)}

@@ -13,6 +13,7 @@ const DEFAULT_PREFERENCES = {
   accent_color: '#FF6B6B',
   sidebar_style: 'default',
   sidebar_collapsed: false,
+  sidebar_large_screen_behavior: 'persistent',
   language: 'ar',
   notifications_enabled: true,
   sound_notifications: true,
@@ -98,7 +99,7 @@ export async function updateUserPreferences(preferences) {
 
     if (error) throw error;
 
-    return data;
+    return attachComputedDefaults(data);
   } catch (error) {
     console.error('Error updating user preferences:', error);
     throw error;

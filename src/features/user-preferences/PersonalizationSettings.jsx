@@ -4,6 +4,7 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { useUserPreferences, useUpdateUserPreferences } from '../../hooks/useUserPreferences';
 import { Loader2, Check, Palette, Bell, Settings, RotateCcw } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -24,6 +25,7 @@ export function PersonalizationSettings() {
   });
 
   const [themeMode, setThemeMode] = useState('light');
+  const [sidebarLargeScreenBehavior, setSidebarLargeScreenBehavior] = useState('persistent');
   const [isResetting, setIsResetting] = useState(false);
 
   // Sync state with preferences when loaded
@@ -35,6 +37,7 @@ export function PersonalizationSettings() {
         accent: preferences.accent_color || '#FF6B6B',
       });
       setThemeMode(preferences.theme_mode || 'light');
+      setSidebarLargeScreenBehavior(preferences.sidebar_large_screen_behavior || 'persistent');
     }
   }, [preferences]);
 
@@ -53,6 +56,7 @@ export function PersonalizationSettings() {
       // Update local state
       setColorState(defaultColors);
       setThemeMode('light');
+      setSidebarLargeScreenBehavior('persistent');
       toast.success(result.message);
     } catch (error) {
       toast.error('حدث خطأ في إعادة الإعدادات');
@@ -88,6 +92,21 @@ export function PersonalizationSettings() {
       {
         onSuccess: () => {
           toast.success('تم تحديث المظهر');
+        },
+      }
+    );
+  };
+
+  const handleSidebarLargeScreenBehaviorChange = (value) => {
+    setSidebarLargeScreenBehavior(value);
+    updatePreferences(
+      { sidebar_large_screen_behavior: value },
+      {
+        onSuccess: () => {
+          toast.success('تم تحديث سلوك القائمة');
+        },
+        onError: () => {
+          toast.error('حدث خطأ في تحديث سلوك القائمة');
         },
       }
     );
@@ -268,6 +287,27 @@ export function PersonalizationSettings() {
                       <p className="font-semibold text-xs sm:text-sm">{theme.label}</p>
                     </button>
                   ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="block text-sm font-medium">القائمة الجانبية على الشاشات الكبيرة</Label>
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  على الموبايل تظل بزرار عند الضغط، وعلى الشاشات الكبيرة تختار السلوك المناسب
+                </p>
+                <div className="max-w-sm">
+                  <Select
+                    value={sidebarLargeScreenBehavior}
+                    onValueChange={handleSidebarLargeScreenBehaviorChange}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="اختر السلوك" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="persistent">مفتوحة دائمًا</SelectItem>
+                      <SelectItem value="toggle">زر (تفتح عند الضغط)</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </div>
