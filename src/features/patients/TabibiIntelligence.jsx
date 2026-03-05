@@ -106,27 +106,33 @@ export default function TabibiIntelligence({ patient }) {
       const fieldDefinitions = new Map();
 
       if (medicalFieldsConfig?.patient?.customSections) {
-        const fields = [];
+        const sections = [];
         medicalFieldsConfig.patient.customSections.forEach(section => {
-          if (Array.isArray(section.templates)) {
-            section.templates.forEach(field => {
-              if (field.enabled !== false) {
-                // Store definition for merging
-                fieldDefinitions.set(field.id, { ...field, section_id: section.id });
-                
-                fields.push({
-                  id: field.id,
-                  // Use label if available, otherwise name. This is what the user sees.
-                  label: field.label || field.name, 
-                  type: field.type,
-                  section: section.title
-                });
-              }
-            });
+          if (Array.isArray(section.templates) && section.templates.length > 0) {
+             const activeFields = section.templates.filter(f => f.enabled !== false);
+             if (activeFields.length > 0) {
+                 sections.push({
+                     id: section.id,
+                     title: section.title,
+                     fields: activeFields.map(field => {
+                         // Store definition for merging
+                         fieldDefinitions.set(field.id, { ...field, section_id: section.id });
+                         
+                         return {
+                             id: field.id,
+                             label: field.name, // Custom fields use 'name'
+                             type: field.type,
+                             options: field.options,
+                             placeholder: field.placeholder
+                         };
+                     })
+                 });
+             }
           }
         });
-        if (fields.length > 0) {
-          simplifiedSchema = { custom_fields: fields };
+        
+        if (sections.length > 0) {
+          simplifiedSchema = { custom_sections: sections };
         }
       }
 

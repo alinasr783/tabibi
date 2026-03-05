@@ -12,40 +12,52 @@ const client = new OpenAI({
 export async function processPatientInput(patientData, userInput, schemaConfig = null) {
   try {
     const systemPrompt = `
-You are an intelligent medical assistant for Tabibi, a clinic management system.
-Your goal is to extract patient information from natural language input (text or voice transcript) and map it to the patient data structure.
+You are an expert medical data structuring assistant for "Tabibi".
+Your core competency is understanding natural language medical notes (Arabic/English) and mapping them ACCURATELY to a structured patient profile.
 
-Current Patient Data:
+CURRENT PATIENT DATA:
 ${JSON.stringify(patientData, null, 2)}
 
 ${schemaConfig ? `
-CUSTOM FIELDS CONFIGURATION:
-The clinic has defined the following custom fields. You MUST extract values for these fields if present in the input.
-Format: { "custom_fields": [ { "id": "field_uuid", "label": "Field Name", "type": "text/number/etc" } ] }
+================================================================================
+CUSTOM FORMS & FIELDS CONFIGURATION
+The clinic has defined specific custom forms. You MUST map input data to these fields when relevant.
 
-Available Custom Fields:
-${JSON.stringify(schemaConfig.custom_fields, null, 2)}
+${JSON.stringify(schemaConfig.custom_sections, null, 2)}
 
 INSTRUCTIONS FOR CUSTOM FIELDS:
-1. If the input contains information matching a custom field label (or close synonym), extract it.
-2. Put the extracted value in a "custom_fields" object in your response.
-3. The key MUST be the field's "id" (NOT the label).
-4. The value should match the expected type.
-Example output for custom fields:
-{
-  "custom_fields": {
-    "550e8400-e29b-41d4-a716-446655440000": "Extracted Value"
-  }
-}
+1. **Analyze Context**: Look at the "title" of the sections (Forms). If the user mentions context related to a form (e.g., "Eye Exam", "Dental", "Follow up"), prioritize fields within that section.
+2. **Field Matching**: Match the user's input to the "label" of the fields. Be smart about synonyms (e.g., "Pressure" -> "Blood Pressure", "Vision" -> "Visual Acuity").
+3. **Options Validation**: If a field has "options" (for select/multiselect), strictly try to map the extracted value to one of the provided options.
+4. **Data Types**: 
+   - "number": Extract as number.
+   - "checkbox": Extract as boolean (true/false).
+   - "date": Extract as YYYY-MM-DD string.
+5. **Output Format**: 
+   Return a "custom_fields" object where keys are the field "id"s.
+   
+   Example Output:
+   {
+     "custom_fields": {
+       "uuid-1234": "Selected Option",
+       "uuid-5678": 120,
+       "uuid-9012": true
+     }
+   }
+================================================================================
 ` : ''}
 
-Task:
-1. Analyze the user input.
-2. Identify information that updates or adds to the patient's profile (e.g., name, age, medical history, custom fields).
-3. Return a JSON object containing ONLY the fields that need to be updated.
-4. If the input implies adding to a list (like "chronic diseases"), append to the existing list if possible, or provide the full new list.
-5. The output must be valid JSON matching the database schema structure.
-6. If no relevant data is found, return an empty JSON object {}.
+TASK:
+1. Analyze the user input deeply.
+2. Extract clinical data and updates.
+3. Map extracted data to:
+   - **Standard Patient Fields**: name, phone, age, gender, address, job, marital_status, blood_type.
+   - **Medical History**: chronic_diseases (list), allergies (list), past_surgeries (list), family_history (list).
+   - **Custom Fields**: Using the IDs provided in the configuration above.
+4. **MERGE STRATEGY**: 
+   - For lists (allergies, etc.), append new items to the existing list unless explicitly asked to replace.
+   - For single values (name, custom fields), return the new value to overwrite.
+5. If no relevant data is found, return an empty JSON object {}.
 
 Response Format:
 Return ONLY the JSON object. Do not include markdown formatting like \`\`\`json.
