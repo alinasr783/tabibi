@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Mic, Plus, Paperclip, Sparkles, X, Loader2, StopCircle, ArrowUp } from 'lucide-react';
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
@@ -10,6 +10,7 @@ import { updatePatient } from '../../services/apiPatients';
 import supabase from '../../services/supabase';
 import { useQueryClient } from '@tanstack/react-query';
 import { useUserPreferences } from '../../hooks/useUserPreferences';
+import { normalizeMedicalFieldsConfig } from '../../lib/medicalFieldsConfig';
 import 'regenerator-runtime/runtime';
 
 export default function TabibiIntelligence({ patient }) {
@@ -22,6 +23,12 @@ export default function TabibiIntelligence({ patient }) {
   
   const queryClient = useQueryClient();
   const { data: preferences } = useUserPreferences();
+
+  // Memoize config to ensure we always have valid structure
+  const medicalFieldsConfig = useMemo(
+    () => normalizeMedicalFieldsConfig(preferences?.medical_fields_config),
+    [preferences?.medical_fields_config]
+  );
   
   const {
     transcript,
@@ -93,11 +100,38 @@ export default function TabibiIntelligence({ patient }) {
     handleStopListening(); // Ensure mic is off
 
     try {
-      // Get custom fields config from preferences
-      const customFieldsConfig = preferences?.medical_fields_config;
+      // Prepare simplified schema for AI
+      let simplifiedSchema = null;
+      // Map to store definitions for later lookup when merging
+      const fieldDefinitions = new Map();
+
+      if (medicalFieldsConfig?.patient?.customSections) {
+        const fields = [];
+        medicalFieldsConfig.patient.customSections.forEach(section => {
+          if (Array.isArray(section.templates)) {
+            section.templates.forEach(field => {
+              if (field.enabled !== false) {
+                // Store definition for merging
+                fieldDefinitions.set(field.id, { ...field, section_id: section.id });
+                
+                fields.push({
+                  id: field.id,
+                  // Use label if available, otherwise name. This is what the user sees.
+                  label: field.label || field.name, 
+                  type: field.type,
+                  section: section.title
+                });
+              }
+            });
+          }
+        });
+        if (fields.length > 0) {
+          simplifiedSchema = { custom_fields: fields };
+        }
+      }
 
       // 1. Process with AI
-      const updates = await processPatientInput(patient, input, customFieldsConfig);
+      const updates = await processPatientInput(patient, input, simplifiedSchema);
 
       if (Object.keys(updates).length === 0) {
         toast.info('لم يتم العثور على بيانات لتحديثها');
@@ -106,8 +140,44 @@ export default function TabibiIntelligence({ patient }) {
         return;
       }
 
+      // Handle custom_fields merge if present
+      let finalUpdates = { ...updates };
+      
+      if (updates.custom_fields) {
+        // Prepare existing fields array (ensure it's an array)
+        const existingFields = Array.isArray(patient.custom_fields) 
+          ? [...patient.custom_fields] 
+          : [];
+        
+        const newValues = updates.custom_fields;
+        
+        // Map existing fields for quick access
+        const existingMap = new Map(existingFields.map(f => [f.id, f]));
+        
+        Object.entries(newValues).forEach(([id, value]) => {
+          if (existingMap.has(id)) {
+            // Update existing field value
+            const field = existingMap.get(id);
+            field.value = value;
+          } else if (fieldDefinitions.has(id)) {
+            // Add new field from definition
+            const def = fieldDefinitions.get(id);
+            existingFields.push({
+              id: def.id,
+              name: def.name,
+              type: def.type,
+              section_id: def.section_id,
+              value: value,
+              options: def.options || []
+            });
+          }
+        });
+        
+        finalUpdates.custom_fields = existingFields;
+      }
+
       // 2. Update Patient in Supabase
-      await updatePatient(patient.id, updates);
+      await updatePatient(patient.id, finalUpdates);
 
       // 3. Invalidate queries to refresh UI
       queryClient.invalidateQueries({ queryKey: ['patient', patient.id] });
@@ -180,13 +250,13 @@ export default function TabibiIntelligence({ patient }) {
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
-                        className="bg-transparent px-4 py-3 text-sm text-black dark:text-slate-200 border-b border-primary/25 relative font-medium"
+                        className="bg-transparent px-4 py-3 text-sm text-black border-b border-primary/25 relative font-medium"
                     >
                         <div className="flex justify-between items-start gap-2" dir="rtl">
-                            <p className="leading-relaxed">{aiResponse}</p>
+                            <p className="leading-relaxed text-black font-semibold !text-black" style={{ color: 'black' }}>{aiResponse}</p>
                             <button 
                                 onClick={() => setShowResult(false)}
-                                className="text-slate-400 hover:text-slate-600"
+                                className="text-slate-500 hover:text-slate-800"
                             >
                                 <X className="w-4 h-4" />
                             </button>

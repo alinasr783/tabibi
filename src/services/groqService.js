@@ -18,7 +18,26 @@ Your goal is to extract patient information from natural language input (text or
 Current Patient Data:
 ${JSON.stringify(patientData, null, 2)}
 
-${schemaConfig ? `Schema Configuration/Custom Fields: ${JSON.stringify(schemaConfig, null, 2)}` : ''}
+${schemaConfig ? `
+CUSTOM FIELDS CONFIGURATION:
+The clinic has defined the following custom fields. You MUST extract values for these fields if present in the input.
+Format: { "custom_fields": [ { "id": "field_uuid", "label": "Field Name", "type": "text/number/etc" } ] }
+
+Available Custom Fields:
+${JSON.stringify(schemaConfig.custom_fields, null, 2)}
+
+INSTRUCTIONS FOR CUSTOM FIELDS:
+1. If the input contains information matching a custom field label (or close synonym), extract it.
+2. Put the extracted value in a "custom_fields" object in your response.
+3. The key MUST be the field's "id" (NOT the label).
+4. The value should match the expected type.
+Example output for custom fields:
+{
+  "custom_fields": {
+    "550e8400-e29b-41d4-a716-446655440000": "Extracted Value"
+  }
+}
+` : ''}
 
 Task:
 1. Analyze the user input.
