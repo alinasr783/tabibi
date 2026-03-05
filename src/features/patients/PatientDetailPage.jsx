@@ -34,6 +34,7 @@ import { toast } from "sonner";
 import ExtensionSlot from "../tabibi-tools/components/ExtensionSlot";
 import useDeletePatient from "./useDeletePatient";
 import TabibiIntelligence from "./TabibiIntelligence";
+import supabase from "../../services/supabase";
 
 export default function PatientDetailPage() {
   const { id: patientId } = useParams();
@@ -116,6 +117,44 @@ export default function PatientDetailPage() {
     setIsVisitDialogOpen(false);
     toast.success("تم إضافة الكشف بنجاح");
   };
+
+  // Realtime subscription for patient updates (especially custom fields)
+  useEffect(() => {
+    if (!patientId) return;
+
+    const channel = supabase
+      .channel(`patient-detail-${patientId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'patients',
+          filter: `id=eq.${patientId}`,
+        },
+        (payload) => {
+          if (payload.new) {
+            // Optimistically update the cache with the new data
+            queryClient.setQueryData(["patient", patientId], (old) => {
+                if (!old) return payload.new;
+                return { ...old, ...payload.new };
+            });
+            // Also update numeric key if used elsewhere
+            queryClient.setQueryData(["patient", Number(patientId)], (old) => {
+                if (!old) return payload.new;
+                return { ...old, ...payload.new };
+            });
+          }
+          // Invalidate to be sure we get fresh relations if needed
+          queryClient.invalidateQueries({ queryKey: ["patient", patientId] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [patientId, queryClient]);
 
   // Calculate patient age
   const calculateAge = (dateOfBirth) => {

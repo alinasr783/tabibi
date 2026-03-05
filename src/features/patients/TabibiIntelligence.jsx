@@ -17,12 +17,27 @@ export default function TabibiIntelligence({ patient }) {
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [showResult, setShowResult] = useState(false);
-  const [aiResponse, setAiResponse] = useState(null);
   const textareaRef = useRef(null);
   const previousInputRef = useRef('');
+  const [chatLog, setChatLog] = useState([]);
   
   const queryClient = useQueryClient();
   const { data: preferences } = useUserPreferences();
+
+  // Load chat history from patient data
+  useEffect(() => {
+    if (patient?.medical_history?.ai_chat_log) {
+      setChatLog(patient.medical_history.ai_chat_log);
+    }
+  }, [patient?.medical_history?.ai_chat_log]);
+
+  // Scroll to bottom of chat
+  const chatContainerRef = useRef(null);
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [chatLog]);
 
   // Memoize config to ensure we always have valid structure
   const medicalFieldsConfig = useMemo(
@@ -53,8 +68,6 @@ export default function TabibiIntelligence({ patient }) {
         },
         (payload) => {
           console.log('Realtime update received:', payload);
-          // Invalidate queries to refresh UI immediately
-          // Try both number and string keys to be safe
           queryClient.invalidateQueries({ queryKey: ['patient', patient.id] });
           queryClient.invalidateQueries({ queryKey: ['patient', String(patient.id)] });
           queryClient.invalidateQueries({ queryKey: ['patients'] });
@@ -93,9 +106,43 @@ export default function TabibiIntelligence({ patient }) {
     SpeechRecognition.stopListening();
   };
 
+  const getFieldName = (key, fieldDefinitions) => {
+    // Check standard fields
+    const standardFields = {
+      name: "اسم المريض",
+      phone: "رقم الهاتف",
+      age: "العمر",
+      gender: "النوع",
+      address: "العنوان",
+      job: "الوظيفة",
+      marital_status: "الحالة الاجتماعية",
+      blood_type: "فصيلة الدم",
+      email: "البريد الإلكتروني",
+      notes: "ملاحظات",
+      chronic_diseases: "الأمراض المزمنة",
+      allergies: "الحساسية",
+      past_surgeries: "العمليات السابقة",
+      family_history: "التاريخ العائلي"
+    };
+
+    if (standardFields[key]) return standardFields[key];
+    
+    // Check custom fields
+    if (fieldDefinitions.has(key)) {
+      const def = fieldDefinitions.get(key);
+      return def.label || def.name;
+    }
+
+    return key;
+  };
+
   const handleSend = async () => {
     if (!input.trim()) return;
 
+    const userMessage = { role: 'user', content: input, timestamp: new Date().toISOString() };
+    const newChatLog = [...chatLog, userMessage];
+    setChatLog(newChatLog);
+    setInput('');
     setIsProcessing(true);
     handleStopListening(); // Ensure mic is off
 
@@ -136,15 +183,21 @@ export default function TabibiIntelligence({ patient }) {
         }
       }
 
-      // 1. Process with AI
-      const updates = await processPatientInput(patient, input, simplifiedSchema);
+      // 1. Process with AI (Pass chat history)
+      const result = await processPatientInput(patient, userMessage.content, simplifiedSchema, chatLog);
+      
+      const updates = result.updates || {};
+      const reply = result.reply || "تم استلام البيانات.";
 
-      if (Object.keys(updates).length === 0) {
-        toast.info('لم يتم العثور على بيانات لتحديثها');
-        setAiResponse("لم أتمكن من استخراج معلومات جديدة من النص.");
-        setIsProcessing(false);
-        return;
-      }
+      // Generate success message with field names
+      let successDetails = [];
+      
+      // Handle Standard Fields
+      Object.keys(updates).forEach(key => {
+        if (key !== 'custom_fields') {
+          successDetails.push(getFieldName(key, fieldDefinitions));
+        }
+      });
 
       // Handle custom_fields merge if present
       let finalUpdates = { ...updates };
@@ -161,6 +214,9 @@ export default function TabibiIntelligence({ patient }) {
         const existingMap = new Map(existingFields.map(f => [f.id, f]));
         
         Object.entries(newValues).forEach(([id, value]) => {
+          // Add to success details
+          successDetails.push(getFieldName(id, fieldDefinitions));
+
           if (existingMap.has(id)) {
             // Update existing field value
             const field = existingMap.get(id);
@@ -182,24 +238,52 @@ export default function TabibiIntelligence({ patient }) {
         finalUpdates.custom_fields = existingFields;
       }
 
-      // 2. Update Patient in Supabase
-      await updatePatient(patient.id, finalUpdates);
+      // Prepare final AI message with details
+      // Use the AI's natural reply which now includes confirmation and suggestions
+      const finalAiMessageContent = reply;
+      
+      const aiMessage = { role: 'assistant', content: finalAiMessageContent, timestamp: new Date().toISOString() };
+      const updatedChatLog = [...newChatLog, aiMessage];
+      setChatLog(updatedChatLog);
 
-      // 3. Invalidate queries to refresh UI
+      // 2. Update Patient in Supabase (Data + Chat Log)
+      const currentMedicalHistory = patient.medical_history || {};
+      const payload = {
+        ...finalUpdates,
+        medical_history: {
+          ...currentMedicalHistory,
+          ...(finalUpdates.medical_history || {}), // Merge if AI updated medical history
+          ai_chat_log: updatedChatLog // Save chat log
+        }
+      };
+
+      // Optimistic update
+      const updatedPatientData = { ...patient, ...payload };
+      queryClient.setQueryData(['patient', patient.id], updatedPatientData);
+      queryClient.setQueryData(['patient', String(patient.id)], updatedPatientData);
+
+      const savedData = await updatePatient(patient.id, payload);
+
+      // 3. Confirm with server data
+      if (savedData) {
+        queryClient.setQueryData(['patient', patient.id], savedData);
+        queryClient.setQueryData(['patient', String(patient.id)], savedData);
+      }
+      
       queryClient.invalidateQueries({ queryKey: ['patient', patient.id] });
       queryClient.invalidateQueries({ queryKey: ['patients'] });
 
       // 4. Show success
-      setAiResponse(`تم تحديث البيانات بنجاح: ${Object.keys(updates).join(', ')}`);
-      toast.success('تم تحديث ملف المريض بنجاح');
-      setInput('');
+      if (successDetails.length > 0) {
+        toast.success(`تم تحديث: ${successDetails.join('، ')}`);
+      }
       resetTranscript();
       setShowResult(true);
 
     } catch (error) {
       console.error('Error in Tabibi Intelligence:', error);
       toast.error('حدث خطأ أثناء معالجة البيانات');
-      setAiResponse("عذراً، حدث خطأ أثناء المعالجة.");
+      setChatLog(prev => [...prev, { role: 'assistant', content: "عذراً، حدث خطأ أثناء المعالجة.", timestamp: new Date().toISOString() }]);
     } finally {
       setIsProcessing(false);
     }
@@ -250,26 +334,37 @@ export default function TabibiIntelligence({ patient }) {
             </div>
 
             {/* Chat Area / Result */}
-            <AnimatePresence>
-                {showResult && (
-                    <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="bg-transparent px-4 py-3 text-sm text-black border-b border-primary/25 relative font-medium"
-                    >
-                        <div className="flex justify-between items-start gap-2" dir="rtl">
-                            <p className="leading-relaxed text-black font-semibold !text-black" style={{ color: 'black' }}>{aiResponse}</p>
-                            <button 
-                                onClick={() => setShowResult(false)}
-                                className="text-slate-500 hover:text-slate-800"
-                            >
-                                <X className="w-4 h-4" />
-                            </button>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            <div 
+              ref={chatContainerRef}
+              className="flex-1 overflow-y-auto p-4 space-y-4 max-h-[300px] min-h-[150px] bg-slate-50/50 rounded-lg mb-2 border border-slate-100"
+            >
+              {chatLog.length === 0 && (
+                <div className="text-center text-slate-400 py-8 text-sm">
+                  <p>ابدأ المحادثة مع المساعد الذكي...</p>
+                </div>
+              )}
+              {chatLog.map((msg, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`flex ${msg.role === 'user' ? 'justify-start' : 'justify-end'}`}
+                >
+                  <div 
+                    className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
+                      msg.role === 'user' 
+                        ? 'bg-white border border-slate-200 text-slate-800 rounded-tr-none' 
+                        : 'bg-primary/10 text-slate-900 rounded-tl-none border border-primary/10'
+                    }`}
+                  >
+                    <p className="font-medium !text-black" style={{ color: 'black' }}>{msg.content}</p>
+                    <span className="text-[10px] opacity-50 mt-1 block">
+                      {new Date(msg.timestamp).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
 
             {/* Input Area */}
             <div className="p-4 flex flex-col gap-3" dir="rtl">

@@ -9,67 +9,80 @@ const client = new OpenAI({
   dangerouslyAllowBrowser: true 
 });
 
-export async function processPatientInput(patientData, userInput, schemaConfig = null) {
+export async function processPatientInput(patientData, userInput, schemaConfig = null, chatHistory = []) {
   try {
     const systemPrompt = `
-You are an expert medical data structuring assistant for "Tabibi".
-Your core competency is understanding natural language medical notes (Arabic/English) and mapping them ACCURATELY to a structured patient profile.
+You are an elite clinical AI assistant for "Tabibi" (My Doctor).
+Your capabilities go beyond simple extraction; you possess **Clinical Reasoning** and **Contextual Awareness**.
+
+OBJECTIVES:
+1. **Contextual Analysis**: Distinguish between the Doctor's observations/questions and the Patient's responses if the input is a conversation.
+2. **Deep Inference**: Deduce patient attributes from indirect statements.
+3. **Database Mastery**: You fully understand the "patients" table structure and its capabilities.
 
 CURRENT PATIENT DATA:
 ${JSON.stringify(patientData, null, 2)}
 
+CHAT HISTORY:
+${chatHistory.map(msg => `${msg.role === 'user' ? 'Doctor/User' : 'AI'}: ${msg.content}`).join('\n')}
+
 ${schemaConfig ? `
 ================================================================================
 CUSTOM FORMS & FIELDS CONFIGURATION
-The clinic has defined specific custom forms. You MUST map input data to these fields when relevant.
-
 ${JSON.stringify(schemaConfig.custom_sections, null, 2)}
 
 INSTRUCTIONS FOR CUSTOM FIELDS:
-1. **Analyze Context**: Look at the "title" of the sections (Forms). If the user mentions context related to a form (e.g., "Eye Exam", "Dental", "Follow up"), prioritize fields within that section.
-2. **Field Matching**: Match the user's input to the "label" of the fields. Be smart about synonyms (e.g., "Pressure" -> "Blood Pressure", "Vision" -> "Visual Acuity").
-3. **Options Validation**: If a field has "options" (for select/multiselect), strictly try to map the extracted value to one of the provided options.
-4. **Data Types**: 
-   - "number": Extract as number.
-   - "checkbox": Extract as boolean (true/false).
-   - "date": Extract as YYYY-MM-DD string.
-5. **Output Format**: 
-   Return a "custom_fields" object where keys are the field "id"s.
-   
-   Example Output:
-   {
-     "custom_fields": {
-       "uuid-1234": "Selected Option",
-       "uuid-5678": 120,
-       "uuid-9012": true
-     }
-   }
+1. **Analyze Context**: Look at the "title" of the sections (Forms).
+2. **Field Matching**: Match the user's input to the "label" of the fields.
+3. **Options Validation**: Strictly map extracted values to provided options.
+4. **Data Types**: Extract as number, boolean, date, etc.
 ================================================================================
 ` : ''}
 
 TASK:
-1. Analyze the user input deeply.
-2. Extract clinical data and updates.
-3. Map extracted data to:
-   - **Standard Patient Fields**: name, phone, age, gender, address, job, marital_status, blood_type.
-   - **Medical History**: chronic_diseases (list), allergies (list), past_surgeries (list), family_history (list).
-   - **Custom Fields**: Using the IDs provided in the configuration above.
-4. **MERGE STRATEGY**: 
-   - For lists (allergies, etc.), append new items to the existing list unless explicitly asked to replace.
-   - For single values (name, custom fields), return the new value to overwrite.
-5. If no relevant data is found, return an empty JSON object {}.
+1. **Read & Plan**: Analyze the new input in the context of the Chat History and Current Data.
+2. **Identify Speaker**: Differentiate between doctor and patient if needed.
+3. **Extract & Infer**: Extract facts and infer attributes (e.g., "husband" -> married).
+4. **Map Data**: Map to standard fields (name, phone, etc.) and Custom Fields (using IDs).
+5. **Formulate Reply**: Generate a response directed specifically **TO THE DOCTOR**.
+   - **Persona**: You are a professional, concise Clinical Assistant.
+   - **Tone**: Formal yet direct (e.g., "تمام يا دكتور، تم تسجيل...").
+   - **Content**:
+     - Confirm exactly what was recorded/updated.
+     - **Crucial**: Suggest asking about MISSING relevant information that would aid diagnosis based on what has been entered so far.
+       - **Strict Rule**: ONLY suggest questions about information that is **NOT** present in the "CURRENT PATIENT DATA" or "CHAT HISTORY".
+       - **Field Constraint**: You MUST ONLY suggest questions related to fields that exist in the "CUSTOM FORMS & FIELDS CONFIGURATION" or standard fields (Name, Age, Phone, Address, Job, Marital Status, Blood Type, Email, Notes, Chronic Diseases, Allergies, Past Surgeries, Family History). Do NOT invent new fields.
+       - If all relevant fields are filled or the context doesn't require more info, do NOT suggest anything.
+       - Do NOT ask about things that were already discussed.
+     - **Brevity**: Keep it short. Do not be chatty.
+
+OUTPUT FORMAT:
+Return a JSON object with TWO keys:
+1. "updates": The JSON object of fields to update (or empty object {} if none).
+2. "reply": A string containing your conversational response to the doctor.
+
+Example Output:
+{
+  "updates": {
+    "marital_status": "Married",
+    "custom_fields": { "uuid...": "Value" }
+  },
+  "reply": "تمام يا دكتور، سجلت الحالة الاجتماعية. قد يكون مفيداً السؤال عن مدة الزواج أو وجود أطفال لاستكمال التاريخ الاجتماعي."
+}
 
 Response Format:
 Return ONLY the JSON object. Do not include markdown formatting like \`\`\`json.
     `;
 
     const completion = await client.chat.completions.create({
-      model: "llama-3.3-70b-versatile", // Using a robust model available on Groq (User mentioned openai/gpt-oss-120b but fallback to known working model if that is obscure, actually Llama 3 is great for this)
+      model: "llama-3.1-8b-instant", // User requested model
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userInput }
       ],
-      temperature: 0.1, // Low temperature for deterministic data extraction
+      temperature: 1, // User requested temperature
+      max_completion_tokens: 1024, // User requested max tokens
+      top_p: 1, // User requested top_p
       response_format: { type: "json_object" }
     });
 
