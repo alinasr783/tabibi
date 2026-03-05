@@ -19,6 +19,14 @@ const DEFAULT_PREFERENCES = {
   sound_notifications: true,
   menu_items: [],
   dashboard_widgets: [],
+  // Notification Settings
+  notification_types: {
+    appointments: true,
+    financial: true,
+    subscription: true
+  },
+  toast_notifications_enabled: true,
+  toast_duration: 3,
   // Daily email settings
   daily_appointments_email_enabled: false,
   daily_appointments_email_time: '07:00',

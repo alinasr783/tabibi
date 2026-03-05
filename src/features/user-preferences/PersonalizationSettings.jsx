@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Card } from '../../components/ui/card';
+import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
+import { Switch } from '../../components/ui/switch';
 import { useUserPreferences, useUpdateUserPreferences } from '../../hooks/useUserPreferences';
-import { Loader2, Check, Palette, Bell, Settings, RotateCcw } from 'lucide-react';
+import { Loader2, Check, Palette, Bell, Settings, RotateCcw, Clock, DollarSign, CreditCard, Smartphone, MessageSquare } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { cn } from '../../lib/utils';
 import { resetToDefaultSettings } from '../../services/apiAskTabibi';
@@ -27,6 +28,21 @@ export function PersonalizationSettings() {
   const [themeMode, setThemeMode] = useState('light');
   const [sidebarLargeScreenBehavior, setSidebarLargeScreenBehavior] = useState('persistent');
   const [isResetting, setIsResetting] = useState(false);
+  
+  // Notification Settings State
+  const [notificationTypes, setNotificationTypes] = useState({
+    appointments: true,
+    financial: true,
+    subscription: true,
+    apps: true,
+    reminders: true,
+    patients: true,
+    system: true
+  });
+  const [toastEnabled, setToastEnabled] = useState(true);
+  const [toastDuration, setToastDuration] = useState("3");
+  const [hasChanges, setHasChanges] = useState(false);
+  const [isSavingNotifications, setIsSavingNotifications] = useState(false);
 
   // Sync state with preferences when loaded
   useEffect(() => {
@@ -38,8 +54,60 @@ export function PersonalizationSettings() {
       });
       setThemeMode(preferences.theme_mode || 'light');
       setSidebarLargeScreenBehavior(preferences.sidebar_large_screen_behavior || 'persistent');
+      
+      // Notifications sync
+      setNotificationTypes(prev => ({
+        ...prev,
+        ...(preferences.notification_types || {})
+      }));
+      setToastEnabled(preferences.toast_notifications_enabled !== false);
+      setToastDuration(String(preferences.toast_duration || 3));
     }
   }, [preferences]);
+
+  // Handlers for Notifications
+  const handleTypeChange = (type, checked) => {
+    setNotificationTypes(prev => ({ ...prev, [type]: checked }));
+    setHasChanges(true);
+  };
+
+  const handleToastEnabledChange = (checked) => {
+    setToastEnabled(checked);
+    setHasChanges(true);
+  };
+
+  const handleToastDurationChange = (value) => {
+    setToastDuration(value);
+    setHasChanges(true);
+  };
+
+  const handleSaveNotificationSettings = () => {
+    // Validation
+    if (toastEnabled) {
+      const durationNum = parseInt(toastDuration, 10);
+      if (!toastDuration || isNaN(durationNum) || durationNum < 1 || durationNum > 60) {
+        toast.error("يرجى إدخال مدة صحيحة للإشعارات (بين 1 و 60 ثانية)");
+        return;
+      }
+    }
+
+    setIsSavingNotifications(true);
+    updatePreferences({
+      notification_types: notificationTypes,
+      toast_notifications_enabled: toastEnabled,
+      toast_duration: parseInt(toastDuration, 10) || 3
+    }, {
+      onSuccess: () => {
+        toast.success("تم حفظ إعدادات الإشعارات بنجاح");
+        setHasChanges(false);
+        setIsSavingNotifications(false);
+      },
+      onError: () => {
+        toast.error("حدث خطأ أثناء حفظ الإعدادات");
+        setIsSavingNotifications(false);
+      }
+    });
+  };
 
   const handleResetToDefaults = async () => {
     if (!confirm('هل أنت متأكد من إعادة كل الإعدادات للوضع الافتراضي؟')) {
@@ -57,6 +125,21 @@ export function PersonalizationSettings() {
       setColorState(defaultColors);
       setThemeMode('light');
       setSidebarLargeScreenBehavior('persistent');
+      
+      // Reset notifications state
+      setNotificationTypes({
+        appointments: true,
+        financial: true,
+        subscription: true,
+        apps: true,
+        reminders: true,
+        patients: true,
+        system: true
+      });
+      setToastEnabled(true);
+      setToastDuration("3");
+      setHasChanges(false);
+
       toast.success(result.message);
     } catch (error) {
       toast.error('حدث خطأ في إعادة الإعدادات');
@@ -163,7 +246,7 @@ export function PersonalizationSettings() {
           </TabsTrigger>
           <TabsTrigger value="notifications" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-1 sm:px-3 text-[10px] sm:text-sm">
             <Bell className="w-4 h-4" />
-            <span>الإخطارات</span>
+            <span>الاشعارات</span>
           </TabsTrigger>
         </TabsList>
 
@@ -316,13 +399,101 @@ export function PersonalizationSettings() {
 
         {/* Notifications Tab */}
         <TabsContent value="notifications" className="space-y-4 mt-4">
-          <Card className="p-3 sm:p-6">
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <Bell className="w-10 h-10 text-muted-foreground/50 mb-3" />
-              <p className="text-muted-foreground text-sm">
-                إعدادات الإخطارات قريباً
-              </p>
-            </div>
+          {/* Notification Types Section */}
+          <Card className="overflow-hidden">
+            <CardContent className="p-0">
+              <div className="p-4 sm:p-6 border-b border-border/50 bg-gradient-to-l from-purple-500/5 to-transparent flex justify-between items-center" dir="rtl">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-[var(--radius)] bg-purple-500/10">
+                    <Bell className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div className="text-right">
+                    <h3 className="font-semibold text-foreground">تخصيص الإشعارات</h3>
+                    <p className="text-sm text-muted-foreground">تحكم في أنواع الإشعارات التي تصلك</p>
+                  </div>
+                </div>
+                {hasChanges && (
+                  <Button onClick={handleSaveNotificationSettings} disabled={isSavingNotifications} className="gap-2">
+                     {isSavingNotifications && <Loader2 className="w-4 h-4 animate-spin" />}
+                     حفظ التغييرات
+                  </Button>
+                )}
+              </div>
+              <div className="p-4 sm:p-6 space-y-4">
+                {[
+                  { id: 'appointments', label: 'الحجوزات والمواعيد', icon: Clock },
+                  { id: 'financial', label: 'التعاملات المالية', icon: DollarSign },
+                  { id: 'subscription', label: 'اشتراك الباقة', icon: CreditCard },
+                  { id: 'apps', label: 'تطبيقات طبيبي', icon: Smartphone },
+                  { id: 'reminders', label: 'التذكيرات', icon: Bell },
+                  { id: 'patients', label: 'المرضى', icon: Check },
+                  { id: 'system', label: 'النظام والتنبيهات', icon: MessageSquare },
+                ].map((type) => (
+                   <div key={type.id} className="flex items-center justify-between p-3 rounded-md border bg-card/50" dir="rtl">
+                      <div className="flex items-center gap-3">
+                        <type.icon className="w-4 h-4 text-muted-foreground" />
+                        <Label className="cursor-pointer font-medium text-right" htmlFor={`notify-${type.id}`}>{type.label}</Label>
+                      </div>
+                      <Switch 
+                        id={`notify-${type.id}`}
+                        checked={notificationTypes[type.id] ?? true}
+                        onCheckedChange={(checked) => handleTypeChange(type.id, checked)}
+                      />
+                   </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Toast Settings Section */}
+          <Card className="overflow-hidden">
+            <CardContent className="p-0">
+              <div className="p-4 sm:p-6 border-b border-border/50 bg-gradient-to-l from-orange-500/5 to-transparent flex justify-between items-center" dir="rtl">
+                 <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-[var(--radius)] bg-orange-500/10">
+                    <MessageSquare className="w-5 h-5 text-orange-600" />
+                  </div>
+                  <div className="text-right">
+                    <h3 className="font-semibold text-foreground">إشعارات الشاشة (Toasts)</h3>
+                    <p className="text-sm text-muted-foreground">تحكم في ظهور الإشعارات المنبثقة ومدة ظهورها</p>
+                  </div>
+                </div>
+                {hasChanges && (
+                  <Button onClick={handleSaveNotificationSettings} disabled={isSavingNotifications} className="gap-2">
+                     {isSavingNotifications && <Loader2 className="w-4 h-4 animate-spin" />}
+                     حفظ التغييرات
+                  </Button>
+                )}
+              </div>
+              <div className="p-4 sm:p-6 space-y-6">
+                 <div className="flex items-center justify-between p-4 rounded-[var(--radius)] bg-muted/30 border border-border/50" dir="rtl">
+                    <div className="space-y-0.5 text-right">
+                      <Label className="text-base font-medium">إظهار الإشعارات المنبثقة</Label>
+                      <p className="text-sm text-muted-foreground">عرض رسائل صغيرة أسفل الشاشة عند حدوث إجراء</p>
+                    </div>
+                    <Switch 
+                      checked={toastEnabled}
+                      onCheckedChange={handleToastEnabledChange}
+                    />
+                 </div>
+                 
+                 {toastEnabled && (
+                   <div className="space-y-3 animate-in slide-in-from-top-2 p-4 rounded-[var(--radius)] bg-muted/30 border border-border/50" dir="rtl">
+                     <Label className="block text-right">مدة ظهور الإشعار (بالثواني)</Label>
+                     <div className="flex items-center gap-4">
+                       <Input 
+                          type="number" 
+                          min="1" 
+                          max="60" 
+                          value={toastDuration}
+                          onChange={(e) => handleToastDurationChange(e.target.value)}
+                          className="w-24 text-right"
+                       />
+                     </div>
+                   </div>
+                 )}
+              </div>
+            </CardContent>
           </Card>
         </TabsContent>
       </Tabs>

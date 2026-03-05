@@ -18,10 +18,15 @@ export function DialogHeader({children, className}) {
   return <div className={cn("p-6 pb-4", className)}>{children}</div>;
 }
 
-export function DialogContent({children, className, dir}) {
+export function DialogContent({children, className, dir, overlayClassName}) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" dir={dir}>
-      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" />
+      <div
+        className={cn(
+          "absolute inset-0",
+          overlayClassName ?? "bg-background/80 backdrop-blur-sm"
+        )}
+      />
       <div className={cn(
         "relative z-10 bg-card shadow-xl flex flex-col p-4 sm:p-6 rounded-[var(--radius)] w-[95vw] sm:w-full",
         className

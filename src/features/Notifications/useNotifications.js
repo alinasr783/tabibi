@@ -53,7 +53,7 @@ export function useNotifications() {
     
     return {
       notifications: data || [],
-      nextPage: data.length === PAGE_SIZE ? pageParam + 1 : undefined,
+      nextPage: (count > from + (data?.length || 0)) ? pageParam + 1 : undefined,
       total: count
     };
   };

@@ -1,5 +1,5 @@
-import { memo, useEffect } from "react";
-import { Toaster } from "react-hot-toast";
+import { memo, useEffect, useState } from "react";
+import { Toaster } from "sonner";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
@@ -58,6 +58,7 @@ import ArticlePage from "./pages/ArticlePage";
 import { AskTabibiPage } from "./ai/ui";
 import OfflineIndicator from "./components/OfflineIndicator";
 import { OfflineProvider } from "./features/offline-mode/OfflineContext";
+import { NotificationProvider } from "./features/Notifications/NotificationContext";
 import useScrollToTop from "./hooks/useScrollToTop";
 import { PWAInstallPrompt } from "./components/ui/pwa-install";
 
@@ -388,23 +389,35 @@ function App() {
 
   // Use TouchBackend for mobile devices, HTML5Backend for desktop
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  const [toasterPosition, setToasterPosition] = useState("top-right");
+
+  useEffect(() => {
+    const handleResize = () => {
+      setToasterPosition(window.innerWidth < 768 ? "top-center" : "top-right");
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   return (
     <BrowserRouter>
       <AuthProviderWrapper>
         <UserPreferencesProvider>
-          <OfflineProvider>
-            <DndProvider 
-              backend={isMobile ? TouchBackend : HTML5Backend}
-              options={isMobile ? { delayTouchStart: 500, enableTouchEvents: true, ignoreContextMenu: true } : undefined}
-            >
-              <AutoPaymentRecorder />
-              <OfflineIndicator />
-              <PWAInstallPrompt />
-              <AppRoutes />
-              <Toaster position="top-center" />
-            </DndProvider>
-          </OfflineProvider>
+          <NotificationProvider>
+            <OfflineProvider>
+              <DndProvider 
+                backend={isMobile ? TouchBackend : HTML5Backend}
+                options={isMobile ? { delayTouchStart: 500, enableTouchEvents: true, ignoreContextMenu: true } : undefined}
+              >
+                <AutoPaymentRecorder />
+                <OfflineIndicator />
+                <PWAInstallPrompt />
+                <AppRoutes />
+                <Toaster position={toasterPosition} dir="rtl" />
+              </DndProvider>
+            </OfflineProvider>
+          </NotificationProvider>
         </UserPreferencesProvider>
       </AuthProviderWrapper>
     </BrowserRouter>

@@ -7,6 +7,37 @@ import {
     assertMonthlyLimit,
 } from "./subscriptionEnforcement"
 
+export async function getAppointmentById(id) {
+    // Get current user's clinic_id
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) throw new Error("Not authenticated")
+
+    const { data: userData } = await supabase
+        .from("users")
+        .select("clinic_id")
+        .eq("user_id", session.user.id)
+        .single()
+
+    if (!userData?.clinic_id) throw new Error("User has no clinic assigned")
+
+    const { data, error } = await supabase
+        .from("appointments")
+        .select(`
+            *,
+            patient:patients(*)
+        `)
+        .eq("id", id)
+        .eq("clinic_id", userData.clinic_id)
+        .single()
+
+    if (error) {
+        console.error("Error fetching appointment:", error)
+        throw new Error("فشل في تحميل تفاصيل الموعد")
+    }
+
+    return data
+}
+
 export async function getAppointments(search, page, pageSize, filters = {}) {
     // Get current user's clinic_id
     const { data: { session } } = await supabase.auth.getSession()
@@ -553,36 +584,7 @@ export async function getPatientAppointments(patientId) {
     return data
 }
 
-export async function getAppointmentById(id) {
-    // Get current user's clinic_id
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) throw new Error("Not authenticated")
 
-    const { data: userData } = await supabase
-        .from("users")
-        .select("clinic_id")
-        .eq("user_id", session.user.id)
-        .single()
-
-    if (!userData?.clinic_id) throw new Error("User has no clinic assigned")
-
-    const { data, error } = await supabase
-        .from("appointments")
-        .select(`
-            *,
-            patient:patients(*)
-        `)
-        .eq("id", id)
-        .eq("clinic_id", userData.clinic_id)
-        .single()
-
-    if (error) {
-        console.error("Error fetching appointment:", error)
-        throw new Error("فشل في تحميل تفاصيل الموعد")
-    }
-
-    return data
-}
 
 export async function searchPatientsPublic(phone, clinicId) {
     if (!clinicId) throw new Error("Clinic ID is required");

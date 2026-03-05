@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Bell, Mail, Clock, Check, Loader2, MessageSquare, Smartphone } from "lucide-react";
+import { Bell, Mail, Clock, Check, Loader2, Smartphone } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Card, CardContent } from "../../components/ui/card";
@@ -37,7 +37,7 @@ export default function NotificationsTab() {
     timezone: "Africa/Cairo"
   });
 
-  // Load settings on mount
+  // Load settings on mount and sync preferences
   useEffect(() => {
     async function loadSettings() {
       try {

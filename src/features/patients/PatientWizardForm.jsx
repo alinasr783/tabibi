@@ -96,7 +96,7 @@ export default function PatientWizardForm({ onSubmit, isSubmitting, initialData,
 
   const nextStep = async () => {
     let fieldsToValidate = [];
-    if (currentStep === 1) fieldsToValidate = ["name", "phone", "gender"];
+    if (currentStep === 1) fieldsToValidate = ["name"];
     
     const isValid = await trigger(fieldsToValidate);
     if (isValid) {
@@ -234,22 +234,20 @@ export default function PatientWizardForm({ onSubmit, isSubmitting, initialData,
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>رقم الهاتف *</Label>
+                    <Label>رقم الهاتف</Label>
                     <Input 
-                      {...register("phone", { required: "رقم الهاتف مطلوب" })}
+                      {...register("phone")}
                       placeholder="05xxxxxxxx"
                       dir="ltr"
                       className="h-11 text-right"
                     />
-                    {errors.phone && <p className="text-red-500 text-sm">{errors.phone.message}</p>}
                   </div>
 
                   <div className="space-y-2">
-                    <Label>النوع *</Label>
+                    <Label>النوع</Label>
                     <Controller
                       name="gender"
                       control={control}
-                      rules={{ required: "النوع مطلوب" }}
                       render={({ field }) => (
                         <Select onValueChange={field.onChange} value={field.value} dir="rtl">
                           <SelectTrigger className="h-11">
@@ -262,7 +260,6 @@ export default function PatientWizardForm({ onSubmit, isSubmitting, initialData,
                         </Select>
                       )}
                     />
-                    {errors.gender && <p className="text-red-500 text-sm">{errors.gender.message}</p>}
                   </div>
                 </div>
 

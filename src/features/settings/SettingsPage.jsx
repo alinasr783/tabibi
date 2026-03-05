@@ -11,8 +11,8 @@ import MedicalFieldsSettingsTab from "./MedicalFieldsSettingsTab";
 const tabs = [
   { id: "personal", label: "بياناتك", fullLabel: "بياناتك الشخصية", icon: User },
   { id: "password", label: "الباسوورد", fullLabel: "غير الباسوورد", icon: Key },
-  { id: "personalization", label: "المظهر", fullLabel: "المظهر والألوان", icon: Palette },
-  { id: "notifications", label: "الإشعارات", fullLabel: "الإشعارات والإيميل", icon: Bell },
+  { id: "personalization", label: "التخصيص", fullLabel: "التخصيص والألوان", icon: Palette },
+  { id: "notifications", label: "الاشعارات", fullLabel: "إعدادات الاشعارات", icon: Bell },
   { id: "medical-fields", label: "الحقول", fullLabel: "تخصيص الحقول", icon: ClipboardList },
 ];
 

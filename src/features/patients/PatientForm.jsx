@@ -32,7 +32,7 @@ export default function PatientForm({ defaultValues = {}, register, control, err
       <div className="grid sm:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="phone" className="text-sm font-medium"  style={{ direction: 'rtl' }}>
-            رقم الهاتف *
+            رقم الهاتف
           </Label>
           <Input 
             id="phone"
@@ -46,13 +46,12 @@ export default function PatientForm({ defaultValues = {}, register, control, err
         
         <div className="space-y-2">
           <Label htmlFor="gender" className="text-sm font-medium"  style={{ direction: 'rtl' }}>
-            النوع *
+            النوع
           </Label>
           <Controller
             control={control}
             name="gender"
             defaultValue={defaultValues.gender ?? ""}
-            rules={{ required: "النوع مطلوب" }}
             render={({ field }) => (
               <Select 
                 onValueChange={field.onChange} 

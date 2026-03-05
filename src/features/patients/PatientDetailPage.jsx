@@ -33,6 +33,7 @@ import PatientTransactionDialog from "./PatientTransactionDialog";
 import { toast } from "sonner";
 import ExtensionSlot from "../tabibi-tools/components/ExtensionSlot";
 import useDeletePatient from "./useDeletePatient";
+import TabibiIntelligence from "./TabibiIntelligence";
 
 export default function PatientDetailPage() {
   const { id: patientId } = useParams();
@@ -236,6 +237,9 @@ export default function PatientDetailPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Tabibi Intelligence */}
+          <TabibiIntelligence patient={patient} />
 
           {/* Quick Actions */}
           <Card className="bg-card border-border/50 shadow-sm" dir="rtl">
