@@ -6,7 +6,7 @@ import OpenAI from 'openai';
 import databaseSchemaRaw from '../../database.txt?raw';
 
 const client = new OpenAI({
-  apiKey: "sk-da7ed420197042e98792a3bdc2388ca8",
+  apiKey: import.meta.env.VITE_DEEPSEEK_API_KEY,
   baseURL: 'https://api.deepseek.com',
   dangerouslyAllowBrowser: true 
 });
