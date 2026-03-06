@@ -55,7 +55,7 @@ export function TagInput({ control, name, placeholder }) {
       <div className="flex flex-wrap gap-2">
         {Array.isArray(field.value) && field.value.map((tag, idx) => (
           <Badge key={idx} variant="secondary" className="flex items-center gap-1 px-2 py-1 h-8">
-            {tag}
+            {typeof tag === 'object' ? (tag.value || tag.name || JSON.stringify(tag)) : tag}
             <button
               type="button"
               onClick={() => removeTag(tag)}

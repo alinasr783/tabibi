@@ -315,7 +315,7 @@ export default function PatientProfileTab({ patient }) {
                               {medicalHistory.chronic_diseases && medicalHistory.chronic_diseases.length > 0 ? (
                                 medicalHistory.chronic_diseases.map((disease, idx) => (
                                   <Badge key={idx} variant="outline" className="bg-white text-orange-700 border-orange-200">
-                                    {disease}
+                                    {typeof disease === 'object' ? (disease.value || disease.name || JSON.stringify(disease)) : disease}
                                   </Badge>
                                 ))
                               ) : (
@@ -334,7 +334,7 @@ export default function PatientProfileTab({ patient }) {
                               {medicalHistory.allergies && medicalHistory.allergies.length > 0 ? (
                                 medicalHistory.allergies.map((allergy, idx) => (
                                   <Badge key={idx} variant="outline" className="bg-white text-red-700 border-red-200">
-                                    {allergy}
+                                    {typeof allergy === 'object' ? (allergy.value || allergy.name || JSON.stringify(allergy)) : allergy}
                                   </Badge>
                                 ))
                               ) : (
@@ -358,7 +358,7 @@ export default function PatientProfileTab({ patient }) {
                               {medicalHistory.past_surgeries && medicalHistory.past_surgeries.length > 0 ? (
                                 <ul className="list-disc list-inside text-sm space-y-1">
                                   {medicalHistory.past_surgeries.map((surgery, idx) => (
-                                    <li key={idx}>{surgery}</li>
+                                    <li key={idx}>{typeof surgery === 'object' ? (surgery.value || surgery.name || JSON.stringify(surgery)) : surgery}</li>
                                   ))}
                                 </ul>
                               ) : (
@@ -375,7 +375,12 @@ export default function PatientProfileTab({ patient }) {
                               {medicalHistory.family_history && medicalHistory.family_history.length > 0 ? (
                                 <ul className="list-disc list-inside text-sm space-y-1">
                                   {medicalHistory.family_history.map((history, idx) => (
-                                    <li key={idx}>{history}</li>
+                                    <li key={idx}>
+                                      {typeof history === 'object' ? 
+                                        (history.family_history || history.value || JSON.stringify(history)) : 
+                                        history
+                                      }
+                                    </li>
                                   ))}
                                 </ul>
                               ) : (

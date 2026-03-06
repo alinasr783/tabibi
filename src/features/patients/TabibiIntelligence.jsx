@@ -5,12 +5,13 @@ import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognitio
 import { Button } from '../../components/ui/button';
 import { Textarea } from '../../components/ui/textarea';
 import { toast } from 'sonner';
-import { processPatientInput } from '../../services/groqService';
+import { NotificationToast } from '../../features/Notifications/NotificationToast';
+import { processPatientInputStream } from '../../services/groqService';
 import { updatePatient } from '../../services/apiPatients';
 import supabase from '../../services/supabase';
 import { useQueryClient } from '@tanstack/react-query';
 import { useUserPreferences } from '../../hooks/useUserPreferences';
-import { normalizeMedicalFieldsConfig } from '../../lib/medicalFieldsConfig';
+import { flattenCustomFieldTemplates, mergeTemplatesIntoCustomFields, normalizeMedicalFieldsConfig } from '../../lib/medicalFieldsConfig';
 import 'regenerator-runtime/runtime';
 
 export default function TabibiIntelligence({ patient }) {
@@ -20,9 +21,51 @@ export default function TabibiIntelligence({ patient }) {
   const textareaRef = useRef(null);
   const previousInputRef = useRef('');
   const [chatLog, setChatLog] = useState([]);
+  const activeRequestRef = useRef({ abortController: null, timeoutId: null });
   
   const queryClient = useQueryClient();
   const { data: preferences } = useUserPreferences();
+
+  const normalizeProposedFieldType = (type) => {
+    const t = String(type || "").toLowerCase().trim();
+    const allowed = new Set(["text", "textarea", "number", "date", "checkbox", "select", "multiselect", "progress"]);
+    return allowed.has(t) ? t : "text";
+  };
+
+  const defaultValueForType = (type) => {
+    const t = normalizeProposedFieldType(type);
+    if (t === "checkbox") return false;
+    if (t === "multiselect") return [];
+    if (t === "progress") return 50;
+    return "";
+  };
+
+  const TabibiAiMessage = ({ ui }) => {
+    const changes = Array.isArray(ui?.changes) ? ui.changes : [];
+
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Sparkles className="w-4 h-4 text-blue-700" />
+          <div className="text-sm font-bold text-slate-900">{ui?.title || "Tabibi Intelligence"}</div>
+        </div>
+
+        {changes.length > 0 && (
+          <div className="rounded-xl border border-blue-200 bg-blue-50/40 p-3 space-y-2">
+            <div className="text-xs font-bold text-blue-900">التغييرات</div>
+            <div className="space-y-1">
+              {changes.slice(0, 8).map((c, i) => (
+                <div key={i} className="text-xs text-slate-800">
+                  <span className="font-semibold">{c?.label || "حقل"}</span>
+                  {c?.preview ? <span className="opacity-70"> — {c.preview}</span> : null}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Load chat history from patient data
   useEffect(() => {
@@ -119,6 +162,8 @@ export default function TabibiIntelligence({ patient }) {
       blood_type: "فصيلة الدم",
       email: "البريد الإلكتروني",
       notes: "ملاحظات",
+      date_of_birth: "تاريخ الميلاد",
+      age_unit: "وحدة العمر",
       chronic_diseases: "الأمراض المزمنة",
       allergies: "الحساسية",
       past_surgeries: "العمليات السابقة",
@@ -141,10 +186,25 @@ export default function TabibiIntelligence({ patient }) {
 
     const userMessage = { role: 'user', content: input, timestamp: new Date().toISOString() };
     const newChatLog = [...chatLog, userMessage];
-    setChatLog(newChatLog);
     setInput('');
     setIsProcessing(true);
     handleStopListening(); // Ensure mic is off
+
+    if (activeRequestRef.current.abortController) {
+      activeRequestRef.current.abortController.abort();
+    }
+    if (activeRequestRef.current.timeoutId) {
+      clearTimeout(activeRequestRef.current.timeoutId);
+    }
+
+    const abortController = new AbortController();
+    const timeoutId = setTimeout(() => {
+      abortController.abort();
+    }, 35000);
+    activeRequestRef.current = { abortController, timeoutId };
+
+    const assistantMessageId = typeof crypto?.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+    setChatLog([...newChatLog, { id: assistantMessageId, role: "assistant", content: "", timestamp: new Date().toISOString() }]);
 
     try {
       // Prepare simplified schema for AI
@@ -152,61 +212,186 @@ export default function TabibiIntelligence({ patient }) {
       // Map to store definitions for later lookup when merging
       const fieldDefinitions = new Map();
 
-      if (medicalFieldsConfig?.patient?.customSections) {
-        const sections = [];
-        medicalFieldsConfig.patient.customSections.forEach(section => {
-          if (Array.isArray(section.templates) && section.templates.length > 0) {
-             const activeFields = section.templates.filter(f => f.enabled !== false);
-             if (activeFields.length > 0) {
-                 sections.push({
-                     id: section.id,
-                     title: section.title,
-                     fields: activeFields.map(field => {
-                         // Store definition for merging
-                         fieldDefinitions.set(field.id, { ...field, section_id: section.id });
-                         
-                         return {
-                             id: field.id,
-                             label: field.name, // Custom fields use 'name'
-                             type: field.type,
-                             options: field.options,
-                             placeholder: field.placeholder
-                         };
-                     })
-                 });
-             }
-          }
-        });
-        
-        if (sections.length > 0) {
-          simplifiedSchema = { custom_sections: sections };
-        }
-      }
+      const patientSections = medicalFieldsConfig?.patient?.sections;
+      const builtinSectionKeys = Array.isArray(patientSections?.order)
+        ? patientSections.order.map(String).filter((k) => k && !k.startsWith("custom:"))
+        : ["personal", "medical", "insurance"];
 
-      // 1. Process with AI (Pass chat history)
-      const result = await processPatientInput(patient, userMessage.content, simplifiedSchema, chatLog);
+      const customSections = Array.isArray(medicalFieldsConfig?.patient?.customSections)
+        ? medicalFieldsConfig.patient.customSections
+        : [];
+
+      const knownSectionIds = new Set([
+        ...builtinSectionKeys.map(String),
+        ...customSections.map((s) => String(s?.id)).filter(Boolean),
+      ]);
+
+      const sectionTitleById = new Map();
+      builtinSectionKeys.forEach((k) => {
+        const title = patientSections?.items?.[k]?.title;
+        if (title) sectionTitleById.set(String(k), String(title));
+      });
+      customSections.forEach((s) => {
+        if (s?.id && s?.title) sectionTitleById.set(String(s.id), String(s.title));
+      });
+
+      const templatesBySection = {};
+      builtinSectionKeys.forEach((sectionKey) => {
+        const list = Array.isArray(medicalFieldsConfig?.patient?.sectionTemplates?.[sectionKey])
+          ? medicalFieldsConfig.patient.sectionTemplates[sectionKey]
+          : [];
+        templatesBySection[sectionKey] = list
+          .filter((t) => t?.enabled !== false)
+          .map((t) => ({ ...t, section_id: String(sectionKey) }));
+      });
+
+      customSections.forEach((section) => {
+        const sectionId = String(section?.id || "");
+        const list = Array.isArray(section?.templates) ? section.templates : [];
+        templatesBySection[sectionId] = list
+          .filter((t) => t?.enabled !== false)
+          .map((t) => ({ ...t, section_id: sectionId }));
+      });
+
+      const allTemplates = flattenCustomFieldTemplates({ config: medicalFieldsConfig, context: "patient" })
+        .filter((t) => t?.enabled !== false)
+        .map((t) => ({ ...t, section_id: String(t?.section_id || "") }));
+
+      const existingPatientFieldsRaw = Array.isArray(patient?.custom_fields) ? patient.custom_fields : [];
+      const existingPatientFields = mergeTemplatesIntoCustomFields(existingPatientFieldsRaw, allTemplates).map((f) => {
+        const rawSection = typeof f?.section_id === "string" ? f.section_id : "";
+        const mapped = rawSection === "default" ? "personal" : rawSection;
+        if (!mapped) return { ...f, section_id: "" };
+        if (!knownSectionIds.has(mapped)) return { ...f, section_id: mapped };
+        return { ...f, section_id: mapped };
+      });
+
+      const fieldsCatalog = [];
+      Object.entries(templatesBySection).forEach(([sectionId, list]) => {
+        const sectionTitle = sectionTitleById.get(String(sectionId)) || String(sectionId);
+        (list || []).forEach((t) => {
+          if (!t?.id) return;
+          fieldDefinitions.set(String(t.id), { ...t, label: t.name, section_id: String(sectionId) });
+          fieldsCatalog.push({
+            id: String(t.id),
+            label: String(t.name || ""),
+            type: String(t.type || "text"),
+            options: Array.isArray(t.options) ? t.options : [],
+            placeholder: String(t.placeholder || ""),
+            section_id: String(sectionId),
+            section_title: sectionTitle,
+            source: "template",
+          });
+        });
+      });
+
+      existingPatientFields.forEach((f) => {
+        if (!f?.id) return;
+        fieldDefinitions.set(String(f.id), { ...f, label: f.name, section_id: String(f.section_id || "") });
+        fieldsCatalog.push({
+          id: String(f.id),
+          label: String(f.name || ""),
+          type: String(f.type || "text"),
+          options: Array.isArray(f.options) ? f.options : [],
+          placeholder: String(f.placeholder || ""),
+          section_id: String(f.section_id || ""),
+          section_title: sectionTitleById.get(String(f.section_id || "")) || String(f.section_id || ""),
+          source: "patient",
+          current_value: f.value,
+        });
+      });
+
+      simplifiedSchema = {
+        sections: [
+          ...builtinSectionKeys.map((k) => ({ id: String(k), title: sectionTitleById.get(String(k)) || String(k), kind: "builtin" })),
+          ...customSections.map((s) => ({ id: String(s?.id || ""), title: String(s?.title || ""), kind: "custom" })).filter((x) => x.id),
+        ],
+        custom_fields_catalog: fieldsCatalog,
+        standard_fields: [
+          "name",
+          "phone",
+          "address",
+          "date_of_birth",
+          "blood_type",
+          "gender",
+          "age",
+          "age_unit",
+          "job",
+          "marital_status",
+          "email",
+          "notes",
+        ],
+        medical_history_keys: ["chief_complaint", "chronic_diseases", "blood_pressure", "blood_sugar", "allergies", "past_surgeries", "family_history"],
+        insurance_info_keys: ["provider_name", "policy_number", "coverage_percent"],
+      };
+
+      const result = await processPatientInputStream(patient, userMessage.content, simplifiedSchema, chatLog, {
+        signal: abortController.signal,
+        onPartialReply: (text) => {
+          setChatLog((prev) =>
+            prev.map((m) => (m?.id === assistantMessageId ? { ...m, content: text } : m))
+          );
+        },
+      });
       
       const updates = result.updates || {};
       const reply = result.reply || "تم استلام البيانات.";
+      const ui = result.ui && typeof result.ui === "object" && !Array.isArray(result.ui) ? result.ui : null;
+      const createFields = Array.isArray(result.create_fields) ? result.create_fields : [];
 
       // Generate success message with field names
       let successDetails = [];
-      
-      // Handle Standard Fields
-      Object.keys(updates).forEach(key => {
-        if (key !== 'custom_fields') {
-          successDetails.push(getFieldName(key, fieldDefinitions));
+      Object.entries(updates).forEach(([key, value]) => {
+        if (key === 'custom_fields') return;
+        if (key === 'medical_history' && value && typeof value === 'object' && !Array.isArray(value)) {
+          Object.keys(value).forEach((subKey) => {
+            if (subKey === 'ai_chat_log') return;
+            successDetails.push(getFieldName(subKey, fieldDefinitions));
+          });
+          return;
         }
+        successDetails.push(getFieldName(key, fieldDefinitions));
       });
 
       // Handle custom_fields merge if present
       let finalUpdates = { ...updates };
       
+      const existingFields = Array.isArray(patient.custom_fields)
+        ? [...patient.custom_fields]
+        : [];
+
+      if (createFields.length > 0) {
+        const existingNames = new Set(existingFields.map((f) => String(f?.name || "").trim().toLowerCase()).filter(Boolean));
+        createFields.forEach((proposal) => {
+          const name = String(proposal?.name || "").trim();
+          if (!name) return;
+          const nameKey = name.toLowerCase();
+          if (existingNames.has(nameKey)) return;
+          const type = normalizeProposedFieldType(proposal?.type);
+          const sectionId = knownSectionIds.has(String(proposal?.section_id || ""))
+            ? String(proposal.section_id)
+            : "personal";
+          const options = Array.isArray(proposal?.options) ? proposal.options.map(String).filter(Boolean) : [];
+          const initialValue = Object.prototype.hasOwnProperty.call(proposal || {}, "initial_value")
+            ? proposal.initial_value
+            : defaultValueForType(type);
+
+          const id = typeof crypto?.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+          existingFields.push({
+            id,
+            name,
+            type,
+            section_id: sectionId,
+            options: type === "select" || type === "multiselect" ? options : [],
+            value: initialValue,
+          });
+          fieldDefinitions.set(String(id), { id, name, type, section_id: sectionId, options });
+          successDetails.push(name);
+          existingNames.add(nameKey);
+        });
+      }
+
       if (updates.custom_fields) {
-        // Prepare existing fields array (ensure it's an array)
-        const existingFields = Array.isArray(patient.custom_fields) 
-          ? [...patient.custom_fields] 
-          : [];
         
         const newValues = updates.custom_fields;
         
@@ -236,25 +421,73 @@ export default function TabibiIntelligence({ patient }) {
         });
         
         finalUpdates.custom_fields = existingFields;
+      } else if (createFields.length > 0) {
+        finalUpdates.custom_fields = existingFields;
       }
 
       // Prepare final AI message with details
       // Use the AI's natural reply which now includes confirmation and suggestions
-      const finalAiMessageContent = reply;
-      
-      const aiMessage = { role: 'assistant', content: finalAiMessageContent, timestamp: new Date().toISOString() };
-      const updatedChatLog = [...newChatLog, aiMessage];
-      setChatLog(updatedChatLog);
+      const finalAiMessageContent = ui ? { ...ui, version: "tabibi_intelligence_v2" } : reply;
+      const updatedChatLog = [...newChatLog, { role: 'assistant', content: finalAiMessageContent, timestamp: new Date().toISOString() }];
+      setChatLog((prev) => prev.map((m) => (m?.id === assistantMessageId ? { ...m, content: finalAiMessageContent } : m)));
 
       // 2. Update Patient in Supabase (Data + Chat Log)
+      const medicalHistoryKeys = new Set([
+        "chief_complaint",
+        "chronic_diseases",
+        "blood_pressure",
+        "blood_sugar",
+        "allergies",
+        "past_surgeries",
+        "family_history",
+      ]);
+
+      const allowedPatientColumns = new Set([
+        "name",
+        "phone",
+        "address",
+        "date_of_birth",
+        "blood_type",
+        "gender",
+        "age",
+        "age_unit",
+        "job",
+        "marital_status",
+        "email",
+        "notes",
+        "insurance_info",
+        "custom_fields",
+      ]);
+
+      const movedMedicalHistory = {};
+      for (const key of medicalHistoryKeys) {
+        if (Object.prototype.hasOwnProperty.call(finalUpdates, key)) {
+          movedMedicalHistory[key] = finalUpdates[key];
+          delete finalUpdates[key];
+        }
+      }
+
       const currentMedicalHistory = patient.medical_history || {};
+      const medicalHistoryFromUpdates =
+        finalUpdates.medical_history && typeof finalUpdates.medical_history === "object" && !Array.isArray(finalUpdates.medical_history)
+          ? finalUpdates.medical_history
+          : {};
+
+      const sanitizedUpdates = {};
+      Object.entries(finalUpdates).forEach(([key, value]) => {
+        if (key === "medical_history") return;
+        if (!allowedPatientColumns.has(key)) return;
+        sanitizedUpdates[key] = value;
+      });
+
       const payload = {
-        ...finalUpdates,
+        ...sanitizedUpdates,
         medical_history: {
           ...currentMedicalHistory,
-          ...(finalUpdates.medical_history || {}), // Merge if AI updated medical history
-          ai_chat_log: updatedChatLog // Save chat log
-        }
+          ...medicalHistoryFromUpdates,
+          ...movedMedicalHistory,
+          ai_chat_log: updatedChatLog,
+        },
       };
 
       // Optimistic update
@@ -275,17 +508,45 @@ export default function TabibiIntelligence({ patient }) {
 
       // 4. Show success
       if (successDetails.length > 0) {
-        toast.success(`تم تحديث: ${successDetails.join('، ')}`);
+        toast.custom((id) => (
+          <NotificationToast
+            id={id}
+            notification={{
+              title: "تم تحديث البيانات",
+              message: `تم تحديث: ${successDetails.join('، ')}`,
+              type: "patient",
+              created_at: new Date().toISOString(),
+            }}
+            onClick={() => {}}
+          />
+        ), {
+          duration: preferences?.toast_duration || 4000,
+          position: 'top-center'
+        });
       }
       resetTranscript();
       setShowResult(true);
 
     } catch (error) {
       console.error('Error in Tabibi Intelligence:', error);
+      if (error?.name === "AbortError") {
+        toast.error("تم إيقاف الطلب بسبب طول المعالجة");
+      } else if (String(error?.message || "").toLowerCase().includes("authentication")) {
+        toast.error('فشل تسجيل الدخول لمزود الذكاء الاصطناعي');
+      } else {
       toast.error('حدث خطأ أثناء معالجة البيانات');
-      setChatLog(prev => [...prev, { role: 'assistant', content: "عذراً، حدث خطأ أثناء المعالجة.", timestamp: new Date().toISOString() }]);
+      }
+      setChatLog((prev) =>
+        prev.map((m) =>
+          m?.id && m.id === assistantMessageId ? { ...m, content: "عذراً، حدث خطأ أثناء المعالجة." } : m
+        )
+      );
     } finally {
       setIsProcessing(false);
+      if (activeRequestRef.current.timeoutId) {
+        clearTimeout(activeRequestRef.current.timeoutId);
+      }
+      activeRequestRef.current = { abortController: null, timeoutId: null };
     }
   };
 
@@ -357,7 +618,13 @@ export default function TabibiIntelligence({ patient }) {
                         : 'bg-primary/10 text-slate-900 rounded-tl-none border border-primary/10'
                     }`}
                   >
-                    <p className="font-medium !text-black" style={{ color: 'black' }}>{msg.content}</p>
+                    {msg.role === "assistant" && typeof msg.content === "object" && msg.content?.version === "tabibi_intelligence_v2" ? (
+                      <TabibiAiMessage ui={msg.content} />
+                    ) : (
+                      <p className="font-medium !text-black" style={{ color: 'black' }}>
+                        {typeof msg.content === 'object' ? JSON.stringify(msg.content) : msg.content}
+                      </p>
+                    )}
                     <span className="text-[10px] opacity-50 mt-1 block">
                       {new Date(msg.timestamp).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
                     </span>
