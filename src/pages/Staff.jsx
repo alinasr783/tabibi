@@ -50,6 +50,9 @@ import {
 } from "../components/ui/dialog";
 import { Label } from "../components/ui/label";
 import { Checkbox } from "../components/ui/checkbox";
+import { Switch } from "../components/ui/switch";
+import { ConfirmDialog } from "../components/ui/confirm-dialog";
+import { X } from "lucide-react";
 
 // --- StatCard Component (Copied from PatientsPage) ---
 function StatCard({ icon: Icon, label, value, isLoading, iconColorClass = "bg-primary/10 text-primary", onClick, active }) {
@@ -101,6 +104,8 @@ export default function Staff() {
   const [selectedSecretary, setSelectedSecretary] = useState(null);
   const [selectedPermissions, setSelectedPermissions] = useState([]);
   const [createdSecretaryInfo, setCreatedSecretaryInfo] = useState(null);
+  const [secretaryToDelete, setSecretaryToDelete] = useState(null);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   
   // -- Form State --
   const [newSecretary, setNewSecretary] = useState({
@@ -249,8 +254,15 @@ export default function Staff() {
   };
 
   const handleDeleteSecretary = (secretaryId) => {
-    if (window.confirm("هل أنت متأكد من حذف هذا السكرتير؟")) {
-      deleteSecretary(secretaryId);
+    setSecretaryToDelete(secretaryId);
+    setIsDeleteConfirmOpen(true);
+  };
+
+  const confirmDeleteSecretary = () => {
+    if (secretaryToDelete) {
+      deleteSecretary(secretaryToDelete);
+      setIsDeleteConfirmOpen(false);
+      setSecretaryToDelete(null);
     }
   };
 
@@ -552,7 +564,14 @@ export default function Staff() {
 
       {/* Add Secretary Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={handleCloseAddDialog}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[425px] max-h-[85vh] overflow-y-auto">
+          <button
+            onClick={handleCloseAddDialog}
+            className="absolute left-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
+          >
+            <X className="h-4 w-4" />
+            <span className="sr-only">Close</span>
+          </button>
           <DialogHeader>
             <DialogTitle>إضافة سكرتير جديد</DialogTitle>
           </DialogHeader>
@@ -602,17 +621,22 @@ export default function Staff() {
             {addStaffStep === 3 && (
               <div className="space-y-4">
                 <Label>الصلاحيات</Label>
-                <div className="space-y-2 max-h-[200px] overflow-y-auto border rounded-md p-2">
+                <div className="space-y-4 max-h-[300px] overflow-y-auto border rounded-md p-4">
                   {SECRETARY_PERMISSIONS.map((perm) => (
-                    <div key={perm.id} className="flex items-center space-x-2 space-x-reverse">
-                      <Checkbox
+                    <div key={perm.id} className="flex items-center justify-between p-2 hover:bg-muted rounded-md border border-transparent hover:border-border transition-colors">
+                      <div className="grid gap-1.5 leading-none">
+                        <label htmlFor={`new-perm-${perm.id}`} className="text-sm font-medium leading-none cursor-pointer">
+                          {perm.label}
+                        </label>
+                        <p className="text-xs text-muted-foreground">
+                          {perm.description}
+                        </p>
+                      </div>
+                      <Switch
                         id={`new-perm-${perm.id}`}
                         checked={newSecretary.permissions.includes(perm.id)}
                         onCheckedChange={() => handleNewSecretaryPermissionChange(perm.id)}
                       />
-                      <label htmlFor={`new-perm-${perm.id}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                        {perm.label}
-                      </label>
                     </div>
                   ))}
                 </div>
@@ -643,7 +667,14 @@ export default function Staff() {
 
       {/* Edit Secretary Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[425px] max-h-[85vh] overflow-y-auto">
+          <button
+            onClick={() => setIsEditDialogOpen(false)}
+            className="absolute left-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
+          >
+            <X className="h-4 w-4" />
+            <span className="sr-only">Close</span>
+          </button>
           <DialogHeader>
             <DialogTitle>تعديل بيانات السكرتير</DialogTitle>
           </DialogHeader>
@@ -672,7 +703,8 @@ export default function Staff() {
               </div>
             </div>
           )}
-          <DialogFooter>
+          <DialogFooter className="flex-row gap-2 sm:justify-between items-center">
+            <Button variant="ghost" onClick={() => setIsEditDialogOpen(false)}>إلغاء</Button>
             <Button onClick={handleUpdateSecretary}>حفظ التغييرات</Button>
           </DialogFooter>
         </DialogContent>
@@ -680,32 +712,40 @@ export default function Staff() {
 
       {/* Permissions Dialog */}
       <Dialog open={isPermissionsDialogOpen} onOpenChange={setIsPermissionsDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[425px] max-h-[85vh] overflow-y-auto">
+          <button
+            onClick={() => setIsPermissionsDialogOpen(false)}
+            className="absolute left-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
+          >
+            <X className="h-4 w-4" />
+            <span className="sr-only">Close</span>
+          </button>
           <DialogHeader>
             <DialogTitle>تعديل الصلاحيات</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
+            <div className="space-y-4 border rounded-md p-4">
               {SECRETARY_PERMISSIONS.map((perm) => (
-                <div key={perm.id} className="flex items-center space-x-2 space-x-reverse p-2 hover:bg-muted rounded-md">
-                  <Checkbox
-                    id={`perm-${perm.id}`}
-                    checked={selectedPermissions.includes(perm.id)}
-                    onCheckedChange={() => handlePermissionChange(perm.id)}
-                  />
+                <div key={perm.id} className="flex items-center justify-between p-2 hover:bg-muted rounded-md border border-transparent hover:border-border transition-colors">
                   <div className="grid gap-1.5 leading-none">
-                    <label htmlFor={`perm-${perm.id}`} className="text-sm font-medium leading-none">
+                    <label htmlFor={`perm-${perm.id}`} className="text-sm font-medium leading-none cursor-pointer">
                       {perm.label}
                     </label>
                     <p className="text-xs text-muted-foreground">
                       {perm.description}
                     </p>
                   </div>
+                  <Switch
+                    id={`perm-${perm.id}`}
+                    checked={selectedPermissions.includes(perm.id)}
+                    onCheckedChange={() => handlePermissionChange(perm.id)}
+                  />
                 </div>
               ))}
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex-row gap-2 sm:justify-between items-center">
+            <Button variant="ghost" onClick={() => setIsPermissionsDialogOpen(false)}>إلغاء</Button>
             <Button onClick={handleSavePermissions}>حفظ الصلاحيات</Button>
           </DialogFooter>
         </DialogContent>
@@ -743,6 +783,17 @@ export default function Staff() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        isOpen={isDeleteConfirmOpen}
+        onClose={() => setIsDeleteConfirmOpen(false)}
+        onConfirm={confirmDeleteSecretary}
+        title="حذف الموظف"
+        description="هل أنت متأكد من حذف هذا الموظف؟ لا يمكن التراجع عن هذا الإجراء."
+        confirmText="حذف"
+        cancelText="إلغاء"
+        variant="destructive"
+      />
     </div>
   );
 }

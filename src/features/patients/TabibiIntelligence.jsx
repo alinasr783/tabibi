@@ -26,6 +26,11 @@ export default function TabibiIntelligence({ patient }) {
   const queryClient = useQueryClient();
   const { data: preferences } = useUserPreferences();
 
+  // Early return if AI is disabled for this page
+  if (preferences?.ai_settings?.enabled_pages?.patient_file === false) {
+    return null;
+  }
+
   const normalizeProposedFieldType = (type) => {
     const t = String(type || "").toLowerCase().trim();
     const allowed = new Set(["text", "textarea", "number", "date", "checkbox", "select", "multiselect", "progress"]);
@@ -327,6 +332,7 @@ export default function TabibiIntelligence({ patient }) {
 
       const result = await processPatientInputStream(patient, userMessage.content, simplifiedSchema, chatLog, {
         signal: abortController.signal,
+        aiContext: preferences?.ai_settings?.context,
         onPartialReply: (text) => {
           setChatLog((prev) =>
             prev.map((m) => (m?.id === assistantMessageId ? { ...m, content: text } : m))

@@ -30,7 +30,19 @@ const DEFAULT_PREFERENCES = {
   // Daily email settings
   daily_appointments_email_enabled: false,
   daily_appointments_email_time: '07:00',
-  timezone: 'Africa/Cairo'
+  timezone: 'Africa/Cairo',
+  // AI Customization Settings
+  ai_settings: {
+    enabled_pages: {
+      patient_file: true,
+    },
+    context: {
+      specialty: "",
+      clinic_goal: "",
+      doctor_persona: "",
+      custom_instructions: ""
+    }
+  }
 };
 
 function attachComputedDefaults(preferences) {

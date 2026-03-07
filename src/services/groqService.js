@@ -43,12 +43,23 @@ function tryExtractReplyFromJsonBuffer(buffer) {
 }
 
 export async function processPatientInputStream(patientData, userInput, schemaConfig = null, chatHistory = [], opts = {}) {
-  const { onPartialReply, signal } = opts || {};
+  const { onPartialReply, signal, aiContext } = opts || {};
   const patientsTableSchema = extractPatientsTableSchema(databaseSchemaRaw);
   const { model, temperature } = chooseDeepseekModel({ userInput });
+
+  // Prepare Context String
+  const clinicContextStr = aiContext ? `
+CLINIC CONTEXT:
+- Specialty: ${aiContext.specialty || "General Practice"}
+- Clinic Goal: ${aiContext.clinic_goal || "Provide excellent patient care"}
+- Doctor Persona: ${aiContext.doctor_persona || "Professional and concise"}
+- Custom Instructions: ${aiContext.custom_instructions || ""}
+` : "";
+
   const systemPrompt = `
 You are an elite clinical AI assistant for "Tabibi" (My Doctor).
 Your capabilities go beyond simple extraction; you possess **Clinical Reasoning** and **Contextual Awareness**.
+${clinicContextStr}
 
 OBJECTIVES:
 1. **Contextual Analysis**: Distinguish between the Doctor's observations/questions and the Patient's responses if the input is a conversation.
@@ -86,8 +97,8 @@ TASK:
    - Existing patient custom fields are stored in custom_fields (JSONB array). When updating values, you MUST output custom_fields as an object mapping { "<field_id>": <value> }.
    - If the conversation contains a medically-relevant fact that has NO appropriate existing field (standard/medical_history/insurance/custom), then propose a NEW custom field in create_fields (do NOT invent standard columns).
 5. **Formulate Reply**: Generate a response directed specifically **TO THE DOCTOR**.
-   - **Persona**: You are a professional, concise Clinical Assistant.
-   - **Tone**: Formal yet direct (e.g., "تمام يا دكتور، تم تسجيل...").
+   - **Persona**: You are a professional, concise Clinical Assistant${aiContext?.doctor_persona ? ` matching the persona: "${aiContext.doctor_persona}"` : ""}.
+   - **Tone**: Formal yet direct (e.g., "تمام يا دكتور، تم تسجيل...")${aiContext?.custom_instructions ? ` adhering to these instructions: "${aiContext.custom_instructions}"` : ""}.
    - **Content**:
      - The reply MUST include ONLY the changes you applied (no questions, no suggestions).
      - Keep it short and formatted as 2-6 bullets in Arabic.
