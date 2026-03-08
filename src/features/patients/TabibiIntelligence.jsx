@@ -52,7 +52,7 @@ export default function TabibiIntelligence({ patient }) {
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-blue-700" />
-          <div className="text-sm font-bold text-slate-900">{ui?.title || "Tabibi Intelligence"}</div>
+          <div className="text-sm font-bold text-slate-900">{ui?.title || "مساعد المريض الشخصي"}</div>
         </div>
 
         {changes.length > 0 && (
@@ -578,12 +578,12 @@ export default function TabibiIntelligence({ patient }) {
         
         <div className="relative bg-transparent backdrop-blur-lg border border-primary/35 ring-1 ring-primary/20 shadow-none rounded-2xl overflow-hidden">
             
-            {/* Header - LTR Layout */}
-            <div className="px-4 py-3 border-b border-primary/25 bg-transparent backdrop-blur-0 flex flex-row items-center justify-between" dir="ltr">
+            {/* Header - RTL Layout */}
+            <div className="px-4 py-3 border-b border-primary/25 bg-transparent backdrop-blur-0 flex flex-row items-center justify-between" dir="rtl">
                 <div className="flex items-center gap-2 text-primary font-bold">
                     <Sparkles className="w-5 h-5 text-blue-600 animate-pulse" />
                     <span className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent font-sans">
-                        Tabibi Intelligence
+                        مساعد المريض الشخصي
                     </span>
                 </div>
                 
@@ -607,7 +607,7 @@ export default function TabibiIntelligence({ patient }) {
             >
               {chatLog.length === 0 && (
                 <div className="text-center text-slate-400 py-8 text-sm">
-                  <p>ابدأ المحادثة مع المساعد الذكي...</p>
+                  <p>ابدا اديني معلومات عن المريض وانا هنظم ملفه</p>
                 </div>
               )}
               {chatLog.map((msg, index) => (
