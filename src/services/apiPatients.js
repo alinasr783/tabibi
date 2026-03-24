@@ -1,6 +1,8 @@
 import supabase from "./supabase"
 import { dbg } from "../lib/debug"
 import { createFinancialRecord } from "./apiFinancialRecords"
+import { getAllItems, STORE_NAMES } from "../features/offline-mode/offlineDB"
+import { create as dsCreate, update as dsUpdate, remove as dsRemove } from "./dataService"
 import {
   normalizePlanLimits,
   requireActiveSubscription,
@@ -8,6 +10,38 @@ import {
 } from "./subscriptionEnforcement"
 
 export async function getPatients(search, page, pageSize, filters = {}) {
+  const offlineEnabled = (() => {
+    try { return localStorage.getItem("tabibi_offline_enabled") === "true" } catch { return false }
+  })()
+  const browserOffline = typeof navigator !== "undefined" && navigator.onLine === false
+  if (offlineEnabled && browserOffline) {
+    const clinicUuid = (() => {
+      try { return localStorage.getItem("tabibi_clinic_id") } catch { return null }
+    })()
+    let items = await getAllItems(STORE_NAMES.PATIENTS)
+    if (clinicUuid) items = items.filter((p) => String(p?.clinic_id || "") === String(clinicUuid))
+
+    if (filters.gender) items = items.filter((p) => String(p?.gender || "") === String(filters.gender))
+    if (filters.createdAfter) items = items.filter((p) => String(p?.created_at || "") >= String(filters.createdAfter))
+
+    if (search && search.trim()) {
+      const trimmed = search.trim()
+      const isIdSearch = /^(?:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|\d+)$/.test(trimmed)
+      if (isIdSearch) {
+        items = items.filter((p) => String(p?.id || "") === trimmed)
+      } else {
+        const q = trimmed.toLowerCase()
+        items = items.filter((p) => String(p?.name || "").toLowerCase().includes(q) || String(p?.phone || "").includes(trimmed))
+      }
+    }
+
+    items.sort((a, b) => String(b?.created_at || "").localeCompare(String(a?.created_at || "")))
+    const from = Math.max(0, (page - 1) * pageSize)
+    const to = from + pageSize
+    const pageItems = items.slice(from, to)
+    return { items: pageItems, total: items.length }
+  }
+
   // Get current user's clinic_id
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) throw new Error("Not authenticated")
@@ -66,6 +100,18 @@ export async function getPatients(search, page, pageSize, filters = {}) {
 }
 
 export async function createPatient(payload) {
+  const offlineEnabled = (() => {
+    try { return localStorage.getItem("tabibi_offline_enabled") === "true" } catch { return false }
+  })()
+  const browserOffline = typeof navigator !== "undefined" && navigator.onLine === false
+  if (offlineEnabled && browserOffline) {
+    const clinic_id = payload?.clinic_id || (() => {
+      try { return localStorage.getItem("tabibi_clinic_id") } catch { return null }
+    })()
+    const patientData = { ...payload, clinic_id, updated_at: new Date().toISOString() }
+    return dsCreate("patients", patientData)
+  }
+
   // Get current user's clinic_id
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) throw new Error("Not authenticated")
@@ -224,6 +270,14 @@ export async function getPatientById(id) {
 }
 
 export async function updatePatient(id, payload) {
+  const offlineEnabled = (() => {
+    try { return localStorage.getItem("tabibi_offline_enabled") === "true" } catch { return false }
+  })()
+  const browserOffline = typeof navigator !== "undefined" && navigator.onLine === false
+  if (offlineEnabled && browserOffline) {
+    return dsUpdate("patients", id, { ...payload, updated_at: new Date().toISOString() })
+  }
+
   // Get current user's clinic_id for security
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) throw new Error("Not authenticated")
@@ -253,6 +307,15 @@ export async function updatePatient(id, payload) {
 }
 
 export async function deletePatient(id) {
+    const offlineEnabled = (() => {
+        try { return localStorage.getItem("tabibi_offline_enabled") === "true" } catch { return false }
+    })()
+    const browserOffline = typeof navigator !== "undefined" && navigator.onLine === false
+    if (offlineEnabled && browserOffline) {
+        await dsRemove("patients", id)
+        return
+    }
+
     // Get current user's clinic_id for security
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) throw new Error("Not authenticated")

@@ -108,22 +108,24 @@ export default function PatientsTable({ patients, total, page, pageSize, onPageC
     },
     {
       header: "الإجراء",
-      render: (patient) => (
-        <div className="flex items-center gap-2">
-          <Link to={`/patients/${patient.id}`} onClick={() => console.log("Navigating to patient with ID:", patient.id, "Full patient object:", patient)}>
-            <Button variant="outline" className="gap-2" size="sm">
-              <Eye className="h-4 w-4" />
-              عرض التفاصيل
-            </Button>
-          </Link>
+      render: (patient) => {
+        return (
+          <div className="flex items-center gap-2">
+            <Link to={`/patients/${patient.id}`} onClick={() => console.log("[PATIENT_NAV] desktop", { id: patient.id })}>
+              <Button variant="outline" className="gap-2" size="sm">
+                <Eye className="h-4 w-4" />
+                عرض التفاصيل
+              </Button>
+            </Link>
           <Button variant="ghost" size="icon" className="text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => window.open(`https://wa.me/${patient.phone}`, '_blank')}>
             <MessageCircle className="w-4 h-4" />
           </Button>
           <Button variant="ghost" size="icon" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50" onClick={() => window.location.href = `tel:${patient.phone}`}>
             <Phone className="w-4 h-4" />
           </Button>
-        </div>
-      ),
+          </div>
+        );
+      },
     },
   ];
 
@@ -226,7 +228,7 @@ export default function PatientsTable({ patients, total, page, pageSize, onPageC
                   </div>
 
                   <div className="space-y-4">
-                    <Link to={`/patients/${patient.id}`} onClick={() => console.log("Mobile: Navigating to patient with ID:", patient.id, "Full patient object:", patient)}>
+                    <Link to={`/patients/${patient.id}`} onClick={() => console.log("[PATIENT_NAV] mobile", { id: patient.id })}>
                       <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground mb-4">
                         <Eye className="w-4 h-4 ml-2" />
                         شوف التفاصيل

@@ -6,9 +6,11 @@ import useUpdatePatient from "./useUpdatePatient"
 import toast from "react-hot-toast"
 import { uploadPatientAttachment } from "../../services/apiAttachments"
 import { X } from "lucide-react"
+import { useOfflineData } from "../offline-mode/useOfflineData"
 
 export default function PatientEditDialog({ open, onClose, patient }) {
   const { mutateAsync, isPending } = useUpdatePatient()
+  const { updatePatientOffline } = useOfflineData()
 
   // Helper to calculate age from DOB if age is missing
   const calculateAge = (dateOfBirth) => {
@@ -36,10 +38,14 @@ export default function PatientEditDialog({ open, onClose, patient }) {
         date_of_birth: null, // Clear DOB to prioritize Age since we are editing Age
       }
       
-      await mutateAsync({ id: patient.id, values: payload })
+      if (String(patient?.id || "").startsWith("local_")) {
+        await updatePatientOffline(patient.id, payload)
+      } else {
+        await mutateAsync({ id: patient.id, values: payload })
+      }
 
       // Handle attachments if any
-      if (attachments && attachments.length > 0) {
+      if (attachments && attachments.length > 0 && !String(patient?.id || "").startsWith("local_")) {
         const uploadPromises = attachments.map(file => 
           uploadPatientAttachment({
             patientId: patient.id,

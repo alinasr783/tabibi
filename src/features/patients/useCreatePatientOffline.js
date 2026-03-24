@@ -24,22 +24,53 @@ export default function useCreatePatientOffline() {
   
   const { createPatientOffline } = useOfflineData();
 
+  const withTimeout = (promise, ms) => {
+    let timeoutId;
+    const timeoutPromise = new Promise((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error("Network timeout")), ms);
+    });
+    return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeoutId));
+  };
+
   return useMutation({
     mutationFn: async (patientData) => {
-      console.log("useCreatePatientOffline: Offline context exists:", hasOfflineContext, "Is offline mode:", isOfflineMode);
-      
-      if (hasOfflineContext && isOfflineMode) {
-        // Create patient locally when offline
-        console.log("useCreatePatientOffline: Creating patient in offline mode");
-        const localPatient = await createPatientOffline(patientData);
-        toast.success("تم حفظ المريض محليًا وسيتم مزامنته تلقائيًا عند عودة الاتصال");
-        return localPatient;
-      } else {
-        // Create patient on server when online
-        console.log("useCreatePatientOffline: Creating patient in online mode");
-        const serverPatient = await createPatient(patientData);
-        console.log("useCreatePatientOffline: Server patient data:", serverPatient);
-        return serverPatient;
+      const browserOffline = typeof navigator !== "undefined" && navigator.onLine === false;
+      const keys = patientData && typeof patientData === "object" ? Object.keys(patientData).sort() : [];
+      console.groupCollapsed("[PATIENT_CREATE] hook mutationFn");
+      console.log("[PATIENT_CREATE] hasOfflineContext:", hasOfflineContext, "isOfflineMode:", isOfflineMode, "browserOffline:", browserOffline);
+      console.log("[PATIENT_CREATE] patientDataKeys:", keys);
+      try {
+        if ((hasOfflineContext && isOfflineMode) || browserOffline) {
+          console.log("[PATIENT_CREATE] createPatientOffline start (detected offline)");
+          const localPatient = await createPatientOffline(patientData);
+          console.log("[PATIENT_CREATE] createPatientOffline done", { id: localPatient?.id });
+          toast.success("تم حفظ المريض محليًا وسيتم مزامنته تلقائيًا عند عودة الاتصال");
+          return localPatient;
+        }
+        try {
+          console.log("[PATIENT_CREATE] createPatient start (online)");
+          const serverPatient = await withTimeout(createPatient(patientData), 8000);
+          console.log("[PATIENT_CREATE] createPatient done", { id: serverPatient?.id });
+          return serverPatient;
+        } catch (err) {
+          const msg = String(err?.message || "").toLowerCase();
+          const considerOffline =
+            browserOffline ||
+            msg.includes("network error") ||
+            msg.includes("timeout") ||
+            msg.includes("fetch failed") ||
+            msg.includes("user has no clinic assigned");
+          if (hasOfflineContext && considerOffline) {
+            console.warn("[PATIENT_CREATE] fallback to offline due to error:", err?.message);
+            const localPatient = await createPatientOffline(patientData);
+            console.log("[PATIENT_CREATE] fallback createPatientOffline done", { id: localPatient?.id });
+            toast.success("تم حفظ المريض محليًا وسيتم مزامنته تلقائيًا عند عودة الاتصال");
+            return localPatient;
+          }
+          throw err;
+        }
+      } finally {
+        console.groupEnd();
       }
     },
     onSuccess: (data, variables) => {
@@ -50,7 +81,8 @@ export default function useCreatePatientOffline() {
       qc.invalidateQueries({ queryKey: ["filteredPatientStats"] });
       
       // If we're offline and have the context, enqueue the operation for sync when online
-      if (hasOfflineContext && isOfflineMode && enqueueOperation) {
+      const isLocalPatient = String(data?.id || "").startsWith("local_");
+      if (hasOfflineContext && isOfflineMode && enqueueOperation && !isLocalPatient) {
         enqueueOperation('patient', 'create', variables);
       }
       

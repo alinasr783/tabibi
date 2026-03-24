@@ -1,21 +1,8 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { initDB, getUnsyncedItems, markAsSynced, removeFromQueue, addToQueue } from './offlineDB';
+import { initDB, getUnsyncedItems, addToQueue } from './offlineDB';
 import { useAuth } from '../auth';
 import { toast } from 'react-hot-toast';
-import { 
-  createPatient, 
-  updatePatient, 
-  getPatientById 
-} from '../../services/apiPatients';
-import { 
-  createAppointment, 
-  updateAppointment 
-} from '../../services/apiAppointments';
-import { 
-  createTreatmentTemplate, 
-  updateTreatmentTemplate 
-} from '../../services/apiTreatmentTemplates';
-import supabase from '../../services/supabase';
+import { syncQueuedOperations } from './sync';
 
 const OfflineContext = createContext();
 
@@ -26,6 +13,59 @@ export function OfflineProvider({ children }) {
   const [syncMessage, setSyncMessage] = useState('');
   const { user } = useAuth();
   const [initialized, setInitialized] = useState(false);
+  const [lastSyncAttemptAt, setLastSyncAttemptAt] = useState(0);
+  const [offlineEnabled, setOfflineEnabledState] = useState(() => {
+    try {
+      return localStorage.getItem("tabibi_offline_enabled") === "true"
+    } catch {
+      return false
+    }
+  })
+
+  const syncOfflineData = useCallback(async () => {
+    if (!offlineEnabled || !user || !initialized) return;
+
+    const now = Date.now();
+    if (now - lastSyncAttemptAt < 15000) return;
+    setLastSyncAttemptAt(now);
+
+    console.groupCollapsed('[OFFLINE_SYNC] syncOfflineData');
+    console.log('[OFFLINE_SYNC] starting', { initialized, hasUser: !!user });
+    setIsSyncing(true);
+    setSyncProgress(0);
+    setSyncMessage('جارٍ المزامنة...');
+
+    try {
+      const unsyncedItems = await getUnsyncedItems();
+      const totalItems = unsyncedItems.length;
+      console.log('[OFFLINE_SYNC] items to sync:', totalItems);
+      if (totalItems === 0) {
+        setSyncMessage('تمت المزامنة بنجاح');
+        setTimeout(() => {
+          setIsSyncing(false);
+          setSyncMessage('');
+        }, 2000);
+        console.groupEnd();
+        return;
+      }
+      const res = await syncQueuedOperations();
+      console.log('[OFFLINE_SYNC] syncQueuedOperations result', res);
+      setSyncProgress(100);
+      setSyncMessage('تمت المزامنة بنجاح');
+      setTimeout(() => {
+        setIsSyncing(false);
+        setSyncMessage('');
+      }, 2000);
+      toast.success(`تمت مزامنة ${res.synced} من ${totalItems} عملية`);
+    } catch (error) {
+      console.error('Error during sync:', error);
+      setIsSyncing(false);
+      setSyncMessage('فشلت المزامنة – إعادة المحاولة');
+      toast.error(`فشلت المزامنة: ${error?.message || 'خطأ غير معروف'}`);
+    } finally {
+      try { console.groupEnd(); } catch {}
+    }
+  }, [offlineEnabled, user, initialized, lastSyncAttemptAt]);
 
   // Initialize the database
   useEffect(() => {
@@ -33,6 +73,9 @@ export function OfflineProvider({ children }) {
       try {
         console.log('Initializing offline database...');
         await initDB();
+        if (!sessionStorage.getItem('tabibi_pin')) {
+          sessionStorage.setItem('tabibi_pin', 'tabibi');
+        }
         setInitialized(true);
         console.log('Offline database initialized successfully');
       } catch (error) {
@@ -42,7 +85,24 @@ export function OfflineProvider({ children }) {
     };
 
     init();
-  }, []);
+  }, [offlineEnabled, syncOfflineData]);
+
+  useEffect(() => {
+    const handler = (e) => {
+      const msg = e && e.data
+      if (msg && msg.type === 'TABIBI_SYNC') {
+        syncOfflineData()
+      }
+    }
+    if (navigator.serviceWorker) {
+      navigator.serviceWorker.addEventListener('message', handler)
+    }
+    return () => {
+      if (navigator.serviceWorker) {
+        navigator.serviceWorker.removeEventListener('message', handler)
+      }
+    }
+  }, [syncOfflineData])
 
   // Monitor online/offline status
   useEffect(() => {
@@ -50,7 +110,7 @@ export function OfflineProvider({ children }) {
       console.log('Online event detected');
       setIsOnline(true);
       toast.success('تم استعادة الاتصال بالإنترنت');
-      syncOfflineData();
+      if (offlineEnabled) syncOfflineData();
     };
 
     const handleOffline = () => {
@@ -68,103 +128,30 @@ export function OfflineProvider({ children }) {
     };
   }, []);
 
-  // Sync data when coming back online
-  const syncOfflineData = useCallback(async () => {
-    if (!user || !initialized) return;
-
-    console.log('Starting sync process...');
-    setIsSyncing(true);
-    setSyncProgress(0);
-    setSyncMessage('جارٍ المزامنة...');
-
-    try {
-      const unsyncedItems = await getUnsyncedItems();
-      const totalItems = unsyncedItems.length;
-      
-      console.log(`Found ${totalItems} items to sync`);
-      
-      if (totalItems === 0) {
-        setSyncMessage('تمت المزامنة بنجاح');
-        setTimeout(() => {
-          setIsSyncing(false);
-          setSyncMessage('');
-        }, 2000);
-        return;
-      }
-
-      let processedItems = 0;
-
-      for (const item of unsyncedItems) {
-        try {
-          setSyncProgress(Math.round((processedItems / totalItems) * 100));
-          console.log('Processing item:', item);
-          
-          // Process based on entity type and operation
-          switch (item.entityType) {
-            case 'patient':
-              if (item.operation === 'create') {
-                // Create patient with server-generated ID
-                const serverPatient = await createPatient(item.data);
-                // Update local record with server ID
-                // This would require updating the local database, but for simplicity we'll just mark as synced
-              } else if (item.operation === 'update') {
-                await updatePatient(item.entityId, item.data);
-              }
-              break;
-              
-            case 'appointment':
-              if (item.operation === 'create') {
-                await createAppointment(item.data);
-              } else if (item.operation === 'update') {
-                await updateAppointment(item.entityId, item.data);
-              }
-              break;
-              
-            case 'treatmentPlan':
-              if (item.operation === 'create') {
-                await createTreatmentTemplate(item.data);
-              } else if (item.operation === 'update') {
-                await updateTreatmentTemplate(item.entityId, item.data);
-              }
-              break;
-              
-            default:
-              console.warn('Unknown entity type for sync:', item.entityType);
-          }
-
-          // Mark item as synced
-          await markAsSynced(item.id);
-          processedItems++;
-        } catch (error) {
-          console.error('Error syncing item:', item, error);
-          // For critical errors, we might want to notify the user
-          if (error.message.includes('network')) {
-            toast.error('فشل في المزامنة - إعادة المحاولة تلقائيًا');
-            break; // Stop syncing if network error
-          }
+  useEffect(() => {
+    if (!offlineEnabled || !user || !initialized) return;
+    const tick = async () => {
+      if (isSyncing) return;
+      if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+      try {
+        const unsynced = await getUnsyncedItems();
+        const count = Array.isArray(unsynced) ? unsynced.length : 0;
+        if (count > 0) {
+          console.log("[OFFLINE_SYNC] periodic check", { count });
+          await syncOfflineData();
         }
+      } catch (e) {
+        console.warn("[OFFLINE_SYNC] periodic check failed", e);
       }
-
-      setSyncProgress(100);
-      setSyncMessage('تمت المزامنة بنجاح');
-      
-      setTimeout(() => {
-        setIsSyncing(false);
-        setSyncMessage('');
-      }, 2000);
-      
-      toast.success(`تمت مزامنة ${processedItems} من ${totalItems} عملية`);
-    } catch (error) {
-      console.error('Error during sync:', error);
-      setIsSyncing(false);
-      setSyncMessage('فشلت المزامنة – إعادة المحاولة');
-      toast.error('فشلت المزامنة – إعادة المحاولة تلقائيًا');
-    }
-  }, [user, initialized]);
+    };
+    tick();
+    const id = setInterval(tick, 30000);
+    return () => clearInterval(id);
+  }, [offlineEnabled, user, initialized, isSyncing, syncOfflineData]);
 
   // Function to add operation to offline queue
   const enqueueOperation = useCallback(async (entityType, operation, data, entityId = null) => {
-    if (!initialized) return;
+    if (!offlineEnabled || !initialized) return;
 
     try {
       const queueItem = {
@@ -177,7 +164,15 @@ export function OfflineProvider({ children }) {
 
       // Add to offline queue
       await addToQueue(queueItem);
-      console.log('Enqueuing operation:', queueItem);
+      const dataKeys = data && typeof data === "object" ? Object.keys(data).sort() : [];
+      console.log('[OFFLINE_QUEUE] enqueued', { entityType, operation, entityId, dataKeysCount: dataKeys.length });
+      if (navigator.serviceWorker) {
+        navigator.serviceWorker.ready.then((reg) => {
+          if ('sync' in reg) {
+            reg.sync.register('tabibi-sync').catch(() => {})
+          }
+        })
+      }
       
       // Show notification when offline
       if (!isOnline) {
@@ -187,14 +182,23 @@ export function OfflineProvider({ children }) {
       console.error('Error enqueuing operation:', error);
       toast.error('فشل في حفظ التغييرات المحلية');
     }
-  }, [initialized, isOnline]);
+  }, [offlineEnabled, initialized, isOnline]);
 
   // Function to check if we're in offline mode
-  const isOfflineMode = !isOnline;
+  const isOfflineMode = offlineEnabled && !isOnline;
+
+  const setOfflineEnabled = useCallback((next) => {
+    setOfflineEnabledState(!!next)
+    try {
+      localStorage.setItem("tabibi_offline_enabled", next ? "true" : "false")
+    } catch {}
+  }, [])
 
   const value = {
     isOnline,
     isOfflineMode,
+    offlineEnabled,
+    setOfflineEnabled,
     isSyncing,
     syncProgress,
     syncMessage,

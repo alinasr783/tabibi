@@ -530,6 +530,9 @@ CREATE TABLE public.subscriptions (
   billing_period text DEFAULT 'monthly'::text CHECK (billing_period = ANY (ARRAY['monthly'::text, 'annual'::text])),
   amount numeric,
   clinic_id uuid,
+  subscription_created_year integer NOT NULL,
+  subscription_created_month_name text NOT NULL,
+  subscription_created_day_two_digits character NOT NULL,
   CONSTRAINT subscriptions_pkey PRIMARY KEY (id),
   CONSTRAINT subscriptions_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES public.plans(id)
 );
@@ -753,6 +756,9 @@ CREATE TABLE public.user_preferences (
   tabibi_ai_settings jsonb DEFAULT '{}'::jsonb,
   medical_fields_config jsonb DEFAULT '{}'::jsonb,
   sidebar_large_screen_behavior text NOT NULL DEFAULT 'persistent'::text CHECK (sidebar_large_screen_behavior = ANY (ARRAY['persistent'::text, 'toggle'::text])),
+  notification_types jsonb DEFAULT '{"financial": true, "appointments": true, "subscription": true}'::jsonb,
+  toast_notifications_enabled boolean DEFAULT true,
+  toast_duration integer DEFAULT 3,
   CONSTRAINT user_preferences_pkey PRIMARY KEY (id),
   CONSTRAINT user_preferences_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
@@ -775,6 +781,9 @@ CREATE TABLE public.users (
   specialty text,
   banner_url text,
   contacts jsonb DEFAULT '[]'::jsonb,
+  account_created_year integer NOT NULL,
+  account_created_month_name text NOT NULL,
+  account_created_day_two_digits character NOT NULL,
   CONSTRAINT users_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.visits (

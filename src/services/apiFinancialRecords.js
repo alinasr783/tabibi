@@ -1,6 +1,23 @@
 import supabase from "./supabase"
+import { getAllItems, getItem, STORE_NAMES } from "../features/offline-mode/offlineDB"
+import { create as dsCreate } from "./dataService"
+import { resolveClinicIdBigint } from "./clinicIds"
 
 export async function createFinancialRecord(payload) {
+    const offlineEnabled = (() => {
+        try { return localStorage.getItem("tabibi_offline_enabled") === "true" } catch { return false }
+    })()
+    const browserOffline = typeof navigator !== "undefined" && navigator.onLine === false
+    if (offlineEnabled && browserOffline) {
+        const clinicIdBigint = payload?.clinic_id || await resolveClinicIdBigint().catch(() => null)
+        const record = {
+            ...payload,
+            clinic_id: clinicIdBigint,
+            updated_at: new Date().toISOString()
+        }
+        return dsCreate("financial_records", record)
+    }
+
     // Get current user's clinic_id (bigint for financial_records table)
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) throw new Error("Not authenticated")
@@ -44,6 +61,34 @@ export async function createFinancialRecord(payload) {
 }
 
 export async function getFinancialRecords(page = 1, pageSize = 10, filters = {}) {
+    const offlineEnabled = (() => {
+        try { return localStorage.getItem("tabibi_offline_enabled") === "true" } catch { return false }
+    })()
+    const browserOffline = typeof navigator !== "undefined" && navigator.onLine === false
+    if (offlineEnabled && browserOffline) {
+        const clinicIdBigint = await resolveClinicIdBigint().catch(() => null)
+        let items = await getAllItems(STORE_NAMES.FINANCIAL_RECORDS)
+        if (clinicIdBigint != null) items = items.filter((r) => String(r?.clinic_id || "") === String(clinicIdBigint))
+
+        if (filters.startDate && filters.endDate) {
+            items = items.filter((r) => String(r?.recorded_at || r?.created_at || "") >= String(filters.startDate) && String(r?.recorded_at || r?.created_at || "") <= String(filters.endDate))
+        }
+        if (filters.type) items = items.filter((r) => String(r?.type || "") === String(filters.type))
+
+        const attachPatient = async (r) => {
+            const pid = r?.patient_id
+            if (pid == null) return { ...r, patient: null }
+            const p = await getItem(STORE_NAMES.PATIENTS, pid)
+            return { ...r, patient: p ? { name: p.name } : null }
+        }
+        items = await Promise.all(items.map(attachPatient))
+
+        items.sort((a, b) => String(b?.recorded_at || b?.created_at || "").localeCompare(String(a?.recorded_at || a?.created_at || "")))
+        const from = Math.max(0, (page - 1) * pageSize)
+        const to = from + pageSize
+        return { items: items.slice(from, to), total: items.length }
+    }
+
     // Get current user's clinic_id (bigint)
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) throw new Error("Not authenticated")

@@ -17,6 +17,7 @@ import { updatePatient } from "../../services/apiPatients";
 import toast from "react-hot-toast";
 import { useUserPreferences } from "../../hooks/useUserPreferences";
 import { flattenCustomFieldTemplates, mergeTemplatesIntoCustomFields, normalizeMedicalFieldsConfig } from "../../lib/medicalFieldsConfig";
+import { useOfflineData } from "../offline-mode/useOfflineData";
 
 // --- Shared Components ---
 
@@ -48,6 +49,7 @@ function ActionButtons({ onSave, onCancel, isSubmitting }) {
 // --- Personal Data Section ---
 
 export function PersonalDataForm({ patient, onCancel, onSuccess }) {
+  const { updatePatientOffline } = useOfflineData();
   const { data: preferences } = useUserPreferences();
   const medicalFieldsConfig = useMemo(
     () => normalizeMedicalFieldsConfig(preferences?.medical_fields_config),
@@ -68,7 +70,11 @@ export function PersonalDataForm({ patient, onCancel, onSuccess }) {
 
   const onSubmit = async (data) => {
     try {
-      await updatePatient(patient.id, data);
+      if (String(patient?.id || "").startsWith("local_")) {
+        await updatePatientOffline(patient.id, data);
+      } else {
+        await updatePatient(patient.id, data);
+      }
       toast.success("تم تحديث البيانات الشخصية بنجاح");
       onSuccess(data);
     } catch (error) {
@@ -169,6 +175,7 @@ export function PersonalDataForm({ patient, onCancel, onSuccess }) {
 // --- Medical Profile Section ---
 
 export function MedicalProfileForm({ patient, onCancel, onSuccess }) {
+  const { updatePatientOffline } = useOfflineData();
   const { data: preferences } = useUserPreferences();
   const medicalFieldsConfig = useMemo(
     () => normalizeMedicalFieldsConfig(preferences?.medical_fields_config),
@@ -195,7 +202,11 @@ export function MedicalProfileForm({ patient, onCancel, onSuccess }) {
         ...data.medical_history
       };
       
-      await updatePatient(patient.id, { medical_history: updatedMedicalHistory });
+      if (String(patient?.id || "").startsWith("local_")) {
+        await updatePatientOffline(patient.id, { medical_history: updatedMedicalHistory });
+      } else {
+        await updatePatient(patient.id, { medical_history: updatedMedicalHistory });
+      }
       toast.success("تم تحديث الملف الطبي بنجاح");
       onSuccess({ medical_history: updatedMedicalHistory });
     } catch (error) {
@@ -258,6 +269,7 @@ export function MedicalProfileForm({ patient, onCancel, onSuccess }) {
 // --- Insurance Section ---
 
 export function InsuranceForm({ patient, onCancel, onSuccess }) {
+  const { updatePatientOffline } = useOfflineData();
   const { data: preferences } = useUserPreferences();
   const medicalFieldsConfig = useMemo(
     () => normalizeMedicalFieldsConfig(preferences?.medical_fields_config),
@@ -277,7 +289,11 @@ export function InsuranceForm({ patient, onCancel, onSuccess }) {
 
   const onSubmit = async (data) => {
     try {
-      await updatePatient(patient.id, { insurance_info: data.insurance_info });
+      if (String(patient?.id || "").startsWith("local_")) {
+        await updatePatientOffline(patient.id, { insurance_info: data.insurance_info });
+      } else {
+        await updatePatient(patient.id, { insurance_info: data.insurance_info });
+      }
       toast.success("تم تحديث بيانات التأمين بنجاح");
       onSuccess({ insurance_info: data.insurance_info });
     } catch (error) {
@@ -331,6 +347,7 @@ export function InsuranceForm({ patient, onCancel, onSuccess }) {
 }
 
 export function CustomFieldsForm({ patient, sectionId, onCancel, onSuccess }) {
+  const { updatePatientOffline } = useOfflineData();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [customFields, setCustomFields] = useState(Array.isArray(patient.custom_fields) ? patient.custom_fields : []);
   const [newField, setNewField] = useState({ name: "", type: "text", section_id: sectionId || "personal", optionsText: "" });
@@ -529,7 +546,11 @@ export function CustomFieldsForm({ patient, sectionId, onCancel, onSuccess }) {
   const onSave = async () => {
     try {
       setIsSubmitting(true);
-      await updatePatient(patient.id, { custom_fields: customFields });
+      if (String(patient?.id || "").startsWith("local_")) {
+        await updatePatientOffline(patient.id, { custom_fields: customFields });
+      } else {
+        await updatePatient(patient.id, { custom_fields: customFields });
+      }
       toast.success("تم تحديث الحقول الإضافية بنجاح");
       onSuccess({ custom_fields: customFields });
     } catch (error) {

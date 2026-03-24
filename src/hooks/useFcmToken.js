@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getMessagingInstance, getToken } from '../lib/firebase';
+import { getFcmToken, getMessagingInstance } from '../lib/firebase';
 import supabase from '../services/supabase';
 import useUser from '../features/auth/useUser';
 import { useUserPreferences } from './useUserPreferences';
@@ -9,6 +9,11 @@ const useFcmToken = () => {
   const [notificationPermissionStatus, setNotificationPermissionStatus] = useState('');
   const { data: user } = useUser();
   const { data: preferences } = useUserPreferences();
+  const maskToken = (t) => {
+    const s = String(t || '');
+    if (s.length <= 12) return '***';
+    return `${s.slice(0, 6)}…${s.slice(-6)}`;
+  };
 
   useEffect(() => {
     const retrieveToken = async () => {
@@ -34,10 +39,10 @@ const useFcmToken = () => {
             console.log('Notification permission granted.');
             
             // Get the token
-            const currentToken = await getToken(messaging);
+            const currentToken = await getFcmToken(messaging);
             
             if (currentToken) {
-              console.log('FCM Token retrieved:', currentToken);
+              console.log('FCM Token retrieved:', maskToken(currentToken));
               setToken(currentToken);
               
               if (user?.user_id || user?.id) {
@@ -45,7 +50,7 @@ const useFcmToken = () => {
                 console.log('Saving token to database for user:', userId);
                 await saveTokenToDatabase(currentToken, userId);
               } else {
-                console.error('User ID not found, cannot save token yet. User object:', user);
+                console.error('User ID not found, cannot save token yet.');
               }
             } else {
               console.log('No registration token available. Request permission to generate one.');

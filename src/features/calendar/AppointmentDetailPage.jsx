@@ -64,6 +64,7 @@ import {
   SelectValue,
 } from "../../components/ui/select";
 import {Separator} from "../../components/ui/separator";
+import AppointmentIntelligence from "./AppointmentIntelligence";
 import useAppointment from "./useAppointment";
 import useUpdateAppointmentHandler from "./useUpdateAppointmentHandler";
 import useDeleteAppointment from "./useDeleteAppointment";
@@ -684,6 +685,9 @@ export default function AppointmentDetailPage() {
            </CardContent>
         </Card>
 
+        {/* المساعد الشخصي */}
+        <AppointmentIntelligence appointment={appointment} />
+
         {/* Quick Actions - Moved to top */}
         <Card className="bg-card/70 border-muted/20 shadow-sm">
           <CardHeader className="pb-3">
@@ -1176,6 +1180,7 @@ export default function AppointmentDetailPage() {
 
           {/* Sidebar */}
           <div className="space-y-4">
+            
             {/* Appointment Time */}
             <Card className="bg-card/70">
               <CardHeader className="pb-3">

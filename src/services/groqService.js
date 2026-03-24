@@ -22,6 +22,28 @@ function extractPatientsTableSchema(text) {
   return after.slice(0, Math.min(after.length, endIdx + 2));
 }
 
+function extractAppointmentsTableSchema(text) {
+  if (!text) return "";
+  const marker = "CREATE TABLE public.appointments";
+  const start = text.indexOf(marker);
+  if (start < 0) return "";
+  const after = text.slice(start);
+  const endIdx = after.indexOf(");");
+  if (endIdx < 0) return after.slice(0, 1500);
+  return after.slice(0, Math.min(after.length, endIdx + 2));
+}
+
+function extractVisitsTableSchema(text) {
+  if (!text) return "";
+  const marker = "CREATE TABLE public.visits";
+  const start = text.indexOf(marker);
+  if (start < 0) return "";
+  const after = text.slice(start);
+  const endIdx = after.indexOf(");");
+  if (endIdx < 0) return after.slice(0, 1500);
+  return after.slice(0, Math.min(after.length, endIdx + 2));
+}
+
 function chooseDeepseekModel({ userInput }) {
   const len = String(userInput || "").trim().length;
   if (len >= 650) return { model: "deepseek-reasoner", temperature: 0.2 };
@@ -165,7 +187,220 @@ Rules:
 
   try {
     return JSON.parse(buffer);
-  } catch (e) {
+  } catch {
+    console.error("Failed to parse AI response as JSON", buffer);
+    throw new Error("AI response was not valid JSON");
+  }
+}
+
+export async function processAppointmentInputStream(appointmentData, userInput, schemaConfig = null, chatHistory = [], opts = {}) {
+  const { onPartialReply, signal, aiContext } = opts || {};
+  const appointmentsTableSchema = extractAppointmentsTableSchema(databaseSchemaRaw);
+  const { model, temperature } = chooseDeepseekModel({ userInput });
+
+  const clinicContextStr = aiContext ? `
+CLINIC CONTEXT:
+- Specialty: ${aiContext.specialty || "General Practice"}
+- Clinic Goal: ${aiContext.clinic_goal || "Provide excellent patient care"}
+- Doctor Persona: ${aiContext.doctor_persona || "Professional and concise"}
+- Custom Instructions: ${aiContext.custom_instructions || ""}
+` : "";
+
+  const systemPrompt = `
+You are an elite clinical AI assistant for "Tabibi" (My Doctor).
+You specialize in **Appointment Management**.
+${clinicContextStr}
+
+OBJECTIVES:
+1. **Contextual Analysis**: Understand the doctor's request regarding the appointment.
+2. **Database Mastery**: You fully understand the "appointments" table structure.
+3. **Data Mapping**: Update appointment fields based on the input.
+
+DATABASE REFERENCE (EXTRACT FROM database.txt):
+${appointmentsTableSchema || "(appointments table schema not found)"}
+
+CURRENT APPOINTMENT DATA:
+${JSON.stringify(appointmentData, null, 2)}
+
+CHAT HISTORY (Previous Interactions):
+${chatHistory.map(msg => {
+  const content = typeof msg.content === 'object' ? JSON.stringify(msg.content) : msg.content;
+  return `${msg.role === 'user' ? 'Doctor/User' : 'AI'}: ${content}`;
+}).join('\n')}
+
+${schemaConfig ? `
+================================================================================
+FIELDS CATALOG
+${JSON.stringify(schemaConfig, null, 2)}
+================================================================================
+` : ''}
+
+TASK:
+1. **Analyze**: Interpret the input.
+2. **Map Data**:
+   - Update ONLY columns that exist in appointments table (e.g., notes, diagnosis, treatment, status, date, from).
+   - 'custom_fields' is a JSONB array. Update it as { "custom_fields": { "<field_id>": <value> } }.
+   - If a new field is needed, propose it in create_fields (do NOT invent standard columns).
+3. **Formulate Reply**:
+   - Persona: You are a professional, concise Clinical Assistant${aiContext?.doctor_persona ? ` matching the persona: "${aiContext.doctor_persona}"` : ""}.
+   - Tone: Formal yet direct (e.g., "تمام يا دكتور، تم تسجيل...")${aiContext?.custom_instructions ? ` adhering to these instructions: "${aiContext.custom_instructions}"` : ""}.
+   - Content:
+     - The reply MUST include ONLY the changes you applied (no questions, no suggestions).
+     - Keep it short and formatted as 2-6 bullets in Arabic.
+
+OUTPUT FORMAT:
+Return ONLY a JSON object with these keys:
+1. "updates": object. Fields to update. Use only existing appointments columns. For custom field updates: { "custom_fields": { "<field_id>": <value> } }.
+2. "create_fields": array. New custom field proposals when needed. Each item: { "name": string, "type": string, "section_id": string, "options": string[], "initial_value": any, "reason": string }.
+3. "ui": object. A structured UI payload. Required shape:
+   - version: "tabibi_intelligence_v2"
+   - title: string
+   - changes: { label: string, field_ref: string, preview: string }[]
+4. "reply": string. Plain Arabic reply (short) containing ONLY applied changes.
+
+Rules:
+- Return ONLY JSON (no markdown).
+- Never output non-existent columns in updates.
+- If schemaConfig is provided, prefer matching existing fields before proposing new ones.
+`;
+
+  const stream = await client.chat.completions.create({
+    model,
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userInput }
+    ],
+    temperature,
+    max_completion_tokens: 1024,
+    top_p: 1,
+    response_format: { type: "json_object" },
+    stream: true,
+    ...(signal ? { signal } : {})
+  });
+
+  let buffer = "";
+  let lastReply = null;
+  for await (const chunk of stream) {
+    const delta = chunk?.choices?.[0]?.delta?.content;
+    if (!delta) continue;
+    buffer += delta;
+    const extracted = typeof onPartialReply === "function" ? tryExtractReplyFromJsonBuffer(buffer) : null;
+    if (extracted && extracted !== lastReply) {
+      lastReply = extracted;
+      onPartialReply(extracted);
+    }
+  }
+
+  try {
+    return JSON.parse(buffer);
+  } catch {
+    console.error("Failed to parse AI response as JSON", buffer);
+    throw new Error("AI response was not valid JSON");
+  }
+}
+
+export async function processVisitInputStream(visitData, userInput, schemaConfig = null, chatHistory = [], opts = {}) {
+  const { onPartialReply, signal, aiContext } = opts || {};
+  const visitsTableSchema = extractVisitsTableSchema(databaseSchemaRaw);
+  const { model, temperature } = chooseDeepseekModel({ userInput });
+
+  const clinicContextStr = aiContext ? `
+CLINIC CONTEXT:
+- Specialty: ${aiContext.specialty || "General Practice"}
+- Clinic Goal: ${aiContext.clinic_goal || "Provide excellent patient care"}
+- Doctor Persona: ${aiContext.doctor_persona || "Professional and concise"}
+- Custom Instructions: ${aiContext.custom_instructions || ""}
+` : "";
+
+  const systemPrompt = `
+You are an elite clinical AI assistant for "Tabibi" (My Doctor).
+You specialize in **Clinical Visits & Examinations**.
+${clinicContextStr}
+
+OBJECTIVES:
+1. **Contextual Analysis**: Understand clinical findings, diagnosis, and treatment plans.
+2. **Database Mastery**: You fully understand the "visits" table structure.
+3. **Data Mapping**: Update visit fields.
+
+DATABASE REFERENCE (EXTRACT FROM database.txt):
+${visitsTableSchema || "(visits table schema not found)"}
+
+CURRENT VISIT DATA:
+${JSON.stringify(visitData, null, 2)}
+
+CHAT HISTORY (Previous Interactions):
+${chatHistory.map(msg => {
+  const content = typeof msg.content === 'object' ? JSON.stringify(msg.content) : msg.content;
+  return `${msg.role === 'user' ? 'Doctor/User' : 'AI'}: ${content}`;
+}).join('\n')}
+
+${schemaConfig ? `
+================================================================================
+FIELDS CATALOG
+${JSON.stringify(schemaConfig, null, 2)}
+================================================================================
+` : ''}
+
+TASK:
+1. **Analyze**: Interpret clinical notes.
+2. **Map Data**:
+   - Update ONLY columns in visits table (e.g., diagnosis, notes, treatment, follow_up, medications).
+   - 'medications' is JSONB.
+   - 'custom_fields' is JSONB array. Update it as { "custom_fields": { "<field_id>": <value> } }.
+   - If a new field is needed, propose it in create_fields (do NOT invent standard columns).
+3. **Formulate Reply**:
+   - Persona: You are a professional, concise Clinical Assistant${aiContext?.doctor_persona ? ` matching the persona: "${aiContext.doctor_persona}"` : ""}.
+   - Tone: Formal yet direct (e.g., "تمام يا دكتور، تم تسجيل...")${aiContext?.custom_instructions ? ` adhering to these instructions: "${aiContext.custom_instructions}"` : ""}.
+   - Content:
+     - The reply MUST include ONLY the changes you applied (no questions, no suggestions).
+     - Keep it short and formatted as 2-6 bullets in Arabic.
+
+OUTPUT FORMAT:
+Return ONLY a JSON object with these keys:
+1. "updates": object. Fields to update. Use only existing visits columns. For custom field updates: { "custom_fields": { "<field_id>": <value> } }.
+2. "create_fields": array. New custom field proposals when needed. Each item: { "name": string, "type": string, "section_id": string, "options": string[], "initial_value": any, "reason": string }.
+3. "ui": object. A structured UI payload. Required shape:
+   - version: "tabibi_intelligence_v2"
+   - title: string
+   - changes: { label: string, field_ref: string, preview: string }[]
+4. "reply": string. Plain Arabic reply (short) containing ONLY applied changes.
+
+Rules:
+- Return ONLY JSON (no markdown).
+- Never output non-existent columns in updates.
+- If schemaConfig is provided, prefer matching existing fields before proposing new ones.
+`;
+
+  const stream = await client.chat.completions.create({
+    model,
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userInput }
+    ],
+    temperature,
+    max_completion_tokens: 1024,
+    top_p: 1,
+    response_format: { type: "json_object" },
+    stream: true,
+    ...(signal ? { signal } : {})
+  });
+
+  let buffer = "";
+  let lastReply = null;
+  for await (const chunk of stream) {
+    const delta = chunk?.choices?.[0]?.delta?.content;
+    if (!delta) continue;
+    buffer += delta;
+    const extracted = typeof onPartialReply === "function" ? tryExtractReplyFromJsonBuffer(buffer) : null;
+    if (extracted && extracted !== lastReply) {
+      lastReply = extracted;
+      onPartialReply(extracted);
+    }
+  }
+
+  try {
+    return JSON.parse(buffer);
+  } catch {
     console.error("Failed to parse AI response as JSON", buffer);
     throw new Error("AI response was not valid JSON");
   }

@@ -220,11 +220,13 @@ export default function AppointmentsFilter({ onFilterChange }) {
                     <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs bg-green-100 text-green-700">
                       مصدر: {appliedFilters.source === "clinic" ? "من العيادة" : "من النت"}
                       <button
+                        type="button"
                         onClick={() => {
                           handleTempFilterChange("source", "all");
                           handleApplyFilters();
                         }}
                         className="text-green-700 hover:text-green-900"
+                        aria-label="إزالة فلتر المصدر"
                       >
                         ×
                       </button>
@@ -234,11 +236,13 @@ export default function AppointmentsFilter({ onFilterChange }) {
                     <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs bg-amber-100 text-amber-700">
                       من: {appliedFilters.dateFrom}
                       <button
+                        type="button"
                         onClick={() => {
                           handleTempFilterChange("dateFrom", "");
                           handleApplyFilters();
                         }}
                         className="text-amber-700 hover:text-amber-900"
+                        aria-label="إزالة تاريخ البداية"
                       >
                         ×
                       </button>
@@ -248,11 +252,13 @@ export default function AppointmentsFilter({ onFilterChange }) {
                     <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs bg-amber-100 text-amber-700">
                       لحد: {appliedFilters.dateTo}
                       <button
+                        type="button"
                         onClick={() => {
                           handleTempFilterChange("dateTo", "");
                           handleApplyFilters();
                         }}
                         className="text-amber-700 hover:text-amber-900"
+                        aria-label="إزالة تاريخ النهاية"
                       >
                         ×
                       </button>
@@ -262,11 +268,13 @@ export default function AppointmentsFilter({ onFilterChange }) {
                     <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs bg-purple-100 text-purple-700">
                       فيها ملاحظات
                       <button
+                        type="button"
                         onClick={() => {
                           handleTempFilterChange("hasNotes", false);
                           handleApplyFilters();
                         }}
                         className="text-purple-700 hover:text-purple-900"
+                        aria-label="إزالة فلتر الملاحظات"
                       >
                         ×
                       </button>

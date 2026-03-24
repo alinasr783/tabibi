@@ -5,9 +5,6 @@ export default function PermissionGuard({ children, requiredPermission }) {
   const { data: user, isLoading } = useUser()
   const location = useLocation()
 
-  // Debugging: log user data to see what's being received
-  console.log("PermissionGuard - User data:", user)
-
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -54,7 +51,6 @@ export default function PermissionGuard({ children, requiredPermission }) {
 
   // Check if user has a role property
   if (!user.hasOwnProperty('role')) {
-    console.error("User object missing role property:", user)
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">

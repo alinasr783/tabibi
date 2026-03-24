@@ -1,6 +1,8 @@
 import supabase from "./supabase"
 import { createPublicNotification } from "./apiNotifications"
 import { addToGoogleCalendar } from "./integrationService"
+import { getAllItems, getItem, STORE_NAMES } from "../features/offline-mode/offlineDB"
+import { create as dsCreate, update as dsUpdate, remove as dsRemove } from "./dataService"
 import {
     normalizePlanLimits,
     requireActiveSubscription,
@@ -39,6 +41,75 @@ export async function getAppointmentById(id) {
 }
 
 export async function getAppointments(search, page, pageSize, filters = {}) {
+    const offlineEnabled = (() => {
+        try { return localStorage.getItem("tabibi_offline_enabled") === "true" } catch { return false }
+    })()
+    const browserOffline = typeof navigator !== "undefined" && navigator.onLine === false
+    if (offlineEnabled && browserOffline) {
+        const clinicUuid = (() => {
+            try { return localStorage.getItem("tabibi_clinic_id") } catch { return null }
+        })()
+        const all = await getAllItems(STORE_NAMES.APPOINTMENTS)
+        const scoped = clinicUuid ? all.filter((a) => String(a?.clinic_id || "") === String(clinicUuid)) : all
+
+        const attachPatient = async (a) => {
+            const pid = a?.patient_id
+            if (pid == null) return { ...a, patient: null }
+            const p = await getItem(STORE_NAMES.PATIENTS, pid)
+            return { ...a, patient: p ? { id: p.id, name: p.name, phone: p.phone } : null }
+        }
+
+        let items = await Promise.all(scoped.map(attachPatient))
+
+        if (filters.status && filters.status !== "all") {
+            items = items.filter((a) => String(a?.status || "") === String(filters.status))
+        }
+        if (filters.source && filters.source !== "all") {
+            items = items.filter((a) => String(a?.from || "") === String(filters.source))
+        }
+        if (filters.patientId) {
+            items = items.filter((a) => String(a?.patient_id || "") === String(filters.patientId))
+        }
+
+        if (filters.time === "upcoming") {
+            const today = new Date().toLocaleDateString('en-CA')
+            items = items.filter((a) => String(a?.date || "") >= today)
+            items.sort((a, b) => String(a?.date || "").localeCompare(String(b?.date || "")))
+        } else {
+            items.sort((a, b) => String(b?.date || "").localeCompare(String(a?.date || "")))
+        }
+
+        const q = String(search || "").trim()
+        if (q) {
+            const isIdSearch = /^(?:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|\d+)$/.test(q)
+            if (isIdSearch) {
+                items = items.filter((a) => String(a?.id || "") === q)
+            } else {
+                const qq = q.toLowerCase()
+                items = items.filter((a) => {
+                    const name = String(a?.patient?.name || "").toLowerCase()
+                    const phone = String(a?.patient?.phone || "").toLowerCase()
+                    return name.includes(qq) || phone.includes(qq)
+                })
+            }
+        }
+
+        const from = Math.max(0, (page - 1) * pageSize)
+        const to = from + pageSize
+        const pageItems = items.slice(from, to).map((a) => ({
+            id: a.id,
+            date: a.date,
+            notes: a.notes,
+            price: a.price,
+            status: a.status,
+            from: a.from,
+            age: a.age,
+            patient: a.patient,
+            created_at: a.created_at
+        }))
+        return { data: pageItems, count: items.length }
+    }
+
     // Get current user's clinic_id
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) throw new Error("Not authenticated")
@@ -208,6 +279,24 @@ export async function getAppointments(search, page, pageSize, filters = {}) {
 }
 
 export async function createAppointment(payload) {
+    const offlineEnabled = (() => {
+        try { return localStorage.getItem("tabibi_offline_enabled") === "true" } catch { return false }
+    })()
+    const browserOffline = typeof navigator !== "undefined" && navigator.onLine === false
+    if (offlineEnabled && browserOffline) {
+        const clinicUuid = payload?.clinic_id || (() => {
+            try { return localStorage.getItem("tabibi_clinic_id") } catch { return null }
+        })()
+        const appointmentData = {
+            ...payload,
+            clinic_id: clinicUuid,
+            status: payload?.status || "confirmed",
+            from: payload?.from || "clinic",
+            updated_at: new Date().toISOString()
+        }
+        return dsCreate("appointments", appointmentData)
+    }
+
     // Get current user's clinic_id
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) throw new Error("Not authenticated")
@@ -283,6 +372,14 @@ export async function createAppointment(payload) {
 }
 
 export async function updateAppointment(id, payload) {
+    const offlineEnabled = (() => {
+        try { return localStorage.getItem("tabibi_offline_enabled") === "true" } catch { return false }
+    })()
+    const browserOffline = typeof navigator !== "undefined" && navigator.onLine === false
+    if (offlineEnabled && browserOffline) {
+        return dsUpdate("appointments", id, { ...payload, updated_at: new Date().toISOString() })
+    }
+
     // Get current user's clinic_id for security
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) throw new Error("Not authenticated")
@@ -314,6 +411,15 @@ export async function updateAppointment(id, payload) {
 }
 
 export async function deleteAppointment(id) {
+    const offlineEnabled = (() => {
+        try { return localStorage.getItem("tabibi_offline_enabled") === "true" } catch { return false }
+    })()
+    const browserOffline = typeof navigator !== "undefined" && navigator.onLine === false
+    if (offlineEnabled && browserOffline) {
+        await dsRemove("appointments", id)
+        return
+    }
+
     // Get current user's clinic_id for security
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) throw new Error("Not authenticated")

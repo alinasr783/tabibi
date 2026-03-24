@@ -2,7 +2,6 @@ import {QueryClient, QueryClientProvider} from "@tanstack/react-query";
 import React from "react";
 import {createRoot} from "react-dom/client";
 import { HelmetProvider } from 'react-helmet-async';
-import "react-loading-skeleton/dist/skeleton.css";
 import App from "./App.jsx";
 import "./index.css";
 
@@ -28,14 +27,15 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
     navigator.serviceWorker
       .register("/sw.js")
       .then((registration) => {
-        console.log("✅ Service Worker registered:", registration);
-
         setInterval(() => {
           registration.update();
         }, 60 * 60 * 1000);
+        if ('sync' in registration) {
+          registration.sync.register('tabibi-sync').catch(() => {})
+        }
       })
       .catch((registrationError) => {
-        console.log("❌ Service Worker registration failed:", registrationError);
+        void registrationError;
       });
   });
 }
@@ -48,7 +48,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   // Stash the event so it can be triggered later
   deferredPrompt = e;
-  console.log('💾 PWA install prompt ready');
+  if (import.meta.env.DEV) console.log('PWA install prompt ready');
   
   // Store in window for components to access
   window.deferredPrompt = deferredPrompt;
@@ -56,7 +56,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
 
 // Track PWA installation
 window.addEventListener('appinstalled', () => {
-  console.log('✅ PWA installed successfully!');
+  if (import.meta.env.DEV) console.log('PWA installed successfully!');
   deferredPrompt = null;
   window.deferredPrompt = null;
 });

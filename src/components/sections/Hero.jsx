@@ -88,17 +88,19 @@ export default function Hero() {
                     whileTap={{ scale: 0.95 }}
                   >
                     <Stethoscope className="size-5" />
-                    عارفينك - ادخل لوحة التحكم 
+                    ادخل لوحة التحكم 
                   </motion.button>
                 </Link>
-                <motion.button
-                  className="gap-2 inline-flex items-center justify-center cursor-pointer whitespace-nowrap rounded-[var(--radius)] text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:pointer-events-none disabled:opacity-50 border border-border bg-transparent text-foreground hover:bg-muted h-10 px-4 py-2"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <Smartphone className="size-5" />
-                  شوف المنصة بتعمل ايه في دقيقة
-                </motion.button>
+                <Link to="/learn-tabibi">
+                  <motion.button
+                    className="gap-2 inline-flex items-center justify-center cursor-pointer whitespace-nowrap rounded-[var(--radius)] text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:pointer-events-none disabled:opacity-50 border border-border bg-transparent text-foreground hover:bg-muted h-10 px-4 py-2"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Smartphone className="size-5" />
+                    اتعلم المنصة في دقائق
+                  </motion.button>
+                </Link>
               </>
             ) : (
               // If user is not authenticated, show signup buttons
@@ -113,14 +115,16 @@ export default function Hero() {
                     ابدا ببلاش 
                   </motion.button>
                 </Link>
-                <motion.button
-                  className="gap-2 inline-flex items-center justify-center cursor-pointer whitespace-nowrap rounded-[var(--radius)] text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:pointer-events-none disabled:opacity-50 border border-border bg-transparent text-foreground hover:bg-muted h-10 px-4 py-2"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <Smartphone className="size-5" />
-                  شوف المنصة بتعمل ايه في دقيقة
-                </motion.button>
+                <Link to="/learn-tabibi">
+                  <motion.button
+                    className="gap-2 inline-flex items-center justify-center cursor-pointer whitespace-nowrap rounded-[var(--radius)] text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:pointer-events-none disabled:opacity-50 border border-border bg-transparent text-foreground hover:bg-muted h-10 px-4 py-2"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Smartphone className="size-5" />
+                    اتعلم المنصة في دقائق
+                  </motion.button>
+                </Link>
               </>
             )}
           </motion.div>

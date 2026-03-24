@@ -1,15 +1,9 @@
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useState, lazy, Suspense } from "react";
 import { Toaster } from "sonner";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import { DndProvider } from 'react-dnd';
-import { HTML5Backend } from 'react-dnd-html5-backend';
-import { TouchBackend } from 'react-dnd-touch-backend';
-import DoctorLayout from "./components/layout/DoctorLayout";
-import AffiliateLayout from "./components/layout/AffiliateLayout";
 import { AuthProviderWrapper } from "./features/auth/AuthProviderWrapper";
 import { UserPreferencesProvider } from "./features/user-preferences/UserPreferencesProvider";
 import AutoPaymentRecorder from "./features/finance/AutoPaymentRecorder";
-import { initAnalytics } from "./lib/firebase";
 import PermissionGuard from "./features/auth/PermissionGuard";
 import ProtectedRoute from "./features/auth/ProtectedRoute";
 import PublicRoute from "./features/auth/PublicRoute";
@@ -17,50 +11,55 @@ import RoleGuard from "./features/auth/RoleGuard";
 import SubscriptionExpiryGuard from "./features/auth/SubscriptionExpiryGuard";
 import NoSubscriptionGuard from "./features/auth/NoSubscriptionGuard";
 import IntegrationGuard from "./features/tabibi-tools/components/IntegrationGuard";
-import AppointmentDetailPage from "./features/calendar/AppointmentDetailPage";
-import PatientDetailPage from "./features/patients/PatientDetailPage";
-import PatientPlanDetailPage from "./features/patients/PatientPlanDetailPage";
-import PatientFinanceMonitorPage from "./features/patients/PatientFinanceMonitorPage";
-import VisitDetailPage from "./features/patients/VisitDetailPage";
-import ExaminationsPage from "./features/examinations/ExaminationsPage";
-import Booking from "./pages/Booking";
-import Calendar from "./pages/Calendar";
-import Clinic from "./pages/Clinic";
-import Dashboard from "./pages/Dashboard";
 import Landing from "./pages/Landing";
-import Login from "./pages/Login";
-import Notifications from "./pages/Notifications";
-import OnlineBooking from "./pages/OnlineBooking";
-import Patients from "./pages/Patients";
-import PlanConfirmation from "./pages/PlanConfirmation";
-import PaymentCallback from "./pages/PaymentCallback";
-import Settings from "./pages/Settings";
-import Integrations from "./pages/Integrations";
-import Signup from "./pages/Signup";
-import EmailConfirmed from "./pages/EmailConfirmed";
-import EmailVerify from "./pages/EmailVerify";
-import AffiliateEntry from "./pages/AffiliateEntry";
-import AffiliateDashboard from "./pages/AffiliateDashboard";
-import TreatmentPlans from "./pages/TreatmentPlans";
-import Staff from "./pages/Staff";
-import Subscriptions from "./pages/Subscriptions";
-import WorkMode from "./pages/WorkMode";
-import PrivacyPolicy from "./pages/PrivacyPolicy";
-import TermsOfService from "./pages/TermsOfService";
-import Finance from "./pages/Finance";
-import TabibiApps from "./pages/TabibiApps";
-import TabibiAppDetailsWrapper from "./pages/TabibiAppDetailsWrapper";
-import MyAppsPage from "./features/my-apps/MyAppsPage";
-import MyAppViewer from "./features/my-apps/MyAppViewer";
-import DoctorProfilePage from "./pages/DoctorProfilePage";
-import BlogPage from "./pages/BlogPage";
-import ArticlePage from "./pages/ArticlePage";
-import { AskTabibiPage } from "./ai/ui";
+const Login = lazy(() => import("./pages/Login"));
+const Notifications = lazy(() => import("./pages/Notifications"));
+const OnlineBooking = lazy(() => import("./pages/OnlineBooking"));
+const Patients = lazy(() => import("./pages/Patients"));
+const PlanConfirmation = lazy(() => import("./pages/PlanConfirmation"));
+const PaymentCallback = lazy(() => import("./pages/PaymentCallback"));
+const Settings = lazy(() => import("./pages/Settings"));
+const Integrations = lazy(() => import("./pages/Integrations"));
+const Signup = lazy(() => import("./pages/Signup"));
+const EmailConfirmed = lazy(() => import("./pages/EmailConfirmed"));
+const EmailVerify = lazy(() => import("./pages/EmailVerify"));
+const AffiliateEntry = lazy(() => import("./pages/AffiliateEntry"));
+const AffiliateDashboard = lazy(() => import("./pages/AffiliateDashboard"));
+const TreatmentPlans = lazy(() => import("./pages/TreatmentPlans"));
+const Staff = lazy(() => import("./pages/Staff"));
+const Subscriptions = lazy(() => import("./pages/Subscriptions"));
+const WorkMode = lazy(() => import("./pages/WorkMode"));
+const LearnTabibi = lazy(() => import("./pages/LearnTabibi"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const TermsOfService = lazy(() => import("./pages/TermsOfService"));
+const Finance = lazy(() => import("./pages/Finance"));
+const TabibiApps = lazy(() => import("./pages/TabibiApps"));
+const TabibiAppDetailsWrapper = lazy(() => import("./pages/TabibiAppDetailsWrapper"));
+const MyAppsPage = lazy(() => import("./features/my-apps/MyAppsPage"));
+const MyAppViewer = lazy(() => import("./features/my-apps/MyAppViewer"));
+const DoctorProfilePage = lazy(() => import("./pages/DoctorProfilePage"));
+const BlogPage = lazy(() => import("./pages/BlogPage"));
+const ArticlePage = lazy(() => import("./pages/ArticlePage"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Calendar = lazy(() => import("./pages/Calendar"));
+const Clinic = lazy(() => import("./pages/Clinic"));
+const Booking = lazy(() => import("./pages/Booking"));
+const AppointmentDetailPage = lazy(() => import("./features/calendar/AppointmentDetailPage"));
+const PatientDetailPage = lazy(() => import("./features/patients/PatientDetailPage"));
+const PatientPlanDetailPage = lazy(() => import("./features/patients/PatientPlanDetailPage"));
+const PatientFinanceMonitorPage = lazy(() => import("./features/patients/PatientFinanceMonitorPage"));
+const VisitDetailPage = lazy(() => import("./features/patients/VisitDetailPage"));
+const ExaminationsPage = lazy(() => import("./features/examinations/ExaminationsPage"));
+const AskTabibiPage = lazy(() => import("./ai/ui").then(m => ({ default: m.AskTabibiPage })));
 import OfflineIndicator from "./components/OfflineIndicator";
 import { OfflineProvider } from "./features/offline-mode/OfflineContext";
 import { NotificationProvider } from "./features/Notifications/NotificationContext";
 import useScrollToTop from "./hooks/useScrollToTop";
 import { PWAInstallPrompt } from "./components/ui/pwa-install";
+import { useAuth } from "./features/auth/AuthContext";
+
+const DoctorLayout = lazy(() => import("./components/layout/DoctorLayout"));
+const AffiliateLayout = lazy(() => import("./components/layout/AffiliateLayout"));
 
 // Memoize route components to prevent unnecessary re-renders
 const MemoizedLanding = memo(Landing);
@@ -99,12 +98,25 @@ const MemoizedMyAppsPage = memo(MyAppsPage);
 const MemoizedMyAppViewer = memo(MyAppViewer);
 const MemoizedDoctorProfilePage = memo(DoctorProfilePage);
 const MemoizedAskTabibi = memo(AskTabibiPage);
+const MemoizedLearnTabibi = memo(LearnTabibi);
 const MemoizedBlogPage = memo(BlogPage);
 const MemoizedArticlePage = memo(ArticlePage);
 
 function AppRoutes() {
   // Auto scroll to top when route changes
   useScrollToTop();
+  
+  function LearnTabibiGate() {
+    const { user } = useAuth();
+    if (user) {
+      return (
+        <DoctorLayout>
+          <MemoizedLearnTabibi />
+        </DoctorLayout>
+      );
+    }
+    return <MemoizedLearnTabibi />;
+  }
   
   return (
     <Routes>
@@ -113,6 +125,8 @@ function AppRoutes() {
       <Route path="/blog/:slug" element={<MemoizedArticlePage />} />
       <Route path="/privacy-policy" element={<MemoizedPrivacyPolicy />} />
       <Route path="/terms-of-service" element={<MemoizedTermsOfService />} />
+      <Route path="/learn-tabibi" element={<LearnTabibiGate />} />
+      <Route path="/learn-tabibi/:systemKey/:topicKey" element={<LearnTabibiGate />} />
       <Route
         path="/login"
         element={
@@ -332,6 +346,7 @@ function AppRoutes() {
             </PermissionGuard>
           }
         />
+        
         <Route
           path="/tabibi-apps"
           element={
@@ -383,12 +398,18 @@ function AppRoutes() {
 
 function App() {
   useEffect(() => {
-    // Initialize analytics only on client side
-    initAnalytics();
+    const startAnalytics = () => {
+      try {
+        import("./lib/firebase").then((m) => m.initAnalytics?.()).catch(() => {});
+      } catch (_) {}
+    };
+    if ('requestIdleCallback' in window) {
+      requestIdleCallback(startAnalytics, { timeout: 5000 });
+    } else {
+      setTimeout(startAnalytics, 3000);
+    }
   }, []);
 
-  // Use TouchBackend for mobile devices, HTML5Backend for desktop
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   const [toasterPosition, setToasterPosition] = useState("top-right");
 
   useEffect(() => {
@@ -406,16 +427,13 @@ function App() {
         <UserPreferencesProvider>
           <NotificationProvider>
             <OfflineProvider>
-              <DndProvider 
-                backend={isMobile ? TouchBackend : HTML5Backend}
-                options={isMobile ? { delayTouchStart: 500, enableTouchEvents: true, ignoreContextMenu: true } : undefined}
-              >
-                <AutoPaymentRecorder />
-                <OfflineIndicator />
-                <PWAInstallPrompt />
+              <AutoPaymentRecorder />
+              <OfflineIndicator />
+              <PWAInstallPrompt />
+              <Suspense fallback={<div className="min-h-screen flex items-center justify-center">... جاري التحميل</div>}>
                 <AppRoutes />
-                <Toaster position={toasterPosition} dir="rtl" />
-              </DndProvider>
+              </Suspense>
+              <Toaster position={toasterPosition} dir="rtl" />
             </OfflineProvider>
           </NotificationProvider>
         </UserPreferencesProvider>

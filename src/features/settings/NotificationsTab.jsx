@@ -10,7 +10,7 @@ import {
   updateDailyEmailSettings 
 } from "../../services/apiUserPreferences";
 import { useUserPreferences, useUpdateUserPreferences } from "../../hooks/useUserPreferences";
-import { getMessagingInstance, getToken } from "../../lib/firebase";
+import { getFcmToken, getMessagingInstance } from "../../lib/firebase";
 import supabase from "../../services/supabase";
 import { useAuth } from "../auth";
 import toast from "react-hot-toast";
@@ -117,7 +117,7 @@ export default function NotificationsTab() {
           // it means a Web Push Certificate (VAPID Key) needs to be generated in Firebase Console
           let finalToken;
           try {
-            finalToken = await getToken(messaging);
+            finalToken = await getFcmToken(messaging);
           } catch (err) {
             // Catch ALL errors during token retrieval (VAPID missing, network, etc)
             console.warn("FCM Token Error. VAPID Key might be missing in Firebase Console.", err);
@@ -144,7 +144,7 @@ export default function NotificationsTab() {
         // Disable
         const messaging = await getMessagingInstance();
         if (messaging) {
-            const token = await getToken(messaging).catch(() => null);
+            const token = await getFcmToken(messaging).catch(() => null);
             if (token) {
                 await deleteTokenFromDB(token);
             }

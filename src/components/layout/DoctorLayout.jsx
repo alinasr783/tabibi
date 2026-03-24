@@ -15,6 +15,7 @@ import {
   Bell,
   Clock,
   MessageCircleQuestion,
+  BookOpen,
   Share2,
   Zap,
   LayoutGrid,
@@ -24,17 +25,21 @@ import { useAuth } from "../../features/auth/AuthContext";
 import ClinicInfo from "../../features/auth/ClinicInfo";
 import LogoutButton from "../../features/auth/LogoutButton";
 import { useState, useEffect } from "react";
+import { DndProvider } from "react-dnd";
+import { HTML5Backend } from "react-dnd-html5-backend";
+import { TouchBackend } from "react-dnd-touch-backend";
 import { useUnreadNotifications } from "../../features/Notifications/useUnreadNotifications";
 import useFcmToken from "../../hooks/useFcmToken";
 import useGoogleCalendarSync from "../../features/calendar/useGoogleCalendarSync";
 import { useUserPreferences } from "../../hooks/useUserPreferences";
 
 // Config for navigation items with Groups
-const NAV_ITEMS_CONFIG = [
+export const NAV_ITEMS_CONFIG = [
   // Overview
   { id: 'dashboard', to: "/dashboard", icon: LayoutDashboard, label: "لوحة التحكم", permissionKey: "dashboard", group: "main" },
   { id: 'notifications', to: "/notifications", icon: Bell, label: "الإشعارات", permissionKey: "notifications", group: "main" },
   { id: 'ask-tabibi', to: "/ask-tabibi", icon: MessageCircleQuestion, label: "Tabibi AI", permissionKey: "dashboard", group: "main" },
+  { id: 'learn-tabibi', to: "/learn-tabibi", icon: BookOpen, label: "تعلم طبيبي", permissionKey: "dashboard", group: "main" },
   
   // Clinical
   { id: 'appointments', to: "/appointments", icon: Calendar, label: "المواعيد", permissionKey: "appointments", group: "practice" },
@@ -59,7 +64,7 @@ const NAV_ITEMS_CONFIG = [
   { id: 'settings', to: "/settings", icon: Settings, label: "الإعدادات", permissionKey: "settings", group: "system" },
 ];
 
-const GROUP_LABELS = {
+export const GROUP_LABELS = {
   main: "الرئيسية",
   practice: "العيادة والمرضى",
   management: "الإدارة",
@@ -67,7 +72,7 @@ const GROUP_LABELS = {
   system: "النظام"
 };
 
-const GROUPS_ORDER = ['main', 'practice', 'management', 'apps', 'system'];
+export const GROUPS_ORDER = ['main', 'practice', 'management', 'apps', 'system'];
 
 function NavItem({ to, icon: Icon, label, isVisible = true, onClick, badgeCount }) {
   if (!isVisible) return null;
@@ -94,7 +99,7 @@ function NavItem({ to, icon: Icon, label, isVisible = true, onClick, badgeCount 
   );
 }
 
-export default function DoctorLayout() {
+export default function DoctorLayout({ children }) {
   const { user } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState(GROUPS_ORDER);
@@ -192,10 +197,15 @@ export default function DoctorLayout() {
     <div dir="rtl" className="flex h-screen">
       {/* Floating Mobile menu button */}
       <button
+        type="button"
         className={`${isToggleOnLargeScreens ? '' : 'md:hidden'} fixed top-6 left-6 z-[9999] p-3 rounded-full bg-primary text-primary-foreground shadow-lg menu-button`}
         onClick={() => {
           requestAnimationFrame(() => setIsSidebarOpen((v) => !v));
-        }}>
+        }}
+        aria-label="فتح القائمة"
+        aria-expanded={isSidebarOpen}
+        aria-controls="sidebar"
+      >
         <Menu className="size-6" />
       </button>
 
@@ -209,6 +219,7 @@ export default function DoctorLayout() {
 
       {/* Sidebar */}
       <aside
+        id="sidebar"
         className={`sidebar fixed top-0 left-0 w-64 transform transition-transform duration-300 ease-in-out z-[9999]
           ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} 
           ${isToggleOnLargeScreens ? "md:w-56 lg:w-60 xl:w-64" : "md:translate-x-0 md:static md:flex md:w-56 lg:w-60 xl:w-64"} flex-shrink-0 flex-col border-e border-border bg-card h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]`}>
@@ -223,6 +234,7 @@ export default function DoctorLayout() {
           {GROUPS_ORDER.map(groupKey => {
             const items = groupedItems[groupKey];
             if (!items || items.length === 0) return null;
+            const groupPanelId = `nav-group-${groupKey}`;
 
             // Filter items by permission
             const visibleItems = items.filter(item => {
@@ -237,8 +249,11 @@ export default function DoctorLayout() {
               <div key={groupKey} className="space-y-1">
                  {groupKey !== 'main' && (
                    <button
+                     type="button"
                      onClick={() => toggleGroup(groupKey)}
                      className="w-full flex items-center justify-between px-3 mb-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors group"
+                     aria-expanded={expandedGroups.includes(groupKey)}
+                     aria-controls={groupPanelId}
                    >
                      <span>{GROUP_LABELS[groupKey]}</span>
                      <ChevronDown 
@@ -247,7 +262,7 @@ export default function DoctorLayout() {
                    </button>
                  )}
                  {(groupKey === 'main' || expandedGroups.includes(groupKey)) && (
-                   <div className="space-y-1">
+                   <div id={groupPanelId} className="space-y-1">
                      {visibleItems.map(item => (
                        <NavItem
                         key={item.id}
@@ -273,7 +288,12 @@ export default function DoctorLayout() {
       <div className="flex-1 md:mr-0 lg:mr-0 xl:mr-0 flex flex-col min-h-0">
         <main className={`flex-1 overflow-y-auto ${isAppDetails ? '' : 'py-6'} mt-0 md:mt-0`}>
           <div className={isAppDetails ? "" : "container"}>
-            <Outlet />
+            <DndProvider
+              backend={/iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? TouchBackend : HTML5Backend}
+              options={/iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? { delayTouchStart: 500, enableTouchEvents: true, ignoreContextMenu: true } : undefined}
+            >
+              {children ? children : <Outlet />}
+            </DndProvider>
           </div>
         </main>
       </div>

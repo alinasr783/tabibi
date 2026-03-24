@@ -132,11 +132,11 @@ function TimelineItem({ file, onDelete }) {
             {/* Actions */}
             <div className="flex gap-1 shrink-0">
               <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" asChild>
-                <a href={file.file_url} target="_blank" rel="noopener noreferrer" download>
+                <a href={file.file_url} target="_blank" rel="noopener noreferrer" download aria-label={`تنزيل ${file.file_name}`}>
                   <Download className="w-3.5 h-3.5" />
                 </a>
               </Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={onDelete}>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={onDelete} aria-label={`حذف ${file.file_name}`}>
                 <Trash2 className="w-3.5 h-3.5" />
               </Button>
             </div>

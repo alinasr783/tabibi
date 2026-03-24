@@ -165,11 +165,20 @@ export default function PatientWizardForm({ onSubmit, isSubmitting, initialData,
       return;
     }
 
+    const attachmentsCount = Array.isArray(attachments) ? attachments.length : 0;
+    const keys = data && typeof data === "object" ? Object.keys(data).sort() : [];
+    console.groupCollapsed("[PATIENT_WIZARD] onFinalSubmit");
+    console.log("[PATIENT_WIZARD] step:", currentStep, "attachmentsCount:", attachmentsCount);
+    console.log("[PATIENT_WIZARD] dataKeys:", keys);
     // Pass data and attachments to the parent handler
     // We combine description and type into a single metadata object if needed by API
     // Or pass them as separate arrays depending on API signature
     // Assuming API takes (data, files, descriptions, types) or similar
-    await onSubmit(data, attachments, attachmentDescriptions, attachmentTypes);
+    try {
+      await onSubmit(data, attachments, attachmentDescriptions, attachmentTypes);
+    } finally {
+      console.groupEnd();
+    }
   };
 
   return (

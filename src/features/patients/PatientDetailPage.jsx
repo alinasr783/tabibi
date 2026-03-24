@@ -35,12 +35,20 @@ import ExtensionSlot from "../tabibi-tools/components/ExtensionSlot";
 import useDeletePatient from "./useDeletePatient";
 import TabibiIntelligence from "./TabibiIntelligence";
 import supabase from "../../services/supabase";
+import { STORE_NAMES, getItem } from "../offline-mode/offlineDB";
+import { useOffline } from "../offline-mode/OfflineContext";
 
 export default function PatientDetailPage() {
   const { id: patientId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
+  const isLocalPatient = String(patientId || "").startsWith("local_");
+  const { isOfflineMode } = useOffline();
+  const clientOffline = typeof navigator !== "undefined" && navigator.onLine === false;
+  const shouldUseLocal = isLocalPatient || isOfflineMode || clientOffline;
+  const [localPatient, setLocalPatient] = useState(null);
+  const [isLocalLoading, setIsLocalLoading] = useState(false);
   
   const { data: templates } = useTreatmentTemplates();
 
@@ -107,10 +115,31 @@ export default function PatientDetailPage() {
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
-  const { data: patient, isLoading: isPatientLoading, isError } = usePatient(patientId);
-  const { data: financialData, isLoading: isFinancialLoading } = usePatientFinancialData(patientId);
-  const { data: visits, isLoading: isVisitsLoading } = useVisits(patientId);
-  const { data: appointments, isLoading: isAppointmentsLoading } = usePatientAppointments(patientId);
+  const { data: patient, isLoading: isPatientLoading, isError } = usePatient(shouldUseLocal ? null : patientId);
+  const { data: financialData, isLoading: isFinancialLoading } = usePatientFinancialData(shouldUseLocal ? null : patientId);
+  const { data: visits, isLoading: isVisitsLoading } = useVisits(shouldUseLocal ? null : patientId);
+  const { data: appointments, isLoading: isAppointmentsLoading } = usePatientAppointments(shouldUseLocal ? null : patientId);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadLocal() {
+      if (!shouldUseLocal || !patientId) return;
+      setIsLocalLoading(true);
+      try {
+        let key = patientId;
+        if (!isLocalPatient) {
+          const n = Number(patientId);
+          if (Number.isFinite(n)) key = n;
+        }
+        const p = await getItem(STORE_NAMES.PATIENTS, key);
+        if (!cancelled) setLocalPatient(p || null);
+      } finally {
+        if (!cancelled) setIsLocalLoading(false);
+      }
+    }
+    loadLocal();
+    return () => { cancelled = true; };
+  }, [shouldUseLocal, isLocalPatient, patientId]);
 
   const handleVisitAdded = () => {
     queryClient.invalidateQueries({ queryKey: ["visits", patientId] });
@@ -164,9 +193,13 @@ export default function PatientDetailPage() {
     return age;
   };
 
+  const effectivePatient = shouldUseLocal ? localPatient : patient;
+  const loading = shouldUseLocal ? isLocalLoading : isPatientLoading;
+  const errored = !shouldUseLocal && isError;
+
   return (
     <div className="space-y-6 pb-6" dir="rtl">
-      {isError ? (
+      {errored ? (
         <div className="text-center py-12">
           <User className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-foreground mb-2">العميل مش موجود</h2>
@@ -180,7 +213,7 @@ export default function PatientDetailPage() {
             رجوع للصفحة السابقة
           </Button>
         </div>
-      ) : isPatientLoading ? (
+      ) : loading ? (
         <div className="space-y-4">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-full bg-muted animate-pulse"></div>
@@ -192,7 +225,7 @@ export default function PatientDetailPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[1,2,3,4].map(i => <div key={i} className="h-20 bg-muted rounded-[var(--radius)] animate-pulse"></div>)}</div>
         </div>
-      ) : !patient ? (
+      ) : !effectivePatient ? (
         <div className="text-center py-12">
           <User className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-foreground mb-2">العميل مش موجود</h2>
@@ -225,11 +258,11 @@ export default function PatientDetailPage() {
             
             <div className="min-w-0 flex-1">
               <h1 className="text-lg font-bold text-foreground truncate leading-tight">
-                {patient?.name}
+                {effectivePatient?.name}
               </h1>
-              {patient?.phone && (
+              {effectivePatient?.phone && (
                 <div className="text-sm text-muted-foreground mt-0.5 font-medium text-right" dir="ltr">
-                  {patient.phone}
+                  {effectivePatient.phone}
                 </div>
               )}
             </div>
@@ -277,7 +310,7 @@ export default function PatientDetailPage() {
             </Card>
           </div>
 
-          {/* Tabibi Intelligence */}
+          {/* مساعد المريض الشخصي */}
           <TabibiIntelligence patient={patient} />
 
           {/* Quick Actions */}
@@ -386,7 +419,7 @@ export default function PatientDetailPage() {
           </Card>
 
           {/* Extension Slot: Patient Summary */}
-          <ExtensionSlot name="patient_summary" context={{ patientId, patient }} />
+          <ExtensionSlot name="patient_summary" context={{ patientId, patient: effectivePatient }} />
 
           {/* Tabs for Sections */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full" style={{ direction: 'rtl' }}>
@@ -395,33 +428,44 @@ export default function PatientDetailPage() {
                 <User className="hidden md:block w-4 h-4" />
                 <span>الملف</span>
               </TabsTrigger>
+              {!shouldUseLocal && (
               <TabsTrigger value="visits" className="text-xs md:text-sm py-2 px-3 gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm">
                 <Stethoscope className="hidden md:block w-4 h-4" />
                 <span>الكشوفات</span>
               </TabsTrigger>
+              )}
+              {!shouldUseLocal && (
               <TabsTrigger value="attachments" className="text-xs md:text-sm py-2 px-3 gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm">
                 <FileText className="hidden md:block w-4 h-4" />
                 <span>الملف</span>
               </TabsTrigger>
+              )}
+              {!shouldUseLocal && (
               <TabsTrigger value="appointments" className="text-xs md:text-sm py-2 px-3 gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm">
                 <Calendar className="hidden md:block w-4 h-4" />
                 <span>المواعيد</span>
               </TabsTrigger>
+              )}
+              {!shouldUseLocal && (
               <TabsTrigger value="plans" className="text-xs md:text-sm py-2 px-3 gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm">
                 <ClipboardList className="hidden md:block w-4 h-4" />
                 <span>الخطط</span>
               </TabsTrigger>
+              )}
             </TabsList>
 
             <div className="mt-4">
               <TabsContent value="profile" className="mt-0 animate-in fade-in-50 slide-in-from-bottom-2">
-                <PatientProfileTab patient={patient} />
+                <PatientProfileTab patient={effectivePatient} />
               </TabsContent>
 
+              {!shouldUseLocal && (
               <TabsContent value="attachments" className="mt-0 animate-in fade-in-50 slide-in-from-bottom-2">
                 <PatientAttachmentsTab patientId={patientId} />
               </TabsContent>
+              )}
 
+              {!shouldUseLocal && (
               <TabsContent value="visits" className="mt-0 animate-in fade-in-50 slide-in-from-bottom-2">
                 <PatientVisitsTable 
                   visits={visits} 
@@ -430,19 +474,24 @@ export default function PatientDetailPage() {
                   onVisitAdded={handleVisitAdded}
                 />
               </TabsContent>
+              )}
 
+              {!shouldUseLocal && (
               <TabsContent value="appointments" className="mt-0 animate-in fade-in-50 slide-in-from-bottom-2">
                 <PatientAppointmentsHistory 
                   appointments={appointments} 
                   isLoading={isAppointmentsLoading}
                   patientId={patientId}
-                  patient={patient}
+                  patient={effectivePatient}
                 />
               </TabsContent>
+              )}
 
+              {!shouldUseLocal && (
               <TabsContent value="plans" className="mt-0 animate-in fade-in-50 slide-in-from-bottom-2">
                 <PatientTreatmentPlansTable patientId={patientId} />
               </TabsContent>
+              )}
             </div>
           </Tabs>
 
@@ -450,7 +499,7 @@ export default function PatientDetailPage() {
           <PatientEditDialog
             open={isEditDialogOpen}
             onClose={() => setIsEditDialogOpen(false)}
-            patient={patient}
+            patient={effectivePatient}
           />
           
           {/* Create Visit Dialog - Wrapped in Dialog component to prevent rendering at bottom of page */}
@@ -467,19 +516,24 @@ export default function PatientDetailPage() {
             </DialogContent>
           </Dialog>
 
+          {!isLocalPatient && (
           <AppointmentCreateDialog 
             open={isAppointmentDialogOpen}
             onClose={() => setIsAppointmentDialogOpen(false)}
-            initialPatient={patient}
+            initialPatient={effectivePatient}
           />
+          )}
 
+          {!isLocalPatient && (
           <UploadDialog 
             open={isUploadDialogOpen} 
             onClose={() => setIsUploadDialogOpen(false)} 
             onUpload={handleUpload}
             isUploading={isUploading}
           />
+          )}
 
+          {!isLocalPatient && (
           <PatientTransactionDialog 
             open={isTransactionDialogOpen}
             onOpenChange={setIsTransactionDialogOpen}
@@ -487,6 +541,7 @@ export default function PatientDetailPage() {
             type={transactionType}
             onSuccess={handleTransactionSuccess}
           />
+          )}
 
           <Dialog open={isPlanTemplateDialogOpen} onOpenChange={setIsPlanTemplateDialogOpen}>
             <DialogContent dir="rtl">

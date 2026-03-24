@@ -16,11 +16,13 @@ import {
 import PatientCreateDialog from "./PatientCreateDialog";
 import PatientsTable from "./PatientsTable";
 import usePatients from "./usePatients";
+import { useOffline } from "../offline-mode/OfflineContext";
+import { useOfflineData } from "../offline-mode/useOfflineData";
 import usePatientStats from "./usePatientStats";
 import useScrollToTop from "../../hooks/useScrollToTop";
-import supabase from "../../services/supabase";
 import SortableStat from "../../components/ui/sortable-stat";
 import { SkeletonLine } from "../../components/ui/skeleton";
+import { resolveClinicUuid } from "../../services/clinicIds";
 
 function StatCard({ icon: Icon, label, value, isLoading, iconColorClass = "bg-primary/10 text-primary", onClick, active }) {
   return (
@@ -51,6 +53,9 @@ export default function PatientsPage() {
   const [open, setOpen] = useState(false);
   const [clinicId, setClinicId] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const { isOfflineMode } = useOffline();
+  const { getOfflinePatients } = useOfflineData();
+  const [offlinePatients, setOfflinePatients] = useState([]);
   
   // Stats filtering
   const [statsFilter, setStatsFilter] = useState("month"); // Default to last month as per common UX, user asked for options
@@ -151,25 +156,45 @@ export default function PatientsPage() {
 
   // Get current user's clinic_id for patient creation
   useEffect(() => {
-    const fetchClinicId = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const { data: userData } = await supabase
-          .from("users")
-          .select("clinic_id")
-          .eq("user_id", session.user.id)
-          .single();
-        if (userData?.clinic_id) {
-          setClinicId(userData.clinic_id);
-        }
-      }
-    };
-    fetchClinicId();
+    let cancelled = false
+    const load = async () => {
+      try {
+        const id = await resolveClinicUuid()
+        if (!cancelled) setClinicId(id)
+      } catch {}
+    }
+    load()
+    return () => { cancelled = true }
   }, []);
 
   // Flatten patients data from infinite query
-  const allPatients = data?.pages.flatMap(page => page.items) || [];
-  const totalPatients = data?.pages[0]?.total || 0;
+  const serverPatients = data?.pages.flatMap(page => page.items) || [];
+  const clientOffline = typeof navigator !== "undefined" && navigator.onLine === false;
+  const displayOffline = isOfflineMode || clientOffline;
+  const offlineFilteredPatients = useMemo(() => {
+    const base = displayOffline
+      ? (offlinePatients || [])
+      : (offlinePatients || []).filter((p) => String(p?.id || "").startsWith("local_"));
+    const q = String(query || "").trim().toLowerCase();
+    if (!q) return base;
+    return base.filter((p) => {
+      const name = String(p?.name || "").toLowerCase();
+      const phone = String(p?.phone || "").toLowerCase();
+      return name.includes(q) || phone.includes(q);
+    });
+  }, [offlinePatients, query, displayOffline]);
+
+  const allPatients = useMemo(() => {
+    if (displayOffline) return offlineFilteredPatients;
+    const byId = new Map();
+    for (const p of offlineFilteredPatients) byId.set(p.id, p);
+    for (const p of serverPatients) if (!byId.has(p.id)) byId.set(p.id, p);
+    return Array.from(byId.values());
+  }, [offlineFilteredPatients, serverPatients, displayOffline]);
+
+  const totalPatients = displayOffline
+    ? allPatients.length
+    : (data?.pages[0]?.total || 0) + offlineFilteredPatients.length;
   
   // Weekly new patients count for subtitle
   const weeklyNewCount = weeklyStats?.totalCount || 0;
@@ -183,9 +208,34 @@ export default function PatientsPage() {
     return () => clearInterval(interval);
   }, [refetch]);
 
+  // Load offline patients when offline or query changes
+  useEffect(() => {
+    let cancelled = false;
+    async function loadOffline() {
+      try {
+        const items = await getOfflinePatients();
+        const count = Array.isArray(items) ? items.length : 0;
+        const localCount = Array.isArray(items) ? items.filter((p) => String(p?.id || "").startsWith("local_")).length : 0;
+        console.log("[PATIENTS_PAGE] offlinePatients loaded", { count, localCount, isOfflineMode, clientOffline: typeof navigator !== "undefined" && navigator.onLine === false });
+        if (!cancelled) setOfflinePatients(items);
+      } catch (e) {
+        console.warn("[PATIENTS_PAGE] failed to load offline patients", e);
+      }
+    }
+    loadOffline();
+    return () => { cancelled = true; };
+  }, [isOfflineMode, getOfflinePatients, query]);
+
   const handlePatientCreated = (newPatient) => {
     // Navigate to the newly created patient's profile
     if (newPatient?.id) {
+      if (isOfflineMode || String(newPatient.id).startsWith("local_")) {
+        setOfflinePatients((prev) => {
+          const exists = prev?.some((p) => p?.id === newPatient.id);
+          return exists ? prev : [newPatient, ...(prev || [])];
+        });
+        return;
+      }
       console.log("Navigating to patient with ID:", newPatient.id, "Full patient object:", newPatient);
       navigate(`/patients/${newPatient.id}`);
     } else {

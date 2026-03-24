@@ -1,6 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { motion, useAnimation, useInView } from "framer-motion";
 import { Helmet } from "react-helmet-async";
 import Footer from "../components/layout/Footer";
 import Header from "../components/layout/Header";
@@ -36,49 +35,30 @@ function SectionSkeleton() {
   );
 }
 
-// Animated section wrapper for advanced scroll animations
-function AnimatedSection({ children, id, className = "" }) {
-  const controls = useAnimation();
+function LazySection({ children, fallback = <SectionSkeleton />, rootMargin = "600px" }) {
   const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: "-100px" });
+  const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    if (isInView) {
-      controls.start("visible");
-    }
-  }, [isInView, controls]);
+    if (isVisible) return;
+    const el = ref.current;
+    if (!el) return;
 
-  const variants = {
-    hidden: { 
-      opacity: 0, 
-      y: 50,
-      scale: 0.95,
-      rotateX: 10
-    },
-    visible: { 
-      opacity: 1, 
-      y: 0,
-      scale: 1,
-      rotateX: 0,
-      transition: { 
-        duration: 0.8,
-        ease: "easeOut"
-      }
-    }
-  };
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin }
+    );
 
-  return (
-    <motion.section
-      ref={ref}
-      id={id}
-      className={className}
-      initial="hidden"
-      animate={controls}
-      variants={variants}
-    >
-      {children}
-    </motion.section>
-  );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isVisible, rootMargin]);
+
+  return <div ref={ref}>{isVisible ? children : fallback}</div>;
 }
 
 export default function Landing() {
@@ -106,22 +86,15 @@ export default function Landing() {
     setTimeout(tryScroll, 50);
   }, [location]);
 
-  const fadeInUp = {
-    hidden: { opacity: 0, y: 30 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.6 } }
-  };
-
-  const staggerContainer = {
-    visible: {
-      transition: {
-        staggerChildren: 0.1
-      }
-    }
-  };
-
   return (
     // Make sure the main container allows normal scrolling and accounts for fixed header
     <div dir="rtl" className="min-h-svh bg-background relative">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:start-4 focus:z-50 focus:bg-background focus:text-foreground focus:px-4 focus:py-2 focus:rounded-[var(--radius)]"
+      >
+        تخطي إلى المحتوى
+      </a>
       <Helmet>
         <title>تابيبي — نظام إدارة العيادات والمواعيد</title>
         <meta name="description" content="تابيبي نظام عربي لإدارة العيادات: حجز مواعيد، ملف طبي، فواتير، وتقارير." />
@@ -143,79 +116,71 @@ export default function Landing() {
       
       {/* Header is now fixed and dynamically moves with scroll */}
       <Header />
-      <div className="pt-16">
+      <main id="main-content">
         <Hero />
-      </div>
-      
-      {/* Lazy load sections with fallback UI and animations */}
-      <motion.div
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true, margin: "-100px" }}
-        variants={staggerContainer}
-      >
-        <motion.div variants={fadeInUp}>
-          <TabibiAI />
-        </motion.div>
 
-        <motion.div variants={fadeInUp}>
+        <LazySection fallback={<SectionSkeleton />}>
+          <TabibiAI />
+        </LazySection>
+
+        <LazySection fallback={<SectionSkeleton />}>
           <CoreFeatures />
-        </motion.div>
-        
-        <motion.div variants={fadeInUp}>
+        </LazySection>
+
+        <LazySection fallback={<SectionSkeleton />}>
           <Suspense fallback={<SectionSkeleton />}>
             <TabibiAppsSection />
           </Suspense>
-        </motion.div>
-        
-        <motion.div variants={fadeInUp}>
+        </LazySection>
+
+        <LazySection fallback={<SectionSkeleton />}>
           <Suspense fallback={<SectionSkeleton />}>
             <OnlineBooking />
           </Suspense>
-        </motion.div>
-        
-        <motion.div variants={fadeInUp}>
+        </LazySection>
+
+        <LazySection fallback={<SectionSkeleton />}>
           <Suspense fallback={<SectionSkeleton />}>
             <IntegrationsSection />
           </Suspense>
-        </motion.div>
-        
-        <motion.div variants={fadeInUp}>
+        </LazySection>
+
+        <LazySection fallback={<SectionSkeleton />}>
           <Suspense fallback={<SectionSkeleton />}>
             <PainSolution />
           </Suspense>
-        </motion.div>
-        
-        <motion.div variants={fadeInUp}>
+        </LazySection>
+
+        <LazySection fallback={<SectionSkeleton />}>
           <Suspense fallback={<SectionSkeleton />}>
             <Pricing />
           </Suspense>
-        </motion.div>
-        
-        <motion.div variants={fadeInUp}>
+        </LazySection>
+
+        <LazySection fallback={<SectionSkeleton />}>
           <Suspense fallback={<SectionSkeleton />}>
             <Testimonials />
           </Suspense>
-        </motion.div>
-        
-        <motion.div variants={fadeInUp}>
+        </LazySection>
+
+        <LazySection fallback={<SectionSkeleton />}>
           <Suspense fallback={<SectionSkeleton />}>
             <FAQ />
           </Suspense>
-        </motion.div>
-        
-        <motion.div variants={fadeInUp}>
+        </LazySection>
+
+        <LazySection fallback={<SectionSkeleton />}>
           <Suspense fallback={<SectionSkeleton />}>
             <BlogSection />
           </Suspense>
-        </motion.div>
-        
-        <motion.div variants={fadeInUp}>
+        </LazySection>
+
+        <LazySection fallback={<SectionSkeleton />}>
           <Suspense fallback={<SectionSkeleton />}>
             <CTA />
           </Suspense>
-        </motion.div>
-      </motion.div>
+        </LazySection>
+      </main>
       
       <Footer />
       

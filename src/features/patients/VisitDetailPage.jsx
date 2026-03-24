@@ -57,6 +57,7 @@ import { usePatientAttachments } from "./usePatientAttachments";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useUserPreferences } from "../../hooks/useUserPreferences";
+import VisitIntelligence from "./VisitIntelligence";
 import {
   flattenCustomFieldTemplates,
   mergeTemplatesIntoCustomFields,
@@ -722,6 +723,9 @@ export default function VisitDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Visit Intelligence */}
+      <VisitIntelligence visit={visit} />
 
       {/* Quick Actions */}
       <Card className="bg-card border-border/50 shadow-sm">

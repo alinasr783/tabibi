@@ -28,7 +28,7 @@ export default function AffiliateLayout() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-6xl px-4 py-6">
+      <main className="mx-auto max-w-6xl px-4 py-6">
         <nav className="mb-6 flex items-center gap-2">
           <NavLink
             to="/affiliate/dashboard"
@@ -43,7 +43,7 @@ export default function AffiliateLayout() {
         </nav>
 
         <Outlet />
-      </div>
+      </main>
     </div>
   )
 }

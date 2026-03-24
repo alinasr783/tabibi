@@ -15,6 +15,13 @@ export default function PatientCreateDialog({open, onClose, onPatientCreated, cl
   const {mutateAsync, isPending} = useCreatePatientOffline();
   
   async function onSubmit(values, attachments, attachmentDescriptions, attachmentTypes) {
+    const browserOffline = typeof navigator !== "undefined" && navigator.onLine === false;
+    const safeKeys = values && typeof values === "object" ? Object.keys(values).sort() : [];
+    const attachmentsCount = Array.isArray(attachments) ? attachments.length : 0;
+    const hasClinicId = !!clinicId;
+    console.groupCollapsed("[PATIENT_CREATE] submit");
+    console.log("[PATIENT_CREATE] browserOffline:", browserOffline, "hasClinicId:", hasClinicId, "attachmentsCount:", attachmentsCount);
+    console.log("[PATIENT_CREATE] valuesKeys:", safeKeys);
     try {
       // Handle age and age_unit
       let age = null;
@@ -28,34 +35,52 @@ export default function PatientCreateDialog({open, onClose, onPatientCreated, cl
         clinic_id: clinicId
       };
       
-      // Log the payload for debugging
-      console.log("Patient creation payload:", payload);
-      
+      console.log("[PATIENT_CREATE] mutateAsync start");
       const newPatient = await mutateAsync(payload);
+      const createdId = newPatient?.id;
+      const isLocal = String(createdId || "").startsWith("local_");
+      console.log("[PATIENT_CREATE] mutateAsync done", { id: createdId, isLocal });
       
-      // Handle attachments if any
-      if (attachments && attachments.length > 0) {
-        const uploadPromises = attachments.map((file, idx) => 
-          uploadPatientAttachment({
-            patientId: newPatient.id,
-            clinicId: clinicId,
-            file: file,
-            category: attachmentTypes?.[idx] || 'report',
-            description: attachmentDescriptions?.[idx] || 'ملف تم رفعه أثناء إنشاء المريض'
-          })
-        );
-        
-        await Promise.all(uploadPromises);
-      }
-
       toast.success("تم إضافة المريض بنجاح");
       if (onPatientCreated) {
+        console.log("[PATIENT_CREATE] onPatientCreated");
         onPatientCreated(newPatient);
       }
       onClose?.();
+
+      if (attachmentsCount > 0) {
+        if (browserOffline || isLocal) {
+          console.warn("[PATIENT_CREATE] skipping attachments upload (offline/local patient)");
+          toast("تم حفظ المريض بدون رفع المرفقات (سيتم رفعها عند الاتصال)");
+          return;
+        }
+
+        console.log("[PATIENT_CREATE] uploading attachments start", { count: attachmentsCount });
+        try {
+          const uploadPromises = attachments.map((file, idx) => {
+            const category = attachmentTypes?.[idx] || "report";
+            const description = attachmentDescriptions?.[idx] || "ملف تم رفعه أثناء إنشاء المريض";
+            console.log("[PATIENT_CREATE] uploading attachment", { idx, category, hasFile: !!file });
+            return uploadPatientAttachment({
+              patientId: createdId,
+              clinicId: clinicId,
+              file: file,
+              category,
+              description
+            });
+          });
+          await Promise.all(uploadPromises);
+          console.log("[PATIENT_CREATE] uploading attachments done");
+        } catch (e) {
+          console.error("[PATIENT_CREATE] attachments upload failed (patient already created)", e);
+          toast("تم إضافة المريض، لكن فشل رفع المرفقات");
+        }
+      }
     } catch (e) {
       console.error("Error creating patient:", e);
       toast.error(e.message || "حدث خطأ أثناء إضافة المريض");
+    } finally {
+      console.groupEnd();
     }
   }
 

@@ -1,4 +1,4 @@
-import { Key, User, Settings, Palette, Bell, ClipboardList, Brain } from "lucide-react";
+import { Key, User, Settings, Palette, Bell, ClipboardList, Brain, WifiOff } from "lucide-react";
 import { useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import ChangePasswordTab from "./ChangePasswordTab";
@@ -8,6 +8,7 @@ import AISettingsTab from "./AISettingsTab";
 import { PersonalizationSettings } from "../user-preferences/PersonalizationSettings";
 import { useLocation } from "react-router-dom";
 import MedicalFieldsSettingsTab from "./MedicalFieldsSettingsTab";
+import OfflineSettingsTab from "../offline-mode/OfflineSettingsTab";
 
 const tabs = [
   { id: "personal", label: "بياناتك", fullLabel: "بياناتك الشخصية", icon: User },
@@ -16,6 +17,7 @@ const tabs = [
   { id: "ai-customization", label: "الذكاء", fullLabel: "تخصيص الذكاء", icon: Brain },
   { id: "notifications", label: "الاشعارات", fullLabel: "إعدادات الاشعارات", icon: Bell },
   { id: "medical-fields", label: "الحقول", fullLabel: "تخصيص الحقول", icon: ClipboardList },
+  { id: "offline", label: "بدون نت", fullLabel: "بدون انترنت", icon: WifiOff },
 ];
 
 export default function SettingsPage() {
@@ -81,6 +83,10 @@ export default function SettingsPage() {
 
         <TabsContent value="medical-fields" className="mt-4 sm:mt-6">
           <MedicalFieldsSettingsTab />
+        </TabsContent>
+
+        <TabsContent value="offline" className="mt-4 sm:mt-6">
+          <OfflineSettingsTab />
         </TabsContent>
       </Tabs>
     </div>
