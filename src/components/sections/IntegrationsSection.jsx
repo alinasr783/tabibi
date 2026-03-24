@@ -85,6 +85,10 @@ export default function IntegrationsSection() {
                       src={integration.icon} 
                       alt={integration.title} 
                       className={`w-full h-full object-contain ${!integration.connected ? 'opacity-50 grayscale' : ''}`}
+                      width="64"
+                      height="64"
+                      loading="lazy"
+                      decoding="async"
                     />
                   </div>
                   <div>

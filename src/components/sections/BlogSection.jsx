@@ -57,7 +57,7 @@ export default function BlogSection() {
              setArticles(DUMMY_ARTICLES);
         }
       } catch (err) {
-        console.error("Error fetching articles:", err);
+        if (import.meta.env.DEV) console.error("Error fetching articles:", err);
         setArticles(DUMMY_ARTICLES); // Fallback on error (e.g. table missing)
       } finally {
         setLoading(false);

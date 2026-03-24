@@ -3,7 +3,6 @@ import { Toaster } from "sonner";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { AuthProviderWrapper } from "./features/auth/AuthProviderWrapper";
 import { UserPreferencesProvider } from "./features/user-preferences/UserPreferencesProvider";
-import AutoPaymentRecorder from "./features/finance/AutoPaymentRecorder";
 import PermissionGuard from "./features/auth/PermissionGuard";
 import ProtectedRoute from "./features/auth/ProtectedRoute";
 import PublicRoute from "./features/auth/PublicRoute";
@@ -51,15 +50,12 @@ const PatientFinanceMonitorPage = lazy(() => import("./features/patients/Patient
 const VisitDetailPage = lazy(() => import("./features/patients/VisitDetailPage"));
 const ExaminationsPage = lazy(() => import("./features/examinations/ExaminationsPage"));
 const AskTabibiPage = lazy(() => import("./ai/ui").then(m => ({ default: m.AskTabibiPage })));
-import OfflineIndicator from "./components/OfflineIndicator";
-import { OfflineProvider } from "./features/offline-mode/OfflineContext";
-import { NotificationProvider } from "./features/Notifications/NotificationContext";
 import useScrollToTop from "./hooks/useScrollToTop";
-import { PWAInstallPrompt } from "./components/ui/pwa-install";
 import { useAuth } from "./features/auth/AuthContext";
 
 const DoctorLayout = lazy(() => import("./components/layout/DoctorLayout"));
 const AffiliateLayout = lazy(() => import("./components/layout/AffiliateLayout"));
+const AppAuthedProviders = lazy(() => import("./AppAuthedProviders"));
 
 // Memoize route components to prevent unnecessary re-renders
 const MemoizedLanding = memo(Landing);
@@ -153,7 +149,9 @@ function AppRoutes() {
           <ProtectedRoute>
             <RoleGuard allowedRoles={["doctor", "secretary"]}>
               <NoSubscriptionGuard>
-                <DoctorLayout />
+                <AppAuthedProviders>
+                  <DoctorLayout />
+                </AppAuthedProviders>
               </NoSubscriptionGuard>
             </RoleGuard>
           </ProtectedRoute>
@@ -425,17 +423,10 @@ function App() {
     <BrowserRouter>
       <AuthProviderWrapper>
         <UserPreferencesProvider>
-          <NotificationProvider>
-            <OfflineProvider>
-              <AutoPaymentRecorder />
-              <OfflineIndicator />
-              <PWAInstallPrompt />
-              <Suspense fallback={<div className="min-h-screen flex items-center justify-center">... جاري التحميل</div>}>
-                <AppRoutes />
-              </Suspense>
-              <Toaster position={toasterPosition} dir="rtl" />
-            </OfflineProvider>
-          </NotificationProvider>
+          <Suspense fallback={<div className="min-h-screen flex items-center justify-center">... جاري التحميل</div>}>
+            <AppRoutes />
+          </Suspense>
+          <Toaster position={toasterPosition} dir="rtl" />
         </UserPreferencesProvider>
       </AuthProviderWrapper>
     </BrowserRouter>

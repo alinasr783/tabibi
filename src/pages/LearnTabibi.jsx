@@ -355,7 +355,7 @@ export default function LearnTabibi() {
         >
           <div className="p-4 flex flex-row-reverse items-center justify-between gap-3 border-b border-border">
             <div className="flex items-center gap-2 select-none">
-              <img src="/assits/full-logo.png" alt="Tabibi" className="h-10 w-auto" />
+              <img src="/assits/full-logo.png" alt="Tabibi" className="h-10 w-auto" width="40" height="40" decoding="async" />
             </div>
             <button
               className="h-9 w-9 inline-flex items-center justify-center rounded-[var(--radius)] hover:bg-muted"

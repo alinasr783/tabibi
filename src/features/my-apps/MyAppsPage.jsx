@@ -61,7 +61,15 @@ export default function MyAppsPage() {
                 <div className="flex items-center gap-4">
                   {app.image_url ? (
                     <div className="h-12 w-12 rounded-lg overflow-hidden shrink-0 border bg-muted group-hover:scale-105 transition-transform">
-                      <img src={app.image_url} alt={app.title} className="w-full h-full object-cover" />
+                      <img
+                        src={app.image_url}
+                        alt={app.title}
+                        className="w-full h-full object-cover"
+                        width="48"
+                        height="48"
+                        loading="lazy"
+                        decoding="async"
+                      />
                     </div>
                   ) : (
                     <div className={`p-2.5 rounded-lg ${app.color} shrink-0 group-hover:scale-105 transition-transform`}>

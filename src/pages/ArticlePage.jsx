@@ -19,7 +19,7 @@ const DUMMY_ARTICLES = [
             <p>يساعد التحول الرقمي في تقليل الأخطاء البشرية، توفير الوقت، وتسريع الوصول للمعلومات الطبية. العيادات التي تعتمد على الورق تواجه تحديات كبيرة في تنظيم البيانات واسترجاعها.</p>
             
             <div class="my-8">
-                <img src="https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=800&q=80" alt="طبيب يستخدم تابلت" class="rounded-lg shadow-md w-full" />
+                <img src="https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=800&q=80" alt="طبيب يستخدم تابلت" class="rounded-lg shadow-md w-full" width="800" height="450" loading="lazy" decoding="async" />
                 <p class="text-sm text-gray-500 text-center mt-2">التكنولوجيا الحديثة تسهل عمل الأطباء</p>
             </div>
 
@@ -78,7 +78,7 @@ export default function ArticlePage() {
         if (error) throw error;
         setArticle(data);
       } catch (err) {
-        console.error("Error fetching article:", err);
+        if (import.meta.env.DEV) console.error("Error fetching article:", err);
         // Fallback
         const dummy = DUMMY_ARTICLES.find(a => a.slug === slug);
         setArticle(dummy);

@@ -55,9 +55,9 @@ export function PWAInstallPrompt() {
     const { outcome } = await deferredPrompt.userChoice;
     
     if (outcome === 'accepted') {
-      console.log('✅ User accepted the install prompt');
+      if (import.meta.env.DEV) console.log('✅ User accepted the install prompt');
     } else {
-      console.log('❌ User dismissed the install prompt');
+      if (import.meta.env.DEV) console.log('❌ User dismissed the install prompt');
     }
 
     // Clear the prompt
@@ -90,7 +90,7 @@ export function PWAInstallPrompt() {
       <div className="bg-card border border-border rounded-[var(--radius)] shadow-2xl p-4">
         <div className="flex items-start gap-3">
           <div className="flex-shrink-0 w-12 h-12 rounded-[var(--radius)] overflow-hidden bg-primary/10 flex items-center justify-center">
-            <img src="/logo.jpeg" alt="Tabibi Logo" className="w-full h-full object-cover" />
+            <img src="/logo.jpeg" alt="Tabibi Logo" className="w-full h-full object-cover" width="48" height="48" decoding="async" />
           </div>
           
           <div className="flex-1 min-w-0">
@@ -168,7 +168,7 @@ export function PWAInstallButton({ className }) {
     const { outcome } = await deferredPrompt.userChoice;
     
     if (outcome === 'accepted') {
-      console.log('✅ User accepted the install prompt');
+      if (import.meta.env.DEV) console.log('✅ User accepted the install prompt');
     }
 
     setDeferredPrompt(null);

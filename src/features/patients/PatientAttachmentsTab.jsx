@@ -104,7 +104,15 @@ function TimelineItem({ file, onDelete }) {
         <div className="flex-shrink-0 mt-0.5">
           {isImage ? (
             <div className="w-12 h-12 rounded-md overflow-hidden border bg-muted cursor-pointer hover:opacity-90 transition-opacity" onClick={() => window.open(file.file_url, '_blank')}>
-              <img src={file.file_url} alt={file.file_name} className="w-full h-full object-cover" />
+              <img
+                src={file.file_url}
+                alt={file.file_name}
+                className="w-full h-full object-cover"
+                width="48"
+                height="48"
+                loading="lazy"
+                decoding="async"
+              />
             </div>
           ) : (
             <div className="w-12 h-12 rounded-md border bg-muted/50 flex items-center justify-center text-muted-foreground">

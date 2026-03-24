@@ -4,10 +4,10 @@ import { Helmet } from "react-helmet-async";
 import Footer from "../components/layout/Footer";
 import Header from "../components/layout/Header";
 import Hero from "../components/sections/Hero";
-import TabibiAI from "../components/sections/TabibiAI";
-import CoreFeatures from "../components/sections/CoreFeatures";
 
 // Lazy load remaining sections
+const TabibiAI = lazy(() => import("../components/sections/TabibiAI"));
+const CoreFeatures = lazy(() => import("../components/sections/CoreFeatures"));
 const TabibiAppsSection = lazy(() => import("../components/sections/TabibiAppsSection"));
 const IntegrationsSection = lazy(() => import("../components/sections/IntegrationsSection"));
 const OnlineBooking = lazy(() => import("../components/sections/OnlineBooking"));
@@ -120,11 +120,15 @@ export default function Landing() {
         <Hero />
 
         <LazySection fallback={<SectionSkeleton />}>
-          <TabibiAI />
+          <Suspense fallback={<SectionSkeleton />}>
+            <TabibiAI />
+          </Suspense>
         </LazySection>
 
         <LazySection fallback={<SectionSkeleton />}>
-          <CoreFeatures />
+          <Suspense fallback={<SectionSkeleton />}>
+            <CoreFeatures />
+          </Suspense>
         </LazySection>
 
         <LazySection fallback={<SectionSkeleton />}>

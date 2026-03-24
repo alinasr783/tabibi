@@ -662,7 +662,7 @@ export default function TabibiProfileApp() {
                       <div className="relative group">
                         <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-muted bg-muted flex items-center justify-center">
                           {formData.avatar_url ? (
-                            <img src={formData.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                            <img src={formData.avatar_url} alt="Profile" className="w-full h-full object-cover" width="96" height="96" loading="lazy" decoding="async" />
                           ) : (
                             <User className="w-10 h-10 text-muted-foreground" />
                           )}
@@ -696,7 +696,7 @@ export default function TabibiProfileApp() {
                     <div className="flex flex-col items-center gap-4 p-4 border rounded-lg bg-muted/10">
                       <div className="relative group w-full h-24 rounded-md overflow-hidden border-2 border-muted bg-muted flex items-center justify-center">
                         {formData.banner_url ? (
-                          <img src={formData.banner_url} alt="Banner" className="w-full h-full object-cover" />
+                          <img src={formData.banner_url} alt="Banner" className="w-full h-full object-cover" width="1200" height="400" loading="lazy" decoding="async" />
                         ) : (
                           <div className="flex flex-col items-center gap-2 text-muted-foreground">
                             <span className="text-xs">لا يوجد غلاف</span>

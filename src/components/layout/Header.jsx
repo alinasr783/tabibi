@@ -24,6 +24,11 @@ export default function Header() {
   const menuRadiusPx = isLanding ? (menuStartRadiusPx - (menuStartRadiusPx - ctaRadiusPx) * scrollAnim) : ctaRadiusPx;
 
   useEffect(() => {
+    if (!isLanding) {
+      setScrollTop(0);
+      return;
+    }
+
     const getScrollTop = () => {
       const root = document.getElementById("root");
       const scrollingElement = document.scrollingElement;
@@ -42,25 +47,22 @@ export default function Header() {
       if (scrollRafRef.current) return;
       scrollRafRef.current = requestAnimationFrame(() => {
         const nextScrollTop = getScrollTop();
-        setScrollTop((prev) => (prev === nextScrollTop ? prev : nextScrollTop));
+        const quantized = Math.round(nextScrollTop / 4) * 4;
+        setScrollTop((prev) => (prev === quantized ? prev : quantized));
         scrollRafRef.current = null;
       });
     };
 
     handleScroll();
     window.addEventListener("scroll", handleScroll, { passive: true });
-    document.addEventListener("scroll", handleScroll, { passive: true, capture: true });
-    document.getElementById("root")?.addEventListener("scroll", handleScroll, { passive: true });
     return () => {
       window.removeEventListener("scroll", handleScroll);
-      document.removeEventListener("scroll", handleScroll, { capture: true });
-      document.getElementById("root")?.removeEventListener("scroll", handleScroll);
       if (scrollRafRef.current) {
         cancelAnimationFrame(scrollRafRef.current);
         scrollRafRef.current = null;
       }
     };
-  }, []);
+  }, [isLanding]);
 
   const handleSectionClick = (sectionId) => {
     // Close mobile menu if open
@@ -114,6 +116,8 @@ export default function Header() {
                 className="h-28 md:h-30 w-auto"
                 loading="eager"
                 decoding="async"
+                width="500"
+                height="500"
               />
             </Link>
         

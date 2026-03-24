@@ -1229,6 +1229,10 @@ export default function AppointmentDetailPage() {
                         src="https://upload.wikimedia.org/wikipedia/commons/a/a5/Google_Calendar_icon_%282020%29.svg" 
                         alt="Google Calendar" 
                         className="size-5 shrink-0"
+                        width="20"
+                        height="20"
+                        loading="lazy"
+                        decoding="async"
                       />
                       <span className="font-medium text-foreground group-hover:text-blue-700">Open on Google Calendar</span>
                       <ExternalLink className="size-3.5 ml-auto text-muted-foreground group-hover:text-blue-600" />

@@ -1,77 +1,30 @@
 import { Receipt, Smartphone, Sparkles, Stethoscope } from "lucide-react";
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
 import { useAuth } from "../../features/auth/AuthContext";
 import { Card, CardContent } from "../ui/card";
 
 export default function Hero() {
   const { user, isLoading } = useAuth();
 
-  const container = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.2
-      }
-    }
-  };
-
-  const item = {
-    hidden: { 
-      opacity: 0, 
-      y: 30,
-      scale: 0.95
-    },
-    visible: {
-      opacity: 1,
-      y: 0,
-      scale: 1,
-      transition: {
-        type: "spring",
-        stiffness: 100,
-        damping: 12
-      }
-    }
-  };
-
   return (
     // Further reduced padding from py-16 to py-12 to make content appear even higher
     <section className="container py-12">
-      <motion.div
-        initial="hidden"
-        animate="visible"
-        variants={container}
-        className="grid md:grid-cols-2 gap-12 items-center"
-      >
-        <motion.div variants={item} className="space-y-6">
-          <motion.div 
-            variants={item}
-            className="inline-flex items-center gap-2 rounded-full border border-border bg-background/60 px-3 py-1 text-xs text-muted-foreground"
-            whileHover={{ 
-              scale: 1.05,
-              transition: { duration: 0.2 }
-            }}
-          >
+      <div className="grid md:grid-cols-2 gap-12 items-center">
+        <div className="space-y-6">
+          <div className="inline-flex items-center gap-2 rounded-full border border-border bg-background/60 px-3 py-1 text-xs text-muted-foreground transition-transform hover:scale-[1.05]">
             <Sparkles className="size-4 text-primary" />
             ميرضناش تعبك - دير عيادتك بذكاء 
-          </motion.div>
+          </div>
           
-          <motion.h1 
-            variants={item}
-            className="text-4xl md:text-6xl font-bold leading-tight tracking-tight"
-          >
+          <h1 className="text-4xl md:text-6xl font-bold leading-tight tracking-tight">
             إدارة حديثة وسلسة لعيادتك
-          </motion.h1>
+          </h1>
           
-          <motion.p 
-            variants={item}
-            className="text-muted-foreground text-lg leading-relaxed"
-          >
+          <p className="text-muted-foreground text-lg leading-relaxed">
             المواعيد , الماليات , حجز الكتروني , ادارة السكرتارية - كل ده من مكان واحد
-          </motion.p>
+          </p>
           
-          <motion.div variants={item} className="flex flex-wrap gap-4">
+          <div className="flex flex-wrap gap-4">
             {isLoading ? (
               // Show loading state
               <div className="flex gap-4">
@@ -82,54 +35,38 @@ export default function Hero() {
               // If user is authenticated, show "الدخول" button
               <>
                 <Link to="/dashboard">
-                  <motion.button
-                    className="gap-2 inline-flex items-center justify-center cursor-pointer whitespace-nowrap rounded-[var(--radius)] text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-10 px-4 py-2"
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
+                  <button className="gap-2 inline-flex items-center justify-center cursor-pointer whitespace-nowrap rounded-[var(--radius)] text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-10 px-4 py-2 transition-transform hover:scale-[1.05] active:scale-[0.95]">
                     <Stethoscope className="size-5" />
                     ادخل لوحة التحكم 
-                  </motion.button>
+                  </button>
                 </Link>
                 <Link to="/learn-tabibi">
-                  <motion.button
-                    className="gap-2 inline-flex items-center justify-center cursor-pointer whitespace-nowrap rounded-[var(--radius)] text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:pointer-events-none disabled:opacity-50 border border-border bg-transparent text-foreground hover:bg-muted h-10 px-4 py-2"
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
+                  <button className="gap-2 inline-flex items-center justify-center cursor-pointer whitespace-nowrap rounded-[var(--radius)] text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:pointer-events-none disabled:opacity-50 border border-border bg-transparent text-foreground hover:bg-muted h-10 px-4 py-2 transition-transform hover:scale-[1.05] active:scale-[0.95]">
                     <Smartphone className="size-5" />
                     اتعلم المنصة في دقائق
-                  </motion.button>
+                  </button>
                 </Link>
               </>
             ) : (
               // If user is not authenticated, show signup buttons
               <>
                 <Link to="/signup">
-                  <motion.button
-                    className="gap-2 inline-flex items-center justify-center cursor-pointer whitespace-nowrap rounded-[var(--radius)] text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-10 px-4 py-2"
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
+                  <button className="gap-2 inline-flex items-center justify-center cursor-pointer whitespace-nowrap rounded-[var(--radius)] text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-10 px-4 py-2 transition-transform hover:scale-[1.05] active:scale-[0.95]">
                     <Stethoscope className="size-5" />
                     ابدا ببلاش 
-                  </motion.button>
+                  </button>
                 </Link>
                 <Link to="/learn-tabibi">
-                  <motion.button
-                    className="gap-2 inline-flex items-center justify-center cursor-pointer whitespace-nowrap rounded-[var(--radius)] text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:pointer-events-none disabled:opacity-50 border border-border bg-transparent text-foreground hover:bg-muted h-10 px-4 py-2"
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
+                  <button className="gap-2 inline-flex items-center justify-center cursor-pointer whitespace-nowrap rounded-[var(--radius)] text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:pointer-events-none disabled:opacity-50 border border-border bg-transparent text-foreground hover:bg-muted h-10 px-4 py-2 transition-transform hover:scale-[1.05] active:scale-[0.95]">
                     <Smartphone className="size-5" />
                     اتعلم المنصة في دقائق
-                  </motion.button>
+                  </button>
                 </Link>
               </>
             )}
-          </motion.div>
+          </div>
           
-          <motion.div variants={item} className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-6">
             <Card className="text-center">
               <CardContent className="py-4">
                 <div className="text-2xl font-bold">+120</div>
@@ -154,19 +91,10 @@ export default function Hero() {
                 <div className="text-xs text-muted-foreground">دعم فني حقيقي مش روبوت</div>
               </CardContent>
             </Card>
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
         
-        <motion.div 
-          className="relative"
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          whileHover={{ 
-            scale: 1.02,
-            transition: { duration: 0.3 }
-          }}
-        >
+        <div className="relative transition-transform duration-300 hover:scale-[1.02]">
           <div className="aspect-[4/3] w-full overflow-hidden rounded-[var(--radius)]">
             {/* Eagerly load the hero image with high priority */}
             <img 
@@ -181,22 +109,18 @@ export default function Hero() {
               sizes="(max-width: 768px) 100vw, 50vw"
             />
           </div>
-          <motion.div 
+          <div 
             className="absolute -bottom-6 -start-6 hidden md:block rounded-[var(--radius)] 
               border border-border bg-background/70 backdrop-blur p-4 shadow"
-            whileHover={{ 
-              y: -5,
-              scale: 1.05,
-              transition: { duration: 0.2 }
-            }}
+            style={{ transition: "transform 200ms ease" }}
           >
             <div className="flex items-center gap-3">
               <Receipt className="size-5 text-primary" />
               <span className="text-sm">تقارير الإيرادات المباشرة</span>
             </div>
-          </motion.div>
-        </motion.div>
-      </motion.div>
+          </div>
+        </div>
+      </div>
     </section>
   );
 }

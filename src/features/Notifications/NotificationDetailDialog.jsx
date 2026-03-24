@@ -120,6 +120,10 @@ export function NotificationDetailDialog({ open, onOpenChange, notification }) {
                       src={notification.image_url} 
                       alt="Notification" 
                       className="w-full h-auto max-h-[300px] object-contain mx-auto"
+                      width="800"
+                      height="450"
+                      loading="lazy"
+                      decoding="async"
                   />
               </div>
           )}

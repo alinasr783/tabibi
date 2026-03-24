@@ -491,6 +491,10 @@ export default function DoctorProfilePage() {
                       alt={cert.name}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                       onClick={() => window.open(cert.url, "_blank")}
+                      width="800"
+                      height="600"
+                      loading="lazy"
+                      decoding="async"
                     />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none" />
                   </div>
@@ -538,7 +542,7 @@ export default function DoctorProfilePage() {
                       <div className="grid grid-cols-1 gap-4">
                         {section?.imageUrl ? (
                           <div className="rounded-xl overflow-hidden border border-[#E0E0E0]">
-                            <img src={section.imageUrl} alt={title || "section"} className="w-full h-auto object-cover" />
+                            <img src={section.imageUrl} alt={title || "section"} className="w-full h-auto object-cover" width="1200" height="675" loading="lazy" decoding="async" />
                           </div>
                         ) : null}
                         <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{section?.text || ""}</p>

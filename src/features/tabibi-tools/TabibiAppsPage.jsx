@@ -173,7 +173,15 @@ export default function TabibiAppsPage() {
                 {/* Image or Icon Container */}
                 {app.image_url ? (
                   <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-lg overflow-hidden shrink-0 border bg-muted">
-                    <img src={app.image_url} alt={app.title} className="w-full h-full object-cover" />
+                    <img
+                      src={app.image_url}
+                      alt={app.title}
+                      className="w-full h-full object-cover"
+                      width="56"
+                      height="56"
+                      loading="lazy"
+                      decoding="async"
+                    />
                   </div>
                 ) : (
                   <div className={`p-2.5 rounded-lg ${app.color} flex-shrink-0 transition-transform group-hover:scale-105`}>

@@ -2,6 +2,8 @@ import supabase from '../../services/supabase'
 import { getItem, updateItem, getUnsyncedItems, removeFromQueue, STORE_NAMES } from './offlineDB'
 import { resolveClinicIdentifiers } from '../../services/clinicIds'
 
+const isDev = import.meta.env.DEV
+
 function mapEntityType(table) {
   if (!table) return null
   const t = String(table)
@@ -17,6 +19,10 @@ function parseTime(v) {
   return Number.isFinite(n) ? n : null
 }
 
+async function yieldToMain() {
+  await new Promise((r) => setTimeout(r, 0))
+}
+
 async function upsertIfServerNewer(storeName, row) {
   const local = await getItem(storeName, row.id)
   const localTs = parseTime(local?.updated_at) ?? parseTime(local?.local_updated_at) ?? parseTime(local?.local_created_at)
@@ -27,17 +33,17 @@ async function upsertIfServerNewer(storeName, row) {
 }
 
 export async function syncQueuedOperations() {
-  console.groupCollapsed("[OFFLINE_SYNC] syncQueuedOperations");
+  if (isDev) console.groupCollapsed("[OFFLINE_SYNC] syncQueuedOperations");
   const items = await getUnsyncedItems()
-  console.log("[OFFLINE_SYNC] unsyncedItems:", items?.length || 0)
+  if (isDev) console.log("[OFFLINE_SYNC] unsyncedItems:", items?.length || 0)
   if (!items || items.length === 0) {
-    console.groupEnd()
+    if (isDev) console.groupEnd()
     return { synced: 0, failed: 0 }
   }
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) {
-    console.warn("[OFFLINE_SYNC] no session, cannot sync")
-    console.groupEnd()
+    if (isDev) console.warn("[OFFLINE_SYNC] no session, cannot sync")
+    if (isDev) console.groupEnd()
     throw new Error('Not authenticated')
   }
   const events = items.map(it => {
@@ -62,7 +68,7 @@ export async function syncQueuedOperations() {
   const payload = {
     events
   }
-  console.log("[OFFLINE_SYNC] invoke ingest-events", { events: payload.events.length })
+  if (isDev) console.log("[OFFLINE_SYNC] invoke ingest-events", { events: payload.events.length })
   const withTimeout = async (p, ms, label) => {
     let t
     const timeout = new Promise((_, rej) => {
@@ -81,8 +87,8 @@ export async function syncQueuedOperations() {
     'Sync timeout'
   )
   if (res.error) {
-    console.error("[OFFLINE_SYNC] ingest-events error", res.error)
-    console.groupEnd()
+    if (isDev) console.error("[OFFLINE_SYNC] ingest-events error", res.error)
+    if (isDev) console.groupEnd()
     throw new Error(res.error.message || 'ingest-events failed')
   }
   const okIds = new Set((res.data && res.data.applied_ids) || items.map(i => i.id))
@@ -94,17 +100,17 @@ export async function syncQueuedOperations() {
     }
   }
   const result = { synced: ok, failed: items.length - ok }
-  console.log("[OFFLINE_SYNC] result", result)
-  console.groupEnd()
+  if (isDev) console.log("[OFFLINE_SYNC] result", result)
+  if (isDev) console.groupEnd()
   return result
 }
 
 export async function syncAllDataToLocal() {
-  console.groupCollapsed("[FULL_SYNC] syncAllDataToLocal");
+  if (isDev) console.groupCollapsed("[FULL_SYNC] syncAllDataToLocal");
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) {
-    console.warn("[FULL_SYNC] no session");
-    console.groupEnd();
+    if (isDev) console.warn("[FULL_SYNC] no session");
+    if (isDev) console.groupEnd();
     return { success: false, error: "Not authenticated" };
   }
   const { clinicUuid, clinicIdBigint } = await resolveClinicIdentifiers()
@@ -121,39 +127,51 @@ export async function syncAllDataToLocal() {
     ]);
 
     if (patientsRes.data) {
+      let i = 0
       for (const p of patientsRes.data) {
         try { if (await upsertIfServerNewer(STORE_NAMES.PATIENTS, p)) synced++; } catch { failed++; }
+        i++
+        if (i % 50 === 0) await yieldToMain()
       }
-      console.log("[FULL_SYNC] patients:", patientsRes.data.length);
+      if (isDev) console.log("[FULL_SYNC] patients:", patientsRes.data.length);
     }
 
     if (appointmentsRes.data) {
+      let i = 0
       for (const a of appointmentsRes.data) {
         try { if (await upsertIfServerNewer(STORE_NAMES.APPOINTMENTS, a)) synced++; } catch { failed++; }
+        i++
+        if (i % 50 === 0) await yieldToMain()
       }
-      console.log("[FULL_SYNC] appointments:", appointmentsRes.data.length);
+      if (isDev) console.log("[FULL_SYNC] appointments:", appointmentsRes.data.length);
     }
 
     if (plansRes.data) {
+      let i = 0
       for (const t of plansRes.data) {
         try { if (await upsertIfServerNewer(STORE_NAMES.TREATMENT_PLANS, t)) synced++; } catch { failed++; }
+        i++
+        if (i % 50 === 0) await yieldToMain()
       }
-      console.log("[FULL_SYNC] patient_plans:", plansRes.data.length);
+      if (isDev) console.log("[FULL_SYNC] patient_plans:", plansRes.data.length);
     }
 
     if (financialRes.data) {
+      let i = 0
       for (const r of financialRes.data) {
         try { if (await upsertIfServerNewer(STORE_NAMES.FINANCIAL_RECORDS, r)) synced++; } catch { failed++; }
+        i++
+        if (i % 50 === 0) await yieldToMain()
       }
-      console.log("[FULL_SYNC] financial_records:", financialRes.data.length);
+      if (isDev) console.log("[FULL_SYNC] financial_records:", financialRes.data.length);
     }
 
-    console.log("[FULL_SYNC] result", { synced, failed });
-    console.groupEnd();
+    if (isDev) console.log("[FULL_SYNC] result", { synced, failed });
+    if (isDev) console.groupEnd();
     return { success: true, synced, failed };
   } catch (e) {
-    console.error("[FULL_SYNC] error:", e);
-    console.groupEnd();
+    if (isDev) console.error("[FULL_SYNC] error:", e);
+    if (isDev) console.groupEnd();
     return { success: false, error: e.message };
   }
 }

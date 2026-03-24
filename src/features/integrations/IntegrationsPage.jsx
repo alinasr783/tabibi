@@ -318,7 +318,7 @@ export default function IntegrationsPage() {
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4">
                                 <div className={`p-3 rounded-full ${item.bgColor} flex items-center justify-center`}>
-                                    <img src={item.iconUrl} alt={item.title} className="w-6 h-6 object-contain" />
+                                    <img src={item.iconUrl} alt={item.title} className="w-6 h-6 object-contain" width="24" height="24" loading="lazy" decoding="async" />
                                 </div>
                                 <div className="flex flex-col">
                                     <h3 className="font-bold text-lg">{item.title}</h3>

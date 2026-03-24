@@ -61,7 +61,14 @@ export default function AppHero({ app, isInstalled }) {
         <div className="flex gap-4 items-start">
           {app.image_url ? (
              <div className="w-20 h-20 md:w-24 md:h-24 rounded-2xl overflow-hidden border bg-muted shrink-0">
-               <img src={app.image_url} alt={app.title} className="w-full h-full object-cover" />
+               <img
+                 src={app.image_url}
+                 alt={app.title}
+                 className="w-full h-full object-cover"
+                 width="96"
+                 height="96"
+                 decoding="async"
+               />
              </div>
           ) : (
             <div className={`p-3 md:p-4 rounded-2xl ${app.color} shrink-0`}>

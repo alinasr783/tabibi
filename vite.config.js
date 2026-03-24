@@ -45,6 +45,14 @@ export default defineConfig({
   build: {
     target: 'es2020',
     sourcemap: true,
+    modulePreload: {
+      resolveDependencies(_filename, deps) {
+        return deps.filter(
+          (dep) =>
+            !/\/(ai|charts|motion|swiper|firebase|dnd|lottie|pdf)-/.test(dep)
+        )
+      }
+    },
     // Reduce bundle size by enabling tree shaking
     rollupOptions: {
       output: {

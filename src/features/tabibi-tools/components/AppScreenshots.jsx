@@ -79,6 +79,10 @@ export default function AppScreenshots({ app }) {
                         src={img} 
                         alt={`Screenshot ${idx + 1}`} 
                         className="w-full h-full object-contain rounded-xl select-none"
+                        width="400"
+                        height="550"
+                        loading="lazy"
+                        decoding="async"
                       />
                     </div>
                   </SwiperSlide>
