@@ -473,7 +473,7 @@ export default function AppointmentIntelligence({ appointment }) {
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={handleKeyDown}
-                            placeholder={listening ? "جاري الاستماع..." : "اكتب ملاحظاتك أو تحدث لتحديث الحجز..."}
+                            placeholder={listening ? "جاري الاستماع..." : "ابدأ الشات..."}
                             className="w-full bg-transparent border-none focus:outline-none focus:ring-0 focus:border-none ring-0 outline-none resize-none py-3 px-4 text-sm md:text-base placeholder:text-slate-500 placeholder:text-sm text-slate-800 dark:text-slate-200 min-h-[40px] overflow-hidden shadow-none rounded-[35px]"
                             disabled={isProcessing}
                             style={{ maxHeight: '300px' }}
