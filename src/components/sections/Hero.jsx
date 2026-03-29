@@ -103,6 +103,7 @@ export default function Hero() {
               className="w-full h-full object-contain"
               loading="eager"
               fetchPriority="high"
+              crossOrigin="anonymous"
               width="800"
               height="600"
               decoding="async"

@@ -8,6 +8,8 @@ const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || runtimeEnv.VITE_SU
 
 if (!supabaseUrl || !supabaseKey) {
     console.error('Missing Supabase Environment Variables!', { hasUrl: !!supabaseUrl, hasAnonKey: !!supabaseKey })
+} else if (import.meta.env.DEV) {
+    console.log('Supabase initialized with URL:', supabaseUrl, 'Key ends with:', supabaseKey.slice(-10));
 }
 
 const debugFetch = async (...args) => {
@@ -18,7 +20,8 @@ const debugFetch = async (...args) => {
     const url = input instanceof Request ? input.url : String(input);
     const method = (input instanceof Request ? input.method : init.method) || "GET";
 
-    const shouldLog = enabled && url.includes("/rest/v1/");
+    const isEdgeFunction = url.includes("/functions/v1/");
+    const shouldLog = enabled && (url.includes("/rest/v1/") || isEdgeFunction);
 
     if (shouldLog) {
         const headersObj = {};
@@ -28,14 +31,19 @@ const debugFetch = async (...args) => {
                 const h = headers instanceof Headers ? headers : new Headers(headers);
                 for (const [k, v] of h.entries()) {
                     const key = k.toLowerCase();
-                    if (key === "apikey" || key === "authorization") continue;
+                    if (key === "apikey" || key === "authorization") {
+                        headersObj[k] = "(HIDDEN)";
+                        continue;
+                    }
                     headersObj[k] = v;
                 }
             }
+            // If it's an Edge Function call from supabase-js, the apikey might be missing from headers 
+            // but provided via some other internal mechanism if we're not careful with debugFetch
         } catch (e) {
             if (enabled) dbg("supabase/headerParseError", { message: e?.message });
         }
-        dbg("supabase/request", { method, url, headers: headersObj });
+        dbg(`supabase/${isEdgeFunction ? 'function' : 'request'}`, { method, url, headers: headersObj });
     }
 
     const sanitizeJsonText = (text) => {
@@ -63,26 +71,37 @@ const debugFetch = async (...args) => {
 
     let sanitizedArgs = args;
 
-    if (method.toUpperCase() !== "GET" && url.includes("/rest/v1/patients")) {
+    if (method.toUpperCase() !== "GET" && (url.includes("/rest/v1/patients") || url.includes("/functions/v1/"))) {
         try {
             if (input instanceof Request) {
-                const cloned = input.clone();
-                const text = await cloned.text();
-                const sanitized = sanitizeJsonText(text);
-                if (enabled) dbg("supabase/patients/requestBody", sanitized);
-                if (sanitized !== text) {
-                    sanitizedArgs = [new Request(input, { body: sanitized })];
+                const text = await input.clone().text();
+                if (enabled && url.includes("/rest/v1/patients")) {
+                    const sanitized = sanitizeJsonText(text);
+                    dbg("supabase/patients/requestBody", sanitized);
+                    if (sanitized !== text) {
+                        const newRequest = new Request(input, { body: sanitized });
+                        for (const [k, v] of input.headers.entries()) {
+                            newRequest.headers.set(k, v);
+                        }
+                        sanitizedArgs = [newRequest];
+                    }
+                } else if (enabled && isEdgeFunction) {
+                    dbg("supabase/function/requestBody", text);
                 }
             } else if (init?.body) {
                 const bodyText = typeof init.body === "string" ? init.body : String(init.body);
-                const sanitized = sanitizeJsonText(bodyText);
-                if (enabled) dbg("supabase/patients/requestBody", sanitized);
-                if (sanitized !== bodyText) {
-                    sanitizedArgs = [input, { ...init, body: sanitized }];
+                if (enabled && url.includes("/rest/v1/patients")) {
+                    const sanitized = sanitizeJsonText(bodyText);
+                    dbg("supabase/patients/requestBody", sanitized);
+                    if (sanitized !== bodyText) {
+                        sanitizedArgs = [input, { ...init, body: sanitized }];
+                    }
+                } else if (enabled && isEdgeFunction) {
+                    dbg("supabase/function/requestBody", bodyText);
                 }
             }
         } catch (e) {
-            dbg("supabase/patients/requestBodyError", { message: e?.message });
+            dbg("supabase/requestBodyError", { message: e?.message });
         }
     }
 
