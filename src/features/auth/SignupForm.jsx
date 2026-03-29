@@ -69,10 +69,12 @@ export default function SignupForm() {
     register,
     handleSubmit,
     watch,
-    formState: { errors },
+    formState: { errors, isValid: formIsValid },
     trigger,
     control,
-  } = useForm()
+  } = useForm({
+    mode: "onChange"
+  })
 
   const { mutate: signup, isPending: isSigningUp } = useSignup()
   const { mutate: verifyClinic, isPending: isVerifying } = useVerifyClinicId()
@@ -165,50 +167,67 @@ export default function SignupForm() {
     let fieldsToValidate = []
 
     if (currentStep === STEPS.ACCOUNT_INFO) {
+      console.log("Validating Step 1");
       fieldsToValidate = ["email", "password", "confirmPassword"]
       
       // Validate form fields first
       const isValid = await trigger(fieldsToValidate)
-      if (!isValid) return
+      console.log("Step 1 Form Valid:", isValid);
+      if (!isValid) {
+        console.log("Step 1 validation failed:", errors);
+        return
+      }
 
       // Check if email already exists before moving to next step
       const email = watch("email")
+      console.log("Checking email:", email);
       setIsCheckingEmail(true)
       
       try {
         const emailExists = await checkEmailExists(email)
+        console.log("Email exists check result:", emailExists)
         if (emailExists) {
           toast.error("الإيميل ده موجود قبل كده، جرب إيميل تاني")
           setIsCheckingEmail(false)
           return
         }
         setIsCheckingEmail(false)
+        console.log("Moving to step 2 manually");
+        setCurrentStep(STEPS.PERSONAL_INFO)
       } catch (error) {
         console.error("Error checking email:", error)
         toast.error("حصل مشكلة في التحقق من الإيميل")
         setIsCheckingEmail(false)
         return
       }
-
-      setCurrentStep((prev) => prev + 1)
     } else if (currentStep === STEPS.PERSONAL_INFO) {
+      console.log("Validating Step 2");
       fieldsToValidate = ["name", "phone", "role"]
       
       const isValid = await trigger(fieldsToValidate)
-      if (!isValid) return
+      console.log("Step 2 Form Valid:", isValid);
+      if (!isValid) {
+        console.log("Step 2 validation failed:", errors);
+        return
+      }
 
       if (role === "doctor") {
         // Generate clinic ID for doctor as UUID
         const clinicId = generateClinicId()
         setGeneratedClinicId(clinicId)
+        console.log("Generated clinic ID:", clinicId);
       }
-      setCurrentStep((prev) => prev + 1)
+      console.log("Moving to step 3 manually");
+      setCurrentStep(STEPS.ROLE_SPECIFIC)
     } else if (currentStep === STEPS.ROLE_SPECIFIC) {
+      console.log("Validating Step 3");
       // Validate role-specific fields before moving to certifications
       if (role === "doctor") {
         fieldsToValidate = ["clinicName", "clinicAddress"]
         const isValid = await trigger(fieldsToValidate)
+        console.log("Step 3 (Doctor) Form Valid:", isValid);
         if (!isValid) {
+          console.log("Step 3 validation failed:", errors);
           toast.error("لازم تملى كل الحقول المطلوبة")
           return
         }
@@ -216,7 +235,8 @@ export default function SignupForm() {
         toast.error("لازم تتحقق من معرف العيادة الأول")
         return
       }
-      setCurrentStep((prev) => prev + 1)
+      console.log("Moving to step 4 (Certifications) manually");
+      setCurrentStep(STEPS.CERTIFICATIONS)
     }
   }
 
