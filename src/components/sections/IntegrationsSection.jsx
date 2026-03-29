@@ -50,7 +50,7 @@ export default function IntegrationsSection() {
   };
 
   return (
-    <section id="integrations" className="py-16 bg-gray-50">
+    <section className="py-16 bg-gray-50">
       <div className="container px-4 mx-auto">
         <motion.div
           initial="hidden"

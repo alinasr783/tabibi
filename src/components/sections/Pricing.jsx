@@ -13,22 +13,45 @@ import usePatientCount from "../../features/subscriptions/usePatientCount";
 import usePlanLimits from "../../features/subscriptions/usePlanLimits";
 import usePlan from "../../features/auth/usePlan";
 
-export default function Pricing() {
-  const navigate = useNavigate();
-  const { user } = useAuth();
-  const {data: plans = [], isLoading, error} = usePricingPlans();
-  const [showAnnual, setShowAnnual] = useState(false);
-  
-  // Get usage statistics for the current user
-  const clinicId = user?.clinic_id;
+// Sub-component for progress bars
+const UsageProgressBar = ({ percentage, used, limit, label, icon: Icon }) => {
+  return (
+    <div className="space-y-2">
+      <div className="flex justify-between text-sm">
+        <div className="flex items-center gap-2">
+          <Icon className="w-4 h-4 text-primary" />
+          <span className="text-gray-600">{label}</span>
+        </div>
+        <span className="font-medium">
+          {used || 0} {limit !== Infinity ? `/ ${limit}` : "(غير محدود)"}
+        </span>
+      </div>
+      <div className="w-full bg-gray-200 rounded-full h-2">
+        <div 
+          className={`h-2 rounded-full ${
+            percentage < 70 ? "bg-green-500" : 
+            percentage < 90 ? "bg-yellow-500" : "bg-red-500"
+          }`}
+          style={{ width: `${Math.min(100, Math.max(0, percentage))}%` }}
+        ></div>
+      </div>
+      <div className="text-xs text-gray-500 text-left">
+        {isNaN(percentage) ? "0" : percentage}% مستخدم
+      </div>
+    </div>
+  );
+};
+
+// Sub-component for usage statistics - only called if user is logged in
+function UsageStats({ clinicId, itemVariant }) {
   const { data: planData } = usePlan();
   const { data: usageStats } = useSubscriptionUsage(clinicId);
-  const { data: patientCount } = usePatientCount(clinicId);
   const { data: planLimits } = usePlanLimits(clinicId);
   
-  // Calculate usage percentages
   const currentPlan = planData?.plans;
-  const isFreePlan = !currentPlan || currentPlan.name === "Free" || currentPlan.name === "باقة مجانية";
+  if (!currentPlan) return null;
+
+  const isFreePlan = currentPlan.name === "Free" || currentPlan.name === "باقة مجانية";
   
   // Get plan limits
   let patientLimit = planLimits?.maxPatients || 0;
@@ -43,6 +66,50 @@ export default function Pricing() {
     ? Math.min(100, Math.max(0, Math.round((usageStats.monthlyAppointments / appointmentLimit) * 100)))
     : 0;
 
+  return (
+    <motion.div variants={itemVariant} className="mt-8 max-w-2xl mx-auto">
+      <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+        <CardContent className="p-6">
+          <h3 className="font-medium text-gray-900 mb-4 text-center">إحصائيات استخدام باقتك الحالية</h3>
+          
+          <div className="mb-4">
+            <UsageProgressBar 
+              percentage={patientUsagePercentage}
+              used={usageStats?.monthlyPatients || 0}
+              limit={patientLimit}
+              label="المرضى الجدد شهرياً"
+              icon={Users}
+            />
+          </div>
+          
+          <div className="mb-4">
+            <UsageProgressBar 
+              percentage={appointmentUsagePercentage}
+              used={usageStats?.monthlyAppointments || 0}
+              limit={appointmentLimit}
+              label="الحجوزات الشهرية"
+              icon={Calendar}
+            />
+          </div>
+          
+          <div className="text-center text-sm text-muted-foreground mt-4">
+            باقتك الحالية: <span className="font-medium">{currentPlan.name}</span>
+            {isFreePlan && (
+              <span className="block mt-1">للحصول على قيود أقل، قم بالترقية إلى باقة مدفوعة</span>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+}
+
+export default function Pricing() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const {data: plans = [], isLoading, error} = usePricingPlans();
+  const [showAnnual, setShowAnnual] = useState(false);
+  
   const container = {
     hidden: { opacity: 0 },
     visible: {
@@ -73,7 +140,7 @@ export default function Pricing() {
 
   if (isLoading) {
     return (
-      <section id="pricing" className="container py-20 mx-auto">
+      <section className="container py-20 mx-auto">
         <motion.div
           initial="hidden"
           whileInView="visible"
@@ -114,7 +181,7 @@ export default function Pricing() {
 
   if (error) {
     return (
-      <section id="pricing" className="container py-20 mx-auto">
+      <section className="container py-20 mx-auto">
         <div className="text-center space-y-4">
           <h2 className="text-3xl font-bold">خطط تسعير مرنة</h2>
           <p className="text-destructive">
@@ -126,41 +193,11 @@ export default function Pricing() {
   }
 
   const handleSelectPlan = (plan) => {
-    // Navigate to plan details page
     navigate(`/plan/${plan.id}`);
   };
 
-  // Progress bar component for usage statistics
-  const UsageProgressBar = ({ percentage, used, limit, label, icon: Icon }) => {
-    return (
-      <div className="space-y-2">
-        <div className="flex justify-between text-sm">
-          <div className="flex items-center gap-2">
-            <Icon className="w-4 h-4 text-primary" />
-            <span className="text-gray-600">{label}</span>
-          </div>
-          <span className="font-medium">
-            {used || 0} {limit !== Infinity ? `/ ${limit}` : "(غير محدود)"}
-          </span>
-        </div>
-        <div className="w-full bg-gray-200 rounded-full h-2">
-          <div 
-            className={`h-2 rounded-full ${
-              percentage < 70 ? "bg-green-500" : 
-              percentage < 90 ? "bg-yellow-500" : "bg-red-500"
-            }`}
-            style={{ width: `${Math.min(100, Math.max(0, percentage))}%` }}
-          ></div>
-        </div>
-        <div className="text-xs text-gray-500 text-left">
-          {isNaN(percentage) ? "0" : percentage}% مستخدم
-        </div>
-      </div>
-    );
-  };
-
   return (
-    <section id="pricing" className="container py-20 mx-auto">
+    <section className="container py-20 mx-auto">
       <motion.div
         initial="hidden"
         whileInView="visible"
@@ -223,44 +260,9 @@ export default function Pricing() {
           </div>
         </motion.div>
 
-        {/* Current Usage Stats - Only show if user has a plan */}
-        {currentPlan && (
-          <motion.div variants={item} className="mt-8 max-w-2xl mx-auto">
-            <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-              <CardContent className="p-6">
-                <h3 className="font-medium text-gray-900 mb-4 text-center">إحصائيات استخدام باقتك الحالية</h3>
-                
-                {/* Patient Usage */}
-                <div className="mb-4">
-                  <UsageProgressBar 
-                    percentage={patientUsagePercentage}
-                    used={usageStats?.monthlyPatients || 0}
-                    limit={patientLimit}
-                    label="المرضى الجدد شهرياً"
-                    icon={Users}
-                  />
-                </div>
-                
-                {/* Appointment Usage */}
-                <div className="mb-4">
-                  <UsageProgressBar 
-                    percentage={appointmentUsagePercentage}
-                    used={usageStats?.monthlyAppointments || 0}
-                    limit={appointmentLimit}
-                    label="الحجوزات الشهرية"
-                    icon={Calendar}
-                  />
-                </div>
-                
-                <div className="text-center text-sm text-muted-foreground mt-4">
-                  باقتك الحالية: <span className="font-medium">{currentPlan.name}</span>
-                  {isFreePlan && (
-                    <span className="block mt-1">للحصول على قيود أقل، قم بالترقية إلى باقة مدفوعة</span>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
+        {/* Current Usage Stats - Only show if user is logged in */}
+        {user && user.clinic_id && (
+          <UsageStats clinicId={user.clinic_id} itemVariant={item} />
         )}
 
         <motion.div 
@@ -273,15 +275,14 @@ export default function Pricing() {
             const popularIndex = plans.findIndex(plan => plan.popular);
             
             if (popularIndex !== -1 && plans.length === 3) {
-              // Move popular plan to center (index 1)
               const popularPlan = plans[popularIndex];
               const remainingPlans = plans.filter((_, index) => index !== popularIndex);
               reorderedPlans = [remainingPlans[0], popularPlan, remainingPlans[1]];
             }
             
             return reorderedPlans.map((plan, index) => {
-              const annualPrice = plan.price * 10; // 10 months pricing
-              const annualSavings = plan.price * 2; // 2 months free
+              const annualPrice = plan.price * 10;
+              const annualSavings = plan.price * 2;
               const displayPrice = showAnnual ? annualPrice : plan.price;
               
               return (
@@ -339,7 +340,7 @@ export default function Pricing() {
                         )}
                       </div>
                       <ul className="space-y-2 text-sm text-muted-foreground">
-                        {plan.features.map((feature, featureIndex) => (
+                        {Array.isArray(plan.features) && plan.features.map((feature, featureIndex) => (
                           <motion.li 
                             key={featureIndex} 
                             className="flex items-start gap-2"
@@ -347,25 +348,23 @@ export default function Pricing() {
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: 0.1 * featureIndex }}
                           >
-                            <CheckCircle2 className="size-4 text-primary mt-0.5 flex-shrink-0" />
+                            <CheckCircle2 className="size-4 text-primary mt-0.5 shrink-0" />
                             <span>{feature}</span>
                           </motion.li>
                         ))}
                       </ul>
                     </CardContent>
                     <CardFooter>
-                      <motion.button
+                      <button
                         onClick={() => handleSelectPlan(plan)}
-                        className={`w-full inline-flex items-center justify-center cursor-pointer whitespace-nowrap rounded-[var(--radius)] text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:pointer-events-none disabled:opacity-50 ${
-                          plan.popular 
-                            ? "bg-primary text-primary-foreground shadow hover:bg-primary/90 h-10 px-4 py-2" 
-                            : "border border-border bg-transparent text-foreground hover:bg-muted h-10 px-4 py-2"
+                        className={`w-full py-2 rounded-md font-medium transition-colors ${
+                          plan.popular
+                            ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                            : "bg-muted text-muted-foreground hover:bg-muted/80"
                         }`}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
                       >
-                        اختر الباقة
-                      </motion.button>
+                        {plan.price === 0 ? "ابدأ الآن" : "اختر الخطة"}
+                      </button>
                     </CardFooter>
                   </Card>
                 </motion.div>

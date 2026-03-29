@@ -69,7 +69,7 @@ export default function BlogSection() {
   if (loading) return null; // Or a skeleton
 
   return (
-    <section className="py-20 bg-gray-50" id="blog">
+    <section className="py-20 bg-gray-50">
         <div className="container">
             <div className="text-center mb-12">
                 <h2 className="text-3xl font-bold mb-4">أحدث المقالات الطبية</h2>

@@ -79,7 +79,7 @@ export default function FAQ() {
   };
 
   return (
-    <section id="faq" className="py-16 bg-white">
+    <section className="py-16 bg-white">
       <div className="container px-4 mx-auto">
         <motion.div
           initial="hidden"

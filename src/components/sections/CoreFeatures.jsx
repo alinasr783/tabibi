@@ -61,7 +61,7 @@ export default function CoreFeatures() {
   };
 
   return (
-    <section id="core-features" className="py-16 bg-white">
+    <section className="py-16 bg-white">
       <div className="container px-4 mx-auto">
         <motion.div
           initial="hidden"

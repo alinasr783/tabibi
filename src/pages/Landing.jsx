@@ -35,7 +35,7 @@ function SectionSkeleton() {
   );
 }
 
-function LazySection({ children, fallback = <SectionSkeleton />, rootMargin = "600px" }) {
+function LazySection({ children, fallback = <SectionSkeleton />, rootMargin = "600px", id }) {
   const ref = useRef(null);
   const [isVisible, setIsVisible] = useState(false);
 
@@ -58,7 +58,11 @@ function LazySection({ children, fallback = <SectionSkeleton />, rootMargin = "6
     return () => observer.disconnect();
   }, [isVisible, rootMargin]);
 
-  return <div ref={ref}>{isVisible ? children : fallback}</div>;
+  return (
+    <div ref={ref} id={id}>
+      {isVisible ? children : fallback}
+    </div>
+  );
 }
 
 export default function Landing() {
@@ -119,67 +123,67 @@ export default function Landing() {
       <main id="main-content">
         <Hero />
 
-        <LazySection fallback={<SectionSkeleton />}>
+        <LazySection id="tabibi-ai">
           <Suspense fallback={<SectionSkeleton />}>
             <TabibiAI />
           </Suspense>
         </LazySection>
 
-        <LazySection fallback={<SectionSkeleton />}>
+        <LazySection id="core-features">
           <Suspense fallback={<SectionSkeleton />}>
             <CoreFeatures />
           </Suspense>
         </LazySection>
 
-        <LazySection fallback={<SectionSkeleton />}>
+        <LazySection>
           <Suspense fallback={<SectionSkeleton />}>
             <TabibiAppsSection />
           </Suspense>
         </LazySection>
 
-        <LazySection fallback={<SectionSkeleton />}>
+        <LazySection id="online-booking">
           <Suspense fallback={<SectionSkeleton />}>
             <OnlineBooking />
           </Suspense>
         </LazySection>
 
-        <LazySection fallback={<SectionSkeleton />}>
+        <LazySection id="integrations">
           <Suspense fallback={<SectionSkeleton />}>
             <IntegrationsSection />
           </Suspense>
         </LazySection>
 
-        <LazySection fallback={<SectionSkeleton />}>
+        <LazySection>
           <Suspense fallback={<SectionSkeleton />}>
             <PainSolution />
           </Suspense>
         </LazySection>
 
-        <LazySection fallback={<SectionSkeleton />}>
+        <div id="pricing">
           <Suspense fallback={<SectionSkeleton />}>
             <Pricing />
           </Suspense>
-        </LazySection>
+        </div>
 
-        <LazySection fallback={<SectionSkeleton />}>
+        <LazySection id="testimonials">
           <Suspense fallback={<SectionSkeleton />}>
             <Testimonials />
           </Suspense>
         </LazySection>
 
-        <LazySection fallback={<SectionSkeleton />}>
+        <LazySection id="faq">
           <Suspense fallback={<SectionSkeleton />}>
             <FAQ />
           </Suspense>
         </LazySection>
 
-        <LazySection fallback={<SectionSkeleton />}>
+        <LazySection id="blog">
           <Suspense fallback={<SectionSkeleton />}>
             <BlogSection />
           </Suspense>
         </LazySection>
 
-        <LazySection fallback={<SectionSkeleton />}>
+        <LazySection>
           <Suspense fallback={<SectionSkeleton />}>
             <CTA />
           </Suspense>

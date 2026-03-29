@@ -51,7 +51,7 @@ export default function TabibiAI() {
   };
 
   return (
-    <section id="tabibi-ai" className="py-16 bg-gradient-to-b from-white to-primary/5">
+    <section className="py-16 bg-gradient-to-b from-white to-primary/5">
       <div className="container px-4 mx-auto">
         <motion.div
           initial="hidden"
