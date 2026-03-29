@@ -100,9 +100,13 @@ self.addEventListener('activate', (event) => {
 
 function isValidRequest(request) {
   const url = new URL(request.url);
+  // Do not intercept non-http requests
   if (!url.protocol.startsWith('http')) {
     return false;
   }
+  // Only intercept requests to our own origin (assets and navigation)
+  // External API calls (like Supabase) should not be intercepted by the fetch event
+  // if we're not planning to cache them specifically.
   if (url.origin !== self.location.origin) {
     return false;
   }
