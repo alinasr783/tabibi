@@ -104,13 +104,20 @@ export default function OfflineSettingsTab() {
     }
     setIsSyncing(true);
     try {
-      await syncQueuedOperations();
+      const result = await syncQueuedOperations();
       const now = new Date().toISOString();
       localStorage.setItem("tabibi_last_sync_time", now);
       setLastSyncTime(new Date(now));
+      
       const items = await getUnsyncedItems();
-      setPendingCount(items?.length || 0);
-      toast.success("تمت المزامنة بنجاح");
+      const remaining = items?.length || 0;
+      setPendingCount(remaining);
+
+      if (result.failed > 0) {
+        toast.warning(`تمت مزامنة ${result.synced} عمليات، وفشلت ${result.failed}. يرجى مراجعة سجلات السيرفر.`);
+      } else {
+        toast.success("تمت المزامنة بنجاح");
+      }
     } catch (e) {
       toast.error(`فشلت المزامنة: ${e?.message || "خطأ غير معروف"}`);
     } finally {

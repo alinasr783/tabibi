@@ -8,6 +8,8 @@ import { toast } from 'sonner';
 import { NotificationToast } from '../../features/Notifications/NotificationToast';
 import { processVisitInputStream } from '../../services/groqService';
 import { updateVisit } from '../../services/apiVisits';
+import { updatePatient } from '../../services/apiPatients';
+import { updateAppointment } from '../../services/apiAppointments';
 import { useQueryClient } from '@tanstack/react-query';
 import { useUserPreferences } from '../../hooks/useUserPreferences';
 import { normalizeMedicalFieldsConfig, flattenCustomFieldTemplates, mergeTemplatesIntoCustomFields } from '../../lib/medicalFieldsConfig';
@@ -19,11 +21,18 @@ export default function VisitIntelligence({ visit }) {
   const [showResult, setShowResult] = useState(false);
   const textareaRef = useRef(null);
   const previousInputRef = useRef('');
-  const [chatLog, setChatLog] = useState([]); // Local state only
+  const [chatLog, setChatLog] = useState([]);
   const activeRequestRef = useRef({ abortController: null, timeoutId: null });
   
   const queryClient = useQueryClient();
   const { data: preferences } = useUserPreferences();
+
+  // Load chat history from visit data
+  useEffect(() => {
+    if (visit?.ai_chat_log) {
+      setChatLog(visit.ai_chat_log);
+    }
+  }, [visit?.ai_chat_log]);
 
   // Early return if AI is disabled for this page
   if (preferences?.ai_settings?.enabled_pages?.visit_details === false) {
@@ -281,85 +290,68 @@ export default function VisitIntelligence({ visit }) {
         },
       });
       
-      const updates = result.updates || {};
-      const reply = result.reply || "تم استلام البيانات.";
-      const ui = result.ui && typeof result.ui === "object" && !Array.isArray(result.ui) ? result.ui : null;
-      const createFields = Array.isArray(result.create_fields) ? result.create_fields : [];
+      const { 
+        visit_updates = {}, 
+        patient_updates = {}, 
+        appointment_updates = {}, 
+        reply = "تم استلام البيانات.",
+        ui = null,
+        create_fields = []
+      } = result;
 
       let successDetails = [];
-      Object.entries(updates).forEach(([key, value]) => {
-        if (key === 'custom_fields') return;
-        if (key === 'medications') {
-            successDetails.push("الأدوية");
-            return;
+      
+      // 1. Process Visit Updates
+      let finalVisitUpdates = { ...visit_updates };
+      const currentVisitFields = Array.isArray(visit.custom_fields) ? [...visit.custom_fields] : [];
+
+      if (visit_updates.custom_fields) {
+        Object.entries(visit_updates.custom_fields).forEach(([id, value]) => {
+          const idx = currentVisitFields.findIndex(f => String(f.id) === String(id));
+          if (idx >= 0) currentVisitFields[idx].value = value;
+          else if (fieldDefinitions.has(id)) {
+            const def = fieldDefinitions.get(id);
+            currentVisitFields.push({ ...def, value });
+          }
+          successDetails.push(getFieldName(id, fieldDefinitions));
+        });
+        finalVisitUpdates.custom_fields = currentVisitFields;
+      }
+
+      Object.keys(visit_updates).forEach(key => {
+        if (key !== 'custom_fields') {
+          if (key === 'medications') successDetails.push("الأدوية");
+          else successDetails.push(getFieldName(key, fieldDefinitions));
         }
-        successDetails.push(getFieldName(key, fieldDefinitions));
       });
 
-      let finalUpdates = { ...updates };
-      
-      const existingFields = Array.isArray(visit.custom_fields)
-        ? [...visit.custom_fields]
-        : [];
-
-      if (createFields.length > 0) {
-        const existingNames = new Set(existingFields.map((f) => String(f?.name || "").trim().toLowerCase()).filter(Boolean));
-        createFields.forEach((proposal) => {
-          const name = String(proposal?.name || "").trim();
-          if (!name) return;
-          const nameKey = name.toLowerCase();
-          if (existingNames.has(nameKey)) return;
-          const type = normalizeProposedFieldType(proposal?.type);
-          const sectionId = knownSectionIds.has(String(proposal?.section_id || ""))
-            ? String(proposal.section_id)
-            : "notes";
-          const options = Array.isArray(proposal?.options) ? proposal.options.map(String).filter(Boolean) : [];
-          const initialValue = Object.prototype.hasOwnProperty.call(proposal || {}, "initial_value")
-            ? proposal.initial_value
-            : defaultValueForType(type);
-
-          const id = typeof crypto?.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
-          existingFields.push({
-            id,
-            name,
-            type,
-            section_id: sectionId,
-            options: type === "select" || type === "multiselect" ? options : [],
-            value: initialValue,
-          });
-          fieldDefinitions.set(String(id), { id, name, type, section_id: sectionId, options });
-          successDetails.push(name);
-          existingNames.add(nameKey);
-        });
-      }
-
-      if (updates.custom_fields) {
-        const newValues = updates.custom_fields;
-        const existingMap = new Map(existingFields.map(f => [f.id, f]));
-        
-        Object.entries(newValues).forEach(([id, value]) => {
-          successDetails.push(getFieldName(id, fieldDefinitions));
-
-          if (existingMap.has(id)) {
-            const field = existingMap.get(id);
-            field.value = value;
-          } else if (fieldDefinitions.has(id)) {
-            const def = fieldDefinitions.get(id);
-            existingFields.push({
-              id: def.id,
-              name: def.name,
-              type: def.type,
-              section_id: def.section_id,
-              value: value,
-              options: def.options || []
-            });
+      // 2. Process Patient Updates
+      let finalPatientUpdates = { ...patient_updates };
+      if (Object.keys(patient_updates).length > 0 && visit.patient_id) {
+        const medicalHistoryKeys = new Set(["chief_complaint", "chronic_diseases", "blood_pressure", "blood_sugar", "allergies", "past_surgeries", "family_history"]);
+        const patientMedicalHistory = {};
+        Object.keys(patient_updates).forEach(key => {
+          if (medicalHistoryKeys.has(key)) {
+            patientMedicalHistory[key] = patient_updates[key];
+            delete finalPatientUpdates[key];
           }
+          successDetails.push(`المريض: ${getFieldName(key, fieldDefinitions)}`);
         });
-        
-        finalUpdates.custom_fields = existingFields;
-      } else if (createFields.length > 0) {
-        finalUpdates.custom_fields = existingFields;
+
+        if (Object.keys(patientMedicalHistory).length > 0) {
+          finalPatientUpdates.medical_history = {
+            ...(visit.patient?.medical_history || {}),
+            ...patientMedicalHistory
+          };
+        }
+
+        await updatePatient(visit.patient_id, finalPatientUpdates);
+        queryClient.invalidateQueries({ queryKey: ['patient', visit.patient_id] });
       }
+
+      // 3. Process Appointment Updates (If visit linked to appointment)
+      // Note: Visit table doesn't have explicit appointment_id in schema, 
+      // but we might have it in the component context if passed.
 
       setChatLog((prev) =>
         prev.map((m) =>
@@ -369,20 +361,32 @@ export default function VisitIntelligence({ visit }) {
         )
       );
 
+      // Get latest chat log for saving
+      const finalChatLog = [...newChatLog, { 
+        id: assistantMessageId, 
+        role: "assistant", 
+        content: { version: "tabibi_intelligence_v2", title: "المساعد الشخصي", changes: ui?.changes || [], reply },
+        timestamp: new Date().toISOString() 
+      }];
+
       const allowedVisitColumns = new Set([
         "diagnosis",
         "treatment",
         "notes",
         "follow_up",
         "medications",
-        "custom_fields"
+        "custom_fields",
+        "ai_chat_log"
       ]);
 
       const sanitizedUpdates = {};
-      Object.entries(finalUpdates).forEach(([key, value]) => {
+      Object.entries(finalVisitUpdates).forEach(([key, value]) => {
         if (!allowedVisitColumns.has(key)) return;
         sanitizedUpdates[key] = value;
       });
+
+      // Add chat log to sanitized updates
+      sanitizedUpdates.ai_chat_log = finalChatLog;
 
       // Optimistic update
       const updatedVisitData = { ...visit, ...sanitizedUpdates };

@@ -1,73 +1,108 @@
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
-import { Calendar, AlertTriangle, RefreshCw, MessageCircle } from "lucide-react";
+import { Calendar, RefreshCw, Sparkles, Zap, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "./ui/card";
 
-export default function SubscriptionExpiryPopup({ daysRemaining, expiryDate }) {
+export default function SubscriptionExpiryPopup({ daysRemaining, expiryDate, status }) {
     const navigate = useNavigate();
     
-    const handleRenewSubscription = () => {
-        navigate("/subscriptions");
-    };
+    const isExpired = status === "expired";
     
-    const handleContactSupport = () => {
-        // WhatsApp support removed per user request
-        // const phoneNumber = "+201234567890"; 
-        // const message = "مرحبًا، أحتاج إلى المساعدة بشأن تجديد اشتراكي في نظام طبيبي.";
-        // const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
-        // window.open(whatsappUrl, "_blank");
-        alert("يرجى التواصل مع الدعم الفني.");
+    const handleAction = () => {
+        navigate("/subscriptions");
     };
     
     return (
         <div className="fixed inset-0 flex items-center justify-center p-4 z-50" style={{ zIndex: 9999 }}>
-            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
-            <Card className="relative w-full max-w-md bg-card rounded-[var(--radius)] shadow-xl z-10">
-                <CardHeader className="text-center pb-2">
-                    <div className="mx-auto bg-red-100 rounded-full w-16 h-16 flex items-center justify-center mb-4">
-                        <AlertTriangle className="w-8 h-8 text-red-600" />
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-md"></div>
+            <Card className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl z-10 overflow-hidden border-none" dir="rtl">
+                {/* Visual Header */}
+                <div className={`h-32 flex items-center justify-center relative ${
+                    isExpired ? "bg-red-50" : "bg-primary/10"
+                }`}>
+                    <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg rotate-3 ${
+                        isExpired ? "bg-red-600" : "bg-primary"
+                    }`}>
+                        {isExpired ? (
+                            <Zap className="size-8 text-white fill-current" />
+                        ) : (
+                            <Sparkles className="size-8 text-white fill-current" />
+                        )}
                     </div>
-                    <h2 className="text-xl font-bold text-gray-900">الاشتراك انتهى</h2>
+                </div>
+
+                <CardHeader className="text-center pt-6 pb-2">
+                    <h2 className="text-2xl font-bold tracking-tight text-gray-900">
+                        {isExpired ? "الاشتراك خلص!" : "خطوة واحدة تفصلك!"}
+                    </h2>
                 </CardHeader>
                 
-                <CardContent className="text-center space-y-4">
-                    <p className="text-gray-600">
-                        {daysRemaining !== null ? (
-                            daysRemaining === 0 ? (
-                                "انتهت صلاحية اشتراكك اليوم"
+                <CardContent className="text-center space-y-5 px-6">
+                    <p className="text-base text-gray-600 leading-relaxed">
+                        {isExpired ? (
+                            daysRemaining !== null ? (
+                                daysRemaining === 0 ? (
+                                    "اشتراك عيادتك خلص النهاردة.. جدد دلوقتي عشان متوقفش شغل."
+                                ) : (
+                                    `الاشتراك خلص من ${Math.abs(daysRemaining)} يوم.. محتاج تجدد عشان ترجع تستخدم طبيبي.`
+                                )
                             ) : (
-                                `انتهت صلاحية اشتراكك منذ ${Math.abs(daysRemaining)} يوم${Math.abs(daysRemaining) === 1 ? '' : 'ا'}`
+                                "الاشتراك خلص.. عيادتك محتاجة تجديد عشان تكمل شغل."
                             )
                         ) : (
-                            "انتهت صلاحية اشتراكك"
+                            "أهلاً بك في طبيبي! اشترك في باقة دلوقتي وفك كل المميزات لعيادتك."
                         )}
                     </p>
                     
-                    {expiryDate && (
-                        <div className="bg-gray-50 rounded-[var(--radius)] p-3 flex items-center justify-center gap-2">
-                            <Calendar className="w-4 h-4 text-gray-500" />
-                            <span className="text-sm text-gray-700">
-                                تاريخ الانتهاء: {format(new Date(expiryDate), "dd MMMM yyyy", { locale: ar })}
+                    {isExpired && expiryDate && (
+                        <div className="bg-gray-50 rounded-2xl p-3.5 flex items-center justify-center gap-2 border border-gray-100">
+                            <Calendar className="w-4 h-4 text-gray-400" />
+                            <span className="text-sm font-medium text-gray-700">
+                                خلص يوم: {format(new Date(expiryDate), "dd MMMM yyyy", { locale: ar })}
                             </span>
                         </div>
                     )}
                     
-                    <div className="bg-blue-50 border border-blue-200 rounded-[var(--radius)] p-3">
-                        <p className="text-sm text-blue-700">
-                            يرجى تجديد اشتراكك للوصول إلى هذه الصفحة والميزات الأخرى
+                    <div className={`${isExpired ? "bg-red-50/50 border-red-100 text-red-700" : "bg-primary/5 border-primary/10 text-primary"} border rounded-2xl p-4`}>
+                        <p className="text-sm font-medium">
+                            {isExpired 
+                                ? "الصفحة دي مقفولة حالياً.. جدد اشتراكك عشان تفتحها هي وباقي المميزات."
+                                : "اشترك دلوقتي وفعل إدارة المرضى، المواعيد، والتقارير المالية لعيادتك."}
                         </p>
                     </div>
                 </CardContent>
                 
-                <CardFooter className="flex flex-col gap-3">
+                <CardFooter className="flex flex-col gap-3 p-6 pt-2">
                     <Button 
-                        onClick={handleRenewSubscription}
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                        onClick={handleAction}
+                        className={`w-full h-12 rounded-2xl text-base font-bold gap-2 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg ${
+                            isExpired 
+                                ? "bg-red-600 hover:bg-red-700 shadow-red-200" 
+                                : "bg-primary hover:bg-primary/90 shadow-primary/20"
+                        }`}
                     >
-                        <RefreshCw className="w-4 h-4 ml-2" />
-                        تجديد الاشتراك
+                        {isExpired ? (
+                            <>
+                                <RefreshCw className="w-4 h-4" />
+                                جدد اشتراكك دلوقتي
+                            </>
+                        ) : (
+                            <>
+                                <Sparkles className="w-4 h-4" />
+                                اشترك في طبيبي
+                            </>
+                        )}
+                        <ArrowLeft className="size-4" />
+                    </Button>
+                    
+                    <Button 
+                        variant="ghost" 
+                        onClick={() => navigate("/dashboard")}
+                        className="w-full h-10 rounded-xl text-gray-500 font-medium"
+                    >
+                        الرجوع للرئيسية
                     </Button>
                 </CardFooter>
             </Card>

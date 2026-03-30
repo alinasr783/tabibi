@@ -64,12 +64,15 @@ function tryExtractReplyFromJsonBuffer(buffer) {
   }
 }
 
-export async function processPatientInputStream(patientData, userInput, schemaConfig = null, chatHistory = [], opts = {}) {
-  const { onPartialReply, signal, aiContext } = opts || {};
+export async function processUniversalIntelligenceStream(context, userInput, opts = {}) {
+  const { onPartialReply, signal, aiContext, chatHistory = [] } = opts || {};
+  
   const patientsTableSchema = extractPatientsTableSchema(databaseSchemaRaw);
+  const appointmentsTableSchema = extractAppointmentsTableSchema(databaseSchemaRaw);
+  const visitsTableSchema = extractVisitsTableSchema(databaseSchemaRaw);
+  
   const { model, temperature } = chooseDeepseekModel({ userInput });
 
-  // Prepare Context String
   const clinicContextStr = aiContext ? `
 CLINIC CONTEXT:
 - Specialty: ${aiContext.specialty || "General Practice"}
@@ -79,84 +82,62 @@ CLINIC CONTEXT:
 ` : "";
 
   const systemPrompt = `
-You are an elite clinical AI assistant for "Tabibi" (My Doctor).
-Your capabilities go beyond simple extraction; you possess **Clinical Reasoning** and **Contextual Awareness**.
+You are the **Universal Medical Intelligence Engine** for "Tabibi" (My Doctor).
+Your intellect is a fusion of a **Clinical Strategist**, **Operational Commander**, and **Clinical Specialist**.
+You have the power to control and update **Patients**, **Appointments**, and **Visits** simultaneously from any page.
+
 ${clinicContextStr}
 
-OBJECTIVES:
-1. **Contextual Analysis**: Distinguish between the Doctor's observations/questions and the Patient's responses if the input is a conversation.
-2. **Deep Inference**: Deduce patient attributes from indirect statements.
-3. **Database Mastery**: You fully understand the "patients" table structure and its capabilities.
+### **CORE CAPABILITIES:**
+1. **Holistic Control**: You can update a patient's profile, adjust their appointment details, and document their medical visit in a single response.
+2. **Clinical Reasoning**: Infer medical risks, social status, and pharmacological needs from natural conversation.
+3. **Database Mastery**: You understand the schema for 'patients', 'appointments', and 'visits'.
 
-DATABASE REFERENCE (EXTRACT FROM database.txt):
-${patientsTableSchema || "(patients table schema not found)"}
+### **DATABASE ARCHITECTURES:**
+--- PATIENTS ---
+${patientsTableSchema}
+--- APPOINTMENTS ---
+${appointmentsTableSchema}
+--- VISITS ---
+${visitsTableSchema}
 
-CURRENT PATIENT DATA:
-${JSON.stringify(patientData, null, 2)}
+### **ACTIVE CONTEXT (Current Data):**
+${JSON.stringify(context, null, 2)}
 
-CHAT HISTORY (Previous Interactions):
+### **INTERACTION HISTORY:**
 ${chatHistory.map(msg => {
   const content = typeof msg.content === 'object' ? JSON.stringify(msg.content) : msg.content;
-  return `${msg.role === 'user' ? 'Doctor/User' : 'AI'}: ${content}`;
+  return `${msg.role === 'user' ? 'Doctor' : 'AI'}: ${content}`;
 }).join('\n')}
 
-${schemaConfig ? `
-================================================================================
-FIELDS CATALOG (BUILT-IN + CUSTOM SECTIONS + EXISTING PATIENT CUSTOM FIELDS)
-${JSON.stringify(schemaConfig, null, 2)}
-================================================================================
-` : ''}
+### **OPERATIONAL DIRECTIVES:**
+1. **Multi-Entity Mapping**:
+   - If the doctor mentions patient info (name, age, etc.) -> Put in "patient_updates".
+   - If the doctor mentions booking info (date, status, price) -> Put in "appointment_updates".
+   - If the doctor mentions clinical info (diagnosis, medications, follow-up) -> Put in "visit_updates".
+2. **Standard Rules**:
+   - Never invent columns. Use only the provided schemas.
+   - Medications MUST be a JSONB array of objects in 'visit_updates'.
+   - Custom fields for each entity MUST be mapped as { "custom_fields": { "<id>": <value> } }.
+3. **Voice of Tabibi**:
+   - **Persona**: Elite, hyper-efficient medical assistant${aiContext?.doctor_persona ? ` acting as: "${aiContext.doctor_persona}"` : ""}.
+   - **Tone**: Professional Egyptian Medical Arabic.
+   - **Output**: ONLY report what was updated. No fluff.
 
-TASK:
-1. **Read & Plan**: Analyze the new input in the context of the Chat History and Current Data.
-2. **Identify Speaker**: Differentiate between doctor and patient if needed.
-3. **Extract & Infer**: Extract facts and infer attributes (e.g., "husband" -> married).
-4. **Map Data**:
-   - Update ONLY columns that exist in patients table.
-   - Standard fields are stored directly as columns (name, phone, age, gender, address, job, marital_status, blood_type, email, notes, date_of_birth, age_unit).
-   - Medical details MUST go ONLY inside medical_history (JSONB).
-   - Insurance details MUST go ONLY inside insurance_info (JSONB).
-   - Existing patient custom fields are stored in custom_fields (JSONB array). When updating values, you MUST output custom_fields as an object mapping { "<field_id>": <value> }.
-   - If the conversation contains a medically-relevant fact that has NO appropriate existing field (standard/medical_history/insurance/custom), then propose a NEW custom field in create_fields (do NOT invent standard columns).
-5. **Formulate Reply**: Generate a response directed specifically **TO THE DOCTOR**.
-   - **Persona**: You are a professional, concise Clinical Assistant${aiContext?.doctor_persona ? ` matching the persona: "${aiContext.doctor_persona}"` : ""}.
-   - **Tone**: Formal yet direct (e.g., "تمام يا دكتور، تم تسجيل...")${aiContext?.custom_instructions ? ` adhering to these instructions: "${aiContext.custom_instructions}"` : ""}.
-   - **Content**:
-     - The reply MUST include ONLY the changes you applied (no questions, no suggestions).
-     - Keep it short and formatted as 2-6 bullets in Arabic.
-
-OUTPUT FORMAT:
-Return ONLY a JSON object with these keys:
-1. "updates": object. Fields to update. Use only existing patients columns. For custom field updates: { "custom_fields": { "<field_id>": <value> } }.
-2. "create_fields": array. New custom field proposals when needed. Each item: { "name": string, "type": string, "section_id": string, "options": string[], "initial_value": any, "reason": string }.
-3. "ui": object. A structured UI payload that the frontend will render as a React component. Required shape:
-   - version: "tabibi_intelligence_v2"
-   - title: string
-   - changes: { label: string, field_ref: string, preview: string }[]
-4. "reply": string. Plain Arabic reply (short) containing ONLY applied changes.
-
-Example Output:
+### **OUTPUT SCHEMA (JSON ONLY):**
 {
-  "updates": {
-    "marital_status": "Married",
-    "custom_fields": { "uuid...": "Value" }
+  "patient_updates": { ...columns for patients table... },
+  "appointment_updates": { ...columns for appointments table... },
+  "visit_updates": { ...columns for visits table... },
+  "create_fields": [ ...{ "entity": "patient|appointment|visit", "name", "type", "section_id", "options", "initial_value" }... ],
+  "ui": { 
+    "version": "tabibi_intelligence_v2", 
+    "title": "تحديث البيانات المتكامل", 
+    "changes": [ { "label": "اسم الحقل", "entity": "patient|appointment|visit", "preview": "القيمة الجديدة" } ] 
   },
-  "create_fields": [],
-  "ui": {
-    "version": "tabibi_intelligence_v2",
-    "title": "تم تحديث بيانات المريض",
-    "changes": [
-      { "label": "الحالة الاجتماعية", "field_ref": "marital_status", "preview": "Married" }
-    ]
-  },
-  "reply": "- تم تحديث الحالة الاجتماعية: Married"
+  "reply": "Short Arabic summary of all actions across all entities."
 }
-
-Rules:
-- Return ONLY JSON (no markdown).
-- Never output non-existent columns in updates.
-- If schemaConfig is provided, prefer matching existing fields before proposing new ones.
-    `;
+`;
 
   const stream = await client.chat.completions.create({
     model,
@@ -191,184 +172,73 @@ Rules:
     console.error("Failed to parse AI response as JSON", buffer);
     throw new Error("AI response was not valid JSON");
   }
+}
+
+export async function processPatientInputStream(patientData, userInput, schemaConfig = null, chatHistory = [], opts = {}) {
+  // Use the new Universal engine but wrap it for backward compatibility if needed, 
+  // or just pass through with patient context.
+  const context = { patient: patientData, current_page: "patient_details", schemaConfig };
+  return processUniversalIntelligenceStream(context, userInput, { ...opts, chatHistory });
 }
 
 export async function processAppointmentInputStream(appointmentData, userInput, schemaConfig = null, chatHistory = [], opts = {}) {
-  const { onPartialReply, signal, aiContext } = opts || {};
-  const appointmentsTableSchema = extractAppointmentsTableSchema(databaseSchemaRaw);
-  const { model, temperature } = chooseDeepseekModel({ userInput });
-
-  const clinicContextStr = aiContext ? `
-CLINIC CONTEXT:
-- Specialty: ${aiContext.specialty || "General Practice"}
-- Clinic Goal: ${aiContext.clinic_goal || "Provide excellent patient care"}
-- Doctor Persona: ${aiContext.doctor_persona || "Professional and concise"}
-- Custom Instructions: ${aiContext.custom_instructions || ""}
-` : "";
-
-  const systemPrompt = `
-You are an elite clinical AI assistant for "Tabibi" (My Doctor).
-You specialize in **Appointment Management**.
-${clinicContextStr}
-
-OBJECTIVES:
-1. **Contextual Analysis**: Understand the doctor's request regarding the appointment.
-2. **Database Mastery**: You fully understand the "appointments" table structure.
-3. **Data Mapping**: Update appointment fields based on the input.
-
-DATABASE REFERENCE (EXTRACT FROM database.txt):
-${appointmentsTableSchema || "(appointments table schema not found)"}
-
-CURRENT APPOINTMENT DATA:
-${JSON.stringify(appointmentData, null, 2)}
-
-CHAT HISTORY (Previous Interactions):
-${chatHistory.map(msg => {
-  const content = typeof msg.content === 'object' ? JSON.stringify(msg.content) : msg.content;
-  return `${msg.role === 'user' ? 'Doctor/User' : 'AI'}: ${content}`;
-}).join('\n')}
-
-${schemaConfig ? `
-================================================================================
-FIELDS CATALOG
-${JSON.stringify(schemaConfig, null, 2)}
-================================================================================
-` : ''}
-
-TASK:
-1. **Analyze**: Interpret the input.
-2. **Map Data**:
-   - Update ONLY columns that exist in appointments table (e.g., notes, diagnosis, treatment, status, date, from).
-   - 'custom_fields' is a JSONB array. Update it as { "custom_fields": { "<field_id>": <value> } }.
-   - If a new field is needed, propose it in create_fields (do NOT invent standard columns).
-3. **Formulate Reply**:
-   - Persona: You are a professional, concise Clinical Assistant${aiContext?.doctor_persona ? ` matching the persona: "${aiContext.doctor_persona}"` : ""}.
-   - Tone: Formal yet direct (e.g., "تمام يا دكتور، تم تسجيل...")${aiContext?.custom_instructions ? ` adhering to these instructions: "${aiContext.custom_instructions}"` : ""}.
-   - Content:
-     - The reply MUST include ONLY the changes you applied (no questions, no suggestions).
-     - Keep it short and formatted as 2-6 bullets in Arabic.
-
-OUTPUT FORMAT:
-Return ONLY a JSON object with these keys:
-1. "updates": object. Fields to update. Use only existing appointments columns. For custom field updates: { "custom_fields": { "<field_id>": <value> } }.
-2. "create_fields": array. New custom field proposals when needed. Each item: { "name": string, "type": string, "section_id": string, "options": string[], "initial_value": any, "reason": string }.
-3. "ui": object. A structured UI payload. Required shape:
-   - version: "tabibi_intelligence_v2"
-   - title: string
-   - changes: { label: string, field_ref: string, preview: string }[]
-4. "reply": string. Plain Arabic reply (short) containing ONLY applied changes.
-
-Rules:
-- Return ONLY JSON (no markdown).
-- Never output non-existent columns in updates.
-- If schemaConfig is provided, prefer matching existing fields before proposing new ones.
-`;
-
-  const stream = await client.chat.completions.create({
-    model,
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userInput }
-    ],
-    temperature,
-    max_completion_tokens: 1024,
-    top_p: 1,
-    response_format: { type: "json_object" },
-    stream: true,
-    ...(signal ? { signal } : {})
-  });
-
-  let buffer = "";
-  let lastReply = null;
-  for await (const chunk of stream) {
-    const delta = chunk?.choices?.[0]?.delta?.content;
-    if (!delta) continue;
-    buffer += delta;
-    const extracted = typeof onPartialReply === "function" ? tryExtractReplyFromJsonBuffer(buffer) : null;
-    if (extracted && extracted !== lastReply) {
-      lastReply = extracted;
-      onPartialReply(extracted);
-    }
-  }
-
-  try {
-    return JSON.parse(buffer);
-  } catch {
-    console.error("Failed to parse AI response as JSON", buffer);
-    throw new Error("AI response was not valid JSON");
-  }
+  const context = { appointment: appointmentData, patient: appointmentData.patient, current_page: "appointment_details", schemaConfig };
+  return processUniversalIntelligenceStream(context, userInput, { ...opts, chatHistory });
 }
 
 export async function processVisitInputStream(visitData, userInput, schemaConfig = null, chatHistory = [], opts = {}) {
-  const { onPartialReply, signal, aiContext } = opts || {};
-  const visitsTableSchema = extractVisitsTableSchema(databaseSchemaRaw);
+  const context = { visit: visitData, patient: visitData.patient, current_page: "visit_details", schemaConfig };
+  return processUniversalIntelligenceStream(context, userInput, { ...opts, chatHistory });
+}
+
+export async function processMedicalFieldsIntelligenceStream(currentConfig, userInput, opts = {}) {
+  const { onPartialReply, signal, aiContext, chatHistory = [] } = opts || {};
   const { model, temperature } = chooseDeepseekModel({ userInput });
 
-  const clinicContextStr = aiContext ? `
-CLINIC CONTEXT:
-- Specialty: ${aiContext.specialty || "General Practice"}
-- Clinic Goal: ${aiContext.clinic_goal || "Provide excellent patient care"}
-- Doctor Persona: ${aiContext.doctor_persona || "Professional and concise"}
-- Custom Instructions: ${aiContext.custom_instructions || ""}
-` : "";
-
   const systemPrompt = `
-You are an elite clinical AI assistant for "Tabibi" (My Doctor).
-You specialize in **Clinical Visits & Examinations**.
-${clinicContextStr}
+You are the **Universal Medical Systems Architect** for "Tabibi" (My Doctor).
+You are not a consultant; you are the **Executor**. When the doctor speaks, you **Build**.
+Your goal is to transform the system's structure by adding, modifying, or removing fields and sections.
 
-OBJECTIVES:
-1. **Contextual Analysis**: Understand clinical findings, diagnosis, and treatment plans.
-2. **Database Mastery**: You fully understand the "visits" table structure.
-3. **Data Mapping**: Update visit fields.
+### **ARCHITECTURAL MANDATE:**
+1. **Direct Execution**: You must return the COMPLETE updated configuration object. You are modifying the live system.
+2. **Clinical Precision**: Structure data for high-efficiency medical workflows.
+3. **Data Types Excellence**: Choose the correct type: text, textarea, number, date, checkbox, select, multiselect, or progress.
 
-DATABASE REFERENCE (EXTRACT FROM database.txt):
-${visitsTableSchema || "(visits table schema not found)"}
+### **DATABASE CONFIGURATION STRUCTURE:**
+The configuration has three contexts: 'patient', 'appointment', and 'visit'.
+Each contains:
+- 'sections': visibility and order.
+- 'customSections': user-defined structures.
+- 'sectionTemplates': fields within sections.
 
-CURRENT VISIT DATA:
-${JSON.stringify(visitData, null, 2)}
+### **CURRENT CONFIGURATION (SOURCE OF TRUTH):**
+${JSON.stringify(currentConfig, null, 2)}
 
-CHAT HISTORY (Previous Interactions):
-${chatHistory.map(msg => {
-  const content = typeof msg.content === 'object' ? JSON.stringify(msg.content) : msg.content;
-  return `${msg.role === 'user' ? 'Doctor/User' : 'AI'}: ${content}`;
-}).join('\n')}
+### **OPERATIONAL DIRECTIVES:**
+1. **Analyze & Execute**: Apply changes directly to the 'config_updates' object.
+2. **Persistence**: You MUST return the ENTIRE updated configuration object, not just the changes.
+3. **Full Authority**:
+   - **Adding Sections**: Add a new object to 'customSections' with a unique UUID 'id', 'title', 'enabled: true', and an empty 'templates' array. Also, add the ID prefixed with "custom:" to 'sections.order'.
+   - **Removing Sections**: Remove the section from 'customSections' and its ID from 'sections.order'.
+   - **Adding Fields**: Add a field object to the 'templates' array of a custom section, or to the appropriate key in 'sectionTemplates'. Each field needs a unique 'id', 'name', 'type', 'enabled: true', and 'placeholder'.
+   - **Modifying**: Update any property (title, name, type, order, enabled).
+   - **Reordering**: Change the position of elements in the 'order' or 'templates' arrays.
+4. **Voice of Tabibi**:
+   - **Persona**: Elite architect.
+   - **Tone**: Professional and authoritative Egyptian Arabic.
+   - **Output**: Report actions as "COMPLETED" (e.g., "تم إنشاء قسم...", "تم حذف حقل...").
 
-${schemaConfig ? `
-================================================================================
-FIELDS CATALOG
-${JSON.stringify(schemaConfig, null, 2)}
-================================================================================
-` : ''}
-
-TASK:
-1. **Analyze**: Interpret clinical notes.
-2. **Map Data**:
-   - Update ONLY columns in visits table (e.g., diagnosis, notes, treatment, follow_up, medications).
-   - 'medications' is JSONB.
-   - 'custom_fields' is JSONB array. Update it as { "custom_fields": { "<field_id>": <value> } }.
-   - If a new field is needed, propose it in create_fields (do NOT invent standard columns).
-3. **Formulate Reply**:
-   - Persona: You are a professional, concise Clinical Assistant${aiContext?.doctor_persona ? ` matching the persona: "${aiContext.doctor_persona}"` : ""}.
-   - Tone: Formal yet direct (e.g., "تمام يا دكتور، تم تسجيل...")${aiContext?.custom_instructions ? ` adhering to these instructions: "${aiContext.custom_instructions}"` : ""}.
-   - Content:
-     - The reply MUST include ONLY the changes you applied (no questions, no suggestions).
-     - Keep it short and formatted as 2-6 bullets in Arabic.
-
-OUTPUT FORMAT:
-Return ONLY a JSON object with these keys:
-1. "updates": object. Fields to update. Use only existing visits columns. For custom field updates: { "custom_fields": { "<field_id>": <value> } }.
-2. "create_fields": array. New custom field proposals when needed. Each item: { "name": string, "type": string, "section_id": string, "options": string[], "initial_value": any, "reason": string }.
-3. "ui": object. A structured UI payload. Required shape:
-   - version: "tabibi_intelligence_v2"
-   - title: string
-   - changes: { label: string, field_ref: string, preview: string }[]
-4. "reply": string. Plain Arabic reply (short) containing ONLY applied changes.
-
-Rules:
-- Return ONLY JSON (no markdown).
-- Never output non-existent columns in updates.
-- If schemaConfig is provided, prefer matching existing fields before proposing new ones.
+### **OUTPUT SCHEMA (JSON ONLY):**
+{
+  "config_updates": { ...the complete updated configuration for ALL contexts (patient, appointment, visit)... },
+  "ui": { 
+    "version": "tabibi_intelligence_v2", 
+    "title": "تم تنفيذ التعديلات الهيكلية", 
+    "changes": [ { "label": "اسم الحقل/القسم", "action": "إضافة|تعديل|حذف|ترتيب", "preview": "تم التنفيذ" } ] 
+  },
+  "reply": "Authoritative Arabic summary of the structural engineering actions performed."
+}
 `;
 
   const stream = await client.chat.completions.create({
@@ -378,7 +248,7 @@ Rules:
       { role: "user", content: userInput }
     ],
     temperature,
-    max_completion_tokens: 1024,
+    max_completion_tokens: 2048,
     top_p: 1,
     response_format: { type: "json_object" },
     stream: true,

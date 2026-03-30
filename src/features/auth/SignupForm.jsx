@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react"
 import { useForm, Controller } from "react-hook-form"
-import toast from "react-hot-toast"
+import { toast } from "sonner"
 import { Button } from "../../components/ui/button"
 import { Input } from "../../components/ui/input"
 import { generateClinicId } from "../../lib/clinicIdGenerator"
-import useSignup from "./useSignup"
+import useSignup from "./useSignup.jsx"
 import useVerifyClinicId from "./useVerifyClinicId"
 import { checkEmailExists, signInWithGoogle } from "../../services/apiAuth"
 import { recordAffiliateLinkOpen } from "../../services/apiAffiliate"
-import { Mail, User, Building2, CheckCircle2, X, Stethoscope, FileText, Link2 } from "lucide-react"
+import { Mail, User, Building2, CheckCircle2, X, Stethoscope, FileText, Link2, AlertTriangle } from "lucide-react"
 import { useSearchParams } from "react-router-dom"
 import {
   Dialog,
@@ -128,7 +128,7 @@ export default function SignupForm() {
     const { role, clinicId, verificationStatus } = googleSignupState;
     
     if (!role) {
-        toast.error("لازم تختار نوع الحساب");
+        showNotificationToast("خطأ في الاختيار", "لازم تختار نوع الحساب عشان نكمل", "error");
         return;
     }
 
@@ -141,11 +141,11 @@ export default function SignupForm() {
         pendingData.clinicId = generateClinicId();
     } else if (role === 'secretary') {
         if (!clinicId) {
-            toast.error("لازم تدخل معرف العيادة");
+            showNotificationToast("بيانات ناقصة", "لازم تدخل معرف العيادة", "error");
             return;
         }
         if (verificationStatus !== 'success') {
-             toast.error("لازم تتحقق من معرف العيادة الأول");
+             showNotificationToast("تحقق مطلوب", "لازم تتحقق من معرف العيادة الأول", "error");
              return;
         }
          pendingData.clinicId = clinicId;
@@ -159,16 +159,66 @@ export default function SignupForm() {
       await signInWithGoogle();
     } catch (e) {
       console.error(e);
-      toast.error("حصل خطأ في التسجيل بجوجل");
+      showNotificationToast("خطأ جوجل", "حصل خطأ وأحنا بنحاول نسجل بجوجل، جرب تاني.", "error");
     }
   }
+
+  // Function to show notification-style toast
+  const showNotificationToast = (title, message, type = "error") => {
+    toast.custom((t) => (
+      <div
+        className={`
+          ${t.visible ? 'animate-in fade-in slide-in-from-top-2' : 'animate-out fade-out slide-out-to-top-2'}
+          relative w-full md:w-96 overflow-hidden rounded-xl border border-primary/20
+          bg-background/80 backdrop-blur-md shadow-lg p-4 flex items-start gap-4
+          transition-all duration-300 select-none
+        `}
+        dir="rtl"
+      >
+        {/* Glassy Gradient Background Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-primary/5 pointer-events-none" />
+        
+        {/* Icon with Ring */}
+        <div className="shrink-0 relative">
+          <div className="absolute inset-0 bg-primary/20 blur-lg rounded-full" />
+          <div className="relative z-10 bg-background/50 backdrop-blur-sm p-2 rounded-full ring-1 ring-primary/20 shadow-sm">
+            {type === "error" ? (
+              <AlertTriangle className="h-5 w-5 text-red-500" />
+            ) : (
+              <CheckCircle2 className="h-5 w-5 text-primary" />
+            )}
+          </div>
+        </div>
+
+        {/* Text Content */}
+        <div className="flex-1 min-w-0 pt-0.5 space-y-1">
+          <h4 className="text-sm font-bold text-foreground leading-none">
+            {title}
+          </h4>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            {message}
+          </p>
+        </div>
+
+        <button 
+          onClick={() => toast.dismiss(t.id)}
+          className="shrink-0 text-muted-foreground hover:text-foreground transition-colors relative z-20"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    ), {
+      duration: 5000,
+      position: 'top-center'
+    });
+  };
 
   async function handleNextStep() {
     let fieldsToValidate = []
 
     if (currentStep === STEPS.ACCOUNT_INFO) {
       console.log("Validating Step 1");
-      fieldsToValidate = ["email", "password", "confirmPassword"]
+      fieldsToValidate = ["email", "password"]
       
       // Validate form fields first
       const isValid = await trigger(fieldsToValidate)
@@ -187,7 +237,11 @@ export default function SignupForm() {
         const emailExists = await checkEmailExists(email)
         console.log("Email exists check result:", emailExists)
         if (emailExists) {
-          toast.error("الإيميل ده موجود قبل كده، جرب إيميل تاني")
+          showNotificationToast(
+            "الإيميل مسجل مسبقاً",
+            "الإيميل ده موجود قبل كده في نظام طبيبي، جرب تسجل دخول أو استخدم إيميل تاني.",
+            "error"
+          )
           setIsCheckingEmail(false)
           return
         }
@@ -196,13 +250,17 @@ export default function SignupForm() {
         setCurrentStep(STEPS.PERSONAL_INFO)
       } catch (error) {
         console.error("Error checking email:", error)
-        toast.error("حصل مشكلة في التحقق من الإيميل")
+        showNotificationToast(
+          "خطأ في التحقق",
+          "حصل مشكلة وأحنا بنتأكد من الإيميل، جرب تاني كمان شوية.",
+          "error"
+        )
         setIsCheckingEmail(false)
         return
       }
     } else if (currentStep === STEPS.PERSONAL_INFO) {
       console.log("Validating Step 2");
-      fieldsToValidate = ["name", "phone", "role"]
+      fieldsToValidate = ["role"]
       
       const isValid = await trigger(fieldsToValidate)
       console.log("Step 2 Form Valid:", isValid);
@@ -223,16 +281,16 @@ export default function SignupForm() {
       console.log("Validating Step 3");
       // Validate role-specific fields before moving to certifications
       if (role === "doctor") {
-        fieldsToValidate = ["clinicName", "clinicAddress"]
+        fieldsToValidate = [] // Clinic details are optional
         const isValid = await trigger(fieldsToValidate)
         console.log("Step 3 (Doctor) Form Valid:", isValid);
         if (!isValid) {
           console.log("Step 3 validation failed:", errors);
-          toast.error("لازم تملى كل الحقول المطلوبة")
+          showNotificationToast("بيانات غير صحيحة", "لازم تدخل بيانات صحيحة", "error")
           return
         }
       } else if (role === "secretary" && !verifiedClinicId) {
-        toast.error("لازم تتحقق من معرف العيادة الأول")
+        showNotificationToast("تحقق مطلوب", "لازم تتحقق من معرف العيادة الأول", "error")
         return
       }
       console.log("Moving to step 4 (Certifications) manually");
@@ -299,7 +357,7 @@ export default function SignupForm() {
 
   function handleAddCertificate() {
     if (!currentCertificate.name || !currentCertificate.issuing_organization) {
-      toast.error("لازم تدخل اسم الشهادة والمنظمة")
+      showNotificationToast("بيانات ناقصة", "لازم تدخل اسم الشهادة والمنظمة", "error")
       return
     }
 
@@ -321,12 +379,12 @@ export default function SignupForm() {
   // Skills handlers
   function handleAddSkill(skillName) {
     if (!skillName || skillName.trim().length === 0) {
-      toast.error("لازم تدخل اسم المهارة")
+      showNotificationToast("بيانات ناقصة", "لازم تدخل اسم المهارة", "error")
       return
     }
 
     if (skills.find(s => s.name.toLowerCase() === skillName.toLowerCase())) {
-      toast.error("المهارة دي موجودة قبل كده")
+      showNotificationToast("مهارة مكررة", "المهارة دي موجودة قبل كده", "error")
       return
     }
 
@@ -349,38 +407,23 @@ export default function SignupForm() {
     // Validate step 3 fields based on role
     let fieldsToValidate = []
     if (role === "doctor") {
-      fieldsToValidate = ["clinicName", "clinicAddress"]
-      
-      // CRITICAL: Ensure clinic name and address are provided and not empty
-      if (!formData.clinicName || formData.clinicName.trim().length === 0) {
-        toast.error("لازم تدخل اسم العيادة")
-        return
-      }
-      if (formData.clinicName.trim().length < 3) {
-        toast.error("اسم العيادة لازم 3 أحرف على الأقل")
-        return
-      }
-      if (!formData.clinicAddress || formData.clinicAddress.trim().length === 0) {
-        toast.error("لازم تدخل عنوان العيادة")
-        return
-      }
-      if (formData.clinicAddress.trim().length < 5) {
-        toast.error("عنوان العيادة لازم 5 أحرف على الأقل")
-        return
-      }
+      // Not mandatory anymore as requested
+      fieldsToValidate = []
     } else if (role === "secretary") {
       fieldsToValidate = ["clinicId"]
     }
 
-    const isValid = await trigger(fieldsToValidate)
-    if (!isValid) {
-      toast.error("لازم تملى كل الحقول المطلوبة")
-      return
+    if (fieldsToValidate.length > 0) {
+      const isValid = await trigger(fieldsToValidate)
+      if (!isValid) {
+        showNotificationToast("بيانات غير مكتملة", "لازم تملى كل الحقول المطلوبة بشكل صحيح", "error")
+        return
+      }
     }
 
     // For secretary, check if clinic ID was verified
     if (role === "secretary" && !verifiedClinicId) {
-      toast.error("لازم تتحقق من معرف العيادة الأول")
+      showNotificationToast("تحقق مطلوب", "لازم تتحقق من معرف العيادة الأول", "error")
       return
     }
 
@@ -401,8 +444,8 @@ export default function SignupForm() {
 
     // Add role-specific data with trimmed values
     if (role === "doctor") {
-      userData.clinicName = formData.clinicName.trim()
-      userData.clinicAddress = formData.clinicAddress.trim()
+      userData.clinicName = formData.clinicName?.trim() || ""
+      userData.clinicAddress = formData.clinicAddress?.trim() || ""
     } else if (role === "secretary") {
       userData.permissions = []
     }
@@ -430,7 +473,7 @@ export default function SignupForm() {
 
     // For secretary, check if clinic ID was verified
     if (data.role === "secretary" && (!verifiedClinicId || verifiedClinicId !== data.clinicId)) {
-      toast.error("لازم تتحقق من معرف العيادة الأول")
+      showNotificationToast("تحقق مطلوب", "لازم تتحقق من معرف العيادة الأول", "error")
       return
     }
 
@@ -600,7 +643,7 @@ export default function SignupForm() {
 
           <div className="space-y-2">
             <label htmlFor="password" className="text-sm font-medium">
-              كلمة المرور *
+             انشاء كلمة مرور *
             </label>
             <Input
               id="password"
@@ -623,32 +666,6 @@ export default function SignupForm() {
               <p className="text-sm text-red-500">{errors.password.message}</p>
             )}
           </div>
-
-          <div className="space-y-2">
-            <label htmlFor="confirmPassword" className="text-sm font-medium">
-              تأكيد كلمة المرور *
-            </label>
-            <Input
-              id="confirmPassword"
-              type="password"
-              {...register("confirmPassword", {
-                required: "لازم تأكد كلمة المرور",
-                validate: (value) =>
-                  value === password || "كلمة المرور مش متطابقة",
-              })}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  handleNextStep()
-                }
-              }}
-            />
-            {errors.confirmPassword && (
-              <p className="text-sm text-red-500">
-                {errors.confirmPassword.message}
-              </p>
-            )}
-          </div>
         </div>
       )}
 
@@ -658,13 +675,13 @@ export default function SignupForm() {
 
           <div className="space-y-2">
             <label htmlFor="name" className="text-sm font-medium">
-              الاسم الكامل *
+              الاسم الكامل
             </label>
             <Input
               id="name"
               type="text"
               {...register("name", {
-                required: "لازم تدخل الاسم",
+                required: false,
                 minLength: {
                   value: 3,
                   message: "الاسم لازم 3 أحرف على الأقل",
@@ -684,13 +701,13 @@ export default function SignupForm() {
 
           <div className="space-y-2">
             <label htmlFor="phone" className="text-sm font-medium">
-              رقم الهاتف *
+              رقم الهاتف
             </label>
             <Input
               id="phone"
               type="tel"
               {...register("phone", {
-                required: "لازم تدخل رقم الهاتف",
+                required: false,
                 pattern: {
                   value: /^[0-9]{10,15}$/,
                   message: "رقم الهاتف مش صحيح",

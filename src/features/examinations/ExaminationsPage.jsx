@@ -18,6 +18,8 @@ import { useVisits } from "./useVisits";
 import useVisitStats from "./useVisitStats";
 import useScrollToTop from "../../hooks/useScrollToTop";
 import supabase from "../../services/supabase";
+import { useSubscriptionBlocking } from "../auth/useSubscriptionBlocking";
+import SubscriptionBlockingModal from "../auth/SubscriptionBlockingModal";
 import SortableStat from "../../components/ui/sortable-stat";
 import { SkeletonLine } from "../../components/ui/skeleton";
 
@@ -48,6 +50,7 @@ export default function ExaminationsPage() {
   useScrollToTop();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const { checkAction, isBlockingModalOpen, closeBlockingModal, subscriptionStatus } = useSubscriptionBlocking();
   const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Stats filtering
@@ -262,10 +265,10 @@ export default function ExaminationsPage() {
           />
         </div>
         
-        {/* Action Buttons */}
+        {/* Action Buttons - Mobile Grid */}
         <div className="grid grid-cols-2 md:flex gap-2">
           <Button
-            onClick={() => setOpen(true)}
+            onClick={() => checkAction(() => setOpen(true))}
             className="h-10 md:h-11 bg-primary hover:bg-primary/90 text-primary-foreground text-sm md:text-base col-span-2 md:col-span-1"
           >
             <Plus className="w-4 h-4 md:w-5 md:h-5 ml-2" />
@@ -273,6 +276,12 @@ export default function ExaminationsPage() {
           </Button>
         </div>
       </div>
+
+      <SubscriptionBlockingModal 
+        isOpen={isBlockingModalOpen} 
+        onClose={closeBlockingModal} 
+        status={subscriptionStatus} 
+      />
 
       {/* Visits Table */}
       <Card className="bg-card/70 border-none shadow-none">

@@ -37,11 +37,14 @@ import TabibiIntelligence from "./TabibiIntelligence";
 import supabase from "../../services/supabase";
 import { STORE_NAMES, getItem } from "../offline-mode/offlineDB";
 import { useOffline } from "../offline-mode/OfflineContext";
+import { useSubscriptionBlocking } from "../auth/useSubscriptionBlocking";
+import SubscriptionBlockingModal from "../auth/SubscriptionBlockingModal";
 
 export default function PatientDetailPage() {
   const { id: patientId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const { checkAction, isBlockingModalOpen, closeBlockingModal, subscriptionStatus } = useSubscriptionBlocking();
   const queryClient = useQueryClient();
   const isLocalPatient = String(patientId || "").startsWith("local_");
   const { isOfflineMode } = useOffline();
@@ -313,6 +316,12 @@ export default function PatientDetailPage() {
           {/* مساعد المريض الشخصي */}
           <TabibiIntelligence patient={patient} />
 
+          <SubscriptionBlockingModal 
+            isOpen={isBlockingModalOpen} 
+            onClose={closeBlockingModal} 
+            status={subscriptionStatus} 
+          />
+
           {/* Quick Actions */}
           <Card className="bg-card border-border/50 shadow-sm" dir="rtl">
             <CardHeader className="pb-3 pt-4 px-4 border-b border-border/50 bg-muted/20">
@@ -342,7 +351,7 @@ export default function PatientDetailPage() {
                 <Button 
                     variant="outline" 
                     className="justify-start gap-2 h-11 hover:bg-primary/5 hover:border-primary/30 transition-all shadow-sm" 
-                    onClick={() => setIsVisitDialogOpen(true)}
+                    onClick={() => checkAction(() => setIsVisitDialogOpen(true))}
                 >
                     <ClipboardPlus className="w-4 h-4 text-blue-600" />
                     كشف جديد
@@ -350,7 +359,7 @@ export default function PatientDetailPage() {
                 <Button 
                     variant="outline" 
                     className="justify-start gap-2 h-11 hover:bg-primary/5 hover:border-primary/30 transition-all shadow-sm" 
-                    onClick={() => setIsUploadDialogOpen(true)}
+                    onClick={() => checkAction(() => setIsUploadDialogOpen(true))}
                 >
                     <FileUp className="w-4 h-4 text-amber-600" />
                     رفع ملف
@@ -358,7 +367,7 @@ export default function PatientDetailPage() {
                 <Button 
                     variant="outline" 
                     className="justify-start gap-2 h-11 hover:bg-primary/5 hover:border-primary/30 transition-all shadow-sm" 
-                    onClick={() => setIsAppointmentDialogOpen(true)}
+                    onClick={() => checkAction(() => setIsAppointmentDialogOpen(true))}
                 >
                     <Calendar className="w-4 h-4 text-purple-600" />
                     حجز موعد
@@ -366,7 +375,7 @@ export default function PatientDetailPage() {
                 <Button 
                     variant="outline" 
                     className="justify-start gap-2 h-11 hover:bg-primary/5 hover:border-primary/30 transition-all shadow-sm" 
-                    onClick={() => setIsPlanTemplateDialogOpen(true)}
+                    onClick={() => checkAction(() => setIsPlanTemplateDialogOpen(true))}
                 >
                     <ClipboardList className="w-4 h-4 text-indigo-600" />
                     خطة علاجية

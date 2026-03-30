@@ -1,4 +1,5 @@
 import supabase from "./supabase"
+import { getClinicId, shouldUseOfflineMode } from "./apiOfflineMode"
 
 const isUuid = (v) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(v));
@@ -6,27 +7,23 @@ const isUuid = (v) =>
 export async function getCurrentClinic() {
   console.log("getCurrentClinic: Starting clinic data fetch");
   
-  // Get current user's clinic_id
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) throw new Error("Not authenticated")
-
-  console.log("getCurrentClinic: Getting user data for user_id:", session.user.id);
-
-  const { data: userData, error: userError } = await supabase
-    .from("users")
-    .select("clinic_id")
-    .eq("user_id", session.user.id)
-    .single()
-
-  if (userError) throw new Error(`فشل تحميل بيانات المستخدم: ${userError.message}`)
-  
-  console.log("getCurrentClinic: User data retrieved:", userData);
-  
-  // Handle clinic_id from user data (this is actually the UUID)
-  let clinicUuid = userData.clinic_id;
-  if (!clinicUuid) throw new Error("المستخدم ليس مرتبطًا بعيادة")
+  // Use centralized clinic ID helper (offline-aware)
+  const clinicUuid = await getClinicId();
+  if (!clinicUuid) throw new Error("المستخدم ليس مرتبطًا بعيادة أو غير مسجل دخول")
 
   console.log("getCurrentClinic: Querying clinic with clinic_uuid:", clinicUuid);
+
+  // If offline, try to get from local storage if needed (clinics are currently not mirrored, but clinic_id is)
+  // For now, if offline, we might return a placeholder or cached data if we implement clinic mirroring later.
+  if (shouldUseOfflineMode()) {
+    // Return a minimal clinic object if offline
+    return {
+      clinic_uuid: clinicUuid,
+      name: localStorage.getItem("tabibi_clinic_name") || "عيادة (أوفلاين)",
+      address: localStorage.getItem("tabibi_clinic_address") || "",
+      online_booking_enabled: true
+    }
+  }
 
   // Get clinic data - querying by clinic_uuid (the actual UUID field in clinics table)
   try {

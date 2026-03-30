@@ -190,6 +190,8 @@ CREATE TABLE public.appointments (
   diagnosis text,
   treatment text,
   custom_fields jsonb NOT NULL DEFAULT '[]'::jsonb,
+  updated_at timestamp with time zone DEFAULT now(),
+  ai_chat_log jsonb DEFAULT '[]'::jsonb,
   CONSTRAINT appointments_pkey PRIMARY KEY (id),
   CONSTRAINT appointments_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(id)
 );
@@ -406,6 +408,7 @@ CREATE TABLE public.financial_records (
   created_at timestamp with time zone DEFAULT now(),
   visit_id bigint,
   reference_key text,
+  updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT financial_records_pkey PRIMARY KEY (id),
   CONSTRAINT financial_records_appointment_id_fkey FOREIGN KEY (appointment_id) REFERENCES public.appointments(id),
   CONSTRAINT financial_records_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(id),
@@ -449,6 +452,40 @@ CREATE TABLE public.notifications (
   action_text text,
   action_buttons jsonb,
   CONSTRAINT notifications_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.offline_events (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  idempotency_key text NOT NULL,
+  user_id uuid NOT NULL,
+  clinic_id uuid,
+  device_id text,
+  seq bigint,
+  hlc text,
+  entity_type text NOT NULL,
+  op text NOT NULL,
+  entity_id bigint,
+  temp_id text,
+  payload jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT offline_events_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.offline_id_map (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  clinic_id uuid NOT NULL,
+  entity_type text NOT NULL,
+  temp_id text NOT NULL,
+  real_id bigint NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT offline_id_map_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.patient_ai_chats (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  patient_id bigint,
+  role text CHECK (role = ANY (ARRAY['user'::text, 'assistant'::text])),
+  content text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT patient_ai_chats_pkey PRIMARY KEY (id),
+  CONSTRAINT patient_ai_chats_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(id)
 );
 CREATE TABLE public.patient_attachments (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -677,6 +714,32 @@ CREATE TABLE public.tabibi_developers (
   CONSTRAINT tabibi_developers_pkey PRIMARY KEY (id),
   CONSTRAINT tabibi_developers_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
+CREATE TABLE public.tabibi_learning_systems (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  key text NOT NULL UNIQUE,
+  label text NOT NULL,
+  icon text NOT NULL,
+  sort_order integer NOT NULL DEFAULT 0,
+  is_active boolean NOT NULL DEFAULT true,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT tabibi_learning_systems_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.tabibi_learning_topics (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  system_key text NOT NULL,
+  topic_key text NOT NULL,
+  title text NOT NULL,
+  summary text NOT NULL DEFAULT ''::text,
+  tags ARRAY NOT NULL DEFAULT '{}'::text[],
+  html_content text NOT NULL,
+  sort_order integer NOT NULL DEFAULT 0,
+  is_published boolean NOT NULL DEFAULT true,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT tabibi_learning_topics_pkey PRIMARY KEY (id),
+  CONSTRAINT tabibi_learning_topics_system_key_fkey FOREIGN KEY (system_key) REFERENCES public.tabibi_learning_systems(key)
+);
 CREATE TABLE public.tabibi_marketplace_apps (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   developer_id uuid NOT NULL,
@@ -759,6 +822,8 @@ CREATE TABLE public.user_preferences (
   notification_types jsonb DEFAULT '{"financial": true, "appointments": true, "subscription": true}'::jsonb,
   toast_notifications_enabled boolean DEFAULT true,
   toast_duration integer DEFAULT 3,
+  ai_settings jsonb DEFAULT '{"context": {"specialty": "", "clinic_goal": "", "doctor_persona": "", "custom_instructions": ""}, "enabled_pages": {"patient_file": true}}'::jsonb,
+  ai_field_chat_log jsonb DEFAULT '[]'::jsonb,
   CONSTRAINT user_preferences_pkey PRIMARY KEY (id),
   CONSTRAINT user_preferences_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
@@ -798,6 +863,8 @@ CREATE TABLE public.visits (
   treatment text,
   follow_up text,
   custom_fields jsonb DEFAULT '[]'::jsonb,
+  updated_at timestamp with time zone DEFAULT now(),
+  ai_chat_log jsonb DEFAULT '[]'::jsonb,
   CONSTRAINT visits_pkey PRIMARY KEY (id),
   CONSTRAINT visits_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(id)
 );

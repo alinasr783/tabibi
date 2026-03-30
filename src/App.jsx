@@ -148,11 +148,9 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <RoleGuard allowedRoles={["doctor", "secretary"]}>
-              <NoSubscriptionGuard>
                 <AppAuthedProviders>
                   <DoctorLayout />
                 </AppAuthedProviders>
-              </NoSubscriptionGuard>
             </RoleGuard>
           </ProtectedRoute>
         }>
@@ -168,9 +166,7 @@ function AppRoutes() {
           path="/appointments"
           element={
             <PermissionGuard requiredPermission="appointments">
-              <SubscriptionExpiryGuard>
                 <MemoizedCalendar />
-              </SubscriptionExpiryGuard>
             </PermissionGuard>
           }
         />
@@ -178,9 +174,7 @@ function AppRoutes() {
           path="/patients"
           element={
             <PermissionGuard requiredPermission="patients">
-              <SubscriptionExpiryGuard>
                 <MemoizedPatients />
-              </SubscriptionExpiryGuard>
             </PermissionGuard>
           }
         />
@@ -188,9 +182,7 @@ function AppRoutes() {
           path="examinations"
           element={
             <PermissionGuard requiredPermission="patients">
-              <SubscriptionExpiryGuard>
                 <MemoizedExaminationsPage />
-              </SubscriptionExpiryGuard>
             </PermissionGuard>
           }
         />
@@ -198,9 +190,7 @@ function AppRoutes() {
           path="/patients/:id"
           element={
             <PermissionGuard requiredPermission="patients">
-              <SubscriptionExpiryGuard>
                 <MemoizedPatientDetailPage />
-              </SubscriptionExpiryGuard>
             </PermissionGuard>
           }
         />
@@ -208,9 +198,7 @@ function AppRoutes() {
           path="/patients/:patientId/finance-monitor"
           element={
             <PermissionGuard requiredPermission="patients">
-              <SubscriptionExpiryGuard>
                 <MemoizedPatientFinanceMonitorPage />
-              </SubscriptionExpiryGuard>
             </PermissionGuard>
           }
         />
@@ -218,9 +206,7 @@ function AppRoutes() {
           path="/patients/:patientId/visits/:visitId"
           element={
             <PermissionGuard requiredPermission="patients">
-              <SubscriptionExpiryGuard>
                 <MemoizedVisitDetailPage />
-              </SubscriptionExpiryGuard>
             </PermissionGuard>
           }
         />
@@ -228,9 +214,7 @@ function AppRoutes() {
           path="/patients/:patientId/plans/:planId"
           element={
             <PermissionGuard requiredPermission="patients">
-              <SubscriptionExpiryGuard>
                 <MemoizedPatientPlanDetailPage />
-              </SubscriptionExpiryGuard>
             </PermissionGuard>
           }
         />
@@ -258,9 +242,7 @@ function AppRoutes() {
           path="/treatments"
           element={
             <PermissionGuard requiredPermission="patients">
-              <SubscriptionExpiryGuard>
                 <MemoizedTreatmentPlans />
-              </SubscriptionExpiryGuard>
             </PermissionGuard>
           }
         />
@@ -268,9 +250,7 @@ function AppRoutes() {
           path="/finance"
           element={
             <PermissionGuard requiredPermission="finance">
-              <SubscriptionExpiryGuard>
                 <MemoizedFinance />
-              </SubscriptionExpiryGuard>
             </PermissionGuard>
           }
         />
@@ -294,9 +274,7 @@ function AppRoutes() {
           path="/appointments/:appointmentId"
           element={
             <PermissionGuard requiredPermission="appointments">
-              <SubscriptionExpiryGuard>
                 <MemoizedAppointmentDetailPage />
-              </SubscriptionExpiryGuard>
             </PermissionGuard>
           }
         />
@@ -304,9 +282,7 @@ function AppRoutes() {
           path="/notifications"
           element={
             <PermissionGuard requiredPermission="notifications">
-              <SubscriptionExpiryGuard>
                 <MemoizedNotifications />
-              </SubscriptionExpiryGuard>
             </PermissionGuard>
           }
         />
@@ -349,7 +325,9 @@ function AppRoutes() {
           path="/tabibi-apps"
           element={
             <PermissionGuard requiredPermission="dashboard">
-              <MemoizedTabibiApps />
+              <SubscriptionExpiryGuard>
+                <MemoizedTabibiApps />
+              </SubscriptionExpiryGuard>
             </PermissionGuard>
           }
         />
@@ -357,7 +335,9 @@ function AppRoutes() {
           path="/tabibi-apps/:appId"
           element={
             <PermissionGuard requiredPermission="dashboard">
-              <TabibiAppDetailsWrapper />
+              <SubscriptionExpiryGuard>
+                <TabibiAppDetailsWrapper />
+              </SubscriptionExpiryGuard>
             </PermissionGuard>
           }
         />
@@ -365,7 +345,9 @@ function AppRoutes() {
           path="/my-apps"
           element={
             <PermissionGuard requiredPermission="dashboard">
-              <MemoizedMyAppsPage />
+              <SubscriptionExpiryGuard>
+                <MemoizedMyAppsPage />
+              </SubscriptionExpiryGuard>
             </PermissionGuard>
           }
         />
@@ -373,7 +355,9 @@ function AppRoutes() {
           path="/my-apps/:appKey"
           element={
             <PermissionGuard requiredPermission="dashboard">
-              <MemoizedMyAppViewer />
+              <SubscriptionExpiryGuard>
+                <MemoizedMyAppViewer />
+              </SubscriptionExpiryGuard>
             </PermissionGuard>
           }
         />

@@ -1,15 +1,13 @@
 import { useEffect } from "react";
-import useSubscriptionExpiry from "./useSubscriptionExpiry";
+import { useSubscriptionStatus } from "./useSubscriptionStatus";
 import SubscriptionExpiryPopup from "../../components/SubscriptionExpiryPopup";
 
-// List of pages that should be restricted when subscription expires
+// List of pages that should be restricted when subscription expires or is missing
 const RESTRICTED_PAGES = [
-    "/appointments",
-    "/patients",
-    "/treatments",
+    "/work-mode",
     "/online-booking",
-    "/finance",
-    "/notifications"
+    "/tabibi-apps",
+    "/my-apps"
 ];
 
 // Check if current path matches restricted pages (including detail pages)
@@ -20,7 +18,7 @@ const isRestrictedPage = (pathname) => {
 };
 
 export default function SubscriptionExpiryGuard({ children }) {
-    const { data: subscriptionStatus, isLoading } = useSubscriptionExpiry();
+    const { data: status, isLoading } = useSubscriptionStatus();
     
     // Check if we're on a restricted page
     useEffect(() => {
@@ -36,13 +34,16 @@ export default function SubscriptionExpiryGuard({ children }) {
         );
     }
     
-    // If subscription is expired and we're on a restricted page, show the popup
-    if (subscriptionStatus?.isExpired && isRestrictedPage(window.location.pathname)) {
+    // If subscription is expired or none and we're on a restricted page, show the popup
+    const isRestricted = status?.status === "expired" || status?.status === "none";
+    
+    if (isRestricted && isRestrictedPage(window.location.pathname)) {
         return (
             <>
                 <SubscriptionExpiryPopup 
-                    daysRemaining={subscriptionStatus.daysRemaining}
-                    expiryDate={subscriptionStatus.expiryDate}
+                    daysRemaining={status.daysRemaining}
+                    expiryDate={status.expiryDate}
+                    status={status.status}
                 />
                 <div className="opacity-20 pointer-events-none">
                     {children}

@@ -40,3 +40,59 @@ export async function getServerCountsForClinic(clinicUuid) {
   if (appointmentsRes.error) throw new Error(appointmentsRes.error.message || "Failed to count appointments")
   return { patients: patientsRes.count || 0, appointments: appointmentsRes.count || 0 }
 }
+
+/**
+ * Checks if the application should behave in offline mode.
+ */
+export function shouldUseOfflineMode() {
+  const offlineEnabled = localStorage.getItem("tabibi_offline_enabled") === "true";
+  const browserOffline = typeof navigator !== "undefined" && navigator.onLine === false;
+  
+  // We use offline mode if:
+  // 1. User explicitly enabled it AND browser is offline
+  // 2. OR User explicitly enabled it (some users might want to work locally even with net)
+  // For now, let's stick to "Enabled AND Offline" to avoid blocking cloud sync if net is available.
+  // BUT, we should also return true if a previous request failed with a network error.
+  
+  return offlineEnabled && browserOffline;
+}
+
+/**
+ * Gets the current clinic ID from cache or Supabase.
+ * This is a critical helper to avoid network requests when offline.
+ */
+export async function getClinicId() {
+  // 1. Check cache first (localStorage is fast and works offline)
+  const cachedId = localStorage.getItem("tabibi_clinic_id");
+  
+  // 2. If we are offline or have a cache, return it
+  const isOffline = shouldUseOfflineMode();
+  if (isOffline && cachedId) {
+    return cachedId;
+  }
+
+  // 3. If online and no cache, or if we want to refresh, fetch from Supabase
+  // Note: We only do this if we are NOT in offline mode
+  if (!isOffline) {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { data: userData } = await supabase
+          .from("users")
+          .select("clinic_id")
+          .eq("user_id", session.user.id)
+          .single();
+        
+        if (userData?.clinic_id) {
+          localStorage.setItem("tabibi_clinic_id", userData.clinic_id);
+          return userData.clinic_id;
+        }
+      }
+    } catch (e) {
+      console.error("Failed to fetch clinic_id from server:", e);
+    }
+  }
+
+  // 4. Final fallback to cache even if online (if fetch failed)
+  return cachedId;
+}

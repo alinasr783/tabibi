@@ -2,7 +2,8 @@ import supabase from "./supabase"
 import { createPublicNotification } from "./apiNotifications"
 import { addToGoogleCalendar } from "./integrationService"
 import { getAllItems, getItem, STORE_NAMES } from "../features/offline-mode/offlineDB"
-import { create as dsCreate, update as dsUpdate, remove as dsRemove } from "./dataService"
+import { create as dsCreate, update as dsUpdate, remove as dsRemove, get as dsGet } from "./dataService"
+import { shouldUseOfflineMode, getClinicId } from "./apiOfflineMode"
 import {
     normalizePlanLimits,
     requireActiveSubscription,
@@ -10,17 +11,18 @@ import {
 } from "./subscriptionEnforcement"
 
 export async function getAppointmentById(id) {
-    // Get current user's clinic_id
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) throw new Error("Not authenticated")
+    const clinicUuid = await getClinicId();
+    if (!clinicUuid) throw new Error("User has no clinic assigned")
 
-    const { data: userData } = await supabase
-        .from("users")
-        .select("clinic_id")
-        .eq("user_id", session.user.id)
-        .single()
-
-    if (!userData?.clinic_id) throw new Error("User has no clinic assigned")
+    if (shouldUseOfflineMode()) {
+        const appointments = await dsGet("appointments", { id });
+        const appointment = appointments[0];
+        if (appointment && appointment.patient_id) {
+            const patient = await getItem(STORE_NAMES.PATIENTS, appointment.patient_id);
+            return { ...appointment, patient };
+        }
+        return appointment || null;
+    }
 
     const { data, error } = await supabase
         .from("appointments")
@@ -29,7 +31,7 @@ export async function getAppointmentById(id) {
             patient:patients(*)
         `)
         .eq("id", id)
-        .eq("clinic_id", userData.clinic_id)
+        .eq("clinic_id", clinicUuid)
         .single()
 
     if (error) {
@@ -41,16 +43,11 @@ export async function getAppointmentById(id) {
 }
 
 export async function getAppointments(search, page, pageSize, filters = {}) {
-    const offlineEnabled = (() => {
-        try { return localStorage.getItem("tabibi_offline_enabled") === "true" } catch { return false }
-    })()
-    const browserOffline = typeof navigator !== "undefined" && navigator.onLine === false
-    if (offlineEnabled && browserOffline) {
-        const clinicUuid = (() => {
-            try { return localStorage.getItem("tabibi_clinic_id") } catch { return null }
-        })()
-        const all = await getAllItems(STORE_NAMES.APPOINTMENTS)
-        const scoped = clinicUuid ? all.filter((a) => String(a?.clinic_id || "") === String(clinicUuid)) : all
+    const clinicUuid = await getClinicId();
+    if (!clinicUuid) throw new Error("User has no clinic assigned")
+
+    if (shouldUseOfflineMode()) {
+        const all = await dsGet("appointments", { clinic_id: clinicUuid })
 
         const attachPatient = async (a) => {
             const pid = a?.patient_id
@@ -59,7 +56,7 @@ export async function getAppointments(search, page, pageSize, filters = {}) {
             return { ...a, patient: p ? { id: p.id, name: p.name, phone: p.phone } : null }
         }
 
-        let items = await Promise.all(scoped.map(attachPatient))
+        let items = await Promise.all(all.map(attachPatient))
 
         if (filters.status && filters.status !== "all") {
             items = items.filter((a) => String(a?.status || "") === String(filters.status))
@@ -110,25 +107,8 @@ export async function getAppointments(search, page, pageSize, filters = {}) {
         return { data: pageItems, count: items.length }
     }
 
-    // Get current user's clinic_id
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) throw new Error("Not authenticated")
-
-    const { data: userData } = await supabase
-        .from("users")
-        .select("clinic_id")
-        .eq("user_id", session.user.id)
-        .single()
-
-    if (!userData?.clinic_id) {
-        console.error("Could not find clinic_id for user. Check RLS policies on 'users' table.")
-        console.log("Debug getAppointments: session user id:", session.user.id)
-        throw new Error("User has no clinic assigned")
-    }
-
     console.log("getAppointments/start", {
-        userId: session.user.id,
-        clinicId: userData.clinic_id,
+        clinicId: clinicUuid,
         search,
         page,
         pageSize,
@@ -279,14 +259,10 @@ export async function getAppointments(search, page, pageSize, filters = {}) {
 }
 
 export async function createAppointment(payload) {
-    const offlineEnabled = (() => {
-        try { return localStorage.getItem("tabibi_offline_enabled") === "true" } catch { return false }
-    })()
-    const browserOffline = typeof navigator !== "undefined" && navigator.onLine === false
-    if (offlineEnabled && browserOffline) {
-        const clinicUuid = payload?.clinic_id || (() => {
-            try { return localStorage.getItem("tabibi_clinic_id") } catch { return null }
-        })()
+    const clinicUuid = await getClinicId();
+    if (!clinicUuid) throw new Error("User has no clinic assigned")
+
+    if (shouldUseOfflineMode()) {
         const appointmentData = {
             ...payload,
             clinic_id: clinicUuid,
@@ -296,22 +272,6 @@ export async function createAppointment(payload) {
         }
         return dsCreate("appointments", appointmentData)
     }
-
-    // Get current user's clinic_id
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) throw new Error("Not authenticated")
-
-    // Get clinic_id (which is a UUID in users table)
-    const { data: userData } = await supabase
-        .from("users")
-        .select("clinic_id")
-        .eq("user_id", session.user.id)
-        .single()
-
-    if (!userData?.clinic_id) throw new Error("User has no clinic assigned")
-
-    // The clinic_id in users table is the UUID for the clinics table
-    const clinicUuid = userData.clinic_id
 
     const subscription = await requireActiveSubscription(clinicUuid)
     const limits = normalizePlanLimits(subscription?.plans?.limits)
@@ -365,32 +325,16 @@ export async function createAppointment(payload) {
     }
     // ----------------------------------------
 
-    // --- WhatsApp Integration Hook Removed ---
-    // ---------------------------------
-
     return data
 }
 
 export async function updateAppointment(id, payload) {
-    const offlineEnabled = (() => {
-        try { return localStorage.getItem("tabibi_offline_enabled") === "true" } catch { return false }
-    })()
-    const browserOffline = typeof navigator !== "undefined" && navigator.onLine === false
-    if (offlineEnabled && browserOffline) {
+    const clinicUuid = await getClinicId();
+    if (!clinicUuid) throw new Error("User has no clinic assigned")
+
+    if (shouldUseOfflineMode()) {
         return dsUpdate("appointments", id, { ...payload, updated_at: new Date().toISOString() })
     }
-
-    // Get current user's clinic_id for security
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) throw new Error("Not authenticated")
-
-    const { data: userData } = await supabase
-        .from("users")
-        .select("clinic_id")
-        .eq("user_id", session.user.id)
-        .single()
-
-    if (!userData?.clinic_id) throw new Error("User has no clinic assigned")
 
     console.log("updateAppointment payload:", payload, "id:", id);
 
@@ -398,50 +342,38 @@ export async function updateAppointment(id, payload) {
         .from("appointments")
         .update(payload)
         .eq("id", id.toString())  // Convert to string for compatibility
-        .eq("clinic_id", userData.clinic_id)
+        .eq("clinic_id", clinicUuid)
         .select()
         .single()
 
     if (error) {
         console.error("Error updating appointment:", error);
-        console.error("Attempted to update appointment ID:", id, "at clinic:", userData.clinic_id);
+        console.error("Attempted to update appointment ID:", id, "at clinic:", clinicUuid);
         throw error;
     }
     return data
 }
 
 export async function deleteAppointment(id) {
-    const offlineEnabled = (() => {
-        try { return localStorage.getItem("tabibi_offline_enabled") === "true" } catch { return false }
-    })()
-    const browserOffline = typeof navigator !== "undefined" && navigator.onLine === false
-    if (offlineEnabled && browserOffline) {
+    const clinicUuid = await getClinicId();
+    if (!clinicUuid) throw new Error("User has no clinic assigned")
+
+    if (shouldUseOfflineMode()) {
         await dsRemove("appointments", id)
         return
     }
 
-    // Get current user's clinic_id for security
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) throw new Error("Not authenticated")
-
-    const { data: userData } = await supabase
-        .from("users")
-        .select("clinic_id, clinic_id_bigint")
-        .eq("user_id", session.user.id)
-        .single()
-
-    if (!userData?.clinic_id) throw new Error("User has no clinic assigned")
-
-    // Get clinic_id_bigint for financial_records if not in userData
-    let clinicIdBigint = userData.clinic_id_bigint
+    // Get clinic_id_bigint for financial_records from cache
+    let clinicIdBigint = localStorage.getItem("tabibi_clinic_id_bigint")
     if (!clinicIdBigint) {
         const { data: clinicData } = await supabase
             .from("clinics")
             .select("clinic_id_bigint, id")
-            .eq("clinic_uuid", userData.clinic_id)
+            .eq("clinic_uuid", clinicUuid)
             .single()
         
         clinicIdBigint = clinicData?.clinic_id_bigint || clinicData?.id
+        if (clinicIdBigint) localStorage.setItem("tabibi_clinic_id_bigint", clinicIdBigint)
     }
 
     // Delete related records first to avoid foreign key constraints
@@ -450,7 +382,7 @@ export async function deleteAppointment(id) {
         .from("notifications")
         .delete()
         .eq("appointment_id", id.toString())
-        .eq("clinic_id", userData.clinic_id);
+        .eq("clinic_id", clinicUuid);
 
     // 2. Delete financial records (uses clinicIdBigint)
     if (clinicIdBigint) {
@@ -473,7 +405,7 @@ export async function deleteAppointment(id) {
             .from("whatsapp_message_logs")
             .delete()
             .eq("appointment_id", id)
-            .eq("clinic_id", userData.clinic_id);
+            .eq("clinic_id", clinicUuid);
     } catch (err) {
         // Table might not exist or other issues, ignore
         console.warn("Could not delete WhatsApp logs:", err.message);
@@ -484,32 +416,28 @@ export async function deleteAppointment(id) {
         .from("appointments")
         .delete()
         .eq("id", id.toString())  // Convert to string for compatibility
-        .eq("clinic_id", userData.clinic_id)
+        .eq("clinic_id", clinicUuid)
 
     if (error) {
         console.error("Error deleting appointment:", error);
-        console.error("Attempted to delete appointment ID:", id, "at clinic:", userData.clinic_id);
+        console.error("Attempted to delete appointment ID:", id, "at clinic:", clinicUuid);
         throw error;
     }
 }
 
 export async function searchPatients(searchTerm) {
-    // Get current user's clinic_id
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) throw new Error("Not authenticated")
+    const clinicUuid = await getClinicId();
+    if (!clinicUuid) throw new Error("User has no clinic assigned")
 
-    const { data: userData } = await supabase
-        .from("users")
-        .select("clinic_id")
-        .eq("user_id", session.user.id)
-        .single()
-
-    if (!userData?.clinic_id) throw new Error("User has no clinic assigned")
+    if (shouldUseOfflineMode()) {
+        const all = await dsGet("patients", { clinic_id: clinicUuid });
+        return all.filter(p => p.name.includes(searchTerm)).slice(0, 5);
+    }
 
     const { data, error } = await supabase
         .from("patients")
         .select("id, name, phone")
-        .eq("clinic_id", userData.clinic_id)
+        .eq("clinic_id", clinicUuid)
         .ilike("name", `%${searchTerm}%`)
         .limit(5)
 
@@ -655,17 +583,13 @@ export async function createAppointmentPublic(payload, clinicId) {
 }
 
 export async function getPatientAppointments(patientId) {
-    // Get current user's clinic_id
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) throw new Error("Not authenticated")
+    const clinicUuid = await getClinicId();
+    if (!clinicUuid) throw new Error("User has no clinic assigned")
 
-    const { data: userData } = await supabase
-        .from("users")
-        .select("clinic_id")
-        .eq("user_id", session.user.id)
-        .single()
-
-    if (!userData?.clinic_id) throw new Error("User has no clinic assigned")
+    if (shouldUseOfflineMode()) {
+        const all = await dsGet("appointments", { clinic_id: clinicUuid, patient_id: patientId });
+        return all.sort((a, b) => new Date(b.date) - new Date(a.date));
+    }
 
     const { data, error } = await supabase
         .from("appointments")
@@ -678,7 +602,7 @@ export async function getPatientAppointments(patientId) {
             from,
             created_at
         `)
-        .eq("clinic_id", userData.clinic_id)
+        .eq("clinic_id", clinicUuid)
         .eq("patient_id", patientId)
         .order("date", { ascending: false })
 
@@ -712,6 +636,9 @@ export async function searchPatientsPublic(phone, clinicId) {
 
 export function subscribeToAppointments(callback, clinicId, sourceFilter = null) {
     if (!clinicId) return () => {}
+    
+    // Skip subscription if offline
+    if (shouldUseOfflineMode()) return () => {}
 
     console.log("subscribeToAppointments/start", { clinicId, sourceFilter })
 

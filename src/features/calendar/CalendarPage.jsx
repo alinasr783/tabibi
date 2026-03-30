@@ -18,6 +18,8 @@ import AppointmentsTable from "./AppointmentsTable"
 import useAppointments from "./useAppointments"
 import OnlineBookingsSection from "./OnlineBookingsSection"
 import OnlineBookingsTable from "../online-booking/OnlineBookingsTable"
+import { useSubscriptionBlocking } from "../auth/useSubscriptionBlocking"
+import SubscriptionBlockingModal from "../auth/SubscriptionBlockingModal"
 import { useNavigate } from "react-router-dom"
 import useScrollToTop from "../../hooks/useScrollToTop"
 import SortableStat from "../../components/ui/sortable-stat"
@@ -50,6 +52,7 @@ export default function CalendarPage() {
   // useScrollToTop(); // Removed to prevent unwanted scroll resets
   const navigate = useNavigate();
   const [query, setQuery] = useState("")
+  const { checkAction, isBlockingModalOpen, closeBlockingModal, subscriptionStatus } = useSubscriptionBlocking();
   const [searchTerm, setSearchTerm] = useState("")
   const [page, setPage] = useState(1)
   const [allAppointmentsPage, setAllAppointmentsPage] = useState(1)
@@ -521,7 +524,7 @@ export default function CalendarPage() {
         {/* Action Buttons - Mobile Grid */}
         <div className="grid grid-cols-2 md:flex gap-2">
           <Button
-            onClick={() => setOpen(true)}
+            onClick={() => checkAction(() => setOpen(true))}
             className="h-10 md:h-11 bg-primary hover:bg-primary/90 text-primary-foreground text-sm md:text-base col-span-2 md:col-span-1"
           >
             <Plus className="w-4 h-4 md:w-5 md:h-5 ml-2" />
@@ -530,7 +533,7 @@ export default function CalendarPage() {
           
           <Button
             variant="outline"
-            onClick={() => navigate("/work-mode")}
+            onClick={() => checkAction(() => navigate("/work-mode"))}
             className="h-10 md:h-11 text-sm md:text-base flex-1"
           >
             <Calendar className="w-3.5 h-3.5 md:w-4 md:h-4 ml-1 md:ml-2" />
@@ -771,8 +774,14 @@ export default function CalendarPage() {
           <Plus className="w-6 h-6" />
         </Button>
 
-      { /* Create Appointment Dialog */}
+      { /* Create Appointment Dialog */ }
       <AppointmentCreateDialog open={open} onClose={() => setOpen(false)} />
+
+      <SubscriptionBlockingModal 
+        isOpen={isBlockingModalOpen} 
+        onClose={closeBlockingModal} 
+        status={subscriptionStatus} 
+      />
     </div>
   )
 }

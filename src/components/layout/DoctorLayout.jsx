@@ -24,6 +24,7 @@ import { NavLink, Outlet, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../features/auth/AuthContext";
 import ClinicInfo from "../../features/auth/ClinicInfo";
 import LogoutButton from "../../features/auth/LogoutButton";
+import GlobalSubscriptionBanner from "./GlobalSubscriptionBanner";
 import { useState, useEffect } from "react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
@@ -286,6 +287,7 @@ export default function DoctorLayout({ children }) {
         </div>
       </aside>
       <div className="flex-1 md:mr-0 lg:mr-0 xl:mr-0 flex flex-col min-h-0">
+        <GlobalSubscriptionBanner />
         <main className={`flex-1 overflow-y-auto ${isAppDetails ? '' : 'py-6'} mt-0 md:mt-0`}>
           <div className={isAppDetails ? "" : "container"}>
             <DndProvider

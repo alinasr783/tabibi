@@ -15,6 +15,7 @@ import { ArrowDown, ArrowUp, Loader2, Plus, Save, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useUpdateUserPreferences, useUserPreferences } from "../../hooks/useUserPreferences";
 import { normalizeMedicalFieldsConfig } from "../../lib/medicalFieldsConfig";
+import MedicalFieldsIntelligence from "./MedicalFieldsIntelligence";
 
 const FIELD_TYPES = [
   { value: "text", label: "نص" },
@@ -1176,6 +1177,8 @@ export default function MedicalFieldsSettingsTab() {
           <span>ملف المريض</span>
         </Button>
       </div>
+
+      <MedicalFieldsIntelligence />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         <Card className="p-4 bg-card/70 lg:col-span-5 space-y-4">

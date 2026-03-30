@@ -18,6 +18,8 @@ import PatientsTable from "./PatientsTable";
 import usePatients from "./usePatients";
 import { useOffline } from "../offline-mode/OfflineContext";
 import { useOfflineData } from "../offline-mode/useOfflineData";
+import { useSubscriptionBlocking } from "../auth/useSubscriptionBlocking";
+import SubscriptionBlockingModal from "../auth/SubscriptionBlockingModal";
 import usePatientStats from "./usePatientStats";
 import useScrollToTop from "../../hooks/useScrollToTop";
 import SortableStat from "../../components/ui/sortable-stat";
@@ -51,6 +53,7 @@ export default function PatientsPage() {
   useScrollToTop(); // Auto scroll to top on page load
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const { checkAction, isBlockingModalOpen, closeBlockingModal, subscriptionStatus } = useSubscriptionBlocking();
   const [clinicId, setClinicId] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { isOfflineMode } = useOffline();
@@ -381,7 +384,7 @@ export default function PatientsPage() {
         {/* Action Buttons - Mobile Grid */}
         <div className="grid grid-cols-2 md:flex gap-2">
           <Button
-            onClick={() => setOpen(true)}
+            onClick={() => checkAction(() => setOpen(true))}
             className="h-10 md:h-11 bg-primary hover:bg-primary/90 text-primary-foreground text-sm md:text-base col-span-2 md:col-span-1"
           >
             <Plus className="w-4 h-4 md:w-5 md:h-5 ml-2" />
@@ -389,6 +392,12 @@ export default function PatientsPage() {
           </Button>
         </div>
       </div>
+
+      <SubscriptionBlockingModal 
+        isOpen={isBlockingModalOpen} 
+        onClose={closeBlockingModal} 
+        status={subscriptionStatus} 
+      />
 
       {/* Patients Table */}
       <Card className="bg-card/70 border-none shadow-none">

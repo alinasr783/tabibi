@@ -14,6 +14,8 @@ import TreatmentTemplateCreateDialog from "./TreatmentTemplateCreateDialog";
 import TreatmentTemplatesList from "./TreatmentTemplatesList";
 import useTreatmentTemplates from "./useTreatmentTemplates";
 import useScrollToTop from "../../hooks/useScrollToTop";
+import { useSubscriptionBlocking } from "../auth/useSubscriptionBlocking";
+import SubscriptionBlockingModal from "../auth/SubscriptionBlockingModal";
 import SortableStat from "../../components/ui/sortable-stat";
 import { SkeletonLine } from "../../components/ui/skeleton";
 import { formatCurrency } from "../../lib/utils";
@@ -45,6 +47,7 @@ export default function TreatmentPlansPage() {
   useScrollToTop();
   const [query, setQuery] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const { checkAction, isBlockingModalOpen, closeBlockingModal, subscriptionStatus } = useSubscriptionBlocking();
   
   // Stats filtering
   const [statsFilter, setStatsFilter] = useState("month");
@@ -264,10 +267,10 @@ export default function TreatmentPlansPage() {
           />
         </div>
         
-        {/* Action Buttons */}
+        {/* Action Buttons - Mobile Grid */}
         <div className="grid grid-cols-2 md:flex gap-2">
           <Button
-            onClick={() => setIsDialogOpen(true)}
+            onClick={() => checkAction(() => setIsDialogOpen(true))}
             className="h-10 md:h-11 bg-primary hover:bg-primary/90 text-primary-foreground text-sm md:text-base col-span-2 md:col-span-1"
           >
             <Plus className="w-4 h-4 md:w-5 md:h-5 ml-2" />
@@ -275,6 +278,12 @@ export default function TreatmentPlansPage() {
           </Button>
         </div>
       </div>
+
+      <SubscriptionBlockingModal 
+        isOpen={isBlockingModalOpen} 
+        onClose={closeBlockingModal} 
+        status={subscriptionStatus} 
+      />
 
       {/* Plans List */}
       <Card className="bg-card/70 border-none shadow-none">

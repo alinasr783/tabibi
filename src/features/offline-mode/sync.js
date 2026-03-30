@@ -82,25 +82,36 @@ export async function syncQueuedOperations() {
   }
 
   const res = await withTimeout(
-    supabase.functions.invoke('ingest-events', { body: payload }),
-    12000,
+    supabase.functions.invoke('ingest-event', { body: payload }),
+    15000,
     'Sync timeout'
   )
   if (res.error) {
-    if (isDev) console.error("[OFFLINE_SYNC] ingest-events error", res.error)
+    if (isDev) console.error("[OFFLINE_SYNC] ingest-event error", res.error)
     if (isDev) console.groupEnd()
-    throw new Error(res.error.message || 'ingest-events failed')
+    throw new Error(res.error.message || 'ingest-event failed')
   }
-  const okIds = new Set((res.data && res.data.applied_ids) || items.map(i => i.id))
+
+  const appliedIds = res.data?.applied_ids || []
+  if (isDev) console.log("[OFFLINE_SYNC] appliedIds from server:", appliedIds)
+
+  const okIds = new Set(appliedIds.map(id => Number(id)))
   let ok = 0
   for (const it of items) {
-    if (okIds.has(it.id)) {
+    // Check both as numbers to avoid type mismatch
+    if (okIds.has(Number(it.id))) {
       await removeFromQueue(it.id)
       ok++
     }
   }
+  
   const result = { synced: ok, failed: items.length - ok }
-  if (isDev) console.log("[OFFLINE_SYNC] result", result)
+  if (isDev) {
+    console.log("[OFFLINE_SYNC] result", result)
+    if (result.failed > 0) {
+      console.warn("[OFFLINE_SYNC] some items failed to sync. Check Supabase Edge Function logs.")
+    }
+  }
   if (isDev) console.groupEnd()
   return result
 }

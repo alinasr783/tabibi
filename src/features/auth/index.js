@@ -12,8 +12,8 @@ export { default as PermissionGuard } from './PermissionGuard'
 export { AuthProvider, useAuth } from './AuthContext'
 
 // Auth Hooks
-export { default as useLogin } from './useLogin'
-export { default as useSignup } from './useSignup'
+export { default as useLogin } from './useLogin.jsx'
+export { default as useSignup } from './useSignup.jsx'
 export { default as useLogout } from './useLogout'
 export { default as useUser } from './useUser'
 export { default as useVerifyClinicId } from './useVerifyClinicId'

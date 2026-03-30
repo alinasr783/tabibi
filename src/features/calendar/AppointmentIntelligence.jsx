@@ -8,6 +8,8 @@ import { toast } from 'sonner';
 import { NotificationToast } from '../../features/Notifications/NotificationToast';
 import { processAppointmentInputStream } from '../../services/groqService';
 import { updateAppointment } from '../../services/apiAppointments';
+import { updatePatient } from '../../services/apiPatients';
+import { updateVisit } from '../../services/apiVisits';
 import { useQueryClient } from '@tanstack/react-query';
 import { useUserPreferences } from '../../hooks/useUserPreferences';
 import { normalizeMedicalFieldsConfig, flattenCustomFieldTemplates, mergeTemplatesIntoCustomFields } from '../../lib/medicalFieldsConfig';
@@ -19,11 +21,18 @@ export default function AppointmentIntelligence({ appointment }) {
   const [showResult, setShowResult] = useState(false);
   const textareaRef = useRef(null);
   const previousInputRef = useRef('');
-  const [chatLog, setChatLog] = useState([]); // Local state only
+  const [chatLog, setChatLog] = useState([]);
   const activeRequestRef = useRef({ abortController: null, timeoutId: null });
   
   const queryClient = useQueryClient();
   const { data: preferences } = useUserPreferences();
+
+  // Load chat history from appointment data
+  useEffect(() => {
+    if (appointment?.ai_chat_log) {
+      setChatLog(appointment.ai_chat_log);
+    }
+  }, [appointment?.ai_chat_log]);
 
   // Early return if AI is disabled for this page
   if (preferences?.ai_settings?.enabled_pages?.appointment_details === false) {
@@ -270,49 +279,67 @@ export default function AppointmentIntelligence({ appointment }) {
         },
       });
       
-      const updates = result.updates || {};
-      const reply = result.reply || "تم استلام البيانات.";
-      const ui = result.ui && typeof result.ui === "object" && !Array.isArray(result.ui) ? result.ui : null;
-      const createFields = Array.isArray(result.create_fields) ? result.create_fields : [];
+      const { 
+        appointment_updates = {}, 
+        patient_updates = {}, 
+        visit_updates = {}, 
+        reply = "تم استلام البيانات.",
+        ui = null,
+        create_fields = []
+      } = result;
 
       let successDetails = [];
-      Object.entries(updates).forEach(([key, value]) => {
-        if (key === 'custom_fields') return;
-        successDetails.push(getFieldName(key, fieldDefinitions));
+      
+      // 1. Process Appointment Updates
+      let finalAppointmentUpdates = { ...appointment_updates };
+      const existingAppFields = Array.isArray(appointment.custom_fields) ? appointment.custom_fields : [];
+      
+      if (appointment_updates.custom_fields) {
+         const merged = [...existingAppFields];
+         Object.entries(appointment_updates.custom_fields).forEach(([id, value]) => {
+           const idx = merged.findIndex(f => String(f.id) === String(id));
+           if (idx >= 0) merged[idx] = { ...merged[idx], value };
+           else if (fieldDefinitions.has(id)) {
+             const def = fieldDefinitions.get(id);
+             merged.push({ ...def, value });
+           }
+           successDetails.push(getFieldName(id, fieldDefinitions));
+         });
+         finalAppointmentUpdates.custom_fields = merged;
+      }
+
+      Object.keys(appointment_updates).forEach(key => {
+        if (key !== 'custom_fields') successDetails.push(getFieldName(key, fieldDefinitions));
       });
 
-      let finalUpdates = { ...updates };
-      
-      const existingFields = Array.isArray(appointment.custom_fields) 
-        ? appointment.custom_fields 
-        : [];
-      
-      if (Array.isArray(updates.custom_fields)) {
-         // Merge logic
-         const merged = [...existingFields];
-         updates.custom_fields.forEach(u => {
-           const idx = merged.findIndex(f => String(f.id) === String(u.id));
-           if (idx >= 0) {
-             merged[idx] = { ...merged[idx], ...u };
-           } else {
-             merged.push(u);
-           }
-         });
-         finalUpdates.custom_fields = merged;
+      // 2. Process Patient Updates
+      let finalPatientUpdates = { ...patient_updates };
+      if (Object.keys(patient_updates).length > 0 && appointment.patient_id) {
+        // Handle medical_history/insurance_info nesting if AI returns them flat
+        const medicalHistoryKeys = new Set(["chief_complaint", "chronic_diseases", "blood_pressure", "blood_sugar", "allergies", "past_surgeries", "family_history"]);
+        const patientMedicalHistory = {};
+        Object.keys(patient_updates).forEach(key => {
+          if (medicalHistoryKeys.has(key)) {
+            patientMedicalHistory[key] = patient_updates[key];
+            delete finalPatientUpdates[key];
+          }
+          successDetails.push(`المريض: ${getFieldName(key, fieldDefinitions)}`);
+        });
+
+        if (Object.keys(patientMedicalHistory).length > 0) {
+          finalPatientUpdates.medical_history = {
+            ...(appointment.patient?.medical_history || {}),
+            ...patientMedicalHistory
+          };
+        }
+
+        await updatePatient(appointment.patient_id, finalPatientUpdates);
+        queryClient.invalidateQueries({ queryKey: ['patient', appointment.patient_id] });
       }
-      
-      if (createFields.length > 0) {
-        // Handle new fields creation if needed
-        const newFields = createFields.map(f => ({
-          ...f,
-          id: `new_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          section_id: f.section_id || "medical_state"
-        }));
-        finalUpdates.custom_fields = [
-          ...(finalUpdates.custom_fields || existingFields),
-          ...newFields
-        ];
-      }
+
+      // 3. Process Visit Updates (If linked or active)
+      // Note: Since appointments and visits are separate, we might need a way to find the linked visit.
+      // For now, we'll skip direct visit updates from appointment page unless we have a visit ID.
 
       setChatLog((prev) =>
         prev.map((m) =>
@@ -322,8 +349,19 @@ export default function AppointmentIntelligence({ appointment }) {
         )
       );
 
+      // Get latest chat log for saving
+      const finalChatLog = [...newChatLog, { 
+        id: assistantMessageId, 
+        role: "assistant", 
+        content: { version: "tabibi_intelligence_v2", title: "المساعد الشخصي", changes: ui?.changes || [], reply },
+        timestamp: new Date().toISOString() 
+      }];
+
       // Save to server
-      const savedData = await updateAppointment(appointment.id, finalUpdates);
+      const savedData = await updateAppointment(appointment.id, { 
+        ...finalAppointmentUpdates, 
+        ai_chat_log: finalChatLog 
+      });
 
       if (savedData) {
         queryClient.setQueryData(['appointment', appointment.id], savedData);

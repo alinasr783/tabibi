@@ -9,6 +9,8 @@ import { Button } from "../../components/ui/button";
 import { ScrollArea, ScrollBar } from "../../components/ui/scroll-area";
 import { useNavigate } from "react-router-dom";
 import AppointmentCreateDialog from "../calendar/AppointmentCreateDialog";
+import { useSubscriptionBlocking } from "../auth/useSubscriptionBlocking";
+import SubscriptionBlockingModal from "../auth/SubscriptionBlockingModal";
 import { useQuery } from "@tanstack/react-query";
 import supabase from "../../services/supabase.js";
 
@@ -79,6 +81,7 @@ const statusMap = {
 export default function SwipeableMiniSchedule() {
   const [dateOffset, setDateOffset] = useState(0);
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
+  const { checkAction, isBlockingModalOpen, closeBlockingModal, subscriptionStatus } = useSubscriptionBlocking();
   const navigate = useNavigate();
   
   // Fetch appointments for the current date offset
@@ -208,7 +211,7 @@ export default function SwipeableMiniSchedule() {
               <Clock className="size-12 mx-auto mb-2 opacity-30 text-primary" />
               <p className="mb-4">مفيش مواعيد {getDateDisplayText(dateOffset).replace("مواعيدك", "")}</p>
               <Button 
-                onClick={() => setShowAppointmentModal(true)} 
+                onClick={() => checkAction(() => setShowAppointmentModal(true))} 
                 className="hover:bg-primary text-white bg-primary"
               >
                 <Plus className="w-4 h-4 ml-2" />
@@ -220,6 +223,11 @@ export default function SwipeableMiniSchedule() {
         <AppointmentCreateDialog 
           open={showAppointmentModal} 
           onClose={() => setShowAppointmentModal(false)} 
+        />
+        <SubscriptionBlockingModal 
+          isOpen={isBlockingModalOpen} 
+          onClose={closeBlockingModal} 
+          status={subscriptionStatus} 
         />
       </>
     );

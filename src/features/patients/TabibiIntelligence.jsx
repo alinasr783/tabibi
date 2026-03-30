@@ -8,6 +8,8 @@ import { toast } from 'sonner';
 import { NotificationToast } from '../../features/Notifications/NotificationToast';
 import { processPatientInputStream } from '../../services/groqService';
 import { updatePatient } from '../../services/apiPatients';
+import { updateAppointment } from '../../services/apiAppointments';
+import { updateVisit } from '../../services/apiVisits';
 import supabase from '../../services/supabase';
 import { useQueryClient } from '@tanstack/react-query';
 import { useUserPreferences } from '../../hooks/useUserPreferences';
@@ -340,168 +342,90 @@ export default function TabibiIntelligence({ patient }) {
         },
       });
       
-      const updates = result.updates || {};
-      const reply = result.reply || "تم استلام البيانات.";
-      const ui = result.ui && typeof result.ui === "object" && !Array.isArray(result.ui) ? result.ui : null;
-      const createFields = Array.isArray(result.create_fields) ? result.create_fields : [];
+      const { 
+        patient_updates = {}, 
+        appointment_updates = {}, 
+        visit_updates = {}, 
+        reply = "تم استلام البيانات.",
+        ui = null,
+        create_fields = []
+      } = result;
 
-      // Generate success message with field names
       let successDetails = [];
-      Object.entries(updates).forEach(([key, value]) => {
-        if (key === 'custom_fields') return;
-        if (key === 'medical_history' && value && typeof value === 'object' && !Array.isArray(value)) {
-          Object.keys(value).forEach((subKey) => {
-            if (subKey === 'ai_chat_log') return;
-            successDetails.push(getFieldName(subKey, fieldDefinitions));
-          });
-          return;
-        }
-        successDetails.push(getFieldName(key, fieldDefinitions));
-      });
 
-      // Handle custom_fields merge if present
-      let finalUpdates = { ...updates };
-      
-      const existingFields = Array.isArray(patient.custom_fields)
-        ? [...patient.custom_fields]
-        : [];
+      // 1. Process Patient Updates
+      let finalPatientUpdates = { ...patient_updates };
+      const currentPatientFields = Array.isArray(patient.custom_fields) ? [...patient.custom_fields] : [];
 
-      if (createFields.length > 0) {
-        const existingNames = new Set(existingFields.map((f) => String(f?.name || "").trim().toLowerCase()).filter(Boolean));
-        createFields.forEach((proposal) => {
-          const name = String(proposal?.name || "").trim();
-          if (!name) return;
-          const nameKey = name.toLowerCase();
-          if (existingNames.has(nameKey)) return;
-          const type = normalizeProposedFieldType(proposal?.type);
-          const sectionId = knownSectionIds.has(String(proposal?.section_id || ""))
-            ? String(proposal.section_id)
-            : "personal";
-          const options = Array.isArray(proposal?.options) ? proposal.options.map(String).filter(Boolean) : [];
-          const initialValue = Object.prototype.hasOwnProperty.call(proposal || {}, "initial_value")
-            ? proposal.initial_value
-            : defaultValueForType(type);
-
-          const id = typeof crypto?.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
-          existingFields.push({
-            id,
-            name,
-            type,
-            section_id: sectionId,
-            options: type === "select" || type === "multiselect" ? options : [],
-            value: initialValue,
-          });
-          fieldDefinitions.set(String(id), { id, name, type, section_id: sectionId, options });
-          successDetails.push(name);
-          existingNames.add(nameKey);
-        });
-      }
-
-      if (updates.custom_fields) {
-        
-        const newValues = updates.custom_fields;
-        
-        // Map existing fields for quick access
-        const existingMap = new Map(existingFields.map(f => [f.id, f]));
-        
-        Object.entries(newValues).forEach(([id, value]) => {
-          // Add to success details
-          successDetails.push(getFieldName(id, fieldDefinitions));
-
-          if (existingMap.has(id)) {
-            // Update existing field value
-            const field = existingMap.get(id);
-            field.value = value;
-          } else if (fieldDefinitions.has(id)) {
-            // Add new field from definition
+      if (patient_updates.custom_fields) {
+        Object.entries(patient_updates.custom_fields).forEach(([id, value]) => {
+          const idx = currentPatientFields.findIndex(f => String(f.id) === String(id));
+          if (idx >= 0) currentPatientFields[idx].value = value;
+          else if (fieldDefinitions.has(id)) {
             const def = fieldDefinitions.get(id);
-            existingFields.push({
-              id: def.id,
-              name: def.name,
-              type: def.type,
-              section_id: def.section_id,
-              value: value,
-              options: def.options || []
-            });
+            currentPatientFields.push({ ...def, value });
           }
+          successDetails.push(getFieldName(id, fieldDefinitions));
         });
-        
-        finalUpdates.custom_fields = existingFields;
-      } else if (createFields.length > 0) {
-        finalUpdates.custom_fields = existingFields;
+        finalPatientUpdates.custom_fields = currentPatientFields;
       }
 
-      // Prepare final AI message with details
-      // Use the AI's natural reply which now includes confirmation and suggestions
-      const finalAiMessageContent = ui ? { ...ui, version: "tabibi_intelligence_v2" } : reply;
-      const updatedChatLog = [...newChatLog, { role: 'assistant', content: finalAiMessageContent, timestamp: new Date().toISOString() }];
-      setChatLog((prev) => prev.map((m) => (m?.id === assistantMessageId ? { ...m, content: finalAiMessageContent } : m)));
+      // Handle medical_history/insurance_info nesting
+      const medicalHistoryKeys = new Set(["chief_complaint", "chronic_diseases", "blood_pressure", "blood_sugar", "allergies", "past_surgeries", "family_history"]);
+      const insuranceKeys = new Set(["provider", "policy_number", "card_id", "expiry_date", "notes"]);
+      
+      const patientMedicalHistory = {};
+      const patientInsuranceInfo = {};
 
-      // 2. Update Patient in Supabase (Data + Chat Log)
-      const medicalHistoryKeys = new Set([
-        "chief_complaint",
-        "chronic_diseases",
-        "blood_pressure",
-        "blood_sugar",
-        "allergies",
-        "past_surgeries",
-        "family_history",
-      ]);
-
-      const allowedPatientColumns = new Set([
-        "name",
-        "phone",
-        "address",
-        "date_of_birth",
-        "blood_type",
-        "gender",
-        "age",
-        "age_unit",
-        "job",
-        "marital_status",
-        "email",
-        "notes",
-        "insurance_info",
-        "custom_fields",
-      ]);
-
-      const movedMedicalHistory = {};
-      for (const key of medicalHistoryKeys) {
-        if (Object.prototype.hasOwnProperty.call(finalUpdates, key)) {
-          movedMedicalHistory[key] = finalUpdates[key];
-          delete finalUpdates[key];
+      Object.keys(patient_updates).forEach(key => {
+        if (medicalHistoryKeys.has(key)) {
+          patientMedicalHistory[key] = patient_updates[key];
+          delete finalPatientUpdates[key];
+        } else if (insuranceKeys.has(key)) {
+          patientInsuranceInfo[key] = patient_updates[key];
+          delete finalPatientUpdates[key];
         }
-      }
-
-      const currentMedicalHistory = patient.medical_history || {};
-      const medicalHistoryFromUpdates =
-        finalUpdates.medical_history && typeof finalUpdates.medical_history === "object" && !Array.isArray(finalUpdates.medical_history)
-          ? finalUpdates.medical_history
-          : {};
-
-      const sanitizedUpdates = {};
-      Object.entries(finalUpdates).forEach(([key, value]) => {
-        if (key === "medical_history") return;
-        if (!allowedPatientColumns.has(key)) return;
-        sanitizedUpdates[key] = value;
+        if (key !== 'custom_fields') successDetails.push(getFieldName(key, fieldDefinitions));
       });
 
-      const payload = {
-        ...sanitizedUpdates,
-        medical_history: {
-          ...currentMedicalHistory,
-          ...medicalHistoryFromUpdates,
-          ...movedMedicalHistory,
-          ai_chat_log: updatedChatLog,
-        },
-      };
+      if (Object.keys(patientMedicalHistory).length > 0) {
+        finalPatientUpdates.medical_history = {
+          ...(patient.medical_history || {}),
+          ...patientMedicalHistory
+        };
+      }
+      if (Object.keys(patientInsuranceInfo).length > 0) {
+        finalPatientUpdates.insurance_info = {
+          ...(patient.insurance_info || {}),
+          ...patientInsuranceInfo
+        };
+      }
 
-      // Optimistic update
-      const updatedPatientData = { ...patient, ...payload };
-      queryClient.setQueryData(['patient', patient.id], updatedPatientData);
-      queryClient.setQueryData(['patient', String(patient.id)], updatedPatientData);
+      // 2. Process Appointment/Visit Updates (Requires ID lookup)
+      // Since we are on Patient page, we'd need to identify which appointment/visit to update.
+      // Usually the active/latest one. For now, we'll focus on patient updates.
 
-      const savedData = await updatePatient(patient.id, payload);
+      setChatLog((prev) =>
+        prev.map((m) =>
+          m?.id === assistantMessageId
+            ? { ...m, content: { version: "tabibi_intelligence_v2", title: "المساعد الشخصي", changes: ui?.changes || [], reply } }
+            : m
+        )
+      );
+
+      // Get latest chat log for saving
+      const finalChatLog = [...newChatLog, { 
+        id: assistantMessageId, 
+        role: "assistant", 
+        content: { version: "tabibi_intelligence_v2", title: "المساعد الشخصي", changes: ui?.changes || [], reply },
+        timestamp: new Date().toISOString() 
+      }];
+
+      // Save to server
+      const savedData = await updatePatient(patient.id, { 
+        ...finalPatientUpdates, 
+        ai_chat_log: finalChatLog 
+      });
 
       // 3. Confirm with server data
       if (savedData) {
