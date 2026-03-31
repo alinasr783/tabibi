@@ -1,32 +1,15 @@
 import supabase from "./supabase"
 import { getAllItems, getItem, STORE_NAMES } from "../features/offline-mode/offlineDB"
-import { create as dsCreate, get as dsGet } from "./dataService"
+import { create as dsCreate } from "./dataService"
 import { resolveClinicIdBigint } from "./clinicIds"
-import { shouldUseOfflineMode, getClinicId } from "./apiOfflineMode"
-
-async function getClinicBigint() {
-    let clinicIdBigint = localStorage.getItem("tabibi_clinic_id_bigint")
-    if (clinicIdBigint) return clinicIdBigint
-
-    const clinicUuid = await getClinicId()
-    if (!clinicUuid) return null
-
-    const { data: clinicData } = await supabase
-        .from("clinics")
-        .select("clinic_id_bigint, id")
-        .eq("clinic_uuid", clinicUuid)
-        .single()
-    
-    clinicIdBigint = clinicData?.clinic_id_bigint || clinicData?.id
-    if (clinicIdBigint) localStorage.setItem("tabibi_clinic_id_bigint", clinicIdBigint)
-    return clinicIdBigint
-}
 
 export async function createFinancialRecord(payload) {
-    const clinicIdBigint = await getClinicBigint()
-    if (!clinicIdBigint) throw new Error("User has no clinic assigned")
-
-    if (shouldUseOfflineMode()) {
+    const offlineEnabled = (() => {
+        try { return localStorage.getItem("tabibi_offline_enabled") === "true" } catch { return false }
+    })()
+    const browserOffline = typeof navigator !== "undefined" && navigator.onLine === false
+    if (offlineEnabled && browserOffline) {
+        const clinicIdBigint = payload?.clinic_id || await resolveClinicIdBigint().catch(() => null)
         const record = {
             ...payload,
             clinic_id: clinicIdBigint,
@@ -34,6 +17,32 @@ export async function createFinancialRecord(payload) {
         }
         return dsCreate("financial_records", record)
     }
+
+    // Get current user's clinic_id (bigint for financial_records table)
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) throw new Error("Not authenticated")
+
+    const { data: userData } = await supabase
+        .from("users")
+        .select("clinic_id_bigint, clinic_id")
+        .eq("user_id", session.user.id)
+        .single()
+
+    // Use clinic_id_bigint for financial_records table (legacy schema uses bigint)
+    // If clinic_id_bigint is not set, try to get it from clinics table
+    let clinicIdBigint = userData?.clinic_id_bigint
+    
+    if (!clinicIdBigint && userData?.clinic_id) {
+        const { data: clinicData } = await supabase
+            .from("clinics")
+            .select("clinic_id_bigint, id")
+            .eq("clinic_uuid", userData.clinic_id)
+            .single()
+        
+        clinicIdBigint = clinicData?.clinic_id_bigint || clinicData?.id
+    }
+
+    if (!clinicIdBigint) throw new Error("User has no clinic assigned")
 
     // Add clinic_id (as bigint) to the financial record data
     const financialRecordData = {
@@ -52,11 +61,14 @@ export async function createFinancialRecord(payload) {
 }
 
 export async function getFinancialRecords(page = 1, pageSize = 10, filters = {}) {
-    const clinicIdBigint = await getClinicBigint()
-    if (!clinicIdBigint) throw new Error("User has no clinic assigned")
-
-    if (shouldUseOfflineMode()) {
-        let items = await dsGet("financial_records", { clinic_id: clinicIdBigint })
+    const offlineEnabled = (() => {
+        try { return localStorage.getItem("tabibi_offline_enabled") === "true" } catch { return false }
+    })()
+    const browserOffline = typeof navigator !== "undefined" && navigator.onLine === false
+    if (offlineEnabled && browserOffline) {
+        const clinicIdBigint = await resolveClinicIdBigint().catch(() => null)
+        let items = await getAllItems(STORE_NAMES.FINANCIAL_RECORDS)
+        if (clinicIdBigint != null) items = items.filter((r) => String(r?.clinic_id || "") === String(clinicIdBigint))
 
         if (filters.startDate && filters.endDate) {
             items = items.filter((r) => String(r?.recorded_at || r?.created_at || "") >= String(filters.startDate) && String(r?.recorded_at || r?.created_at || "") <= String(filters.endDate))
@@ -76,6 +88,31 @@ export async function getFinancialRecords(page = 1, pageSize = 10, filters = {})
         const to = from + pageSize
         return { items: items.slice(from, to), total: items.length }
     }
+
+    // Get current user's clinic_id (bigint)
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) throw new Error("Not authenticated")
+
+    const { data: userData } = await supabase
+        .from("users")
+        .select("clinic_id_bigint, clinic_id")
+        .eq("user_id", session.user.id)
+        .single()
+
+    // Use clinic_id_bigint for financial_records table
+    let clinicIdBigint = userData?.clinic_id_bigint
+    
+    if (!clinicIdBigint && userData?.clinic_id) {
+        const { data: clinicData } = await supabase
+            .from("clinics")
+            .select("clinic_id_bigint, id")
+            .eq("clinic_uuid", userData.clinic_id)
+            .single()
+        
+        clinicIdBigint = clinicData?.clinic_id_bigint || clinicData?.id
+    }
+
+    if (!clinicIdBigint) throw new Error("User has no clinic assigned")
 
     const from = Math.max(0, (page - 1) * pageSize)
     const to = from + pageSize - 1
@@ -119,35 +156,30 @@ export async function getFinancialRecords(page = 1, pageSize = 10, filters = {})
 }
 
 export async function getFinancialSummary(filters = {}) {
-    const clinicIdBigint = await getClinicBigint()
-    if (!clinicIdBigint) throw new Error("User has no clinic assigned")
+    // Get current user's clinic_id (bigint)
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) throw new Error("Not authenticated")
 
-    if (shouldUseOfflineMode()) {
-        const data = await dsGet("financial_records", { clinic_id: clinicIdBigint })
-        let filtered = data
-        if (filters.startDate && filters.endDate) {
-            filtered = data.filter((r) => String(r?.recorded_at || r?.created_at || "") >= String(filters.startDate) && String(r?.recorded_at || r?.created_at || "") <= String(filters.endDate))
-        }
+    const { data: userData } = await supabase
+        .from("users")
+        .select("clinic_id_bigint, clinic_id")
+        .eq("user_id", session.user.id)
+        .single()
 
-        const totalIncome = filtered
-            .filter(r => r.type === 'income')
-            .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
-
-        const totalExpense = filtered
-            .filter(r => r.type === 'expense')
-            .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
-
-        const totalCharges = filtered
-            .filter(r => r.type === 'charge')
-            .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
-
-        return {
-            totalIncome,
-            totalExpense,
-            totalCharges,
-            netProfit: totalIncome - totalExpense
-        }
+    // Use clinic_id_bigint for financial_records table
+    let clinicIdBigint = userData?.clinic_id_bigint
+    
+    if (!clinicIdBigint && userData?.clinic_id) {
+        const { data: clinicData } = await supabase
+            .from("clinics")
+            .select("clinic_id_bigint, id")
+            .eq("clinic_uuid", userData.clinic_id)
+            .single()
+        
+        clinicIdBigint = clinicData?.clinic_id_bigint || clinicData?.id
     }
+
+    if (!clinicIdBigint) throw new Error("User has no clinic assigned")
 
     // Get all records for calculation
     let query = supabase
@@ -186,17 +218,30 @@ export async function getFinancialSummary(filters = {}) {
 }
 
 export async function getFinancialChartData(filters = {}) {
-    const clinicIdBigint = await getClinicBigint()
-    if (!clinicIdBigint) throw new Error("User has no clinic assigned")
+    // Get current user's clinic_id (bigint)
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) throw new Error("Not authenticated")
 
-    if (shouldUseOfflineMode()) {
-        const data = await dsGet("financial_records", { clinic_id: clinicIdBigint })
-        let filtered = data
-        if (filters.startDate && filters.endDate) {
-            filtered = data.filter((r) => String(r?.recorded_at || r?.created_at || "") >= String(filters.startDate) && String(r?.recorded_at || r?.created_at || "") <= String(filters.endDate))
-        }
-        return filtered.sort((a, b) => String(a?.recorded_at || a?.created_at || "").localeCompare(String(b?.recorded_at || b?.created_at || "")))
+    const { data: userData } = await supabase
+        .from("users")
+        .select("clinic_id_bigint, clinic_id")
+        .eq("user_id", session.user.id)
+        .single()
+
+    // Use clinic_id_bigint for financial_records table
+    let clinicIdBigint = userData?.clinic_id_bigint
+    
+    if (!clinicIdBigint && userData?.clinic_id) {
+        const { data: clinicData } = await supabase
+            .from("clinics")
+            .select("clinic_id_bigint, id")
+            .eq("clinic_uuid", userData.clinic_id)
+            .single()
+        
+        clinicIdBigint = clinicData?.clinic_id_bigint || clinicData?.id
     }
+
+    if (!clinicIdBigint) throw new Error("User has no clinic assigned")
 
     // Get all records for charts
     let query = supabase

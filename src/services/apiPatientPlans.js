@@ -1,27 +1,25 @@
 import supabase from "./supabase";
-import * as dataService from "./dataService"
-import { shouldUseOfflineMode, getClinicId } from "./apiOfflineMode"
 import { requireActiveSubscription } from "./subscriptionEnforcement";
 
 export async function createPatientPlan(payload) {
-    const clinicUuid = await getClinicId();
-    if (!clinicUuid) throw new Error("User has no clinic assigned")
+    // Get current user's clinic_id
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("Not authenticated");
 
-    if (shouldUseOfflineMode()) {
-        const patientPlanData = {
-            ...payload,
-            clinic_id: clinicUuid,
-            updated_at: new Date().toISOString()
-        }
-        return dataService.create("patient_plans", patientPlanData)
-    }
+    const { data: userData } = await supabase
+        .from("users")
+        .select("clinic_id")
+        .eq("user_id", session.user.id)
+        .single();
 
-    await requireActiveSubscription(clinicUuid);
+    if (!userData?.clinic_id) throw new Error("User has no clinic assigned");
+
+    await requireActiveSubscription(userData.clinic_id);
 
     // Add clinic_id to the patient plan data
     const patientPlanData = {
         ...payload,
-        clinic_id: clinicUuid
+        clinic_id: userData.clinic_id
     };
 
     const { data, error } = await supabase
@@ -39,13 +37,17 @@ export async function createPatientPlan(payload) {
 }
 
 export async function getPatientPlan(planId) {
-    const clinicUuid = await getClinicId();
-    if (!clinicUuid) throw new Error("User has no clinic assigned")
+    // Get current user's clinic_id
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("Not authenticated");
 
-    if (shouldUseOfflineMode()) {
-        const plans = await dataService.get("patient_plans", { id: planId });
-        return plans[0] || null;
-    }
+    const { data: userData } = await supabase
+        .from("users")
+        .select("clinic_id")
+        .eq("user_id", session.user.id)
+        .single();
+
+    if (!userData?.clinic_id) throw new Error("User has no clinic assigned");
 
     const { data, error } = await supabase
         .from("patient_plans")
@@ -59,17 +61,17 @@ export async function getPatientPlan(planId) {
             advanced_settings,
             treatment_templates(name, session_count, session_price)
         `)
-        .eq("clinic_id", clinicUuid)
+        .eq("clinic_id", userData.clinic_id)
         .eq("id", planId.toString())  // Convert to string for compatibility
         .single();
 
     if (error) {
         console.error("Error fetching patient plan:", error);
-        console.error("Attempted to fetch plan ID:", planId, "at clinic:", clinicUuid);
+        console.error("Attempted to fetch plan ID:", planId, "at clinic:", userData.clinic_id);
         
         // Check if the error is because the plan doesn't exist
         if (error.code === 'PGRST116' && error.details === 'The result contains 0 rows') {
-            console.warn(`Plan with ID ${planId} not found in clinic ${clinicUuid}`);
+            console.warn(`Plan with ID ${planId} not found in clinic ${userData.clinic_id}`);
             return null;
         }
         
@@ -79,13 +81,17 @@ export async function getPatientPlan(planId) {
 }
 
 export async function getPatientPlans(patientId) {
-    const clinicUuid = await getClinicId();
-    if (!clinicUuid) throw new Error("User has no clinic assigned")
+    // Get current user's clinic_id
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("Not authenticated");
 
-    if (shouldUseOfflineMode()) {
-        const all = await dataService.get("patient_plans", { clinic_id: clinicUuid, patient_id: patientId.toString() });
-        return all.sort((a, b) => new Date(b.date) - new Date(a.date));
-    }
+    const { data: userData } = await supabase
+        .from("users")
+        .select("clinic_id")
+        .eq("user_id", session.user.id)
+        .single();
+
+    if (!userData?.clinic_id) throw new Error("User has no clinic assigned");
 
     const { data, error } = await supabase
         .from("patient_plans")
@@ -99,17 +105,17 @@ export async function getPatientPlans(patientId) {
             advanced_settings,
             treatment_templates(name, session_count, session_price)
         `)
-        .eq("clinic_id", clinicUuid)
+        .eq("clinic_id", userData.clinic_id)
         .eq("patient_id", patientId.toString())  // Convert to string for compatibility
         .order("created_at", { ascending: false });
 
     if (error) {
         console.error("Error fetching patient plans:", error);
-        console.error("Attempted to fetch plans for patient ID:", patientId, "at clinic:", clinicUuid);
+        console.error("Attempted to fetch plans for patient ID:", patientId, "at clinic:", userData.clinic_id);
         
         // Check if the error is because there are no plans for this patient
         if (error.code === 'PGRST116' && error.details === 'The result contains 0 rows') {
-            console.warn(`No plans found for patient with ID ${patientId} in clinic ${clinicUuid}`);
+            console.warn(`No plans found for patient with ID ${patientId} in clinic ${userData.clinic_id}`);
             return [];
         }
         
@@ -119,46 +125,56 @@ export async function getPatientPlans(patientId) {
 }
 
 export async function updatePatientPlan(id, payload) {
-    const clinicUuid = await getClinicId();
-    if (!clinicUuid) throw new Error("User has no clinic assigned")
+    // Get current user's clinic_id
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("Not authenticated");
 
-    if (shouldUseOfflineMode()) {
-        return dataService.update("patient_plans", id, payload)
-    }
+    const { data: userData } = await supabase
+        .from("users")
+        .select("clinic_id")
+        .eq("user_id", session.user.id)
+        .single();
+
+    if (!userData?.clinic_id) throw new Error("User has no clinic assigned");
 
     const { data, error } = await supabase
         .from("patient_plans")
         .update(payload)
         .eq("id", id.toString())  // Convert to string for compatibility
-        .eq("clinic_id", clinicUuid)
+        .eq("clinic_id", userData.clinic_id)
         .select()
         .single();
 
     if (error) {
         console.error("Error updating patient plan:", error);
-        console.error("Attempted to update plan ID:", id, "at clinic:", clinicUuid);
+        console.error("Attempted to update plan ID:", id, "at clinic:", userData.clinic_id);
         throw error;
     }
     return data;
 }
 
 export async function deletePatientPlan(id) {
-    const clinicUuid = await getClinicId();
-    if (!clinicUuid) throw new Error("User has no clinic assigned")
+    // Get current user's clinic_id
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("Not authenticated");
 
-    if (shouldUseOfflineMode()) {
-        return dataService.remove("patient_plans", id)
-    }
+    const { data: userData } = await supabase
+        .from("users")
+        .select("clinic_id")
+        .eq("user_id", session.user.id)
+        .single();
+
+    if (!userData?.clinic_id) throw new Error("User has no clinic assigned");
 
     const { data, error } = await supabase
         .from("patient_plans")
         .delete()
         .eq("id", id.toString())  // Convert to string for compatibility
-        .eq("clinic_id", clinicUuid);
+        .eq("clinic_id", userData.clinic_id);
 
     if (error) {
         console.error("Error deleting patient plan:", error);
-        console.error("Attempted to delete plan ID:", id, "at clinic:", clinicUuid);
+        console.error("Attempted to delete plan ID:", id, "at clinic:", userData.clinic_id);
         throw error;
     }
     return data;

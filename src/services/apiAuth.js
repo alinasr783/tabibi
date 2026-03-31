@@ -200,26 +200,6 @@ export async function logout() {
 export async function getCurrentUser() {
     console.log("getCurrentUser: Starting user data fetch");
     
-    // Offline Support: Return cached user data if offline
-    const isOffline = (() => {
-      try { return localStorage.getItem("tabibi_offline_enabled") === "true" && navigator.onLine === false } catch { return false }
-    })()
-    if (isOffline) {
-      const cachedId = localStorage.getItem("tabibi_clinic_id");
-      const cachedName = localStorage.getItem("tabibi_user_name");
-      const cachedRole = localStorage.getItem("tabibi_user_role");
-      if (cachedId) {
-        return {
-          id: "offline_user",
-          email: "offline@tabibi.app",
-          clinic_id: cachedId,
-          name: cachedName || "User (Offline)",
-          role: cachedRole || "doctor",
-          isOffline: true
-        };
-      }
-    }
-
     try {
         // First, get the session
         console.log("getCurrentUser: Attempting to fetch session");
@@ -369,13 +349,6 @@ export async function getCurrentUser() {
             console.log("getCurrentUser: User data fetched successfully:", result.data);
             
             const userData = result.data;
-            
-            // Cache clinic_id and other useful info for offline mode
-            if (userData?.clinic_id) {
-              localStorage.setItem("tabibi_clinic_id", userData.clinic_id);
-              if (userData.name) localStorage.setItem("tabibi_user_name", userData.name);
-              if (userData.role) localStorage.setItem("tabibi_user_role", userData.role);
-            }
             
             // Check if user has a valid role
             if (!userData || !userData.role) {
