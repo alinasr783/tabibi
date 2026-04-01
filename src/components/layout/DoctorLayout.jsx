@@ -33,6 +33,7 @@ import { useUnreadNotifications } from "../../features/Notifications/useUnreadNo
 import useFcmToken from "../../hooks/useFcmToken";
 import useGoogleCalendarSync from "../../features/calendar/useGoogleCalendarSync";
 import { useUserPreferences } from "../../hooks/useUserPreferences";
+import { useOffline } from "../../features/offline-mode/OfflineContext";
 
 // Config for navigation items with Groups
 export const NAV_ITEMS_CONFIG = [
@@ -102,6 +103,7 @@ function NavItem({ to, icon: Icon, label, isVisible = true, onClick, badgeCount 
 
 export default function DoctorLayout({ children }) {
   const { user } = useAuth();
+  const { isOfflineMode } = useOffline();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState(GROUPS_ORDER);
   const { unreadCount = 0, loading } = useUnreadNotifications();
@@ -237,10 +239,11 @@ export default function DoctorLayout({ children }) {
             if (!items || items.length === 0) return null;
             const groupPanelId = `nav-group-${groupKey}`;
 
-            // Filter items by permission
+            // Filter items by permission and offline mode
             const visibleItems = items.filter(item => {
                if (item.role && user?.role !== item.role) return false;
                if (item.permissionKey && !hasPermission(item.permissionKey)) return false;
+               if (isOfflineMode && (item.id === 'ask-tabibi' || item.group === 'apps')) return false;
                return true;
             });
 

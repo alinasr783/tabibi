@@ -1,10 +1,25 @@
 import { useQuery } from "@tanstack/react-query";
 import { getCurrentPlan } from "../../services/apiPlan";
+import { useOffline } from "../offline-mode/OfflineContext";
 
 export function useSubscriptionStatus() {
+  const { isOfflineMode } = useOffline();
+
   return useQuery({
-    queryKey: ["subscriptionStatus"],
+    queryKey: ["subscriptionStatus", isOfflineMode],
     queryFn: async () => {
+      // If offline, assume active to avoid network errors and blocking the UI
+      if (isOfflineMode) {
+        return {
+          hasActivePlan: true,
+          isExpired: false,
+          planName: "وضع بدون إنترنت",
+          daysRemaining: 30,
+          status: "active",
+          isOffline: true
+        };
+      }
+
       try {
         const planData = await getCurrentPlan();
 

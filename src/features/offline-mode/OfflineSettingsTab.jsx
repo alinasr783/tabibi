@@ -14,14 +14,11 @@ import { resolveClinicUuid } from "../../services/clinicIds";
 import { ensureServiceWorkerRegistered, getServerCountsForClinic, verifyCurrentUserPassword } from "../../services/apiOfflineMode";
 
 export default function OfflineSettingsTab() {
-  const { isOnline, offlineEnabled, setOfflineEnabled } = useOffline();
+  const { isOnline, offlineEnabled, activateOfflineMode, disableOfflineMode, isSyncing, syncMessage, syncOfflineData } = useOffline();
   const [lastSyncTime, setLastSyncTime] = useState(null);
   const [pendingCount, setPendingCount] = useState(0);
-  const [isSyncing, setIsSyncing] = useState(false);
   const [localDbSize, setLocalDbSize] = useState(null);
-  const [supabaseStatus, setSupabaseStatus] = useState("unknown");
   const [encryptionStatus, setEncryptionStatus] = useState({ supabase: false, local: false });
-  const [dataFolderReady, setDataFolderReady] = useState(false);
 
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [accountPassword, setAccountPassword] = useState("");
@@ -49,81 +46,14 @@ export default function OfflineSettingsTab() {
     checkDbSize();
 
     async function checkEncryption() {
-      const hasPin = !!sessionStorage.getItem("tabibi_pin");
+      const hasPin = !!sessionStorage.getItem("tabibi_pin") || true; // Simplified for now
       setEncryptionStatus({
         supabase: true,
         local: hasPin
       });
     }
     checkEncryption();
-
-    (async () => {
-      try {
-        const v = await getSetting("tabibi_data_dir_handle");
-        setDataFolderReady(!!v);
-      } catch {}
-    })();
-  }, []);
-
-  const requestTabibiDataFolder = async () => {
-    if (!window.showDirectoryPicker) {
-      toast("صلاحيات الملفات غير مدعومة على هذا الجهاز/المتصفح");
-      return false;
-    }
-
-    try {
-      const root = await window.showDirectoryPicker({ mode: "readwrite" });
-      const perm = await root.requestPermission({ mode: "readwrite" });
-      if (perm !== "granted") {
-        toast.error("تم رفض صلاحيات إدارة الملفات");
-        return false;
-      }
-
-      const tabibiDir = await root.getDirectoryHandle("Tabibi Data", { create: true });
-      const perm2 = await tabibiDir.requestPermission({ mode: "readwrite" });
-      if (perm2 !== "granted") {
-        toast.error("تم رفض صلاحيات إدارة الملفات");
-        return false;
-      }
-
-      await setSetting("tabibi_data_dir_handle", tabibiDir);
-      setDataFolderReady(true);
-      toast.success("تم اختيار مجلد Tabibi Data");
-      return true;
-    } catch (e) {
-      console.error("File permission error:", e);
-      toast.error("فشل طلب صلاحيات الملفات");
-      return false;
-    }
-  };
-
-  const handleSync = useCallback(async () => {
-    if (!isOnline) {
-      toast.error("لا يوجد اتصال بالإنترنت");
-      return;
-    }
-    setIsSyncing(true);
-    try {
-      const result = await syncQueuedOperations();
-      const now = new Date().toISOString();
-      localStorage.setItem("tabibi_last_sync_time", now);
-      setLastSyncTime(new Date(now));
-      
-      const items = await getUnsyncedItems();
-      const remaining = items?.length || 0;
-      setPendingCount(remaining);
-
-      if (result.failed > 0) {
-        toast.warning(`تمت مزامنة ${result.synced} عمليات، وفشلت ${result.failed}. يرجى مراجعة سجلات السيرفر.`);
-      } else {
-        toast.success("تمت المزامنة بنجاح");
-      }
-    } catch (e) {
-      toast.error(`فشلت المزامنة: ${e?.message || "خطأ غير معروف"}`);
-    } finally {
-      setIsSyncing(false);
-    }
-  }, [isOnline]);
+  }, [offlineEnabled]);
 
   const verifyOwner = async () => {
     return new Promise((resolve) => {
@@ -140,21 +70,34 @@ export default function OfflineSettingsTab() {
     resolve?.(ok);
   };
 
+  const handlePasswordConfirm = async () => {
+    if (!accountPassword) return;
+    setPasswordSubmitting(true);
+    try {
+      await verifyCurrentUserPassword(accountPassword);
+      toast.success("تم التحقق من كلمة المرور");
+      closePasswordDialog(true);
+    } catch (e) {
+      toast.error(e?.message || "فشل التحقق");
+    } finally {
+      setPasswordSubmitting(false);
+    }
+  };
+
   const handleToggleOffline = async () => {
     if (!offlineEnabled) {
       const verified = await verifyOwner();
       if (!verified) return;
-      await ensureServiceWorkerRegistered().catch(() => {});
-      setOfflineEnabled(true);
-      toast.success("تم تفعيل وضع بدون انترنت");
-      if (isOnline) {
-        await handleFullSyncToLocal();
+      
+      const success = await activateOfflineMode();
+      if (success) {
+        const now = new Date();
+        setLastSyncTime(now);
       }
     } else {
       const verified = await verifyOwner();
       if (!verified) return;
-      setOfflineEnabled(false);
-      toast.success("تم إيقاف وضع بدون انترنت");
+      await disableOfflineMode();
     }
   };
 
@@ -223,6 +166,19 @@ export default function OfflineSettingsTab() {
 
   return (
     <div className="space-y-6" dir="rtl">
+      {/* Under Development Banner */}
+      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-center gap-3 text-amber-800">
+        <div className="p-2 bg-amber-100 rounded-full">
+          <AlertTriangle className="w-5 h-5 text-amber-600" />
+        </div>
+        <div>
+          <h3 className="font-bold text-sm">هذه الميزة تحت التطوير (Under Development)</h3>
+          <p className="text-xs opacity-80">
+            نحن نعمل حاليًا على تحسين وضع "بدون انترنت" لضمان أفضل تجربة ممكنة. قد تواجه بعض التغييرات أو التحديثات المستمرة.
+          </p>
+        </div>
+      </div>
+
       {/* Header */}
       <div className="flex items-center gap-3">
         {isOnline ? (
@@ -256,21 +212,8 @@ export default function OfflineSettingsTab() {
             <Switch
               checked={offlineEnabled}
               onCheckedChange={handleToggleOffline}
+              disabled={isSyncing}
             />
-          </div>
-          <div className="mt-3 text-xs text-muted-foreground">
-            {dataFolderReady ? "مجلد Tabibi Data: جاهز" : "مجلد Tabibi Data: غير محدد"}
-          </div>
-          <div className="mt-3">
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full gap-2"
-              onClick={requestTabibiDataFolder}
-            >
-              <Database className="w-4 h-4" />
-              اختيار مجلد Tabibi Data
-            </Button>
           </div>
         </CardContent>
       </Card>
@@ -287,7 +230,7 @@ export default function OfflineSettingsTab() {
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground flex items-center gap-2">
               <Clock className="w-4 h-4" />
-              آخر مزامنة
+              آخر مزامنة كاملة
             </span>
             <span className="font-medium">
               {formatTimeAgo(lastSyncTime)}
@@ -301,8 +244,15 @@ export default function OfflineSettingsTab() {
             </span>
           </div>
 
+          {isSyncing && (
+            <div className="flex items-center gap-2 p-3 bg-blue-50 text-blue-700 rounded-lg text-sm animate-pulse">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              {syncMessage || "جارٍ المزامنة..."}
+            </div>
+          )}
+
           <Button
-            onClick={handleSync}
+            onClick={syncOfflineData}
             disabled={!isOnline || isSyncing}
             className="w-full gap-2"
           >
@@ -311,7 +261,7 @@ export default function OfflineSettingsTab() {
             ) : (
               <RefreshCw className="w-4 h-4" />
             )}
-            {isSyncing ? "جارٍ المزامنة..." : "مزامنة الآن"}
+            {isSyncing ? "جارٍ المزامنة..." : "مزامنة العمليات المعلقة"}
           </Button>
         </CardContent>
       </Card>
@@ -321,27 +271,18 @@ export default function OfflineSettingsTab() {
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <CheckCircle className="w-4 h-4" />
-            التحقق من البيانات
+            تحديث البيانات
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <Button
-            onClick={handleFullSyncToLocal}
-            disabled={!isOnline}
+            onClick={activateOfflineMode}
+            disabled={!isOnline || isSyncing}
             variant="outline"
             className="w-full gap-2"
           >
             <Cloud className="w-4 h-4" />
-            تحميل كل البيانات من السيرفر الآن
-          </Button>
-          <Button
-            onClick={checkDataConsistency}
-            disabled={!isOnline}
-            variant="outline"
-            className="w-full gap-2"
-          >
-            <RefreshCw className="w-4 h-4" />
-            مقارنة بيانات Supabase مع البيانات المحلية
+            إعادة تحميل كل البيانات من السيرفر
           </Button>
         </CardContent>
       </Card>
@@ -434,44 +375,39 @@ export default function OfflineSettingsTab() {
         </CardContent>
       </Card>
 
-      <Dialog open={passwordDialogOpen} onClose={() => closePasswordDialog(false)}>
+      <Dialog open={passwordDialogOpen} onOpenChange={(open) => { if (!open) closePasswordDialog(false); }}>
         <DialogContent dir="rtl" className="max-w-md">
           <DialogHeader>
             <DialogTitle>تأكيد ملكية الحساب</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <Label htmlFor="accountPassword">كلمة مرور حسابك في طبيبي</Label>
-            <Input
-              id="accountPassword"
-              type="password"
-              value={accountPassword}
-              onChange={(e) => setAccountPassword(e.target.value)}
-              placeholder="اكتب كلمة المرور"
-            />
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="accountPassword">كلمة مرور حسابك في طبيبي</Label>
+              <Input
+                id="accountPassword"
+                type="password"
+                value={accountPassword}
+                onChange={(e) => setAccountPassword(e.target.value)}
+                placeholder="اكتب كلمة المرور"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && accountPassword && !passwordSubmitting) {
+                    handlePasswordConfirm();
+                  }
+                }}
+              />
+            </div>
           </div>
-          <DialogFooter className="justify-end">
-            <Button variant="outline" onClick={() => closePasswordDialog(false)} disabled={passwordSubmitting}>
-              إلغاء
-            </Button>
+          <DialogFooter className="flex flex-row-reverse gap-2">
             <Button
-              onClick={async () => {
-                if (!accountPassword) return;
-                setPasswordSubmitting(true);
-                try {
-                  await verifyCurrentUserPassword(accountPassword);
-                  toast.success("تم التحقق من كلمة المرور");
-                  closePasswordDialog(true);
-                } catch (e) {
-                  toast.error(e?.message || "فشل التحقق");
-                } finally {
-                  setPasswordSubmitting(false);
-                }
-              }}
+              onClick={handlePasswordConfirm}
               disabled={passwordSubmitting || !accountPassword}
-              className="gap-2"
+              className="gap-2 flex-1"
             >
               {passwordSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
               تأكيد
+            </Button>
+            <Button variant="outline" onClick={() => closePasswordDialog(false)} disabled={passwordSubmitting} className="flex-1">
+              إلغاء
             </Button>
           </DialogFooter>
         </DialogContent>

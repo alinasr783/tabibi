@@ -313,8 +313,8 @@ export default function PatientDetailPage() {
             </Card>
           </div>
 
-          {/* مساعد المريض الشخصي */}
-          <TabibiIntelligence patient={patient} />
+          {/* مساعد المريض الشخصي - Hidden in Offline Mode */}
+          {!isOfflineMode && <TabibiIntelligence patient={patient} />}
 
           <SubscriptionBlockingModal 
             isOpen={isBlockingModalOpen} 

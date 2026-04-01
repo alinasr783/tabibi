@@ -1,8 +1,8 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { initDB, getUnsyncedItems, addToQueue } from './offlineDB';
+import { db, getUnsyncedItems, addToQueue } from './offlineDB';
 import { useAuth } from '../auth';
-import { toast } from 'react-hot-toast';
-import { syncQueuedOperations } from './sync';
+import { toast } from 'sonner';
+import { syncQueuedOperations, syncAllDataToLocal } from './sync';
 
 const OfflineContext = createContext();
 
@@ -16,11 +16,35 @@ export function OfflineProvider({ children }) {
   const [lastSyncAttemptAt, setLastSyncAttemptAt] = useState(0);
   const [offlineEnabled, setOfflineEnabledState] = useState(() => {
     try {
-      return localStorage.getItem("tabibi_offline_enabled") === "true"
+      const enabled = localStorage.getItem("tabibi_offline_enabled") === "true";
+      console.log("[OfflineProvider] Initial offlineEnabled state:", enabled);
+      return enabled;
     } catch {
       return false
     }
   })
+
+  // Log state changes to help debug
+  useEffect(() => {
+    console.log("[OfflineProvider] State changed - isOnline:", isOnline, "offlineEnabled:", offlineEnabled, "isOfflineMode:", offlineEnabled && !isOnline);
+  }, [isOnline, offlineEnabled]);
+
+  // Initialize the database
+  useEffect(() => {
+    const init = async () => {
+      try {
+        console.log('Initializing offline database (Dexie)...');
+        await db.open();
+        setInitialized(true);
+        console.log('Offline database initialized successfully');
+      } catch (error) {
+        console.error('Failed to initialize offline database:', error);
+        toast.error('فشل في تهيئة قاعدة البيانات المحلية');
+      }
+    };
+
+    init();
+  }, []);
 
   const syncOfflineData = useCallback(async () => {
     if (!offlineEnabled || !user || !initialized) return;
@@ -30,33 +54,21 @@ export function OfflineProvider({ children }) {
     setLastSyncAttemptAt(now);
 
     console.groupCollapsed('[OFFLINE_SYNC] syncOfflineData');
-    console.log('[OFFLINE_SYNC] starting', { initialized, hasUser: !!user });
     setIsSyncing(true);
     setSyncProgress(0);
     setSyncMessage('جارٍ المزامنة...');
 
     try {
-      const unsyncedItems = await getUnsyncedItems();
-      const totalItems = unsyncedItems.length;
-      console.log('[OFFLINE_SYNC] items to sync:', totalItems);
-      if (totalItems === 0) {
-        setSyncMessage('تمت المزامنة بنجاح');
-        setTimeout(() => {
-          setIsSyncing(false);
-          setSyncMessage('');
-        }, 2000);
-        console.groupEnd();
-        return;
-      }
       const res = await syncQueuedOperations();
-      console.log('[OFFLINE_SYNC] syncQueuedOperations result', res);
       setSyncProgress(100);
       setSyncMessage('تمت المزامنة بنجاح');
       setTimeout(() => {
         setIsSyncing(false);
         setSyncMessage('');
       }, 2000);
-      toast.success(`تمت مزامنة ${res.synced} من ${totalItems} عملية`);
+      if (res.synced > 0) {
+        toast.success(`تمت مزامنة ${res.synced} عمليات بنجاح`);
+      }
     } catch (error) {
       console.error('Error during sync:', error);
       setIsSyncing(false);
@@ -67,56 +79,71 @@ export function OfflineProvider({ children }) {
     }
   }, [offlineEnabled, user, initialized, lastSyncAttemptAt]);
 
-  // Initialize the database
-  useEffect(() => {
-    const init = async () => {
-      try {
-        console.log('Initializing offline database...');
-        await initDB();
-        if (!sessionStorage.getItem('tabibi_pin')) {
-          sessionStorage.setItem('tabibi_pin', 'tabibi');
-        }
-        setInitialized(true);
-        console.log('Offline database initialized successfully');
-      } catch (error) {
-        console.error('Failed to initialize offline database:', error);
-        toast.error('فشل في تهيئة قاعدة البيانات المحلية');
-      }
-    };
+  /**
+   * Activates offline mode:
+   * 1. Fetches all clinic data from Supabase.
+   * 2. Stores it in IndexedDB.
+   * 3. Enables offline mode state.
+   */
+  const activateOfflineMode = useCallback(async () => {
+    if (!isOnline) {
+      toast.error("يجب أن تكون متصلاً بالإنترنت لتفعيل هذا الوضع لأول مرة");
+      return false;
+    }
 
-    init();
-  }, [offlineEnabled, syncOfflineData]);
+    setIsSyncing(true);
+    setSyncMessage('جارٍ تحميل جميع بيانات العيادة...');
+    
+    try {
+      // 1. & 2. & 3. Perform full sync (fetch and store)
+      const syncResult = await syncAllDataToLocal();
+      
+      if (syncResult.success) {
+        // 4. Update state
+        setOfflineEnabledState(true);
+        localStorage.setItem("tabibi_offline_enabled", "true");
+        localStorage.setItem("tabibi_last_sync_time", new Date().toISOString());
+        
+        // 5. Notify user
+        toast.success("تم تفعيل وضع بدون إنترنت وتحميل جميع بياناتك بنجاح");
+        return true;
+      } else {
+        throw new Error(syncResult.error);
+      }
+    } catch (error) {
+      console.error("Failed to activate offline mode:", error);
+      toast.error(`فشل تفعيل وضع بدون إنترنت: ${error.message}`);
+      
+      // Revert if failed
+      setOfflineEnabledState(false);
+      localStorage.setItem("tabibi_offline_enabled", "false");
+      return false;
+    } finally {
+      setIsSyncing(false);
+      setSyncMessage('');
+    }
+  }, [isOnline]);
 
-  useEffect(() => {
-    const handler = (e) => {
-      const msg = e && e.data
-      if (msg && msg.type === 'TABIBI_SYNC') {
-        syncOfflineData()
-      }
-    }
-    if (navigator.serviceWorker) {
-      navigator.serviceWorker.addEventListener('message', handler)
-    }
-    return () => {
-      if (navigator.serviceWorker) {
-        navigator.serviceWorker.removeEventListener('message', handler)
-      }
-    }
-  }, [syncOfflineData])
+  const disableOfflineMode = useCallback(async () => {
+    setOfflineEnabledState(false);
+    localStorage.setItem("tabibi_offline_enabled", "false");
+    toast.success("تم إيقاف وضع بدون إنترنت");
+    return true;
+  }, []);
 
   // Monitor online/offline status
   useEffect(() => {
     const handleOnline = () => {
-      console.log('Online event detected');
       setIsOnline(true);
       toast.success('تم استعادة الاتصال بالإنترنت');
       if (offlineEnabled) syncOfflineData();
     };
 
     const handleOffline = () => {
-      console.log('Offline event detected');
       setIsOnline(false);
-      toast.error('أنت غير متصل بالإنترنت حاليًا، سيتم حفظ التغييرات ومزامنتها تلقائيًا عند عودة الاتصال.');
+      if (offlineEnabled) {
+        toast.warning('أنت غير متصل بالإنترنت حاليًا، يمكنك الاستمرار في العمل وسيتم حفظ التغييرات محليًا.');
+      }
     };
 
     window.addEventListener('online', handleOnline);
@@ -126,83 +153,25 @@ export function OfflineProvider({ children }) {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, []);
+  }, [offlineEnabled, syncOfflineData]);
 
+  // Periodic sync when online
   useEffect(() => {
-    if (!offlineEnabled || !user || !initialized) return;
-    const tick = async () => {
-      if (isSyncing) return;
-      if (typeof navigator !== "undefined" && navigator.onLine === false) return;
-      try {
-        const unsynced = await getUnsyncedItems();
-        const count = Array.isArray(unsynced) ? unsynced.length : 0;
-        if (count > 0) {
-          console.log("[OFFLINE_SYNC] periodic check", { count });
-          await syncOfflineData();
-        }
-      } catch (e) {
-        console.warn("[OFFLINE_SYNC] periodic check failed", e);
-      }
-    };
-    tick();
-    const id = setInterval(tick, 30000);
-    return () => clearInterval(id);
-  }, [offlineEnabled, user, initialized, isSyncing, syncOfflineData]);
-
-  // Function to add operation to offline queue
-  const enqueueOperation = useCallback(async (entityType, operation, data, entityId = null) => {
-    if (!offlineEnabled || !initialized) return;
-
-    try {
-      const queueItem = {
-        entityType,
-        operation,
-        data,
-        entityId,
-        timestamp: new Date().toISOString()
-      };
-
-      // Add to offline queue
-      await addToQueue(queueItem);
-      const dataKeys = data && typeof data === "object" ? Object.keys(data).sort() : [];
-      console.log('[OFFLINE_QUEUE] enqueued', { entityType, operation, entityId, dataKeysCount: dataKeys.length });
-      if (navigator.serviceWorker) {
-        navigator.serviceWorker.ready.then((reg) => {
-          if ('sync' in reg) {
-            reg.sync.register('tabibi-sync').catch(() => {})
-          }
-        })
-      }
-      
-      // Show notification when offline
-      if (!isOnline) {
-        toast.success('تم حفظ التغييرات محليًا وسيتم مزامنتها تلقائيًا');
-      }
-    } catch (error) {
-      console.error('Error enqueuing operation:', error);
-      toast.error('فشل في حفظ التغييرات المحلية');
-    }
-  }, [offlineEnabled, initialized, isOnline]);
-
-  // Function to check if we're in offline mode
-  const isOfflineMode = offlineEnabled && !isOnline;
-
-  const setOfflineEnabled = useCallback((next) => {
-    setOfflineEnabledState(!!next)
-    try {
-      localStorage.setItem("tabibi_offline_enabled", next ? "true" : "false")
-    } catch {}
-  }, [])
+    if (!offlineEnabled || !user || !initialized || !isOnline) return;
+    
+    const intervalId = setInterval(syncOfflineData, 60000); // Check every minute
+    return () => clearInterval(intervalId);
+  }, [offlineEnabled, user, initialized, isOnline, syncOfflineData]);
 
   const value = {
     isOnline,
-    isOfflineMode,
+    isOfflineMode: offlineEnabled && !isOnline,
     offlineEnabled,
-    setOfflineEnabled,
+    activateOfflineMode,
+    disableOfflineMode,
     isSyncing,
     syncProgress,
     syncMessage,
-    enqueueOperation,
     syncOfflineData
   };
 

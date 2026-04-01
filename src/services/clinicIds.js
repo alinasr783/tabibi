@@ -1,6 +1,7 @@
 import supabase from "./supabase"
 
 export async function resolveClinicIdentifiers() {
+  // 1. Try local cache first (works online and offline)
   try {
     const cachedUuid = localStorage.getItem("tabibi_clinic_id")
     const cachedBigint = localStorage.getItem("tabibi_clinic_id_bigint")
@@ -10,6 +11,13 @@ export async function resolveClinicIdentifiers() {
     }
   } catch {}
 
+  // 2. If offline and no cache, we can't do much (but shouldn't try network)
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    console.warn("[resolveClinicIdentifiers] Offline and no cached clinic identifiers found.");
+    return { clinicUuid: null, clinicIdBigint: null };
+  }
+
+  // 3. Online path: Fetch from Supabase
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) throw new Error("Not authenticated")
 

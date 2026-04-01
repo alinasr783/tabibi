@@ -17,7 +17,7 @@ const tabs = [
   { id: "ai-customization", label: "الذكاء", fullLabel: "تخصيص الذكاء", icon: Brain },
   { id: "notifications", label: "الاشعارات", fullLabel: "إعدادات الاشعارات", icon: Bell },
   { id: "medical-fields", label: "الحقول", fullLabel: "تخصيص الحقول", icon: ClipboardList },
-  { id: "offline", label: "بدون نت", fullLabel: "بدون انترنت", icon: WifiOff },
+  { id: "offline", label: "بدون نت", fullLabel: "بدون انترنت", icon: WifiOff, isUnderDev: true },
 ];
 
 export default function SettingsPage() {
@@ -51,10 +51,15 @@ export default function SettingsPage() {
                 value={tab.id} 
                 className="text-xs sm:text-sm py-2.5 sm:py-3 px-2 data-[state=active]:bg-background rounded-[var(--radius)] transition-all duration-200"
               >
-                <div className="flex items-center justify-center gap-1.5 sm:gap-2">
+                <div className="flex items-center justify-center gap-1.5 sm:gap-2 relative">
                   <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
                   <span className="sm:hidden">{tab.label}</span>
                   <span className="hidden sm:inline">{tab.fullLabel}</span>
+                  {tab.isUnderDev && (
+                    <span className="absolute -top-2 -right-2 px-1 py-0.5 bg-amber-100 text-amber-700 text-[8px] sm:text-[10px] font-bold rounded-full border border-amber-200 whitespace-nowrap">
+                      قريباً
+                    </span>
+                  )}
                 </div>
               </TabsTrigger>
             );

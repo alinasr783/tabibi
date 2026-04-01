@@ -1,5 +1,4 @@
 import { Search, Plus, Users, Calendar, Filter, RefreshCw, ChevronDown } from "lucide-react";
-  // Import useMemo
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
@@ -17,7 +16,6 @@ import PatientCreateDialog from "./PatientCreateDialog";
 import PatientsTable from "./PatientsTable";
 import usePatients from "./usePatients";
 import { useOffline } from "../offline-mode/OfflineContext";
-import { useOfflineData } from "../offline-mode/useOfflineData";
 import { useSubscriptionBlocking } from "../auth/useSubscriptionBlocking";
 import SubscriptionBlockingModal from "../auth/SubscriptionBlockingModal";
 import usePatientStats from "./usePatientStats";
@@ -57,17 +55,14 @@ export default function PatientsPage() {
   const [clinicId, setClinicId] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { isOfflineMode } = useOffline();
-  const { getOfflinePatients } = useOfflineData();
-  const [offlinePatients, setOfflinePatients] = useState([]);
   
   // Stats filtering
-  const [statsFilter, setStatsFilter] = useState("month"); // Default to last month as per common UX, user asked for options
+  const [statsFilter, setStatsFilter] = useState("month");
   const [genderFilter, setGenderFilter] = useState(null);
   const [dateFilter, setDateFilter] = useState(null);
 
   const navigate = useNavigate();
 
-  // Calculate dates - Memoized to prevent infinite re-fetching loops due to changing milliseconds
   const { weekStart, monthStart, threeMonthsStart } = useMemo(() => {
     const now = new Date();
     const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
@@ -77,18 +72,14 @@ export default function PatientsPage() {
   }, []);
 
   const filterStartDate = statsFilter === "week" ? weekStart : statsFilter === "month" ? monthStart : threeMonthsStart;
-
-  // Memoize filters to prevent unnecessary refetches
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const filters = useMemo(() => ({ gender: genderFilter, createdAfter: dateFilter }), [genderFilter, dateFilter]);
 
-  // Handle filter toggles
   const toggleGenderFilter = (gender) => {
     if (genderFilter === gender) {
       setGenderFilter(null);
     } else {
       setGenderFilter(gender);
-      setDateFilter(null); // Clear date filter when gender is selected to avoid confusion, or keep it? User said "like any state". Usually states are mutually exclusive or additive. Let's keep them mutually exclusive for simplicity as "States".
+      setDateFilter(null);
     }
   };
 
@@ -97,10 +88,9 @@ export default function PatientsPage() {
       setDateFilter(null);
     } else {
       setDateFilter(filterStartDate);
-      setGenderFilter(null); // Clear gender filter
+      setGenderFilter(null);
     }
   };
-
 
   // Data fetching
   const { 
@@ -112,6 +102,10 @@ export default function PatientsPage() {
     isFetchingNextPage,
     refetch 
   } = usePatients(query, filters, 20);
+
+  // Flatten patients data from infinite query
+  const allPatients = useMemo(() => data?.pages.flatMap(page => page.items) || [], [data]);
+  const totalPatients = data?.pages[0]?.total || 0;
 
   // Stats for subtitle (always weekly new)
   const { data: weeklyStats } = usePatientStats(weekStart);
@@ -170,79 +164,23 @@ export default function PatientsPage() {
     return () => { cancelled = true }
   }, []);
 
-  // Flatten patients data from infinite query
-  const serverPatients = data?.pages.flatMap(page => page.items) || [];
-  const clientOffline = typeof navigator !== "undefined" && navigator.onLine === false;
-  const displayOffline = isOfflineMode || clientOffline;
-  const offlineFilteredPatients = useMemo(() => {
-    const base = displayOffline
-      ? (offlinePatients || [])
-      : (offlinePatients || []).filter((p) => String(p?.id || "").startsWith("local_"));
-    const q = String(query || "").trim().toLowerCase();
-    if (!q) return base;
-    return base.filter((p) => {
-      const name = String(p?.name || "").toLowerCase();
-      const phone = String(p?.phone || "").toLowerCase();
-      return name.includes(q) || phone.includes(q);
-    });
-  }, [offlinePatients, query, displayOffline]);
-
-  const allPatients = useMemo(() => {
-    if (displayOffline) return offlineFilteredPatients;
-    const byId = new Map();
-    for (const p of offlineFilteredPatients) byId.set(p.id, p);
-    for (const p of serverPatients) if (!byId.has(p.id)) byId.set(p.id, p);
-    return Array.from(byId.values());
-  }, [offlineFilteredPatients, serverPatients, displayOffline]);
-
-  const totalPatients = displayOffline
-    ? allPatients.length
-    : (data?.pages[0]?.total || 0) + offlineFilteredPatients.length;
-  
-  // Weekly new patients count for subtitle
   const weeklyNewCount = weeklyStats?.totalCount || 0;
 
-  // Auto-refresh every 5 minutes
   useEffect(() => {
     const interval = setInterval(() => {
       refetch();
     }, 5 * 60 * 1000);
-
     return () => clearInterval(interval);
   }, [refetch]);
 
-  // Load offline patients when offline or query changes
-  useEffect(() => {
-    let cancelled = false;
-    async function loadOffline() {
-      try {
-        const items = await getOfflinePatients();
-        const count = Array.isArray(items) ? items.length : 0;
-        const localCount = Array.isArray(items) ? items.filter((p) => String(p?.id || "").startsWith("local_")).length : 0;
-        console.log("[PATIENTS_PAGE] offlinePatients loaded", { count, localCount, isOfflineMode, clientOffline: typeof navigator !== "undefined" && navigator.onLine === false });
-        if (!cancelled) setOfflinePatients(items);
-      } catch (e) {
-        console.warn("[PATIENTS_PAGE] failed to load offline patients", e);
-      }
-    }
-    loadOffline();
-    return () => { cancelled = true; };
-  }, [isOfflineMode, getOfflinePatients, query]);
-
   const handlePatientCreated = (newPatient) => {
-    // Navigate to the newly created patient's profile
     if (newPatient?.id) {
       if (isOfflineMode || String(newPatient.id).startsWith("local_")) {
-        setOfflinePatients((prev) => {
-          const exists = prev?.some((p) => p?.id === newPatient.id);
-          return exists ? prev : [newPatient, ...(prev || [])];
-        });
+        // Optimistic update for offline
+        refetch();
         return;
       }
-      console.log("Navigating to patient with ID:", newPatient.id, "Full patient object:", newPatient);
       navigate(`/patients/${newPatient.id}`);
-    } else {
-      console.error("No patient ID available for navigation", newPatient);
     }
   };
 
@@ -250,12 +188,6 @@ export default function PatientsPage() {
     if (hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
     }
-  };
-
-  const filterLabels = {
-    week: "اخر اسبوع",
-    month: "اخر شهر",
-    threeMonths: "اخر 3 شهور",
   };
 
   return (
@@ -300,16 +232,14 @@ export default function PatientsPage() {
                   <StatCard
                     icon={Users}
                     label="الإجمالي"
-                    value={totalPatients} // This always shows total patients in DB matching search/gender filter
+                    value={totalPatients}
                     isLoading={isLoading && !isError}
                     onClick={() => { setGenderFilter(null); setDateFilter(null); }}
-                    // No active state for total card as requested
                     active={false}
                   />
                 );
                 break;
               case "newToday":
-                // Renaming "New Today" to reflect the filter
                 content = (
                   <StatCard
                     icon={Calendar}
@@ -408,9 +338,9 @@ export default function PatientsPage() {
             <PatientsTable
               patients={allPatients}
               total={totalPatients}
-              page={1} // Not used for pagination display anymore
+              page={1}
               pageSize={20}
-              onPageChange={() => {}} // Not used
+              onPageChange={() => {}}
               onLoadMore={handleLoadMore}
               hasMore={hasNextPage}
             />

@@ -1,45 +1,54 @@
 import { useState, useEffect } from "react";
 import supabase from "../../services/supabase";
+import { useOffline } from "../offline-mode/OfflineContext";
+import { resolveClinicUuid } from "../../services/clinicIds";
+import { db, STORE_NAMES } from "../offline-mode/offlineDB";
 
 export function useUnreadNotifications() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const { isOfflineMode, isOnline } = useOffline();
 
   useEffect(() => {
     let channel;
+    let cancelled = false;
 
     const fetchUnreadCount = async () => {
       try {
-        // Get current user
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-          setLoading(false);
+        // 1. If offline, get count from IndexedDB
+        if (isOfflineMode || !isOnline) {
+          console.log("[useUnreadNotifications] Fetching unread count from IndexedDB (Offline)");
+          const count = await db.table(STORE_NAMES.NOTIFICATIONS)
+            .where('is_read')
+            .equals(false)
+            .and(n => !n.is_deleted)
+            .count();
+          
+          if (!cancelled) {
+            setUnreadCount(count);
+            setLoading(false);
+          }
           return;
         }
 
-        // Get user's clinic_id
-        const { data: userData, error: userError } = await supabase
-          .from("users")
-          .select("clinic_id")
-          .eq("user_id", session.user.id)
-          .single();
-
-        if (userError || !userData?.clinic_id) {
-          setLoading(false);
+        // 2. Online path: Get current user and clinic_id
+        const clinicId = await resolveClinicUuid();
+        if (!clinicId) {
+          if (!cancelled) setLoading(false);
           return;
         }
 
-        // Get initial unread count
+        // Get initial unread count from Supabase
         const { count, error } = await supabase
           .from("notifications")
           .select("*", { count: "exact", head: true })
-          .eq("clinic_id", userData.clinic_id)
+          .eq("clinic_id", clinicId)
           .eq("is_read", false);
 
-        if (!error) {
+        if (!error && !cancelled) {
           setUnreadCount(count || 0);
         }
-        setLoading(false);
+        if (!cancelled) setLoading(false);
 
         // Set up real-time subscription for unread count
         channel = supabase
@@ -50,10 +59,9 @@ export function useUnreadNotifications() {
               event: 'INSERT',
               schema: 'public',
               table: 'notifications',
-              filter: `clinic_id=eq.${userData.clinic_id}`
+              filter: `clinic_id=eq.${clinicId}`
             },
             (payload) => {
-              // A new notification was inserted, increment count if it's unread
               if (payload.new && !payload.new.is_read) {
                 setUnreadCount(prev => prev + 1);
               }
@@ -65,19 +73,16 @@ export function useUnreadNotifications() {
               event: 'UPDATE',
               schema: 'public',
               table: 'notifications',
-              filter: `clinic_id=eq.${userData.clinic_id}`
+              filter: `clinic_id=eq.${clinicId}`
             },
             (payload) => {
-              // A notification was updated, adjust count based on read status change
               if (payload.old && payload.new) {
                 const wasRead = payload.old.is_read;
                 const isNowRead = payload.new.is_read;
                 
                 if (wasRead && !isNowRead) {
-                  // Marked as unread
                   setUnreadCount(prev => prev + 1);
                 } else if (!wasRead && isNowRead) {
-                  // Marked as read
                   setUnreadCount(prev => Math.max(0, prev - 1));
                 }
               }
@@ -89,34 +94,37 @@ export function useUnreadNotifications() {
               event: 'DELETE',
               schema: 'public',
               table: 'notifications',
-              filter: `clinic_id=eq.${userData.clinic_id}`
+              filter: `clinic_id=eq.${clinicId}`
             },
             (payload) => {
-              // A notification was deleted, decrement count if it was unread
               if (payload.old && !payload.old.is_read) {
                 setUnreadCount(prev => Math.max(0, prev - 1));
               }
             }
           )
           .subscribe((status) => {
-            console.log('Real-time subscription status:', status);
+            if (status === 'CHANNEL_ERROR') {
+              console.warn('Real-time subscription status: CHANNEL_ERROR (Likely offline)');
+            } else {
+              console.log('Real-time subscription status:', status);
+            }
           });
 
       } catch (error) {
         console.error("Error in useUnreadNotifications:", error);
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     fetchUnreadCount();
 
-    // Cleanup subscription on unmount
     return () => {
+      cancelled = true;
       if (channel) {
         supabase.removeChannel(channel);
       }
     };
-  }, []);
+  }, [isOfflineMode, isOnline]);
 
   return { unreadCount, loading };
 }

@@ -63,9 +63,11 @@ import {
   mergeTemplatesIntoCustomFields,
   normalizeMedicalFieldsConfig,
 } from "../../lib/medicalFieldsConfig";
+import { useOffline } from "../offline-mode/OfflineContext";
 
 export default function VisitDetailPage() {
   const {visitId} = useParams();
+  const { isOfflineMode } = useOffline();
   const {data: visit, isLoading, error} = useVisit(visitId);
   const {data: clinic} = useClinic();
   const {user} = useAuth();
@@ -724,8 +726,8 @@ export default function VisitDetailPage() {
         </Card>
       </div>
 
-      {/* Visit Intelligence */}
-      <VisitIntelligence visit={visit} />
+      {/* Visit Intelligence - Hidden in Offline Mode */}
+      {!isOfflineMode && <VisitIntelligence visit={visit} />}
 
       {/* Quick Actions */}
       <Card className="bg-card border-border/50 shadow-sm">

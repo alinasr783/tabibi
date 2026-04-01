@@ -35,77 +35,86 @@ export function NotificationProvider({ children }) {
   useEffect(() => {
     let channel;
     
+    // Check if offline (navigator.onLine or explicit offline mode)
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      return;
+    }
+    
     const setupSubscription = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
 
-      const { data: userData } = await supabase
-        .from("users")
-        .select("clinic_id")
-        .eq("user_id", session.user.id)
-        .single();
+        const { data: userData } = await supabase
+          .from("users")
+          .select("clinic_id")
+          .eq("user_id", session.user.id)
+          .single();
 
-      if (!userData?.clinic_id) return;
+        if (!userData?.clinic_id) return;
 
-      channel = supabase
-        .channel('global-notifications-toast')
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'notifications',
-            filter: `clinic_id=eq.${userData.clinic_id}`
-          },
-          (payload) => {
-            const newNotification = payload.new;
-            const currentPrefs = preferencesRef.current;
+        channel = supabase
+          .channel('global-notifications-toast')
+          .on(
+            'postgres_changes',
+            {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'notifications',
+              filter: `clinic_id=eq.${userData.clinic_id}`
+            },
+            (payload) => {
+              const newNotification = payload.new;
+              const currentPrefs = preferencesRef.current;
 
-            // 1. Check if Toasts are enabled globally
-            // Default to true if prefs not loaded yet
-            const isToastEnabled = currentPrefs?.toast_notifications_enabled !== false;
-            if (!isToastEnabled) return;
+              // 1. Check if Toasts are enabled globally
+              // Default to true if prefs not loaded yet
+              const isToastEnabled = currentPrefs?.toast_notifications_enabled !== false;
+              if (!isToastEnabled) return;
 
-            // 2. Check Notification Types
-            if (currentPrefs?.notification_types) {
-              let prefKey = null;
-              const type = newNotification.type;
-              
-              if (type === 'appointment' || type === 'online_appointment') prefKey = 'appointments';
-              else if (type === 'wallet' || type === 'finance' || type === 'payment') prefKey = 'financial';
-              else if (type === 'subscription') prefKey = 'subscription';
-              else if (type === 'app') prefKey = 'apps';
-              else if (type === 'reminder') prefKey = 'reminders';
-              else if (type === 'patient') prefKey = 'patients';
-              else if (type === 'system' || type === 'alert' || type === 'info') prefKey = 'system';
-              
-              // If explicitly disabled in preferences, skip
-              if (prefKey && currentPrefs.notification_types[prefKey] === false) {
-                return;
+              // 2. Check Notification Types
+              if (currentPrefs?.notification_types) {
+                let prefKey = null;
+                const type = newNotification.type;
+                
+                if (type === 'appointment' || type === 'online_appointment') prefKey = 'appointments';
+                else if (type === 'wallet' || type === 'finance' || type === 'payment') prefKey = 'financial';
+                else if (type === 'subscription') prefKey = 'subscription';
+                else if (type === 'app') prefKey = 'apps';
+                else if (type === 'reminder') prefKey = 'reminders';
+                else if (type === 'patient') prefKey = 'patients';
+                else if (type === 'system' || type === 'alert' || type === 'info') prefKey = 'system';
+                
+                // If explicitly disabled in preferences, skip
+                if (prefKey && currentPrefs.notification_types[prefKey] === false) {
+                  return;
+                }
               }
+
+              // 3. Determine Duration
+              const duration = (currentPrefs?.toast_duration || 3) * 1000;
+
+              // Show Toast
+              toast.custom((id) => (
+                <NotificationToast 
+                  id={id}
+                  notification={newNotification} 
+                  onClick={openNotification} 
+                />
+              ), {
+                duration: duration,
+                id: `notification-${newNotification.id}`, // Prevent duplicates
+              });
+
+              // Invalidate queries to update lists and counts elsewhere
+              queryClient.invalidateQueries({ queryKey: ["notifications"] });
+              queryClient.invalidateQueries({ queryKey: ["notifications-stats"] });
             }
-
-            // 3. Determine Duration
-            const duration = (currentPrefs?.toast_duration || 3) * 1000;
-
-            // Show Toast
-            toast.custom((id) => (
-              <NotificationToast 
-                id={id}
-                notification={newNotification} 
-                onClick={openNotification} 
-              />
-            ), {
-              duration: duration,
-              id: `notification-${newNotification.id}`, // Prevent duplicates
-            });
-
-            // Invalidate queries to update lists and counts elsewhere
-            queryClient.invalidateQueries({ queryKey: ["notifications"] });
-            queryClient.invalidateQueries({ queryKey: ["notifications-stats"] });
-          }
-        )
-        .subscribe();
+          )
+          .subscribe();
+      } catch (error) {
+        console.error("Error setting up notification subscription:", error);
+      }
     };
 
     setupSubscription();

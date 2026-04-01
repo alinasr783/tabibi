@@ -79,10 +79,12 @@ import {
   mergeTemplatesIntoCustomFields,
   normalizeMedicalFieldsConfig,
 } from "../../lib/medicalFieldsConfig";
+import { useOffline } from "../offline-mode/OfflineContext";
 
 export default function AppointmentDetailPage() {
   useScrollToTop(); // Auto scroll to top on page load
   const {appointmentId} = useParams();
+  const { isOfflineMode } = useOffline();
   const {data: appointment, isLoading, error, refetch} = useAppointment(appointmentId);
   const {data: patientAppointments} = usePatientAppointments(appointment?.patient?.id);
   const { data: preferences } = useUserPreferences();
@@ -685,8 +687,8 @@ export default function AppointmentDetailPage() {
            </CardContent>
         </Card>
 
-        {/* المساعد الشخصي */}
-        <AppointmentIntelligence appointment={appointment} />
+        {/* المساعد الشخصي - Hidden in Offline Mode */}
+        {!isOfflineMode && <AppointmentIntelligence appointment={appointment} />}
 
         {/* Quick Actions - Moved to top */}
         <Card className="bg-card/70 border-muted/20 shadow-sm">

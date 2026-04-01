@@ -35,27 +35,36 @@ export default function useFinanceRealtime() {
     let channel;
     let cancelled = false;
 
-    (async () => {
-      const clinicIdBigint = await getClinicIdBigintFromSession();
-      if (cancelled || !clinicIdBigint) return;
+    // Skip if offline
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      return;
+    }
 
-      channel = supabase
-        .channel(`finance-realtime-${clinicIdBigint}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "financial_records",
-            filter: `clinic_id=eq.${clinicIdBigint}`,
-          },
-          () => {
-            queryClient.invalidateQueries({ queryKey: ["financialRecords"] });
-            queryClient.invalidateQueries({ queryKey: ["financialStats"] });
-            queryClient.invalidateQueries({ queryKey: ["financialChartData"] });
-          }
-        )
-        .subscribe();
+    (async () => {
+      try {
+        const clinicIdBigint = await getClinicIdBigintFromSession();
+        if (cancelled || !clinicIdBigint) return;
+
+        channel = supabase
+          .channel(`finance-realtime-${clinicIdBigint}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "financial_records",
+              filter: `clinic_id=eq.${clinicIdBigint}`,
+            },
+            () => {
+              queryClient.invalidateQueries({ queryKey: ["financialRecords"] });
+              queryClient.invalidateQueries({ queryKey: ["financialStats"] });
+              queryClient.invalidateQueries({ queryKey: ["financialChartData"] });
+            }
+          )
+          .subscribe();
+      } catch (error) {
+        console.error("Error setting up finance realtime subscription:", error);
+      }
     })();
 
     return () => {
