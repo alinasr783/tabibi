@@ -106,9 +106,11 @@ function AppRoutes() {
     const { user } = useAuth();
     if (user) {
       return (
-        <DoctorLayout>
-          <MemoizedLearnTabibi />
-        </DoctorLayout>
+        <AppAuthedProviders>
+          <DoctorLayout>
+            <MemoizedLearnTabibi />
+          </DoctorLayout>
+        </AppAuthedProviders>
       );
     }
     return <MemoizedLearnTabibi />;

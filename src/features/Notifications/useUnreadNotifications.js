@@ -7,7 +7,9 @@ import { db, STORE_NAMES } from "../offline-mode/offlineDB";
 export function useUnreadNotifications() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const { isOfflineMode, isOnline } = useOffline();
+  const offline = useOffline();
+  const isOfflineMode = offline?.isOfflineMode || false;
+  const isOnline = offline?.isOnline !== undefined ? offline.isOnline : (typeof navigator !== 'undefined' ? navigator.onLine : true);
 
   useEffect(() => {
     let channel;
