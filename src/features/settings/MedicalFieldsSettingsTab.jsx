@@ -1193,7 +1193,9 @@ export default function MedicalFieldsSettingsTab() {
         </Button>
       </div>
 
-      <MedicalFieldsIntelligence />
+      {preferences?.ai_settings?.enabled_pages?.medical_fields !== false && (
+        <MedicalFieldsIntelligence />
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         <Card className="p-4 bg-card/70 lg:col-span-5 space-y-4">

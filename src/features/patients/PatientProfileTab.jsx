@@ -17,7 +17,9 @@ import { flattenCustomFieldTemplates, mergeTemplatesIntoCustomFields, normalizeM
 import { InlineEdit } from "./InlineEdit";
 import { updatePatient } from "../../services/apiPatients";
 import { useOfflineData } from "../offline-mode/useOfflineData";
-import toast from "react-hot-toast";
+import { toast as hotToast } from "react-hot-toast";
+import { toast as sonnerToast } from "sonner";
+import { NotificationToast } from "../Notifications/NotificationToast";
 import { TagInput } from "../../components/ui/tag-input";
 
 export default function PatientProfileTab({ patient }) {
@@ -39,9 +41,25 @@ export default function PatientProfileTab({ patient }) {
       setDisplayPatient(prev => ({ ...prev, ...updates }));
       queryClient.invalidateQueries({ queryKey: ["patient", displayPatient.id] });
       queryClient.invalidateQueries({ queryKey: ["patient", String(displayPatient.id)] });
-      toast.success("تم التحديث تلقائياً");
+      
+      // Modern Tabibi Notification Style
+      sonnerToast.custom((id) => (
+        <NotificationToast
+          id={id}
+          notification={{
+            title: "تم التحديث بنجاح",
+            message: `تم تحديث ${field} تلقائياً`,
+            type: "success",
+            created_at: new Date().toISOString(),
+          }}
+          onClick={() => {}}
+        />
+      ), {
+        duration: 3000,
+        position: 'top-center'
+      });
     } catch (error) {
-      toast.error("فشل التحديث التلقائي");
+      hotToast.error("فشل التحديث التلقائي");
       throw error;
     }
   };
@@ -62,9 +80,25 @@ export default function PatientProfileTab({ patient }) {
       setDisplayPatient(prev => ({ ...prev, ...updates }));
       queryClient.invalidateQueries({ queryKey: ["patient", displayPatient.id] });
       queryClient.invalidateQueries({ queryKey: ["patient", String(displayPatient.id)] });
-      toast.success("تم تحديث السجل الطبي");
+      
+      // Modern Tabibi Notification Style
+      sonnerToast.custom((id) => (
+        <NotificationToast
+          id={id}
+          notification={{
+            title: "تحديث السجل الطبي",
+            message: `تم تحديث بيانات السجل الطبي بنجاح`,
+            type: "success",
+            created_at: new Date().toISOString(),
+          }}
+          onClick={() => {}}
+        />
+      ), {
+        duration: 3000,
+        position: 'top-center'
+      });
     } catch (error) {
-      toast.error("فشل تحديث السجل الطبي");
+      hotToast.error("فشل تحديث السجل الطبي");
       throw error;
     }
   };
@@ -85,9 +119,25 @@ export default function PatientProfileTab({ patient }) {
       setDisplayPatient(prev => ({ ...prev, ...updates }));
       queryClient.invalidateQueries({ queryKey: ["patient", displayPatient.id] });
       queryClient.invalidateQueries({ queryKey: ["patient", String(displayPatient.id)] });
-      toast.success("تم تحديث بيانات التأمين");
+      
+      // Modern Tabibi Notification Style
+      sonnerToast.custom((id) => (
+        <NotificationToast
+          id={id}
+          notification={{
+            title: "تحديث بيانات التأمين",
+            message: `تم حفظ تغييرات بيانات التأمين`,
+            type: "success",
+            created_at: new Date().toISOString(),
+          }}
+          onClick={() => {}}
+        />
+      ), {
+        duration: 3000,
+        position: 'top-center'
+      });
     } catch (error) {
-      toast.error("فشل تحديث بيانات التأمين");
+      hotToast.error("فشل تحديث بيانات التأمين");
       throw error;
     }
   };

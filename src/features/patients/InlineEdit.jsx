@@ -7,7 +7,9 @@ import { cn } from "../../lib/utils";
 import { Progress } from "../../components/ui/progress";
 import { Checkbox } from "../../components/ui/checkbox";
 import { Button } from "../../components/ui/button";
-import { toast } from "react-hot-toast";
+import { toast as hotToast } from "react-hot-toast";
+import { toast as sonnerToast } from "sonner";
+import { NotificationToast } from "../Notifications/NotificationToast";
 
 export function InlineEdit({ 
   value, 
@@ -79,13 +81,31 @@ export function InlineEdit({
     setIsSaving(true);
     try {
       await onSave(finalValue);
+      
+      // Modern Tabibi Notification Style
+      sonnerToast.custom((id) => (
+        <NotificationToast
+          id={id}
+          notification={{
+            title: "تم الحفظ بنجاح",
+            message: `تم تحديث ${label || "البيانات"} بنجاح`,
+            type: "success",
+            created_at: new Date().toISOString(),
+          }}
+          onClick={() => {}}
+        />
+      ), {
+        duration: 3000,
+        position: 'top-center'
+      });
+
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 2000);
       setIsEditing(false);
     } catch (error) {
       console.error("Inline edit save error:", error);
       setCurrentValue(value);
-      toast.error("فشل حفظ التغييرات");
+      hotToast.error("فشل حفظ التغييرات");
     } finally {
       setIsSaving(false);
     }

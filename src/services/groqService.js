@@ -79,6 +79,9 @@ CLINIC CONTEXT:
 - Clinic Goal: ${aiContext.clinic_goal || "Provide excellent patient care"}
 - Doctor Persona: ${aiContext.doctor_persona || "Professional and concise"}
 - Custom Instructions: ${aiContext.custom_instructions || ""}
+- Suggest Medications: ${aiContext.features?.suggest_medications !== false ? "YES" : "NO"}
+- Suggest Diagnosis: ${aiContext.features?.suggest_diagnosis !== false ? "YES" : "NO"}
+- Unified AI Integration (Can update other pages): ${aiContext.features?.unified_context !== false ? "ENABLED" : "DISABLED"}
 ` : "";
 
   const systemPrompt = `
@@ -92,6 +95,11 @@ ${clinicContextStr}
 1. **Holistic Control**: You can update a patient's profile, adjust their appointment details, and document their medical visit in a single response.
 2. **Clinical Reasoning**: Infer medical risks, social status, and pharmacological needs from natural conversation.
 3. **Database Mastery**: You understand the schema for 'patients', 'appointments', and 'visits'.
+
+### **RESTRICTIONS:**
+- **Medications**: ${aiContext?.features?.suggest_medications !== false ? "You ARE allowed to suggest medications based on clinical context." : "DO NOT suggest specific medications or drugs. Focus on other clinical aspects only."}
+- **Diagnosis**: ${aiContext?.features?.suggest_diagnosis !== false ? "You ARE allowed to suggest potential diagnoses." : "DO NOT suggest specific medical diagnoses. Focus on documentation and data organization only."}
+- **Integration**: ${aiContext?.features?.unified_context !== false ? "You SHOULD update any relevant entity (patient, visit, appointment) regardless of the current page if the doctor mentions it." : "ONLY update fields related to the current context/page unless explicitly asked otherwise."}
 
 ### **DATABASE ARCHITECTURES:**
 --- PATIENTS ---
@@ -178,17 +186,48 @@ export async function processPatientInputStream(patientData, userInput, schemaCo
   // Use the new Universal engine but wrap it for backward compatibility if needed, 
   // or just pass through with patient context.
   const context = { patient: patientData, current_page: "patient_details", schemaConfig };
-  return processUniversalIntelligenceStream(context, userInput, { ...opts, chatHistory });
+  
+  // Pass full ai_settings from preferences to get features like unified_context
+  const updatedOpts = {
+    ...opts,
+    chatHistory,
+    aiContext: {
+      ...opts.aiContext,
+      features: opts.aiSettings?.features || opts.aiContext?.features
+    }
+  };
+  
+  return processUniversalIntelligenceStream(context, userInput, updatedOpts);
 }
 
 export async function processAppointmentInputStream(appointmentData, userInput, schemaConfig = null, chatHistory = [], opts = {}) {
   const context = { appointment: appointmentData, patient: appointmentData.patient, current_page: "appointment_details", schemaConfig };
-  return processUniversalIntelligenceStream(context, userInput, { ...opts, chatHistory });
+  
+  const updatedOpts = {
+    ...opts,
+    chatHistory,
+    aiContext: {
+      ...opts.aiContext,
+      features: opts.aiSettings?.features || opts.aiContext?.features
+    }
+  };
+  
+  return processUniversalIntelligenceStream(context, userInput, updatedOpts);
 }
 
 export async function processVisitInputStream(visitData, userInput, schemaConfig = null, chatHistory = [], opts = {}) {
   const context = { visit: visitData, patient: visitData.patient, current_page: "visit_details", schemaConfig };
-  return processUniversalIntelligenceStream(context, userInput, { ...opts, chatHistory });
+  
+  const updatedOpts = {
+    ...opts,
+    chatHistory,
+    aiContext: {
+      ...opts.aiContext,
+      features: opts.aiSettings?.features || opts.aiContext?.features
+    }
+  };
+  
+  return processUniversalIntelligenceStream(context, userInput, updatedOpts);
 }
 
 export async function processMedicalFieldsIntelligenceStream(currentConfig, userInput, opts = {}) {

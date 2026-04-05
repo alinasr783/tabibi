@@ -4,7 +4,8 @@ import { Send, Mic, Plus, Paperclip, Sparkles, X, Loader2, StopCircle, ArrowUp, 
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
 import { Button } from '../../components/ui/button';
 import { Textarea } from '../../components/ui/textarea';
-import { toast } from 'sonner';
+import { toast as hotToast } from "react-hot-toast";
+import { toast as sonnerToast } from "sonner";
 import { NotificationToast } from '../../features/Notifications/NotificationToast';
 import { processPatientInputStream } from '../../services/groqService';
 import { updatePatient } from '../../services/apiPatients';
@@ -14,6 +15,7 @@ import supabase from '../../services/supabase';
 import { useQueryClient } from '@tanstack/react-query';
 import { useUserPreferences } from '../../hooks/useUserPreferences';
 import { flattenCustomFieldTemplates, mergeTemplatesIntoCustomFields, normalizeMedicalFieldsConfig } from '../../lib/medicalFieldsConfig';
+import { cn } from '../../lib/utils';
 import 'regenerator-runtime/runtime';
 import { useNavigate } from 'react-router-dom';
 
@@ -347,6 +349,7 @@ export default function TabibiIntelligence({ patient }) {
       const result = await processPatientInputStream(patient, userMessage.content, simplifiedSchema, chatLog, {
         signal: abortController.signal,
         aiContext: preferences?.ai_settings?.context,
+        aiSettings: preferences?.ai_settings,
         onPartialReply: (text) => {
           setChatLog((prev) =>
             prev.map((m) => (m?.id === assistantMessageId ? { ...m, content: text } : m))
@@ -454,7 +457,7 @@ export default function TabibiIntelligence({ patient }) {
 
       // 4. Show success
       if (successDetails.length > 0) {
-        toast.custom((id) => (
+        sonnerToast.custom((id) => (
           <NotificationToast
             id={id}
             notification={{
@@ -469,6 +472,22 @@ export default function TabibiIntelligence({ patient }) {
           duration: preferences?.toast_duration || 4000,
           position: 'top-center'
         });
+      } else {
+        sonnerToast.custom((id) => (
+          <NotificationToast
+            id={id}
+            notification={{
+              title: "اكتملت المعالجة",
+              message: "تم تنفيذ طلبك بنجاح",
+              type: "success",
+              created_at: new Date().toISOString(),
+            }}
+            onClick={() => {}}
+          />
+        ), {
+          duration: 3000,
+          position: 'top-center'
+        });
       }
       resetTranscript();
       setShowResult(true);
@@ -476,11 +495,11 @@ export default function TabibiIntelligence({ patient }) {
     } catch (error) {
       console.error('Error in Tabibi Intelligence:', error);
       if (error?.name === "AbortError") {
-        toast.error("تم إيقاف الطلب بسبب طول المعالجة");
+        hotToast.error("تم إيقاف الطلب بسبب طول المعالجة");
       } else if (String(error?.message || "").toLowerCase().includes("authentication")) {
-        toast.error('فشل تسجيل الدخول لمزود الذكاء الاصطناعي');
+        hotToast.error('فشل تسجيل الدخول لمزود الذكاء الاصطناعي');
       } else {
-      toast.error('حدث خطأ أثناء معالجة البيانات');
+        hotToast.error('حدث خطأ أثناء معالجة البيانات');
       }
       setChatLog((prev) =>
         prev.map((m) =>
@@ -531,7 +550,7 @@ export default function TabibiIntelligence({ patient }) {
                     {isProcessing && (
                         <div className="flex items-center gap-2 text-xs text-blue-600 font-medium">
                             <Loader2 className="w-3 h-3 animate-spin" />
-                            Processing...
+                            جاري المعالجة...
                         </div>
                     )}
                     <Button
@@ -588,15 +607,20 @@ export default function TabibiIntelligence({ patient }) {
             {/* Input Area */}
             <div className="p-4 flex flex-col gap-3" dir="rtl">
                 <div className="relative flex items-end gap-2">
-                    {/* Upload Button */}
+                    {/* Voice Recording Button */}
                     <Button
-                        variant="ghost"
+                        variant={listening ? "destructive" : "ghost"}
                         size="icon"
-                        className="rounded-full h-10 w-10 shrink-0 text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                        title="رفع ملفات"
-                        onClick={() => toast.info('ميزة رفع الملفات قادمة قريباً')}
+                        className={cn(
+                            "rounded-full h-10 w-10 shrink-0 transition-all",
+                            listening 
+                                ? "animate-pulse bg-red-500 text-white hover:bg-red-600 shadow-lg shadow-red-200" 
+                                : "text-slate-500 hover:bg-blue-50 hover:text-blue-600"
+                        )}
+                        title={listening ? "إيقاف التسجيل" : "تسجيل صوتي"}
+                        onClick={listening ? handleStopListening : handleStartListening}
                     >
-                        <Plus className="w-5 h-5" />
+                        {listening ? <StopCircle className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
                     </Button>
 
                     <div className="relative flex-1 bg-transparent rounded-[15px] transition-all mt-8 translate-y-2">
@@ -614,17 +638,6 @@ export default function TabibiIntelligence({ patient }) {
                     </div>
 
                     <div className="flex flex-col gap-2 shrink-0">
-                         {/* Mic Button */}
-                        <Button
-                            variant={listening ? "destructive" : "secondary"}
-                            size="icon"
-                            className={`rounded-full h-10 w-10 shadow-sm border border-blue-100 transition-all ${listening ? 'animate-pulse bg-red-500 text-white hover:bg-red-600 border-red-500' : 'bg-white/50 hover:bg-blue-50 text-slate-600'}`}
-                            onClick={listening ? handleStopListening : handleStartListening}
-                            disabled={isProcessing}
-                        >
-                            {listening ? <StopCircle className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-                        </Button>
-
                         {/* Send Button */}
                         <Button
                             size="icon"

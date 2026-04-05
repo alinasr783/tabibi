@@ -7,7 +7,9 @@ import { Switch } from "../../components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../components/ui/card";
 import { useUserPreferences, useUpdateUserPreferences } from "../../hooks/useUserPreferences";
 import { Bot, Brain, Sparkles, Stethoscope, Save, Loader2 } from "lucide-react";
-import toast from "react-hot-toast";
+import { toast as hotToast } from "react-hot-toast";
+import { toast as sonnerToast } from "sonner";
+import { NotificationToast } from "../Notifications/NotificationToast";
 
 export default function AISettingsTab() {
   const { data: preferences, isLoading } = useUserPreferences();
@@ -16,6 +18,14 @@ export default function AISettingsTab() {
   const [settings, setSettings] = useState({
     enabled_pages: {
       patient_file: true,
+      appointment_details: true,
+      visit_details: true,
+      medical_fields: true
+    },
+    features: {
+      suggest_medications: true,
+      suggest_diagnosis: true,
+      unified_context: true
     },
     context: {
       specialty: "",
@@ -33,6 +43,10 @@ export default function AISettingsTab() {
           ...prev.enabled_pages,
           ...(preferences.ai_settings.enabled_pages || {})
         },
+        features: {
+          ...prev.features,
+          ...(preferences.ai_settings.features || {})
+        },
         context: {
           ...prev.context,
           ...(preferences.ai_settings.context || {})
@@ -42,13 +56,27 @@ export default function AISettingsTab() {
   }, [preferences]);
 
   const handleTogglePage = (pageKey) => {
-    setSettings(prev => ({
-      ...prev,
+    const nextSettings = {
+      ...settings,
       enabled_pages: {
-        ...prev.enabled_pages,
-        [pageKey]: !prev.enabled_pages[pageKey]
+        ...settings.enabled_pages,
+        [pageKey]: !settings.enabled_pages[pageKey]
       }
-    }));
+    };
+    setSettings(nextSettings);
+    autoSave(nextSettings);
+  };
+
+  const handleToggleFeature = (featureKey) => {
+    const nextSettings = {
+      ...settings,
+      features: {
+        ...settings.features,
+        [featureKey]: !settings.features[featureKey]
+      }
+    };
+    setSettings(nextSettings);
+    autoSave(nextSettings);
   };
 
   const handleContextChange = (e) => {
@@ -62,6 +90,33 @@ export default function AISettingsTab() {
     }));
   };
 
+  const autoSave = (nextSettings) => {
+    updatePreferences(
+      { 
+        ai_settings: nextSettings 
+      },
+      {
+        onSuccess: () => {
+          sonnerToast.custom((id) => (
+            <NotificationToast
+              id={id}
+              notification={{
+                title: "تم الحفظ تلقائياً",
+                message: "تم تحديث تفضيلات الذكاء الاصطناعي بنجاح",
+                type: "success",
+                created_at: new Date().toISOString(),
+              }}
+              onClick={() => {}}
+            />
+          ), {
+            duration: 2000,
+            position: 'top-center'
+          });
+        }
+      }
+    );
+  };
+
   const handleSave = () => {
     updatePreferences(
       { 
@@ -69,10 +124,25 @@ export default function AISettingsTab() {
       },
       {
         onSuccess: () => {
-          toast.success("تم حفظ إعدادات الذكاء الاصطناعي بنجاح");
+          // Modern Tabibi Notification Style
+          sonnerToast.custom((id) => (
+            <NotificationToast
+              id={id}
+              notification={{
+                title: "تم الحفظ بنجاح",
+                message: "تم تحديث إعدادات الذكاء الاصطناعي بنجاح",
+                type: "success",
+                created_at: new Date().toISOString(),
+              }}
+              onClick={() => {}}
+            />
+          ), {
+            duration: 3000,
+            position: 'top-center'
+          });
         },
         onError: () => {
-          toast.error("حدث خطأ أثناء حفظ الإعدادات");
+          hotToast.error("حدث خطأ أثناء حفظ الإعدادات");
         }
       }
     );
@@ -116,13 +186,123 @@ export default function AISettingsTab() {
                 مساعد ملف المريض
               </Label>
               <p className="text-xs text-muted-foreground">
-                يظهر في صفحة ملف المريض للمساعدة في كتابة الملاحظات والتشخيص
+                يظهر في صفحة ملف المريض للمساعدة في تلخيص الحالة وتحديث البيانات الشخصية والطبية
               </p>
             </div>
             <Switch
               id="ai-patient-file"
               checked={settings.enabled_pages.patient_file}
               onCheckedChange={() => handleTogglePage('patient_file')}
+            />
+          </div>
+
+          <div className="flex items-center justify-between p-3 border rounded-lg bg-card hover:bg-accent/5 transition-colors">
+            <div className="space-y-0.5">
+              <Label className="text-base cursor-pointer" htmlFor="ai-appointment-details">
+                مساعد تفاصيل الحجز
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                يظهر في نافذة تفاصيل الحجز للمساعدة في تحديث المواعيد وتغيير الحالة
+              </p>
+            </div>
+            <Switch
+              id="ai-appointment-details"
+              checked={settings.enabled_pages.appointment_details}
+              onCheckedChange={() => handleTogglePage('appointment_details')}
+            />
+          </div>
+
+          <div className="flex items-center justify-between p-3 border rounded-lg bg-card hover:bg-accent/5 transition-colors">
+            <div className="space-y-0.5">
+              <Label className="text-base cursor-pointer" htmlFor="ai-visit-details">
+                مساعد تفاصيل الكشف
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                يظهر في صفحة الكشف لمساعدتك في كتابة التشخيص والعلاج والأدوية
+              </p>
+            </div>
+            <Switch
+              id="ai-visit-details"
+              checked={settings.enabled_pages.visit_details}
+              onCheckedChange={() => handleTogglePage('visit_details')}
+            />
+          </div>
+
+          <div className="flex items-center justify-between p-3 border rounded-lg bg-card hover:bg-accent/5 transition-colors">
+            <div className="space-y-0.5">
+              <Label className="text-base cursor-pointer" htmlFor="ai-medical-fields">
+                مهندس الحقول الذكي
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                يظهر في صفحة تخصيص الحقول لمساعدتك في بناء وتعديل هيكلة بيانات العيادة
+              </p>
+            </div>
+            <Switch
+              id="ai-medical-fields"
+              checked={settings.enabled_pages.medical_fields}
+              onCheckedChange={() => handleTogglePage('medical_fields')}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* AI Features & Logic */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Bot className="w-4 h-4 text-primary" />
+            قدرات المساعد الذكي
+          </CardTitle>
+          <CardDescription>
+            تحكم في الوظائف والذكاء المتقدم للمساعد الطبي
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between p-3 border rounded-lg bg-card hover:bg-accent/5 transition-colors">
+            <div className="space-y-0.5">
+              <Label className="text-base cursor-pointer" htmlFor="ai-suggest-medications">
+                اقتراح الأدوية
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                السماح للذكاء الاصطناعي باقتراح الأدوية بناءً على التشخيص والأعراض
+              </p>
+            </div>
+            <Switch
+              id="ai-suggest-medications"
+              checked={settings.features.suggest_medications}
+              onCheckedChange={() => handleToggleFeature('suggest_medications')}
+            />
+          </div>
+
+          <div className="flex items-center justify-between p-3 border rounded-lg bg-card hover:bg-accent/5 transition-colors">
+            <div className="space-y-0.5">
+              <Label className="text-base cursor-pointer" htmlFor="ai-suggest-diagnosis">
+                اقتراح التشخيص
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                السماح للذكاء الاصطناعي بتحليل الأعراض واقتراح تشخيصات محتملة
+              </p>
+            </div>
+            <Switch
+              id="ai-suggest-diagnosis"
+              checked={settings.features.suggest_diagnosis}
+              onCheckedChange={() => handleToggleFeature('suggest_diagnosis')}
+            />
+          </div>
+
+          <div className="flex items-center justify-between p-3 border rounded-lg bg-card hover:bg-accent/5 transition-colors">
+            <div className="space-y-0.5">
+              <Label className="text-base cursor-pointer" htmlFor="ai-unified-context">
+                ربط وظائف المساعدين (Unified Context)
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                عند التفعيل، يستطيع المساعد في أي صفحة (مثل الكشف) تعديل بيانات في صفحات أخرى (مثل ملف المريض)
+              </p>
+            </div>
+            <Switch
+              id="ai-unified-context"
+              checked={settings.features.unified_context}
+              onCheckedChange={() => handleToggleFeature('unified_context')}
             />
           </div>
         </CardContent>

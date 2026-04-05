@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Send, Mic, StopCircle, Loader2, Plus, ArrowUp } from 'lucide-react';
+import { Sparkles, Loader2, StopCircle, Mic, Plus, ArrowUp, Settings } from 'lucide-react';
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
 import { Button } from '../../components/ui/button';
 import { Textarea } from '../../components/ui/textarea';
@@ -13,9 +13,13 @@ import { updateAppointment } from '../../services/apiAppointments';
 import { useQueryClient } from '@tanstack/react-query';
 import { useUserPreferences } from '../../hooks/useUserPreferences';
 import { normalizeMedicalFieldsConfig, flattenCustomFieldTemplates, mergeTemplatesIntoCustomFields } from '../../lib/medicalFieldsConfig';
+import { cn } from '../../lib/utils';
 import 'regenerator-runtime/runtime';
 
+import { useNavigate } from 'react-router-dom';
+
 export default function VisitIntelligence({ visit }) {
+  const navigate = useNavigate();
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [showResult, setShowResult] = useState(false);
@@ -283,6 +287,7 @@ export default function VisitIntelligence({ visit }) {
       const result = await processVisitInputStream(visit, userMessage.content, simplifiedSchema, chatLog, {
         signal: abortController.signal,
         aiContext: preferences?.ai_settings?.context,
+        aiSettings: preferences?.ai_settings,
         onPartialReply: (text) => {
           setChatLog((prev) =>
             prev.map((m) => (m?.id === assistantMessageId ? { ...m, content: text } : m))
@@ -475,12 +480,18 @@ export default function VisitIntelligence({ visit }) {
                     {isProcessing && (
                         <div className="flex items-center gap-2 text-xs text-blue-600 font-medium">
                             <Loader2 className="w-3 h-3 animate-spin" />
-                            Processing...
+                            جاري المعالجة...
                         </div>
                     )}
-                    <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-200 text-[10px] font-bold shadow-sm tracking-wider">
-                        NEW
-                    </span>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-full text-slate-400 hover:text-primary hover:bg-primary/10 transition-colors"
+                        onClick={() => navigate('/settings?tab=ai')}
+                        title="إعدادات المساعد الذكي"
+                    >
+                        <Settings className="w-4 h-4" />
+                    </Button>
                 </div>
             </div>
 
@@ -526,15 +537,20 @@ export default function VisitIntelligence({ visit }) {
             {/* Input Area */}
             <div className="p-4 flex flex-col gap-3" dir="rtl">
                 <div className="relative flex items-end gap-2">
-                    {/* Upload Button */}
+                    {/* Voice Recording Button */}
                     <Button
-                        variant="ghost"
+                        variant={listening ? "destructive" : "ghost"}
                         size="icon"
-                        className="rounded-full h-10 w-10 shrink-0 text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                        title="رفع ملفات"
-                        onClick={() => toast.info('ميزة رفع الملفات قادمة قريباً')}
+                        className={cn(
+                            "rounded-full h-10 w-10 shrink-0 transition-all",
+                            listening 
+                                ? "animate-pulse bg-red-500 text-white hover:bg-red-600 shadow-lg shadow-red-200" 
+                                : "text-slate-500 hover:bg-blue-50 hover:text-blue-600"
+                        )}
+                        title={listening ? "إيقاف التسجيل" : "تسجيل صوتي"}
+                        onClick={listening ? handleStopListening : handleStartListening}
                     >
-                        <Plus className="w-5 h-5" />
+                        {listening ? <StopCircle className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
                     </Button>
 
                     <div className="relative flex-1 bg-transparent rounded-[15px] transition-all mt-8 translate-y-2">
@@ -552,17 +568,6 @@ export default function VisitIntelligence({ visit }) {
                     </div>
 
                     <div className="flex flex-col gap-2 shrink-0">
-                         {/* Mic Button */}
-                        <Button
-                            variant={listening ? "destructive" : "secondary"}
-                            size="icon"
-                            className={`rounded-full h-10 w-10 shadow-sm border border-blue-100 transition-all ${listening ? 'animate-pulse bg-red-500 text-white hover:bg-red-600 border-red-500' : 'bg-white/50 hover:bg-blue-50 text-slate-600'}`}
-                            onClick={listening ? handleStopListening : handleStartListening}
-                            disabled={isProcessing}
-                        >
-                            {listening ? <StopCircle className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-                        </Button>
-
                         {/* Send Button */}
                         <Button
                             size="icon"
