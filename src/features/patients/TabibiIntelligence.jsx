@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Mic, Plus, Paperclip, Sparkles, X, Loader2, StopCircle, ArrowUp } from 'lucide-react';
+import { Send, Mic, Plus, Paperclip, Sparkles, X, Loader2, StopCircle, ArrowUp, Settings } from 'lucide-react';
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
 import { Button } from '../../components/ui/button';
 import { Textarea } from '../../components/ui/textarea';
@@ -15,6 +15,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useUserPreferences } from '../../hooks/useUserPreferences';
 import { flattenCustomFieldTemplates, mergeTemplatesIntoCustomFields, normalizeMedicalFieldsConfig } from '../../lib/medicalFieldsConfig';
 import 'regenerator-runtime/runtime';
+import { useNavigate } from 'react-router-dom';
 
 export default function TabibiIntelligence({ patient }) {
   const [input, setInput] = useState('');
@@ -22,64 +23,75 @@ export default function TabibiIntelligence({ patient }) {
   const [showResult, setShowResult] = useState(false);
   const textareaRef = useRef(null);
   const previousInputRef = useRef('');
-  const [chatLog, setChatLog] = useState([]);
-  const activeRequestRef = useRef({ abortController: null, timeoutId: null });
-  
-  const queryClient = useQueryClient();
-  const { data: preferences } = useUserPreferences();
+  const [chatLog, setChatLog] = useState(() => {
+      const log = patient?.ai_chat_log || patient?.medical_history?.ai_chat_log;
+      return Array.isArray(log) ? log : [];
+    });
+   const activeRequestRef = useRef({ abortController: null, timeoutId: null });
+   
+   const queryClient = useQueryClient();
+   const navigate = useNavigate();
+   const { data: preferences } = useUserPreferences();
+ 
+   // Early return if AI is disabled for this page
+   if (preferences?.ai_settings?.enabled_pages?.patient_file === false) {
+     return null;
+   }
+ 
+   const normalizeProposedFieldType = (type) => {
+     const t = String(type || "").toLowerCase().trim();
+     const allowed = new Set(["text", "textarea", "number", "date", "checkbox", "select", "multiselect", "progress"]);
+     return allowed.has(t) ? t : "text";
+   };
+ 
+   const defaultValueForType = (type) => {
+     const t = normalizeProposedFieldType(type);
+     if (t === "checkbox") return false;
+     if (t === "multiselect") return [];
+     if (t === "progress") return 50;
+     return "";
+   };
+ 
+   const TabibiAiMessage = ({ ui }) => {
+     const changes = Array.isArray(ui?.changes) ? ui.changes : [];
+ 
+     return (
+       <div className="space-y-3">
+         <div className="flex items-center gap-2">
+           <Sparkles className="w-4 h-4 text-blue-700" />
+           <div className="text-sm font-bold text-slate-900">{ui?.title || "مساعد المريض الشخصي"}</div>
+         </div>
+ 
+         {changes.length > 0 && (
+           <div className="rounded-xl border border-blue-200 bg-blue-50/40 p-3 space-y-2">
+             <div className="text-xs font-bold text-blue-900">التغييرات</div>
+             <div className="space-y-1">
+               {changes.slice(0, 8).map((c, i) => (
+                 <div key={i} className="text-xs text-slate-800">
+                   <span className="font-semibold">{c?.label || "حقل"}</span>
+                   {c?.preview ? <span className="opacity-70"> — {c.preview}</span> : null}
+                 </div>
+               ))}
+             </div>
+           </div>
+         )}
+       </div>
+     );
+   };
+ 
+   // Sync chat history from patient data when it changes externally
+   useEffect(() => {
+    // Only sync if the incoming data is non-empty or if it's a completely different patient
+    const incomingLog = (patient?.ai_chat_log?.length > 0) 
+      ? patient.ai_chat_log 
+      : (patient?.medical_history?.ai_chat_log?.length > 0)
+        ? patient.medical_history.ai_chat_log
+        : null;
 
-  // Early return if AI is disabled for this page
-  if (preferences?.ai_settings?.enabled_pages?.patient_file === false) {
-    return null;
-  }
-
-  const normalizeProposedFieldType = (type) => {
-    const t = String(type || "").toLowerCase().trim();
-    const allowed = new Set(["text", "textarea", "number", "date", "checkbox", "select", "multiselect", "progress"]);
-    return allowed.has(t) ? t : "text";
-  };
-
-  const defaultValueForType = (type) => {
-    const t = normalizeProposedFieldType(type);
-    if (t === "checkbox") return false;
-    if (t === "multiselect") return [];
-    if (t === "progress") return 50;
-    return "";
-  };
-
-  const TabibiAiMessage = ({ ui }) => {
-    const changes = Array.isArray(ui?.changes) ? ui.changes : [];
-
-    return (
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-blue-700" />
-          <div className="text-sm font-bold text-slate-900">{ui?.title || "مساعد المريض الشخصي"}</div>
-        </div>
-
-        {changes.length > 0 && (
-          <div className="rounded-xl border border-blue-200 bg-blue-50/40 p-3 space-y-2">
-            <div className="text-xs font-bold text-blue-900">التغييرات</div>
-            <div className="space-y-1">
-              {changes.slice(0, 8).map((c, i) => (
-                <div key={i} className="text-xs text-slate-800">
-                  <span className="font-semibold">{c?.label || "حقل"}</span>
-                  {c?.preview ? <span className="opacity-70"> — {c.preview}</span> : null}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  // Load chat history from patient data
-  useEffect(() => {
-    if (patient?.medical_history?.ai_chat_log) {
-      setChatLog(patient.medical_history.ai_chat_log);
+    if (incomingLog) {
+      setChatLog(incomingLog);
     }
-  }, [patient?.medical_history?.ai_chat_log]);
+  }, [patient?.id, patient?.ai_chat_log, patient?.medical_history?.ai_chat_log]);
 
   // Scroll to bottom of chat
   const chatContainerRef = useRef(null);
@@ -431,6 +443,10 @@ export default function TabibiIntelligence({ patient }) {
       if (savedData) {
         queryClient.setQueryData(['patient', patient.id], savedData);
         queryClient.setQueryData(['patient', String(patient.id)], savedData);
+        // Force refresh chat log from saved data
+        if (savedData.ai_chat_log) {
+          setChatLog(savedData.ai_chat_log);
+        }
       }
       
       queryClient.invalidateQueries({ queryKey: ['patient', patient.id] });
@@ -518,9 +534,15 @@ export default function TabibiIntelligence({ patient }) {
                             Processing...
                         </div>
                     )}
-                    <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-200 text-[10px] font-bold shadow-sm tracking-wider">
-                        NEW
-                    </span>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-full text-slate-400 hover:text-primary hover:bg-primary/10 transition-colors"
+                        onClick={() => navigate('/settings?tab=ai')}
+                        title="إعدادات المساعد الذكي"
+                    >
+                        <Settings className="w-4 h-4" />
+                    </Button>
                 </div>
             </div>
 

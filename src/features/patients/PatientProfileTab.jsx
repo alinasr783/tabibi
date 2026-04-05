@@ -7,18 +7,109 @@ import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Separator } from "../../components/ui/separator";
 import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { PersonalInfoEditModal } from "./PersonalInfoEditModal";
 import { MedicalHistoryEditModal } from "./MedicalHistoryEditModal";
 import { InsuranceEditModal } from "./InsuranceEditModal";
 import { CustomFieldsEditModal } from "./CustomFieldsEditModal";
 import { useUserPreferences } from "../../hooks/useUserPreferences";
 import { flattenCustomFieldTemplates, mergeTemplatesIntoCustomFields, normalizeMedicalFieldsConfig } from "../../lib/medicalFieldsConfig";
+import { InlineEdit } from "./InlineEdit";
+import { updatePatient } from "../../services/apiPatients";
+import { useOfflineData } from "../offline-mode/useOfflineData";
+import toast from "react-hot-toast";
+import { TagInput } from "../../components/ui/tag-input";
 
 export default function PatientProfileTab({ patient }) {
+  const queryClient = useQueryClient();
   const [editingSection, setEditingSection] = useState(null); // 'personal', 'medical', 'insurance'
   const [fieldsModal, setFieldsModal] = useState({ open: false, sectionId: null, title: "" });
   const [displayPatient, setDisplayPatient] = useState(patient);
   const { data: preferences } = useUserPreferences();
+  const { updatePatientOffline } = useOfflineData();
+
+  const handleInlineUpdate = async (field, value) => {
+    try {
+      const updates = { [field]: value };
+      if (String(displayPatient?.id || "").startsWith("local_")) {
+        await updatePatientOffline(displayPatient.id, updates);
+      } else {
+        await updatePatient(displayPatient.id, updates);
+      }
+      setDisplayPatient(prev => ({ ...prev, ...updates }));
+      queryClient.invalidateQueries({ queryKey: ["patient", displayPatient.id] });
+      queryClient.invalidateQueries({ queryKey: ["patient", String(displayPatient.id)] });
+      toast.success("تم التحديث تلقائياً");
+    } catch (error) {
+      toast.error("فشل التحديث التلقائي");
+      throw error;
+    }
+  };
+
+  const handleMedicalUpdate = async (field, value) => {
+    try {
+      const updatedMedicalHistory = {
+        ...(displayPatient.medical_history || {}),
+        [field]: value
+      };
+      const updates = { medical_history: updatedMedicalHistory };
+      
+      if (String(displayPatient?.id || "").startsWith("local_")) {
+        await updatePatientOffline(displayPatient.id, updates);
+      } else {
+        await updatePatient(displayPatient.id, updates);
+      }
+      setDisplayPatient(prev => ({ ...prev, ...updates }));
+      queryClient.invalidateQueries({ queryKey: ["patient", displayPatient.id] });
+      queryClient.invalidateQueries({ queryKey: ["patient", String(displayPatient.id)] });
+      toast.success("تم تحديث السجل الطبي");
+    } catch (error) {
+      toast.error("فشل تحديث السجل الطبي");
+      throw error;
+    }
+  };
+
+  const handleInsuranceUpdate = async (field, value) => {
+    try {
+      const updatedInsurance = {
+        ...(displayPatient.insurance_info || {}),
+        [field]: value
+      };
+      const updates = { insurance_info: updatedInsurance };
+      
+      if (String(displayPatient?.id || "").startsWith("local_")) {
+        await updatePatientOffline(displayPatient.id, updates);
+      } else {
+        await updatePatient(displayPatient.id, updates);
+      }
+      setDisplayPatient(prev => ({ ...prev, ...updates }));
+      queryClient.invalidateQueries({ queryKey: ["patient", displayPatient.id] });
+      queryClient.invalidateQueries({ queryKey: ["patient", String(displayPatient.id)] });
+      toast.success("تم تحديث بيانات التأمين");
+    } catch (error) {
+      toast.error("فشل تحديث بيانات التأمين");
+      throw error;
+    }
+  };
+
+  const updateCustomField = async (fieldId, newValue) => {
+    try {
+      const currentFields = Array.isArray(displayPatient.custom_fields) ? displayPatient.custom_fields : [];
+      const updatedFields = currentFields.map(f => 
+        f.id === fieldId ? { ...f, value: newValue } : f
+      );
+      
+      // If the field wasn't in the array (e.g. it was a template that hasn't been saved yet)
+      if (!updatedFields.find(f => f.id === fieldId)) {
+        updatedFields.push({ id: fieldId, value: newValue });
+      }
+
+      await handleInlineUpdate("custom_fields", updatedFields);
+    } catch (error) {
+      console.error("Error updating custom field:", error);
+      throw error;
+    }
+  };
 
   const medicalFieldsConfig = useMemo(
     () => normalizeMedicalFieldsConfig(preferences?.medical_fields_config),
@@ -67,12 +158,52 @@ export default function PatientProfileTab({ patient }) {
   const personalFieldLabels = patientSections?.personalFields?.labels || {};
 
   const personalFieldDefs = {
-    job: { icon: Briefcase, value: () => displayPatient.job },
-    marital_status: { icon: Users, value: () => getMaritalStatusLabel(displayPatient.marital_status) },
-    address: { icon: MapPin, value: () => displayPatient.address },
-    phone: { icon: Phone, value: () => displayPatient.phone, dir: "ltr", className: "text-right" },
-    email: { icon: Mail, value: () => displayPatient.email },
-    blood_type: { icon: Droplet, value: () => displayPatient.blood_type, className: "text-red-600 font-bold" },
+    job: { 
+      icon: Briefcase, 
+      value: () => displayPatient.job,
+      type: "text",
+      onSave: (v) => handleInlineUpdate("job", v)
+    },
+    marital_status: { 
+      icon: Users, 
+      value: () => displayPatient.marital_status,
+      type: "select",
+      options: [
+        { label: "أعزب/ة", value: "single" },
+        { label: "متزوج/ة", value: "married" },
+        { label: "مطلق/ة", value: "divorced" },
+        { label: "أرمل/ة", value: "widowed" }
+      ],
+      onSave: (v) => handleInlineUpdate("marital_status", v)
+    },
+    address: { 
+      icon: MapPin, 
+      value: () => displayPatient.address,
+      type: "textarea",
+      onSave: (v) => handleInlineUpdate("address", v)
+    },
+    phone: { 
+      icon: Phone, 
+      value: () => displayPatient.phone, 
+      dir: "ltr", 
+      className: "text-right",
+      type: "text",
+      onSave: (v) => handleInlineUpdate("phone", v)
+    },
+    email: { 
+      icon: Mail, 
+      value: () => displayPatient.email,
+      type: "text",
+      onSave: (v) => handleInlineUpdate("email", v)
+    },
+    blood_type: { 
+      icon: Droplet, 
+      value: () => displayPatient.blood_type, 
+      className: "text-red-600 font-bold",
+      type: "select",
+      options: ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(t => ({ label: t, value: t })),
+      onSave: (v) => handleInlineUpdate("blood_type", v)
+    },
   };
 
   const enabledSectionKeys = useMemo(
@@ -144,21 +275,14 @@ export default function PatientProfileTab({ patient }) {
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {fields.map((field) => (
-                      <div
+                      <InlineEdit
                         key={field.id}
-                        className="p-2.5 rounded-lg border border-transparent hover:border-muted/30 hover:bg-muted/30 transition-all"
-                      >
-                        <div className="text-xs text-muted-foreground mb-1">{field.name}</div>
-                        <div className="text-sm font-medium text-foreground">
-                          {field.type === "checkbox"
-                            ? field.value
-                              ? "نعم"
-                              : "لا"
-                            : Array.isArray(field.value)
-                              ? field.value.join(", ") || "-"
-                              : (field.value ?? "-") || "-"}
-                        </div>
-                      </div>
+                        label={field.name}
+                        value={field.value}
+                        type={field.type}
+                        options={(field.options || []).map(o => ({ label: o, value: o }))}
+                        onSave={(v) => updateCustomField(field.id, v)}
+                      />
                     ))}
                   </div>
                 )}
@@ -215,11 +339,14 @@ export default function PatientProfileTab({ patient }) {
               <CardContent className={`${mobileOpen[key] ? "block" : "hidden"} sm:block`}>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                   {enabledFields.map(({ fieldKey, def }) => (
-                    <InfoItem
+                    <InlineEdit
                       key={fieldKey}
                       icon={def.icon}
                       label={cfg?.[fieldKey]?.label || personalFieldLabels[fieldKey] || fieldKey}
                       value={def.value()}
+                      type={def.type}
+                      options={def.options}
+                      onSave={def.onSave}
                       dir={def.dir}
                       className={def.className}
                     />
@@ -228,33 +355,18 @@ export default function PatientProfileTab({ patient }) {
                 {(extra.length > 0 || hasTemplates) && (
                   <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {extra.map((field) => (
-                      <div
+                      <InlineEdit
                         key={field.id}
-                        className="p-2.5 rounded-lg border border-transparent hover:border-muted/30 hover:bg-muted/30 transition-all"
-                      >
-                        <div className="text-xs text-muted-foreground mb-1">{field.name}</div>
-                        <div className="text-sm font-medium text-foreground">
-                          {field.type === "checkbox"
-                            ? field.value
-                              ? "نعم"
-                              : "لا"
-                            : Array.isArray(field.value)
-                              ? field.value.join(", ") || "-"
-                              : (field.value ?? "-") || "-"}
-                        </div>
-                      </div>
+                        label={field.name}
+                        value={field.value}
+                        type={field.type}
+                        options={(field.options || []).map(o => ({ label: o, value: o }))}
+                        onSave={(v) => updateCustomField(field.id, v)}
+                      />
                     ))}
                   </div>
                 )}
                 <div className="mt-4 flex justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full sm:w-auto"
-                    onClick={() => setEditingSection("personal")}
-                  >
-                    تعديل
-                  </Button>
                   {(extra.length > 0 || hasTemplates) && (
                     <Button
                       type="button"
@@ -307,41 +419,23 @@ export default function PatientProfileTab({ patient }) {
                     {(showChronic || showAllergies) && (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {showChronic && (
-                          <div className="bg-orange-50/50 rounded-lg p-3 border border-orange-100">
-                            <h4 className="text-xs font-medium text-orange-800 mb-2 flex items-center gap-2">
-                              <Activity className="w-3.5 h-3.5" /> {cfg?.chronic_diseases?.label || "الأمراض المزمنة"}
-                            </h4>
-                            <div className="flex flex-wrap gap-1.5">
-                              {medicalHistory.chronic_diseases && medicalHistory.chronic_diseases.length > 0 ? (
-                                medicalHistory.chronic_diseases.map((disease, idx) => (
-                                  <Badge key={idx} variant="outline" className="bg-white text-orange-700 border-orange-200">
-                                    {typeof disease === 'object' ? (disease.value || disease.name || JSON.stringify(disease)) : disease}
-                                  </Badge>
-                                ))
-                              ) : (
-                                <span className="text-xs text-muted-foreground">لا يوجد</span>
-                              )}
-                            </div>
-                          </div>
+                          <TagInput
+                            variant="inline"
+                            label={cfg?.chronic_diseases?.label || "الأمراض المزمنة"}
+                            value={medicalHistory.chronic_diseases}
+                            onSave={(v) => handleMedicalUpdate("chronic_diseases", v)}
+                            placeholder="أضف مرضاً مزمناً..."
+                          />
                         )}
 
                         {showAllergies && (
-                          <div className="bg-red-50/50 rounded-lg p-3 border border-red-100">
-                            <h4 className="text-xs font-medium text-red-800 mb-2 flex items-center gap-2">
-                              <AlertTriangle className="w-3.5 h-3.5" /> {cfg?.allergies?.label || "الحساسية"}
-                            </h4>
-                            <div className="flex flex-wrap gap-1.5">
-                              {medicalHistory.allergies && medicalHistory.allergies.length > 0 ? (
-                                medicalHistory.allergies.map((allergy, idx) => (
-                                  <Badge key={idx} variant="outline" className="bg-white text-red-700 border-red-200">
-                                    {typeof allergy === 'object' ? (allergy.value || allergy.name || JSON.stringify(allergy)) : allergy}
-                                  </Badge>
-                                ))
-                              ) : (
-                                <span className="text-xs text-muted-foreground">لا يوجد</span>
-                              )}
-                            </div>
-                          </div>
+                          <TagInput
+                            variant="inline"
+                            label={cfg?.allergies?.label || "الحساسية"}
+                            value={medicalHistory.allergies}
+                            onSave={(v) => handleMedicalUpdate("allergies", v)}
+                            placeholder="أضف حساسية..."
+                          />
                         )}
                       </div>
                     )}
@@ -351,42 +445,23 @@ export default function PatientProfileTab({ patient }) {
                         {(showChronic || showAllergies) && <Separator />}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           {showSurgeries && (
-                            <div>
-                              <h4 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
-                                <Scissors className="w-4 h-4" /> {cfg?.past_surgeries?.label || "العمليات السابقة"}
-                              </h4>
-                              {medicalHistory.past_surgeries && medicalHistory.past_surgeries.length > 0 ? (
-                                <ul className="list-disc list-inside text-sm space-y-1">
-                                  {medicalHistory.past_surgeries.map((surgery, idx) => (
-                                    <li key={idx}>{typeof surgery === 'object' ? (surgery.value || surgery.name || JSON.stringify(surgery)) : surgery}</li>
-                                  ))}
-                                </ul>
-                              ) : (
-                                <span className="text-sm text-gray-400">لا يوجد</span>
-                              )}
-                            </div>
+                            <TagInput
+                              variant="inline"
+                              label={cfg?.past_surgeries?.label || "العمليات السابقة"}
+                              value={medicalHistory.past_surgeries}
+                              onSave={(v) => handleMedicalUpdate("past_surgeries", v)}
+                              placeholder="أضف عملية..."
+                            />
                           )}
 
                           {showFamily && (
-                            <div>
-                              <h4 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
-                                <Users className="w-4 h-4" /> {cfg?.family_history?.label || "التاريخ العائلي"}
-                              </h4>
-                              {medicalHistory.family_history && medicalHistory.family_history.length > 0 ? (
-                                <ul className="list-disc list-inside text-sm space-y-1">
-                                  {medicalHistory.family_history.map((history, idx) => (
-                                    <li key={idx}>
-                                      {typeof history === 'object' ? 
-                                        (history.family_history || history.value || JSON.stringify(history)) : 
-                                        history
-                                      }
-                                    </li>
-                                  ))}
-                                </ul>
-                              ) : (
-                                <span className="text-sm text-gray-400">لا يوجد</span>
-                              )}
-                            </div>
+                            <TagInput
+                              variant="inline"
+                              label={cfg?.family_history?.label || "التاريخ العائلي"}
+                              value={medicalHistory.family_history}
+                              onSave={(v) => handleMedicalUpdate("family_history", v)}
+                              placeholder="أضف تاريخاً عائلياً..."
+                            />
                           )}
                         </div>
                       </>
@@ -398,33 +473,18 @@ export default function PatientProfileTab({ patient }) {
                 {(extra.length > 0 || hasTemplates) && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {extra.map((field) => (
-                      <div
+                      <InlineEdit
                         key={field.id}
-                        className="p-2.5 rounded-lg border border-transparent hover:border-muted/30 hover:bg-muted/30 transition-all"
-                      >
-                        <div className="text-xs text-muted-foreground mb-1">{field.name}</div>
-                        <div className="text-sm font-medium text-foreground">
-                          {field.type === "checkbox"
-                            ? field.value
-                              ? "نعم"
-                              : "لا"
-                            : Array.isArray(field.value)
-                              ? field.value.join(", ") || "-"
-                              : (field.value ?? "-") || "-"}
-                        </div>
-                      </div>
+                        label={field.name}
+                        value={field.value}
+                        type={field.type}
+                        options={(field.options || []).map(o => ({ label: o, value: o }))}
+                        onSave={(v) => updateCustomField(field.id, v)}
+                      />
                     ))}
                   </div>
                 )}
                 <div className="pt-2 flex justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full sm:w-auto"
-                    onClick={() => setEditingSection("medical")}
-                  >
-                    تعديل
-                  </Button>
                   {(extra.length > 0 || hasTemplates) && (
                     <Button
                       type="button"
@@ -471,58 +531,48 @@ export default function PatientProfileTab({ patient }) {
                 </div>
               </CardHeader>
               <CardContent className={`${mobileOpen[key] ? "block" : "hidden"} sm:block`}>
-                <div className="bg-blue-50/50 rounded-lg p-4 border border-blue-100 grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-blue-50/50 rounded-lg p-2 border border-blue-100 grid grid-cols-1 md:grid-cols-3 gap-2">
                   {showProvider && (
-                    <div className="space-y-1">
-                      <span className="text-xs text-blue-600/80 block">{cfg?.provider_name?.label || "شركة التأمين"}</span>
-                      <span className="text-sm font-medium text-blue-900">{insuranceInfo.provider_name || "-"}</span>
-                    </div>
+                    <InlineEdit
+                      label={cfg?.provider_name?.label || "شركة التأمين"}
+                      value={insuranceInfo.provider_name}
+                      onSave={(v) => handleInsuranceUpdate("provider_name", v)}
+                      className="bg-transparent border-none hover:bg-blue-100/50"
+                    />
                   )}
                   {showPolicy && (
-                    <div className="space-y-1">
-                      <span className="text-xs text-blue-600/80 block">{cfg?.policy_number?.label || "رقم البوليصة"}</span>
-                      <span className="text-sm font-medium text-blue-900">{insuranceInfo.policy_number || "-"}</span>
-                    </div>
+                    <InlineEdit
+                      label={cfg?.policy_number?.label || "رقم البوليصة"}
+                      value={insuranceInfo.policy_number}
+                      onSave={(v) => handleInsuranceUpdate("policy_number", v)}
+                      className="bg-transparent border-none hover:bg-blue-100/50"
+                    />
                   )}
                   {showCoverage && (
-                    <div className="space-y-1">
-                      <span className="text-xs text-blue-600/80 block">{cfg?.coverage_percent?.label || "نسبة التغطية"}</span>
-                      <span className="text-sm font-medium text-blue-900">
-                        {insuranceInfo.coverage_percent ? `%${insuranceInfo.coverage_percent}` : "-"}
-                      </span>
-                    </div>
+                    <InlineEdit
+                      label={cfg?.coverage_percent?.label || "نسبة التغطية"}
+                      value={insuranceInfo.coverage_percent}
+                      type="number"
+                      onSave={(v) => handleInsuranceUpdate("coverage_percent", v)}
+                      className="bg-transparent border-none hover:bg-blue-100/50"
+                    />
                   )}
                 </div>
                 {(extra.length > 0 || hasTemplates) && (
                   <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {extra.map((field) => (
-                      <div
+                      <InlineEdit
                         key={field.id}
-                        className="p-2.5 rounded-lg border border-transparent hover:border-muted/30 hover:bg-muted/30 transition-all"
-                      >
-                        <div className="text-xs text-muted-foreground mb-1">{field.name}</div>
-                        <div className="text-sm font-medium text-foreground">
-                          {field.type === "checkbox"
-                            ? field.value
-                              ? "نعم"
-                              : "لا"
-                            : Array.isArray(field.value)
-                              ? field.value.join(", ") || "-"
-                              : (field.value ?? "-") || "-"}
-                        </div>
-                      </div>
+                        label={field.name}
+                        value={field.value}
+                        type={field.type}
+                        options={(field.options || []).map(o => ({ label: o, value: o }))}
+                        onSave={(v) => updateCustomField(field.id, v)}
+                      />
                     ))}
                   </div>
                 )}
                 <div className="mt-4 flex justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full sm:w-auto"
-                    onClick={() => setEditingSection("insurance")}
-                  >
-                    تعديل
-                  </Button>
                   {(extra.length > 0 || hasTemplates) && (
                     <Button
                       type="button"
@@ -542,25 +592,7 @@ export default function PatientProfileTab({ patient }) {
         return null;
       })}
 
-      {/* Edit Modals */}
-      <PersonalInfoEditModal 
-        open={editingSection === 'personal'} 
-        onOpenChange={(open) => !open && setEditingSection(null)} 
-        patient={displayPatient}
-        onSuccess={handleUpdateSuccess}
-      />
-      <MedicalHistoryEditModal 
-        open={editingSection === 'medical'} 
-        onOpenChange={(open) => !open && setEditingSection(null)} 
-        patient={displayPatient}
-        onSuccess={handleUpdateSuccess}
-      />
-      <InsuranceEditModal 
-        open={editingSection === 'insurance'} 
-        onOpenChange={(open) => !open && setEditingSection(null)} 
-        patient={displayPatient}
-        onSuccess={handleUpdateSuccess}
-      />
+      {/* Edit Modals (Keep as fallback if needed, but remove direct buttons) */}
       <CustomFieldsEditModal
         open={fieldsModal.open}
         onOpenChange={(open) => !open && setFieldsModal({ open: false, sectionId: null, title: "" })}
@@ -569,20 +601,6 @@ export default function PatientProfileTab({ patient }) {
         sectionId={fieldsModal.sectionId}
         title={fieldsModal.title ? `تعديل حقول ${fieldsModal.title}` : "تعديل الحقول"}
       />
-    </div>
-  );
-}
-
-function InfoItem({ icon: Icon, label, value, className, dir }) {
-  return (
-    <div className="flex items-center gap-3 p-2.5 rounded-lg border border-transparent hover:border-muted/30 hover:bg-muted/30 transition-all">
-      <div className="p-2 bg-primary/10 rounded-full shrink-0">
-        {Icon && <Icon className="w-4 h-4 text-primary" />}
-      </div>
-      <div className="flex items-center gap-2">
-         <span className="text-sm text-muted-foreground">{label}:</span>
-         <span className={`font-medium text-foreground ${className || ""}`} dir={dir}>{value || "-"}</span>
-      </div>
     </div>
   );
 }

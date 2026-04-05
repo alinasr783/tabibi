@@ -1,5 +1,5 @@
 import { Key, User, Settings, Palette, Bell, ClipboardList, Brain, WifiOff } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import ChangePasswordTab from "./ChangePasswordTab";
 import PersonalInfoTab from "./PersonalInfoTab";
@@ -22,6 +22,14 @@ const tabs = [
 
 export default function SettingsPage() {
   const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const tabFromUrl = searchParams.get("tab");
+  
+  const defaultTab = useMemo(() => {
+    if (tabFromUrl === "ai") return "ai-customization";
+    if (tabFromUrl === "fields") return "medical-fields";
+    return tabFromUrl || "personal";
+  }, [tabFromUrl]);
   
   // Apply scroll to top on route changes
   useEffect(() => {
@@ -41,7 +49,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="personal" className="w-full" style={{ direction: 'rtl' }}>
+      <Tabs defaultValue={defaultTab} className="w-full" style={{ direction: 'rtl' }}>
         <TabsList className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 w-full h-auto p-1 sm:p-1.5 bg-muted/50 rounded-[var(--radius)]">
           {tabs.map((tab) => {
             const Icon = tab.icon;

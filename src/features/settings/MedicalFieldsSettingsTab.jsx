@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -1064,6 +1065,9 @@ function SectionTemplatesEditor({ title, context, sections, customSections, sect
 export default function MedicalFieldsSettingsTab() {
   const { data: preferences, isLoading } = useUserPreferences();
   const { mutate: updatePreferences, isPending } = useUpdateUserPreferences();
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const contextFromUrl = searchParams.get("context");
 
   const initial = useMemo(
     () => normalizeMedicalFieldsConfig(preferences?.medical_fields_config),
@@ -1071,8 +1075,19 @@ export default function MedicalFieldsSettingsTab() {
   );
 
   const [config, setConfig] = useState(initial);
-  const [activeContext, setActiveContext] = useState("appointment");
+  const [activeContext, setActiveContext] = useState(() => {
+    if (["appointment", "visit", "patient"].includes(contextFromUrl)) {
+      return contextFromUrl;
+    }
+    return "appointment";
+  });
   const [selectedSections, setSelectedSections] = useState({ appointment: null, visit: null, patient: null });
+
+  useEffect(() => {
+    if (["appointment", "visit", "patient"].includes(contextFromUrl)) {
+      setActiveContext(contextFromUrl);
+    }
+  }, [contextFromUrl]);
 
   useEffect(() => {
     setConfig(initial);

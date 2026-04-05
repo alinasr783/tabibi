@@ -34,6 +34,7 @@ import { toast } from "sonner";
 import ExtensionSlot from "../tabibi-tools/components/ExtensionSlot";
 import useDeletePatient from "./useDeletePatient";
 import TabibiIntelligence from "./TabibiIntelligence";
+import PatientSummary from "./PatientSummary";
 import supabase from "../../services/supabase";
 import { STORE_NAMES, getItem } from "../offline-mode/offlineDB";
 import { useOffline } from "../offline-mode/OfflineContext";
@@ -312,6 +313,15 @@ export default function PatientDetailPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Patient Summary Section */}
+          {!isOfflineMode && (
+            <PatientSummary 
+              patient={effectivePatient} 
+              visits={visits || []} 
+              appointments={appointments || []} 
+            />
+          )}
 
           {/* مساعد المريض الشخصي - Hidden in Offline Mode */}
           {!isOfflineMode && <TabibiIntelligence patient={patient} />}
@@ -596,6 +606,20 @@ export default function PatientDetailPage() {
             patientId={patientId}
             onPlanAssigned={handlePlanAssigned}
           />
+
+          {/* Settings Redirect CTA */}
+          <div className="mt-12 mb-8 py-8 border-t border-dashed border-border flex flex-col items-center justify-center text-center space-y-4" dir="rtl">
+            <div className="bg-primary/5 p-4 rounded-2xl border border-primary/10 max-w-md w-full">
+              <p className="text-sm font-medium text-slate-600 mb-4">عايز تخصص حقول الملف المريض ؟</p>
+              <Button 
+                onClick={() => navigate('/settings?tab=fields&context=patient')}
+                className="w-full h-11 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl gap-2 shadow-lg shadow-primary/20"
+              >
+                ايوا
+                <ArrowRight className="w-4 h-4 rotate-180" />
+              </Button>
+            </div>
+          </div>
 
           {/* Delete Patient Confirmation Dialog */}
           <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
