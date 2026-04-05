@@ -152,6 +152,7 @@ export function useSendMessage() {
           else if (actionName.includes('Patient') && actionName.includes('search')) setCurrentAction("جاري البحث عن مريض...");
           else if (actionName.includes('Appointment') && actionName.includes('create')) setCurrentAction("جاري حجز موعد جديد...");
           else if (actionName.includes('Appointment') && actionName.includes('check')) setCurrentAction("جاري التحقق من المواعيد...");
+          else if (actionName === 'sendTodayAppointmentsEmailAction') setCurrentAction("جاري إرسال الإيميل...");
           else setCurrentAction("جاري تنفيذ الأمر...");
           
           try {

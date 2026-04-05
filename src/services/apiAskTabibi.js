@@ -616,6 +616,30 @@ export const AI_ACTIONS = {
     return { success: true, message: `تم تعديل سعر الكشف إلى ${price} جنيه` };
   },
 
+  // Email Actions
+  async sendTodayAppointmentsEmailAction() {
+    const { userId } = await getClinicContext();
+    
+    // Invoke the edge function
+    const { data, error } = await supabase.functions.invoke('send-daily-appointments-email', {
+      body: { 
+        force: true, 
+        user_id: userId 
+      }
+    });
+
+    if (error) {
+      console.error("Error sending email via AI action:", error);
+      throw new Error("فشلت في إرسال الإيميل، حاول تاني كمان شوية");
+    }
+
+    return { 
+      success: true, 
+      message: "بعتهولك يا دكتور! شيك على الإيميل بتاعك دلوقت",
+      data 
+    };
+  },
+
   // Theme & Appearance Actions
   async changeThemeAction(data) {
     const { mode } = data;

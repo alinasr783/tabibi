@@ -377,6 +377,15 @@ ${todayAppointmentsDetailed || 'لا يوجد مواعيد اليوم'}
 {"type": "button", "label": "نسخ رابط الحجز", "action": "copyBookingLink", "icon": "Copy"}
 \`\`\`
 
+**إرسال إيميل بالمواعيد:**
+لو الدكتور طلب إرسال إيميل بمواعيد النهاردة، استخدم:
+\`\`\`execute
+{"action": "sendTodayAppointmentsEmailAction"}
+\`\`\`
+\`\`\`markdown
+بعتهولك يا دكتور! شيك على الإيميل بتاعك دلوقت [icon:CheckCircle]
+\`\`\`
+
 **شريط تقدم:**
 \`\`\`action
 {"type": "progress", "label": "العنوان", "value": 75}
