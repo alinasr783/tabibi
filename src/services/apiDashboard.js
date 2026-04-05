@@ -158,12 +158,15 @@ export async function getTodayAppointments() {
 
     const clinicId = userData.clinic_id
 
-    // Get today's date range in the local timezone converted to UTC for DB query
-    const now = new Date()
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0)
-    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
+    // Get today's date in local YYYY-MM-DD format
+    const today = new Date()
+    const year = today.getFullYear()
+    const month = String(today.getMonth() + 1).padStart(2, '0')
+    const day = String(today.getDate()).padStart(2, '0')
+    const localToday = `${year}-${month}-${day}`
 
     // Get all appointments with patient info for today
+    // Using simple string comparison for the date part (Postgres will handle the cast)
     const { data: appointments, error } = await supabase
         .from("appointments")
         .select(`
@@ -173,14 +176,86 @@ export async function getTodayAppointments() {
             patient:patients(name)
         `)
         .eq("clinic_id", clinicId)
-        .gte("date", startOfDay.toISOString())
-        .lte("date", endOfDay.toISOString())
+        .gte("date", `${localToday}T00:00:00`)
+        .lte("date", `${localToday}T23:59:59`)
         .order("date", { ascending: true })
         .limit(5)
 
     if (error) throw error
 
     return appointments || []
+}
+
+export async function getAppointmentsStatsForLast7Days() {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) throw new Error("Not authenticated")
+
+    const { data: userData } = await supabase
+        .from("users")
+        .select("clinic_id")
+        .eq("user_id", session.user.id)
+        .single()
+
+    if (!userData?.clinic_id) throw new Error("User has no clinic assigned")
+
+    const clinicId = userData.clinic_id
+
+    // Get current local date and the date 6 days ago
+    const today = new Date()
+    today.setHours(23, 59, 59, 999)
+    
+    const sevenDaysAgo = new Date(today)
+    sevenDaysAgo.setDate(today.getDate() - 6)
+    sevenDaysAgo.setHours(0, 0, 0, 0)
+
+    // Format boundaries for DB query (local ISO-like strings)
+    const startStr = sevenDaysAgo.toISOString().split('T')[0]
+    const endStr = today.toISOString().split('T')[0]
+
+    // Get appointments in this range
+    // We fetch a bit more just to be safe with timezones, then filter locally
+    const { data, error } = await supabase
+        .from("appointments")
+        .select("date")
+        .eq("clinic_id", clinicId)
+        .gte("date", `${startStr}T00:00:00`)
+        .lte("date", `${endStr}T23:59:59`)
+
+    if (error) throw error
+
+    // Initialize counts for each of the last 7 days using local time labels
+    const stats = []
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(sevenDaysAgo)
+        d.setDate(sevenDaysAgo.getDate() + i)
+        
+        const y = d.getFullYear()
+        const m = String(d.getMonth() + 1).padStart(2, '0')
+        const day = String(d.getDate()).padStart(2, '0')
+        const dateKey = `${y}-${m}-${day}`
+        
+        const label = d.toLocaleDateString('ar-EG', { weekday: 'short', day: 'numeric' })
+        stats.push({ date: dateKey, label, count: 0 })
+    }
+
+    // Aggregate data using local date extraction
+    if (data) {
+        data.forEach(appointment => {
+            if (!appointment.date) return
+            
+            // Convert DB date (UTC string) to local Date object to get the local day
+            const apptDate = new Date(appointment.date)
+            const y = apptDate.getFullYear()
+            const m = String(apptDate.getMonth() + 1).padStart(2, '0')
+            const d = String(apptDate.getDate()).padStart(2, '0')
+            const localKey = `${y}-${m}-${d}`
+            
+            const dayStat = stats.find(s => s.date === localKey)
+            if (dayStat) dayStat.count++
+        })
+    }
+
+    return stats
 }
 
 export async function getRecentActivity(page = 1, pageSize = 5) {

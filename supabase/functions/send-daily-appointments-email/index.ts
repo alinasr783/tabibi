@@ -12,12 +12,30 @@ const corsHeaders = {
 
 // Get Cairo time properly
 function getCairoTime() {
-  const now = new Date()
-  // Cairo is UTC+2 (or UTC+3 during DST, but Egypt doesn't observe DST since 2014)
-  const cairoOffset = 2 * 60 // +2 hours in minutes
-  const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000)
-  const cairoTime = new Date(utcTime + (cairoOffset * 60000))
-  return cairoTime
+  // Use Intl.DateTimeFormat for a reliable time in Cairo timezone
+  const cairoFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Africa/Cairo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
+  
+  const parts = cairoFormatter.formatToParts(new Date());
+  const dateMap = parts.reduce((acc, part) => {
+    acc[part.type] = part.value;
+    return acc;
+  }, {} as any);
+  
+  // Return a structured object instead of a Date object to avoid offset issues
+  return {
+    hour: parseInt(dateMap.hour),
+    minute: parseInt(dateMap.minute),
+    todayStr: `${dateMap.year}-${dateMap.month}-${dateMap.day}`
+  };
 }
 
 // Email template for daily appointments
@@ -26,14 +44,50 @@ function generateEmailHTML(doctorName: string, clinicName: string, date: string,
   const dayName = dateObj.toLocaleDateString('ar-EG', { weekday: 'long' })
   const formattedDate = dateObj.toLocaleDateString('ar-EG', { day: 'numeric', month: 'long' })
   
-  const appointmentsList = appointments.map(apt => {
-    const time = apt.appointment_time?.split(' ')[1] || apt.appointment_time || apt.time || '-'
-    return `<tr>
-      <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: right;">${time}</td>
-      <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: right;">${apt.patient_name || apt.name || 'مريض'}</td>
-      <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: right;">${apt.notes || '-'}</td>
-    </tr>`
-  }).join('')
+  const hasAppointments = appointments && appointments.length > 0;
+  
+  const appointmentsContent = hasAppointments ? appointments.map(apt => {
+    const time = apt.time || '-';
+    const patientName = apt.patient_name || 'مريض';
+    const notes = apt.notes || 'لا توجد ملاحظات';
+    const price = apt.price ? `${apt.price} ج.م` : 'غير محدد';
+    const source = apt.source === 'online' ? 'حجز أونلاين' : 'حجز من العيادة';
+    const sourceColor = apt.source === 'online' ? '#1AA19C' : '#224FB5';
+    const status = apt.status_label || 'قيد الانتظار';
+    const phone = apt.patient_phone || '';
+    
+    const whatsappBtn = phone ? `
+      <a href="https://wa.me/${phone.replace(/\D/g, '')}" style="display: inline-flex; align-items: center; background-color: #25D366; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: bold; margin-top: 10px;">
+        <span style="margin-left: 8px;">واتساب</span>
+      </a>` : '';
+
+    return `
+      <div style="background: white; border: 1px solid #eef0f2; border-radius: 12px; padding: 20px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); text-align: right;" dir="rtl">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #f8f9fa; padding-bottom: 10px;">
+          <span style="background: #f0f7f7; color: #1AA19C; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold;">${time}</span>
+          <span style="color: ${sourceColor}; font-size: 12px; font-weight: bold;">${source}</span>
+        </div>
+        
+        <h3 style="margin: 0 0 8px; color: #333; font-size: 18px;">👤 ${patientName}</h3>
+        
+        <div style="display: flex; gap: 20px; margin-top: 10px;">
+          <p style="margin: 5px 0; color: #666; font-size: 14px;"><strong>💰 السعر:</strong> ${price}</p>
+          <p style="margin: 5px 0; color: #666; font-size: 14px;"><strong>📍 الحالة:</strong> ${status}</p>
+        </div>
+        
+        <p style="margin: 10px 0; color: #888; font-size: 13px; background: #fcfcfc; padding: 8px; border-radius: 6px; border-right: 3px solid #eee;">
+          <strong>📝 ملاحظات:</strong> ${notes}
+        </p>
+        
+        ${whatsappBtn}
+      </div>`
+  }).join('') : `
+    <div style="text-align: center; padding: 40px 20px; background: #fff; border-radius: 12px; border: 1px dashed #ccc;">
+      <div style="font-size: 48px; margin-bottom: 15px;">🗓️</div>
+      <h3 style="color: #666; margin: 0;">لا توجد مواعيد مجدولة لهذا اليوم</h3>
+      <p style="color: #999; font-size: 14px; margin-top: 10px;">نتمنالك يوم هادئ ومريح دكتور ${doctorName} 🌸</p>
+    </div>
+  `;
   
   return `
 <!DOCTYPE html>
@@ -41,48 +95,37 @@ function generateEmailHTML(doctorName: string, clinicName: string, date: string,
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8fafc; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; background: #fff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+    .header { background: linear-gradient(135deg, #1AA19C 0%, #224FB5 100%); padding: 40px 20px; text-align: center; color: white; }
+    .content { padding: 30px 20px; background: #f8fafc; }
+    .footer { background: #fff; padding: 25px; text-align: center; border-top: 1px solid #eee; }
+  </style>
 </head>
-<body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f5f5f5; margin: 0; padding: 20px;">
-  <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-    <!-- Header -->
-    <div style="background: linear-gradient(135deg, #1AA19C 0%, #224FB5 100%); padding: 30px; text-align: center;">
-      <h1 style="color: white; margin: 0; font-size: 24px;">صباح الخير دكتور ${doctorName} 👋</h1>
-      <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0;">عيادة ${clinicName}</p>
+<body dir="rtl">
+  <div class="container" dir="rtl">
+    <div class="header">
+      <h1 style="margin: 0; font-size: 26px;">صباح الخير دكتور ${doctorName} 👋</h1>
+      <p style="margin: 10px 0 0; opacity: 0.9; font-size: 16px;">${clinicName}</p>
     </div>
     
-    <!-- Content -->
-    <div style="padding: 30px;">
-      <div style="background: #f8f9fa; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
-        <h2 style="margin: 0 0 5px; color: #333; font-size: 18px;">📅 مواعيدك النهارده</h2>
-        <p style="margin: 0; color: #666; font-size: 14px;">${dayName} ${formattedDate}</p>
+    <div class="content" dir="rtl">
+      <div style="margin-bottom: 25px; text-align: right;">
+        <h2 style="margin: 0; color: #1e293b; font-size: 20px;">📅 مواعيدك اليوم</h2>
+        <p style="margin: 5px 0 0; color: #64748b; font-size: 14px;">${dayName}، ${formattedDate}</p>
       </div>
       
-      <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden;">
-        <thead>
-          <tr style="background: #f8f9fa;">
-            <th style="padding: 12px; text-align: right; font-weight: 600; color: #333;">⏰ الوقت</th>
-            <th style="padding: 12px; text-align: right; font-weight: 600; color: #333;">👤 المريض</th>
-            <th style="padding: 12px; text-align: right; font-weight: 600; color: #333;">📝 ملاحظات</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${appointmentsList}
-        </tbody>
-      </table>
+      ${appointmentsContent}
       
-      <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
-        <p style="color: #888; font-size: 14px; margin: 0;">نتمنالك يوم شغل موفق 🌸</p>
+      <div style="text-align: center; margin-top: 30px; padding: 20px; color: #64748b; font-size: 14px;">
+        نتمنالك يوم شغل موفق وسعيد 🌸
       </div>
     </div>
     
-    <!-- Footer -->
-    <div style="background: #f8f9fa; padding: 20px; text-align: center;">
-      <p style="margin: 0; color: #888; font-size: 12px;">
-        هذه الرسالة مرسلة تلقائياً من منصة <strong style="color: #1AA19C;">Tabibi</strong>
-      </p>
-      <p style="margin: 5px 0 0; color: #aaa; font-size: 11px;">
-        لإلغاء هذه الرسائل، اذهب للإعدادات > الإشعارات
-      </p>
+    <div class="footer">
+      <p style="margin: 0; color: #1AA19C; font-weight: bold; font-size: 15px;">Tabibi</p>
+      <p style="margin: 5px 0 0; color: #94a3b8; font-size: 12px;">منصة إدارة العيادات الذكية</p>
     </div>
   </div>
 </body>
@@ -91,7 +134,7 @@ function generateEmailHTML(doctorName: string, clinicName: string, date: string,
 
 // Send email using Resend SDK
 async function sendEmail(to: string, subject: string, html: string) {
-  const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
+  const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') || 're_UkvsdPXj_2E9sBfBrwYbaW9nEj2AaTxLk'
   
   if (!RESEND_API_KEY) {
     console.error('RESEND_API_KEY not configured')
@@ -103,7 +146,7 @@ async function sendEmail(to: string, subject: string, html: string) {
   const resend = new Resend(RESEND_API_KEY)
   
   const { data, error } = await resend.emails.send({
-    from: 'onboarding@resend.dev',
+    from: 'Tabibi <notifications@resend.dev>',
     to: to,
     subject: subject,
     html: html,
@@ -120,16 +163,17 @@ async function sendEmail(to: string, subject: string, html: string) {
 
 // Main handler
 Deno.serve(async (req) => {
-  // Handle CORS preflight
+  console.log(`--- Function execution started: ${new Date().toISOString()} ---`)
+  
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
   
   try {
-    // Parse request body for options
     let forceMode = false
     let sendToAll = false
     let targetEmail = null
+    let targetUserId = null
     
     if (req.method === 'POST') {
       try {
@@ -137,276 +181,168 @@ Deno.serve(async (req) => {
         forceMode = body.force === true
         sendToAll = body.sendToAll === true
         targetEmail = body.email || null
-        console.log('Request options:', { forceMode, sendToAll, targetEmail })
-      } catch {
-        // Body might be empty for cron triggers
+        targetUserId = body.user_id || null
+        console.log('Request options:', { forceMode, sendToAll, targetEmail, targetUserId })
+      } catch (e) {
+        console.log('Body empty or not JSON')
       }
     }
     
-    // Initialize Supabase client with service role
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
     
-    // Get Cairo time
-    const cairoTime = getCairoTime()
-    const cairoHour = cairoTime.getHours()
-    const cairoMinute = cairoTime.getMinutes()
-    const todayStr = cairoTime.toISOString().split('T')[0]
+    // Cairo time object
+    const cairo = getCairoTime()
+    const cairoHour = cairo.hour
+    const cairoMinute = cairo.minute
+    const todayStr = cairo.todayStr
     
-    console.log(`Running daily email job - Cairo time: ${cairoHour}:${cairoMinute}, Date: ${todayStr}, Force: ${forceMode}`)
+    console.log(`Job - Cairo time: ${cairoHour}:${cairoMinute}, Date: ${todayStr}, Force: ${forceMode}`)
     
-    // Get users to process
     let usersQuery = supabase
       .from('user_preferences')
-      .select(`
-        user_id,
-        daily_appointments_email_enabled,
-        daily_appointments_email_time,
-        timezone
-      `)
+      .select(`user_id, daily_appointments_email_enabled, daily_appointments_email_time`)
     
-    // If not sending to all, only get enabled users
-    if (!sendToAll) {
+    if (targetUserId) {
+      usersQuery = usersQuery.eq('user_id', targetUserId)
+    } else if (!sendToAll && !forceMode) {
       usersQuery = usersQuery.eq('daily_appointments_email_enabled', true)
     }
     
     const { data: users, error: usersError } = await usersQuery
+    if (usersError) throw usersError
     
-    if (usersError) {
-      console.error('Error fetching users:', usersError)
-      throw usersError
-    }
-    
-    console.log(`Found ${users?.length || 0} users to process`)
-    
-    // If no users with preferences, try to get all users directly
     let allUsers = users || []
-    if (allUsers.length === 0 && (forceMode || sendToAll)) {
-      console.log('No user preferences found, fetching all users directly...')
-      const { data: directUsers, error: directError } = await supabase
-        .from('users')
-        .select('id, auth_uid, name, email, clinic_id')
-      
-      if (!directError && directUsers) {
-        allUsers = directUsers.map(u => ({
-          user_id: u.auth_uid,
-          daily_appointments_email_enabled: true,
-          daily_appointments_email_time: '07:00',
-          timezone: 'Africa/Cairo',
-          _userData: u // Store user data to avoid re-query
-        }))
-        console.log(`Found ${allUsers.length} users directly`)
-      }
+    if (allUsers.length === 0 && (forceMode || targetUserId)) {
+      console.log('No user preferences found, adding target user to list manually')
+      allUsers = [{ 
+        user_id: targetUserId, 
+        daily_appointments_email_enabled: true, 
+        daily_appointments_email_time: '07:00' 
+      }]
     }
     
-    const results: any[] = []
+    console.log(`Processing ${allUsers.length} potential users`)
+    const results = []
     
     for (const userPref of allUsers) {
       try {
-        // Check if it's the right time (skip if force mode)
-        if (!forceMode) {
+        console.log(`Processing user ID: ${userPref.user_id}`)
+        
+        // Time check for scheduled runs
+        if (!forceMode && !targetUserId) {
           const userTime = userPref.daily_appointments_email_time || '07:00'
-          const [targetHour, targetMinute] = userTime.split(':').map(Number)
+          const [tH, tM] = userTime.split(':').map(Number)
           
-          // Check if we should send now (within 15 minute window)
-          const hourMatch = cairoHour === targetHour
-          const minuteMatch = Math.abs(cairoMinute - targetMinute) <= 15
+          // Calculate total minutes from midnight for both
+          const currentTotalMinutes = (cairoHour * 60) + cairoMinute;
+          const targetTotalMinutes = (tH * 60) + tM;
           
-          if (!hourMatch || !minuteMatch) {
-            console.log(`Skipping user ${userPref.user_id} - not their time (target: ${targetHour}:${targetMinute}, current: ${cairoHour}:${cairoMinute})`)
+          // Calculate absolute difference in minutes
+          const diffMinutes = Math.abs(currentTotalMinutes - targetTotalMinutes);
+          
+          // Allow a 20-minute window for the Cron trigger to hit (even if hour changes)
+          const timeMatch = (diffMinutes <= 20);
+          
+          if (!timeMatch) {
+            console.log(`Skipping - not their time (Target: ${userTime}, Current Cairo: ${cairoHour}:${cairoMinute}, Diff: ${diffMinutes} min)`)
             continue
           }
+          console.log(`Time matched! (Target: ${userTime}, Current: ${cairoHour}:${cairoMinute}, Diff: ${diffMinutes} min)`)
         }
         
-        // Get user details (might be cached from direct query)
-        let userData = (userPref as any)._userData
-        if (!userData) {
-          const { data: fetchedUser, error: userError } = await supabase
-            .from('users')
-            .select('id, name, email, clinic_id')
-            .eq('auth_uid', userPref.user_id)
-            .single()
-          
-          if (userError || !fetchedUser?.email) {
-            console.log(`No user data found for ${userPref.user_id}:`, userError)
-            continue
-          }
-          userData = fetchedUser
-        }
+        // Find user and clinic
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('id, name, email, clinic_id, user_id')
+          .or(`user_id.eq.${userPref.user_id},auth_uid.eq.${userPref.user_id}`)
+          .maybeSingle()
         
-        // If target email specified, skip others
-        if (targetEmail && userData.email !== targetEmail) {
+        if (userError) {
+          console.error('Error fetching user from DB:', userError)
           continue
         }
         
-        console.log(`Processing user: ${userData.name} (${userData.email}), clinic: ${userData.clinic_id}`)
+        const email = userData?.email || (targetUserId === userPref.user_id ? targetEmail : null)
+        const clinicId = userData?.clinic_id
         
-        // Get clinic details
-        let clinicName = 'العيادة'
-        if (userData.clinic_id) {
-          const { data: clinicData } = await supabase
-            .from('clinics')
-            .select('name')
-            .eq('clinic_uuid', userData.clinic_id)
-            .single()
-          clinicName = clinicData?.name || 'العيادة'
+        if (!email) {
+          console.error(`No email found for user ${userPref.user_id}`)
+          continue
         }
         
-        // Get today's appointments - try RPC first, fallback to direct query
-        let appointments: any[] = []
-        
-        if (userData.clinic_id) {
-          // Try RPC function first
-          const { data: rpcData, error: rpcError } = await supabase
-            .rpc('get_daily_appointments_for_email', {
-              p_clinic_id: userData.clinic_id,
-              p_date: todayStr
-            })
-          
-          if (!rpcError && rpcData) {
-            appointments = rpcData
-          } else {
-            console.log('RPC not available, using direct query...')
-            // Fallback to direct query
-            const { data: directApts } = await supabase
-              .from('appointments')
-              .select(`
-                id,
-                appointment_time,
-                status,
-                notes,
-                patients!inner(name, phone)
-              `)
-              .eq('clinic_id', userData.clinic_id)
-              .gte('appointment_time', `${todayStr}T00:00:00`)
-              .lt('appointment_time', `${todayStr}T23:59:59`)
-              .in('status', ['confirmed', 'scheduled', 'pending'])
-              .order('appointment_time', { ascending: true })
-            
-            if (directApts) {
-              appointments = directApts.map(apt => ({
-                appointment_time: apt.appointment_time,
-                patient_name: (apt.patients as any)?.name || 'مريض',
-                notes: apt.notes
-              }))
-            }
-          }
+        if (!clinicId) {
+          console.error(`No clinic_id found for user ${userPref.user_id}`)
+          continue
         }
         
-        console.log(`Found ${appointments.length} appointments for ${userData.name}`)
+        console.log(`Found: ${email}, Clinic: ${clinicId}`)
         
-        // Skip if no appointments (unless force mode)
-        if ((!appointments || appointments.length === 0) && !forceMode) {
-          console.log(`No appointments for ${userData.name} today - skipping email`)
-          
-          // Log as skipped
+        // Clinic Name
+        const { data: clinicData } = await supabase
+          .from('clinics')
+          .select('name')
+          .eq('clinic_uuid', clinicId)
+          .maybeSingle()
+        const clinicName = clinicData?.name || 'العيادة'
+        
+        // Appointments
+        const { data: appointments, error: aptError } = await supabase
+          .from('appointments')
+          .select(`id, date, status, notes, patient_id, price, from`)
+          .eq('clinic_id', clinicId)
+          .ilike('date', `${todayStr}%`)
+          .in('status', ['confirmed', 'scheduled', 'pending', 'confirmed_at_clinic'])
+          .order('id', { ascending: true })
+        
+        if (aptError) throw aptError
+        
+        const patientIds = (appointments || []).map(a => a.patient_id).filter(id => id !== null)
+        const { data: patients } = await supabase.from('patients').select('id, name, phone').in('id', patientIds)
+        const patientMap = patients?.reduce((acc, p) => ({ ...acc, [p.id]: p }), {}) || {}
+        
+        const mappedApts = (appointments || []).map(apt => {
+          const p = patientMap[apt.patient_id] || { name: 'مريض', phone: '' }
+          let timeStr = 'موعد'
           try {
-            await supabase.from('daily_email_logs').insert({
-              user_id: userPref.user_id,
-              clinic_id: userData.clinic_id,
-              email_to: userData.email,
-              appointments_count: 0,
-              status: 'skipped'
-            })
-          } catch (logErr) {
-            console.log('Could not log skip:', logErr)
-          }
+            if (apt.date?.includes('T')) {
+              timeStr = new Date(apt.date).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', hour12: true })
+            }
+          } catch (e) {}
           
+          return {
+            time: timeStr,
+            patient_name: p.name,
+            patient_phone: p.phone,
+            notes: apt.notes,
+            price: apt.price,
+            source: apt.from === 'online' ? 'online' : 'clinic',
+            status_label: apt.status
+          }
+        })
+        
+        if (mappedApts.length === 0 && !forceMode) {
+          console.log('No appointments - skipping email')
           continue
         }
         
-        // Generate email HTML
-        const emailHtml = generateEmailHTML(
-          userData.name || 'دكتور',
-          clinicName,
-          todayStr,
-          appointments.length > 0 ? appointments : [{ appointment_time: '-', patient_name: 'لا توجد مواعيد', notes: '' }]
-        )
+        const emailHtml = generateEmailHTML(userData?.name || 'دكتور', clinicName, todayStr, mappedApts)
+        const subject = mappedApts.length > 0 ? `📅 مواعيدك النهارده (${mappedApts.length} موعد)` : `📅 مواعيد اليوم`
         
-        const subject = appointments.length > 0 
-          ? `📅 مواعيدك النهارده (${appointments.length} موعد)`
-          : `📅 مواعيد اليوم - تجربة`
+        await sendEmail(email, subject, emailHtml)
+        results.push({ user_id: userPref.user_id, status: 'sent' })
         
-        // Send email
-        await sendEmail(userData.email, subject, emailHtml)
-        
-        // Log success
-        try {
-          await supabase.from('daily_email_logs').insert({
-            user_id: userPref.user_id,
-            clinic_id: userData.clinic_id,
-            email_to: userData.email,
-            appointments_count: appointments.length,
-            status: 'sent'
-          })
-        } catch (logErr) {
-          console.log('Could not log success:', logErr)
-        }
-        
-        results.push({
-          user_id: userPref.user_id,
-          email: userData.email,
-          name: userData.name,
-          appointments: appointments.length,
-          status: 'sent'
-        })
-        
-        console.log(`✅ Email sent to ${userData.email} with ${appointments.length} appointments`)
-        
-      } catch (userError: any) {
-        console.error(`Error processing user ${userPref.user_id}:`, userError)
-        
-        // Log failure
-        try {
-          await supabase.from('daily_email_logs').insert({
-            user_id: userPref.user_id,
-            clinic_id: null,
-            email_to: 'unknown',
-            appointments_count: 0,
-            status: 'failed',
-            error_message: userError.message
-          })
-        } catch (logErr) {
-          console.log('Could not log failure:', logErr)
-        }
-        
-        results.push({
-          user_id: userPref.user_id,
-          status: 'failed',
-          error: userError.message
-        })
+      } catch (err) {
+        console.error(`Failed for user ${userPref.user_id}:`, err.message)
       }
     }
     
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        cairoTime: `${cairoHour}:${cairoMinute}`,
-        date: todayStr,
-        processed: results.length,
-        forceMode,
-        results 
-      }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200 
-      }
-    )
+    console.log(`Done. Processed ${results.length} emails.`)
+    return new Response(JSON.stringify({ success: true, processed: results.length }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     
-  } catch (error: any) {
-    console.error('Edge function error:', error)
-    
-    return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error.message 
-      }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500 
-      }
-    )
+  } catch (error) {
+    console.error('Critical error:', error.message)
+    return new Response(JSON.stringify({ success: false, error: error.message }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 })
   }
 })

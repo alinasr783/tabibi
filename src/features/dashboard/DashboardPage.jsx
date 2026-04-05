@@ -1,8 +1,9 @@
 import { Stethoscope } from "lucide-react";
 import { Card, CardContent, CardHeader } from "../../components/ui/card";
-import Activity from "./Activity";
 import SwipeableMiniSchedule from "./SwipeableMiniSchedule";
 import SubscriptionBanner from "./SubscriptionBanner";
+import LatestNotifications from "./LatestNotifications";
+import AppointmentsChart from "./AppointmentsChart";
 import SummaryCards from "./SummaryCards";
 import { useState, useRef } from "react";
 import { useDrag, useDrop } from 'react-dnd';
@@ -122,7 +123,8 @@ function DashboardContent() {
   const [sections, setSections] = useState([
     { id: 'schedule', component: <SwipeableMiniSchedule />, name: 'مواعيدك انهاردة' },
     { id: 'subscription', component: <SubscriptionBanner />, name: 'الباقة' },
-    { id: 'activity', component: <Activity />, name: 'نشاطك السريع' }
+    { id: 'notifications', component: <LatestNotifications />, name: 'آخر الإشعارات' },
+    { id: 'chart', component: <AppointmentsChart />, name: 'نشاط الحجوزات' }
   ]);
 
   const moveSection = (fromIndex, toIndex) => {
@@ -130,6 +132,17 @@ function DashboardContent() {
     const [movedSection] = updatedSections.splice(fromIndex, 1);
     updatedSections.splice(toIndex, 0, movedSection);
     setSections(updatedSections);
+  };
+
+  // Helper to render a section component based on its ID
+  const renderSectionComponent = (id) => {
+    switch (id) {
+      case 'schedule': return <SwipeableMiniSchedule />;
+      case 'subscription': return <SubscriptionBanner />;
+      case 'notifications': return <LatestNotifications />;
+      case 'chart': return <AppointmentsChart />;
+      default: return null;
+    }
   };
 
   return (
@@ -160,8 +173,9 @@ function DashboardContent() {
         <SummaryCards filter={filter} setFilter={setFilter} />
       </div>
 
-      {/* Draggable Sections: Mini Schedule, Subscription Banner & Activity - Responsive grid */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      {/* Dashboard Sections Grid */}
+      {/* On Mobile: Single list in the order of the 'sections' array */}
+      <div className="lg:hidden space-y-6">
         {sections.map((section, index) => (
           <DraggableSection 
             key={section.id} 
@@ -169,10 +183,40 @@ function DashboardContent() {
             index={index} 
             moveSection={moveSection}
           >
-            {section.id === 'schedule' && <SwipeableMiniSchedule />}
-            {section.id === 'subscription' && <SubscriptionBanner />}
+            {renderSectionComponent(section.id)}
           </DraggableSection>
         ))}
+      </div>
+
+      {/* On Desktop: Two columns with specific placement */}
+      <div className="hidden lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
+        {/* Left Column on Desktop: Schedule and Chart */}
+        <div className="space-y-6">
+          {sections.filter(s => s.id === 'schedule' || s.id === 'chart').map((section) => (
+            <DraggableSection 
+              key={section.id} 
+              id={section.id} 
+              index={sections.findIndex(s => s.id === section.id)} 
+              moveSection={moveSection}
+            >
+              {renderSectionComponent(section.id)}
+            </DraggableSection>
+          ))}
+        </div>
+
+        {/* Right Column on Desktop: Subscription and Notifications */}
+        <div className="space-y-6">
+          {sections.filter(s => s.id === 'subscription' || s.id === 'notifications').map((section) => (
+            <DraggableSection 
+              key={section.id} 
+              id={section.id} 
+              index={sections.findIndex(s => s.id === section.id)} 
+              moveSection={moveSection}
+            >
+              {renderSectionComponent(section.id)}
+            </DraggableSection>
+          ))}
+        </div>
       </div>
     </div>
   );

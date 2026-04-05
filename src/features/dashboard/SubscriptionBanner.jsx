@@ -48,9 +48,21 @@ export default function SubscriptionBanner() {
 
   // Extract plan information correctly
   const plan = planData?.plans;
-  const planName = plan?.name || "باقة مجانية";
+  const rawPlanName = plan?.name || "Free";
+  
+  // Arabic mapping for plan names
+  const planNameMap = {
+    "Free": "الباقة المجانية",
+    "باقة مجانية": "الباقة المجانية",
+    "Basic": "الباقة الأساسية",
+    "Professional": "الباقة الاحترافية",
+    "Enterprise": "باقة المؤسسات",
+    "Premium": "الباقة المميزة"
+  };
+  
+  const planName = planNameMap[rawPlanName] || rawPlanName;
   const endDate = planData?.current_period_end;
-  const isFree = !plan || planName === "Free" || planName === "باقة مجانية";
+  const isFree = !plan || rawPlanName === "Free" || rawPlanName === "باقة مجانية";
 
   // Get plan limits
   let patientLimit = planLimits?.maxPatients || 0;
@@ -129,7 +141,7 @@ export default function SubscriptionBanner() {
               </div>
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <h3 className="font-semibold text-base">{planName}</h3>
+                  <h3 className="font-amiri text-sm font-medium">{planName}</h3>
                   {!isFree && (
                     <span className="text-xs text-muted-foreground">
                       نشط

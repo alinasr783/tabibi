@@ -23,6 +23,7 @@ export default function NotificationsTab() {
   
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
   
   // Push Notification State
   const [pushLoading, setPushLoading] = useState(false);
@@ -195,12 +196,46 @@ export default function NotificationsTab() {
     }
   };
 
+  // Handle Send Now
+  const handleSendNow = async () => {
+    setIsSendingEmail(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-daily-appointments-email', {
+        body: { 
+          force: true, 
+          user_id: user.id,
+          email: user.email 
+        }
+      });
+
+      if (error) throw error;
+      
+      if (data?.success) {
+        toast.success("تم إرسال الإيميل بنجاح");
+      } else {
+        throw new Error(data?.error || "فشل في إرسال الإيميل");
+      }
+    } catch (error) {
+      console.error("Error sending daily email:", error);
+      toast.error(error.message || "فشل في إرسال الإيميل");
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
+
   // Format time for display
   const formatTimeDisplay = (time) => {
-    const [hours, minutes] = time.split(':').map(Number);
-    const period = hours >= 12 ? 'مساءً' : 'صباحًا';
-    const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
-    return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+    if (!time || typeof time !== 'string' || !time.includes(':')) return "";
+    try {
+      const [hours, minutes] = time.split(':').map(Number);
+      if (isNaN(hours) || isNaN(minutes)) return time;
+      const period = hours >= 12 ? 'مساءً' : 'صباحًا';
+      const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
+      return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+    } catch (e) {
+      console.error("Error formatting time:", e);
+      return time;
+    }
   };
 
   if (isLoading) {
@@ -342,18 +377,35 @@ export default function NotificationsTab() {
             )}
 
             {/* Email Info */}
-            <div className="p-4 rounded-lg bg-blue-500/5 border border-blue-500/20">
-              <div className="flex items-start gap-3">
-                <Mail className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
-                <div className="text-sm">
-                  <p className="font-medium text-blue-700 dark:text-blue-300">
-                    سيتم الإرسال على
-                  </p>
-                  <p className="text-blue-600 dark:text-blue-400 mt-1">
-                    {user?.email || "الإيميل المسجل بحسابك"}
-                  </p>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+              <div className="flex-1 p-4 rounded-lg bg-blue-500/5 border border-blue-500/20">
+                <div className="flex items-start gap-3">
+                  <Mail className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-right">
+                    <p className="font-medium text-blue-700 dark:text-blue-300">
+                      سيتم الإرسال على
+                    </p>
+                    <p className="text-blue-600 dark:text-blue-400 mt-1">
+                      {user?.email || "الإيميل المسجل بحسابك"}
+                    </p>
+                  </div>
                 </div>
               </div>
+
+              {/* Send Now Button */}
+              <Button
+                variant="default"
+                className="gap-2 h-auto py-4 sm:py-2 px-6 shadow-sm hover:shadow-md transition-all shrink-0"
+                onClick={handleSendNow}
+                disabled={isSendingEmail}
+              >
+                {isSendingEmail ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Mail className="w-4 h-4" />
+                )}
+                إرسال الآن
+              </Button>
             </div>
           </div>
         </CardContent>
