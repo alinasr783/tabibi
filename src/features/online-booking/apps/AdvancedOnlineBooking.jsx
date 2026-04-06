@@ -99,9 +99,16 @@ export default function AdvancedOnlineBooking() {
   
   const getBookingLink = () => {
     if (!clinic) return "";
-    const clinicId = clinic.clinic_uuid;
+    const clinicId = clinic.id || clinic.clinic_uuid;
     if (!clinicId) return "";
-    return `${window.location.origin}/booking/${clinicId}`;
+    return `${window.location.origin}/book/${clinicId}`;
+  };
+
+  const getProfileLink = () => {
+    if (!clinic) return "";
+    const clinicId = clinic.id || clinic.clinic_uuid;
+    if (!clinicId) return "";
+    return `${window.location.origin}/doctor/${clinicId}`;
   };
   
   const getEmbedCode = () => {
@@ -307,6 +314,16 @@ export default function AdvancedOnlineBooking() {
                     className="flex-1 text-xs md:text-sm w-full text-left"
                     />
                     <div className="flex gap-2 w-full">
+                    <Button
+                        onClick={() => window.open(getProfileLink(), "_blank")}
+                        variant="outline"
+                        className="gap-1 md:gap-2 flex-1"
+                        size="sm"
+                        disabled={!getProfileLink()}
+                    >
+                        <ExternalLink className="h-3 w-3 md:h-4 md:w-4" />
+                        <span className="text-xs md:text-sm">الملف الشخصي</span>
+                    </Button>
                     <Button
                         onClick={() => copyToClipboard(getBookingLink())}
                         className="gap-1 md:gap-2 flex-1"

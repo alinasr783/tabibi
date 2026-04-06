@@ -12,6 +12,7 @@ import { Settings, Users, Info, ExternalLink, MessageSquare, Wallet } from "luci
 import { Button } from "../../components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs"
 import ClinicWalletTab from "./ClinicWalletTab"
+import ClinicProfileSettingsTab from "../clinic-profile/ClinicProfileSettingsTab"
 
 export default function ClinicPage() {
   const navigate = useNavigate()
@@ -138,7 +139,7 @@ export default function ClinicPage() {
                 العيادة
               </h1>
               <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">
-                عدل معلومات عيادتك
+                عدل معلومات عيادتك وتخصيص ملفك الشخصي
               </p>
             </div>
           </div>
@@ -146,14 +147,23 @@ export default function ClinicPage() {
 
         {/* Tabs Navigation */}
         <Tabs defaultValue="clinic-info" className="w-full mb-4 sm:mb-6" style={{ direction: 'rtl' }}>
-          <TabsList className="grid grid-cols-3 w-full h-auto p-1 sm:p-1.5 bg-muted/50 rounded-[var(--radius)]">
+          <TabsList className="grid grid-cols-4 w-full h-auto p-1 sm:p-1.5 bg-muted/50 rounded-[var(--radius)]">
             <TabsTrigger 
               value="clinic-info" 
               className="text-xs sm:text-sm py-2.5 sm:py-3 px-2 data-[state=active]:bg-background rounded-[var(--radius)] transition-all duration-200"
             >
               <div className="flex items-center justify-center gap-1.5 sm:gap-2">
                 <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
-                <span>معلومات العيادة</span>
+                <span>المعلومات</span>
+              </div>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="profile-settings" 
+              className="text-xs sm:text-sm py-2.5 sm:py-3 px-2 data-[state=active]:bg-background rounded-[var(--radius)] transition-all duration-200"
+            >
+              <div className="flex items-center justify-center gap-1.5 sm:gap-2">
+                <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                <span>الملف الشخصي</span>
               </div>
             </TabsTrigger>
             <TabsTrigger 
@@ -178,22 +188,6 @@ export default function ClinicPage() {
           
           <TabsContent value="clinic-info" className="mt-4 sm:mt-6">
             <Card className="bg-card/70 w-full overflow-hidden border border-border/50 shadow-sm rounded-[var(--radius)]">
-              <div className="border-b border-border/50 p-3 sm:p-4 md:p-6">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="p-1.5 sm:p-2 rounded-[var(--radius)] bg-primary/10 text-primary flex-shrink-0">
-                    <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 flex-shrink-0" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h2 className="text-base sm:text-lg md:text-lg font-bold text-foreground leading-tight">
-                      معلومات العيادة
-                    </h2>
-                    <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-                      بيانات العيادة الأساسية
-                    </p>
-                  </div>
-                </div>
-              </div>
-              
               <ClinicInfoForm
                 clinicFormData={clinicFormData}
                 isClinicLoading={isClinicLoading}
@@ -206,6 +200,10 @@ export default function ClinicPage() {
                 clinicId={user?.clinic_id}
               />
             </Card>
+          </TabsContent>
+
+          <TabsContent value="profile-settings" className="mt-4 sm:mt-6">
+            <ClinicProfileSettingsTab />
           </TabsContent>
           
           <TabsContent value="secretaries" className="mt-4 sm:mt-6">
@@ -257,11 +255,11 @@ export default function ClinicPage() {
             </div>
             <Button
               variant="outline"
-              onClick={() => window.open(`/booking/${user?.clinic_id}`, '_blank')}
+              onClick={() => window.open(`/doctor/${user?.clinic_id}`, '_blank')}
               className="border-primary/20 text-primary hover:bg-primary/10 w-full sm:w-auto text-xs sm:text-sm py-2.5 sm:py-3 min-h-[40px] gap-2"
             >
               <ExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              شوف صفحة الحجز
+              شوف ملفك الشخصي
             </Button>
           </div>
         </div>

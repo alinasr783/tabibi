@@ -399,7 +399,7 @@ export default function TabibiProfileApp() {
         ...prev,
         customSections: [
           ...list,
-          { id, order: list.length + 1, type: "text", title: "قسم جديد", content: "" },
+          { id, order: list.length + 1, type: "text", title: "قسم جديد", content: "", displayMode: "vertical", videos: [] },
         ],
       };
     });
@@ -448,6 +448,8 @@ export default function TabibiProfileApp() {
       toast.error("حدث خطأ أثناء رفع صورة القسم");
     }
   };
+
+  const bookingLink = clinic?.id ? `${window.location.origin}/book/${clinic.id}` : "";
 
   const downloadQRCode = () => {
     const svg = document.getElementById("profile-qr-code");
@@ -551,8 +553,8 @@ export default function TabibiProfileApp() {
     });
   };
 
-  const publicProfileUrl = clinic?.clinic_uuid 
-    ? `${window.location.origin}/doctor-profile/${clinic.clinic_uuid}`
+  const publicProfileUrl = clinic?.id 
+    ? `${window.location.origin}/doctor/${clinic.id}`
     : "";
 
   const copyLink = () => {
@@ -596,12 +598,12 @@ export default function TabibiProfileApp() {
             صفحتك التعريفية الخاصة على الإنترنت. شاركها مع مرضاك ليسهل عليهم الوصول إليك والحجز.
           </p>
         </div>
-        <div className="flex gap-3 w-full md:w-auto" dir="rtl">
-          <Button variant="outline" onClick={() => window.open(publicProfileUrl, '_blank')} className="gap-2 flex-1 md:flex-none">
+        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto" dir="rtl">
+          <Button variant="outline" onClick={() => window.open(publicProfileUrl, '_blank')} className="gap-2 flex-1 md:flex-none h-10 text-xs sm:text-sm">
             <ExternalLink className="h-4 w-4" />
-            عرض الصفحة
+            عرض الملف الشخصي
           </Button>
-          <Button onClick={copyLink} className="gap-2 flex-1 md:flex-none" dir="rtl">
+          <Button onClick={copyLink} className="gap-2 flex-1 md:flex-none h-10 text-xs sm:text-sm" dir="rtl">
             {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
             {copied ? "تم النسخ" : "نسخ الرابط"}
           </Button>
@@ -609,17 +611,17 @@ export default function TabibiProfileApp() {
       </div>
 
       <Tabs defaultValue="edit" className="w-full" dir="rtl">
-        <TabsList className="grid w-full grid-cols-3 h-auto">
-          <TabsTrigger value="edit" className="gap-2 justify-center py-2 text-[11px] sm:text-sm w-full">
-            <FileText className="h-4 w-4" />
+        <TabsList className="grid w-full grid-cols-3 h-auto p-1 bg-muted/50">
+          <TabsTrigger value="edit" className="gap-1.5 justify-center py-2.5 text-[10px] xs:text-xs sm:text-sm w-full data-[state=active]:bg-background shadow-sm">
+            <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             البيانات
           </TabsTrigger>
-          <TabsTrigger value="display" className="gap-2 justify-center py-2 text-[11px] sm:text-sm w-full">
-            <Settings className="h-4 w-4" />
+          <TabsTrigger value="display" className="gap-1.5 justify-center py-2.5 text-[10px] xs:text-xs sm:text-sm w-full data-[state=active]:bg-background shadow-sm">
+            <Settings className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             إعدادات العرض
           </TabsTrigger>
-          <TabsTrigger value="analytics" className="gap-2 justify-center py-2 text-[11px] sm:text-sm w-full">
-            <BarChart3 className="h-4 w-4" />
+          <TabsTrigger value="analytics" className="gap-1.5 justify-center py-2.5 text-[10px] xs:text-xs sm:text-sm w-full data-[state=active]:bg-background shadow-sm">
+            <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             إحصائيات
           </TabsTrigger>
         </TabsList>
@@ -629,16 +631,16 @@ export default function TabibiProfileApp() {
             <div className="lg:col-span-2 space-y-6">
               {/* Stats Card */}
               <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-100">
-                <CardContent className="p-6 flex items-center justify-between">
+                <CardContent className="p-4 sm:p-6 flex flex-col xs:flex-row items-center justify-between text-center xs:text-right gap-4">
                   <div>
-                    <p className="text-sm font-medium text-blue-600 mb-1">إحصائيات ظهورك</p>
-                    <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                    <p className="text-xs sm:text-sm font-medium text-blue-600 mb-1">إحصائيات ظهورك</p>
+                    <h3 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center justify-center xs:justify-start gap-2">
                       {stats?.bookingsLastMonth || 0}
-                      <span className="text-sm font-normal text-gray-500">حجز في آخر 30 يوم</span>
+                      <span className="text-xs sm:text-sm font-normal text-gray-500">حجز في آخر 30 يوم</span>
                     </h3>
                   </div>
-                  <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
-                    <Clock className="h-6 w-6" />
+                  <div className="h-10 w-10 sm:h-12 sm:w-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 shrink-0">
+                    <Clock className="h-5 w-5 sm:h-6 sm:w-6" />
                   </div>
                 </CardContent>
               </Card>
@@ -835,41 +837,41 @@ export default function TabibiProfileApp() {
               </Card>
 
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+                <CardHeader className="p-4 sm:p-6">
+                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                     <GraduationCap className="h-5 w-5 text-primary" />
                     المؤهلات العلمية
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="p-4 sm:p-6 space-y-4">
                   {formData.education.map((edu, index) => (
-                    <div key={index} className="flex gap-2 items-start bg-muted/20 p-3 rounded-lg border">
-                      <div className="grid gap-3 flex-1 sm:grid-cols-3">
+                    <div key={index} className="flex gap-3 items-start bg-muted/20 p-3 rounded-lg border">
+                      <div className="grid gap-3 flex-1 grid-cols-1 sm:grid-cols-3">
                         <div className="space-y-1 sm:col-span-1">
-                          <Label className="text-xs">السنة</Label>
+                          <Label className="text-[10px] sm:text-xs">السنة</Label>
                           <Input
                             value={edu.year}
                             onChange={(e) => handleEducationChange(index, "year", e.target.value)}
                             placeholder="2010"
-                            className="h-8 text-sm"
+                            className="h-9 sm:h-8 text-xs sm:text-sm"
                           />
                         </div>
                         <div className="space-y-1 sm:col-span-2">
-                          <Label className="text-xs">الدرجة العلمية</Label>
+                          <Label className="text-[10px] sm:text-xs">الدرجة العلمية</Label>
                           <Input
                             value={edu.degree}
                             onChange={(e) => handleEducationChange(index, "degree", e.target.value)}
                             placeholder="بكالوريوس الطب والجراحة"
-                            className="h-8 text-sm"
+                            className="h-9 sm:h-8 text-xs sm:text-sm"
                           />
                         </div>
                         <div className="space-y-1 sm:col-span-3">
-                          <Label className="text-xs">الجامعة / المؤسسة</Label>
+                          <Label className="text-[10px] sm:text-xs">الجامعة / المؤسسة</Label>
                           <Input
                             value={edu.school}
                             onChange={(e) => handleEducationChange(index, "school", e.target.value)}
                             placeholder="جامعة القاهرة"
-                            className="h-8 text-sm"
+                            className="h-9 sm:h-8 text-xs sm:text-sm"
                           />
                         </div>
                       </div>
@@ -877,14 +879,14 @@ export default function TabibiProfileApp() {
                         variant="ghost"
                         size="icon"
                         onClick={() => removeEducation(index)}
-                        className="h-8 w-8 text-destructive hover:bg-destructive/10 mt-6"
+                        className="h-9 w-9 sm:h-8 sm:w-8 text-destructive hover:bg-destructive/10 mt-6 shrink-0"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   ))}
 
-                  <Button variant="outline" size="sm" onClick={addEducation} className="w-full border-dashed">
+                  <Button variant="outline" size="sm" onClick={addEducation} className="w-full border-dashed h-10 sm:h-9">
                     <Plus className="h-4 w-4 ml-2" />
                     إضافة مؤهل جديد
                   </Button>
@@ -892,17 +894,17 @@ export default function TabibiProfileApp() {
               </Card>
 
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+                <CardHeader className="p-4 sm:p-6">
+                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                     <Award className="h-5 w-5 text-primary" />
                     الشهادات والوثائق
                   </CardTitle>
-                  <CardDescription>شهادات التقدير، التراخيص، والعضويات المهنية</CardDescription>
+                  <CardDescription className="text-[11px] sm:text-sm">شهادات التقدير، التراخيص، والعضويات المهنية</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="p-4 sm:p-6 space-y-4">
                   <div className="flex justify-end">
-                    <div className="relative">
-                      <Button variant="outline" size="sm" className="gap-2 cursor-pointer" disabled={uploadingCertificate}>
+                    <div className="relative w-full sm:w-auto">
+                      <Button variant="outline" size="sm" className="gap-2 cursor-pointer w-full sm:w-auto h-10 sm:h-9" disabled={uploadingCertificate}>
                         {uploadingCertificate ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                         رفع شهادة جديدة
                       </Button>
@@ -916,7 +918,7 @@ export default function TabibiProfileApp() {
                     </div>
                   </div>
 
-                  <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
                     {formData.certificates.map((cert, index) => (
                       <div
                         key={index}
@@ -927,10 +929,10 @@ export default function TabibiProfileApp() {
                             <FileText className="h-4 w-4" />
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium truncate max-w-[150px] sm:max-w-[200px]" title={cert.name}>
+                            <p className="text-xs sm:text-sm font-medium truncate max-w-[120px] sm:max-w-[200px]" title={cert.name}>
                               {cert.name}
                             </p>
-                            <a href={cert.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline">
+                            <a href={cert.url} target="_blank" rel="noopener noreferrer" className="text-[10px] sm:text-xs text-primary hover:underline">
                               عرض الملف
                             </a>
                           </div>
@@ -947,7 +949,7 @@ export default function TabibiProfileApp() {
                       </div>
                     ))}
                     {formData.certificates.length === 0 && (
-                      <div className="sm:col-span-2 text-sm text-muted-foreground text-center py-8 bg-muted/20 rounded-md border border-dashed">
+                      <div className="sm:col-span-2 text-xs sm:text-sm text-muted-foreground text-center py-8 bg-muted/20 rounded-md border border-dashed">
                         لم يتم رفع أي شهادات بعد
                       </div>
                     )}
@@ -1032,10 +1034,12 @@ export default function TabibiProfileApp() {
                         <div className="text-sm text-muted-foreground">رابط الصفحة غير متاح</div>
                       )}
                     </div>
-                    <Button onClick={downloadQRCode} disabled={!publicProfileUrl} className="w-full gap-2">
-                      <Download className="h-4 w-4" />
-                      تحميل QR Code
-                    </Button>
+                    <div className="flex flex-col gap-2">
+                      <Button onClick={downloadQRCode} disabled={!publicProfileUrl} className="w-full gap-2">
+                        <Download className="h-4 w-4" />
+                        تحميل QR Code
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
 
@@ -1265,7 +1269,7 @@ export default function TabibiProfileApp() {
                           >
                             <option value="text">نص فقط</option>
                             <option value="split">نص + صورة</option>
-                            <option value="youtube">فيديو يوتيوب</option>
+                            <option value="video">فيديو (يوتيوب، فيسبوك، انستجرام)</option>
                           </select>
                         </div>
                       </div>
@@ -1308,18 +1312,86 @@ export default function TabibiProfileApp() {
                         </div>
                       ) : null}
 
-                      {section.type === "youtube" ? (
+                      {section.type === "video" && (
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-xs text-muted-foreground">طريقة العرض</Label>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant={section.displayMode === "vertical" || !section.displayMode ? "default" : "outline"}
+                                onClick={() => updateCustomSection(section.id, { displayMode: "vertical" })}
+                                className="h-7 text-[10px]"
+                              >تحت بعض</Button>
+                              <Button
+                                size="sm"
+                                variant={section.displayMode === "horizontal" ? "default" : "outline"}
+                                onClick={() => updateCustomSection(section.id, { displayMode: "horizontal" })}
+                                className="h-7 text-[10px]"
+                              >جنب بعض (Scroll)</Button>
+                            </div>
+                          </div>
+
+                          <div className="space-y-3">
+                            {(section.videos || []).map((video, vIdx) => (
+                              <div key={vIdx} className="flex gap-2 items-start">
+                                <div className="flex-1 space-y-2">
+                                  <Input
+                                    placeholder="رابط الفيديو (YouTube, Facebook, Instagram)"
+                                    value={video.url || ""}
+                                    onChange={(e) => {
+                                      const newVideos = [...(section.videos || [])];
+                                      newVideos[vIdx] = { ...newVideos[vIdx], url: e.target.value };
+                                      updateCustomSection(section.id, { videos: newVideos });
+                                    }}
+                                    className="h-9 text-xs"
+                                  />
+                                </div>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-9 w-9 text-red-500"
+                                  onClick={() => {
+                                    const newVideos = (section.videos || []).filter((_, i) => i !== vIdx);
+                                    updateCustomSection(section.id, { videos: newVideos });
+                                  }}
+                                >
+                                  <X className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            ))}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="w-full h-9 border-dashed text-xs gap-2"
+                              onClick={() => {
+                                const newVideos = [...(section.videos || []), { url: "" }];
+                                updateCustomSection(section.id, { videos: newVideos });
+                              }}
+                            >
+                              <Plus className="w-3 h-3" />
+                              إضافة فيديو آخر
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Legacy YouTube Section Type (Keep for compatibility but upgrade on edit) */}
+                      {section.type === "youtube" && (
                         <div className="space-y-2">
-                          <Label>رابط يوتيوب</Label>
+                          <Label className="text-xs text-muted-foreground">رابط اليوتيوب</Label>
                           <Input
+                            placeholder="https://youtube.com/watch?v=..."
                             value={section.youtubeUrl || ""}
-                            onChange={(e) => updateCustomSection(section.id, { youtubeUrl: e.target.value })}
-                            placeholder="https://www.youtube.com/watch?v=..."
-                            dir="ltr"
-                            className="text-right"
+                            onChange={(e) => updateCustomSection(section.id, { 
+                              youtubeUrl: e.target.value,
+                              type: "video",
+                              videos: [{ url: e.target.value }] 
+                            })}
+                            className="h-9 text-xs"
                           />
                         </div>
-                      ) : null}
+                      )}
                     </div>
                   ))}
 

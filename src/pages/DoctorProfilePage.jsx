@@ -1,7 +1,11 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { getClinicById } from "../services/apiClinic";
+import { getClinicById, getClinicByBigintId } from "../services/apiClinic";
+import { cn } from "../lib/utils";
+
+const isUuid = (v) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(v));
 import { Button } from "../components/ui/button";
 import { Loader2, CheckCircle, BadgeCheck, Star, Share2, GraduationCap, Award, MapPin, Phone, MessageCircle, User, Building2, Banknote, Clock, X } from "lucide-react";
 import supabase from "../services/supabase";
@@ -9,9 +13,13 @@ import { defaultClinicProfileSettings, getClinicProfileSettings, logClinicProfil
 import toast from "react-hot-toast";
 
 // Helper function to fetch extended public profile data
-async function getDoctorPublicProfile(clinicUuid) {
+async function getDoctorPublicProfile(clinicId) {
   // 1. Get Clinic Data
-  const clinic = await getClinicById(clinicUuid);
+  const clinic = isUuid(clinicId) 
+    ? await getClinicById(clinicId)
+    : await getClinicByBigintId(clinicId);
+    
+  const clinicUuid = clinic.clinic_uuid;
   let profileSettings = defaultClinicProfileSettings;
   try {
     const result = await getClinicProfileSettings(clinicUuid);
@@ -551,31 +559,66 @@ export default function DoctorProfilePage() {
                   </div>
                 );
               }
-              if (section?.type === "youtube") {
-                const url = typeof section?.youtubeUrl === "string" ? section.youtubeUrl.trim() : "";
-                const videoIdMatch = url.match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{6,})/);
-                const videoId = videoIdMatch ? videoIdMatch[1] : null;
-                const embedUrl = videoId ? `https://www.youtube.com/embed/${videoId}` : null;
+              if (section?.type === "video" || section?.type === "youtube") {
+                const videos = Array.isArray(section?.videos) ? section.videos : (section?.youtubeUrl ? [{ url: section.youtubeUrl }] : []);
+                const displayMode = section?.displayMode || "vertical"; // 'vertical' or 'horizontal'
+                
                 return (
                   <div key={id} className="bg-white rounded-2xl p-5 card-shadow-elegant border border-[#E0E0E0]">
                     {title ? <h3 className="font-amiri font-bold text-xl text-[#0A1F44] mb-4">{title}</h3> : null}
-                    {embedUrl ? (
-                      <div className="aspect-video w-full overflow-hidden rounded-xl border border-[#E0E0E0]">
-                        <iframe
-                          title={title || "YouTube"}
-                          src={embedUrl}
-                          className="w-full h-full"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                          referrerPolicy="strict-origin-when-cross-origin"
-                          allowFullScreen
-                        />
-                      </div>
-                    ) : (
-                      <p className="text-sm text-gray-500">رابط يوتيوب غير صالح</p>
-                    )}
+                    
+                    <div className={cn(
+                      "w-full",
+                      displayMode === "horizontal" 
+                        ? "flex overflow-x-auto gap-3 pb-4 custom-scrollbar snap-x snap-mandatory -mx-5 px-5" 
+                        : "space-y-4"
+                    )}>
+                      {videos.map((video, vIdx) => {
+                        const url = typeof video?.url === "string" ? video.url.trim() : "";
+                        let embedUrl = null;
+                        let videoType = "unknown";
+
+                        // YouTube
+                        if (url.match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{6,})/)) {
+                          const videoIdMatch = url.match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{6,})/);
+                          const videoId = videoIdMatch ? videoIdMatch[1] : null;
+                          embedUrl = videoId ? `https://www.youtube.com/embed/${videoId}` : null;
+                          videoType = "youtube";
+                        } 
+                        // Facebook
+                        else if (url.includes("facebook.com") || url.includes("fb.watch")) {
+                          embedUrl = `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=0`;
+                          videoType = "facebook";
+                        }
+                        // Instagram
+                        else if (url.includes("instagram.com")) {
+                          const cleanUrl = url.split('?')[0].replace(/\/$/, '');
+                          embedUrl = `${cleanUrl}/embed`;
+                          videoType = "instagram";
+                        }
+
+                        return embedUrl ? (
+                          <div key={vIdx} className={cn(
+                            "overflow-hidden rounded-xl border border-[#E0E0E0] shrink-0 bg-black",
+                            displayMode === "horizontal" ? "w-[88%] sm:w-[85%] aspect-video snap-center" : "w-full aspect-video"
+                          )}>
+                            <iframe
+                              title={`${title || "Video"} ${vIdx + 1}`}
+                              src={embedUrl}
+                              className="w-full h-full"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                              referrerPolicy="strict-origin-when-cross-origin"
+                              allowFullScreen
+                            />
+                          </div>
+                        ) : null;
+                      })}
+                      {videos.length === 0 && <p className="text-sm text-gray-500">لا توجد فيديوهات صالحة</p>}
+                    </div>
                   </div>
                 );
               }
+
               return null;
             })}
         </div>
@@ -612,7 +655,7 @@ export default function DoctorProfilePage() {
         }
       `}</style>
 
-      <div className="max-w-md mx-auto px-4 space-y-5 pt-4">
+      <div className="max-w-md mx-auto px-4 space-y-5 pt-4 pb-32">
         
         {/* Profile Card */}
         <div className="rounded-2xl overflow-hidden card-shadow-elegant relative border border-gray-100 h-[280px] flex flex-col justify-end">

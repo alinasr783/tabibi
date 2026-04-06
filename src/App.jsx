@@ -375,7 +375,9 @@ function AppRoutes() {
         <Route path="/affiliate/dashboard" element={<MemoizedAffiliateDashboard />} />
       </Route>
       <Route path="/booking/:clinicId" element={<MemoizedBooking />} />
+      <Route path="/book/:clinicId" element={<MemoizedBooking />} />
       <Route path="/doctor-profile/:clinicId" element={<MemoizedDoctorProfilePage />} />
+      <Route path="/doctor/:clinicId" element={<MemoizedDoctorProfilePage />} />
     </Routes>
   );
 }

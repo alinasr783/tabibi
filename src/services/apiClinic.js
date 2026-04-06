@@ -290,3 +290,42 @@ export async function updateClinic({ name, address, booking_price, available_tim
     throw new Error("حدث خطأ غير متوقع أثناء تحديث بيانات العيادة");
   }
 }
+
+// Get clinic by bigint ID (shorter URL)
+export async function getClinicByBigintId(bigintId) {
+  console.log("getClinicByBigintId: Getting clinic with bigintId:", bigintId);
+  
+  if (!bigintId) {
+    throw new Error("Clinic ID is required");
+  }
+
+  const selectFull = "id, clinic_uuid, name, address, booking_price, available_time, online_booking_enabled, whatsapp_enabled, whatsapp_number, prevent_conflicts, min_time_gap";
+  const selectFallback = "id, clinic_uuid, name, address, booking_price, available_time, whatsapp_enabled, whatsapp_number, prevent_conflicts, min_time_gap";
+
+  try {
+    const { data, error } = await supabase
+      .from("clinics")
+      .select(selectFull)
+      .eq("id", bigintId)
+      .single();
+
+    if (error) {
+      if (error.message.includes("online_booking_enabled")) {
+        const { data: d2, error: e2 } = await supabase
+          .from("clinics")
+          .select(selectFallback)
+          .eq("id", bigintId)
+          .single();
+        if (e2) throw e2;
+        return { ...d2, online_booking_enabled: true };
+      }
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error("getClinicByBigintId error:", error);
+    throw error;
+  }
+}
+

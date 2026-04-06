@@ -47,14 +47,78 @@ export default function ClinicInfoForm({
   }
 
   const copyBookingLink = () => {
-    const link = `${window.location.origin}/booking/${clinicId}`
+    const link = `${window.location.origin}/doctor/${clinicId}`
     navigator.clipboard.writeText(link)
-    toast.success("تم نسخ رابط الحجز")
+    toast.success("تم نسخ رابط الملف الشخصي")
+  }
+
+  const copyShortBookingLink = () => {
+    const link = `${window.location.origin}/book/${clinicId}`
+    navigator.clipboard.writeText(link)
+    toast.success("تم نسخ رابط الحجز المختصر")
   }
 
   return (
     <form onSubmit={onSubmit} className="p-2 sm:p-3 md:p-4 w-full max-w-full overflow-x-hidden">
       <div className="space-y-3 sm:space-y-4 md:space-y-6 w-full" style={{ direction: 'rtl' }}>
+        {/* رابط الملف الشخصي */}
+        <div className="space-y-1.5 sm:space-y-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <Link className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
+            <Label className="text-foreground font-medium text-xs sm:text-sm md:text-base truncate">
+              رابط الملف الشخصي (Profile)
+            </Label>
+          </div>
+          <div className="flex flex-col xs:flex-row gap-1.5 sm:gap-2 w-full">
+            <div className="flex-1 min-w-0 bg-muted/50 border border-border rounded-[var(--radius)] px-2.5 sm:px-3 py-2 text-[10px] sm:text-xs md:text-sm overflow-hidden">
+              <span className="block truncate break-all">
+                {`${window.location.origin}/doctor/${clinicId}`}
+              </span>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={copyBookingLink}
+              className="h-9 sm:h-10 md:h-11 px-3 sm:px-4 w-full xs:w-auto flex-shrink-0 min-h-[40px] sm:min-h-[44px] text-xs sm:text-sm"
+            >
+              <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+              <span className="mr-1 sm:mr-2">نسخ الرابط</span>
+            </Button>
+          </div>
+          <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground px-0.5">
+            شارك الرابط ده مع مرضاك عشان يشوفوا ملفك الشخصي ويحجزوا عندك
+          </p>
+        </div>
+
+        {/* رابط الحجز المختصر */}
+        <div className="space-y-1.5 sm:space-y-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <Link className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
+            <Label className="text-foreground font-medium text-xs sm:text-sm md:text-base truncate">
+              رابط الحجز المباشر (Short Link)
+            </Label>
+          </div>
+          <div className="flex flex-col xs:flex-row gap-1.5 sm:gap-2 w-full">
+            <div className="flex-1 min-w-0 bg-muted/50 border border-border rounded-[var(--radius)] px-2.5 sm:px-3 py-2 text-[10px] sm:text-xs md:text-sm overflow-hidden">
+              <span className="block truncate break-all">
+                {`${window.location.origin}/book/${clinicId}`}
+              </span>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={copyShortBookingLink}
+              className="h-9 sm:h-10 md:h-11 px-3 sm:px-4 w-full xs:w-auto flex-shrink-0 min-h-[40px] sm:min-h-[44px] text-xs sm:text-sm"
+            >
+              <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+              <span className="mr-1 sm:mr-2">نسخ الرابط</span>
+            </Button>
+          </div>
+          <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground px-0.5">
+            رابط مختصر ومباشر لعملية الحجز فقط
+          </p>
+        </div>
+
         {/* اسم العيادة */}
         <div className="space-y-1.5 sm:space-y-2">
           <div className="flex items-center gap-1.5 sm:gap-2">
@@ -129,35 +193,6 @@ export default function ClinicInfoForm({
             onDayToggle={onDayToggle}
             getDayName={getDayName}
           />
-        </div>
-
-        {/* رابط الحجز */}
-        <div className="space-y-1.5 sm:space-y-2">
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <Link className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
-            <Label className="text-foreground font-medium text-xs sm:text-sm md:text-base truncate">
-              رابط الحجز
-            </Label>
-          </div>
-          <div className="flex flex-col xs:flex-row gap-1.5 sm:gap-2 w-full">
-            <div className="flex-1 min-w-0 bg-muted/50 border border-border rounded-[var(--radius)] px-2.5 sm:px-3 py-2 text-[10px] sm:text-xs md:text-sm overflow-hidden">
-              <span className="block truncate break-all">
-                {`${window.location.origin}/booking/${clinicId}`}
-              </span>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={copyBookingLink}
-              className="h-9 sm:h-10 md:h-11 px-3 sm:px-4 w-full xs:w-auto flex-shrink-0 min-h-[40px] sm:min-h-[44px] text-xs sm:text-sm"
-            >
-              <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
-              <span className="mr-1 sm:mr-2">نسخ</span>
-            </Button>
-          </div>
-          <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground px-0.5">
-            شارك الرابط مع مرضاك عشان يحجزوا أونلاين
-          </p>
         </div>
 
         {/* رقم العيادة */}
