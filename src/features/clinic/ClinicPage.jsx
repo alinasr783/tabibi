@@ -8,11 +8,11 @@ import useUpdateClinic from "./useUpdateClinic"
 import ClinicInfoForm from "./ClinicInfoForm"
 import SecretsSection from "./SecretsSection"
 import { initializeAvailableTime } from "./clinicUtils"
-import { Settings, Users, Info, ExternalLink, MessageSquare, Wallet } from "lucide-react"
+import { Settings, Users, Info, ExternalLink, MessageSquare, Wallet, User } from "lucide-react"
 import { Button } from "../../components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs"
 import ClinicWalletTab from "./ClinicWalletTab"
-import ClinicProfileSettingsTab from "../clinic-profile/ClinicProfileSettingsTab"
+import ClinicProfileSettingsTab from "../tabibi-tools/apps/tabibi-profile/TabibiProfileApp"
 
 export default function ClinicPage() {
   const navigate = useNavigate()
