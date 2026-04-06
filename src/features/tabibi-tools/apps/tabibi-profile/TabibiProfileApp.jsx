@@ -21,6 +21,8 @@ import WorkingHours from "../../../clinic/WorkingHours";
 import QRCode from "react-qr-code";
 import { defaultClinicProfileSettings, getClinicProfileAnalyticsCounts, getClinicProfileAnalyticsTopCities, getClinicProfileSettings, upsertClinicProfileSettings } from "../../../../services/apiClinicProfile";
 import { SkeletonLine } from "../../../../components/ui/skeleton";
+import { hexToRgba } from "../../../../lib/utils";
+import { PROFILE_CUSTOM_BUTTON_ICON_OPTIONS, PROFILE_SOCIAL_BUTTON_TEMPLATES, getProfileCustomButtonIcon } from "../../../../lib/profileCustomButtons";
 import {
   Select,
   SelectContent,
@@ -399,7 +401,7 @@ export default function TabibiProfileApp() {
         ...prev,
         customSections: [
           ...list,
-          { id, order: list.length + 1, type: "text", title: "قسم جديد", content: "", displayMode: "vertical", videos: [] },
+          { id, order: list.length + 1, type: "text", title: "قسم جديد", content: "" },
         ],
       };
     });
@@ -431,6 +433,24 @@ export default function TabibiProfileApp() {
     });
   };
 
+  const moveCustomSectionButton = (sectionId, buttonIndex, direction) => {
+    setProfileSettings((prev) => {
+      const sections = Array.isArray(prev.customSections) ? prev.customSections : [];
+      const idx = sections.findIndex((s) => s.id === sectionId);
+      if (idx === -1) return prev;
+      const section = sections[idx];
+      const buttons = Array.isArray(section?.buttons) ? section.buttons : [];
+      const from = Number(buttonIndex);
+      if (!Number.isInteger(from) || from < 0 || from >= buttons.length) return prev;
+      const to = direction === "up" ? from - 1 : from + 1;
+      if (to < 0 || to >= buttons.length) return prev;
+      const nextButtons = moveInArray(buttons, from, to);
+      const nextSections = sections.slice();
+      nextSections[idx] = { ...section, buttons: nextButtons };
+      return { ...prev, customSections: nextSections };
+    });
+  };
+
   const uploadCustomSectionImage = async (sectionId, file) => {
     if (!file) return;
     try {
@@ -446,6 +466,37 @@ export default function TabibiProfileApp() {
       toast.success("تم رفع صورة القسم");
     } catch {
       toast.error("حدث خطأ أثناء رفع صورة القسم");
+    }
+  };
+
+  const uploadCustomSectionImages = async (sectionId, files) => {
+    const list = Array.isArray(files) ? files.filter(Boolean) : [];
+    if (!list.length) return;
+    try {
+      const uploadedUrls = [];
+      for (const file of list) {
+        const fileExt = file.name.split(".").pop();
+        const fileName = `section-${sectionId}-${Math.random()}.${fileExt}`;
+        const filePath = `${user.user_id}/profile-sections/${fileName}`;
+        const { error: uploadError } = await supabase.storage.from("doctor-profiles").upload(filePath, file);
+        if (uploadError) throw uploadError;
+        const { data: { publicUrl } } = supabase.storage.from("doctor-profiles").getPublicUrl(filePath);
+        uploadedUrls.push(publicUrl);
+      }
+      setProfileSettings((prev) => {
+        const sections = Array.isArray(prev.customSections) ? prev.customSections : [];
+        return {
+          ...prev,
+          customSections: sections.map((s) => {
+            if (s.id !== sectionId) return s;
+            const existing = Array.isArray(s.images) ? s.images : [];
+            return { ...s, images: [...existing, ...uploadedUrls.map((url) => ({ url }))] };
+          }),
+        };
+      });
+      toast.success(`تم رفع ${uploadedUrls.length} صورة`);
+    } catch {
+      toast.error("حدث خطأ أثناء رفع الصور");
     }
   };
 
@@ -1227,7 +1278,7 @@ export default function TabibiProfileApp() {
                       <FileText className="h-5 w-5 text-primary" />
                       الأقسام المخصصة
                     </CardTitle>
-                    <CardDescription>إضافة أقسام جديدة (نص فقط / نص + صورة / فيديو يوتيوب)</CardDescription>
+                    <CardDescription>إضافة أقسام جديدة (نص / نص + صورة / فيديو / صور / أزرار)</CardDescription>
                   </div>
                   <Button type="button" variant="outline" size="sm" onClick={addCustomSection} className="gap-2">
                     <Plus className="h-4 w-4" />
@@ -1264,12 +1315,44 @@ export default function TabibiProfileApp() {
                           <Label>نوع القسم</Label>
                           <select
                             value={section.type}
-                            onChange={(e) => updateCustomSection(section.id, { type: e.target.value })}
+                            onChange={(e) => {
+                              const nextType = e.target.value;
+                              if (nextType === "video") {
+                                updateCustomSection(section.id, {
+                                  type: "video",
+                                  displayMode: section.displayMode || "vertical",
+                                  videos: Array.isArray(section.videos) && section.videos.length ? section.videos : [{ url: "", source: "youtube" }],
+                                });
+                                return;
+                              }
+                              if (nextType === "images") {
+                                updateCustomSection(section.id, {
+                                  type: "images",
+                                  displayMode: section.displayMode || "vertical",
+                                  images: Array.isArray(section.images) ? section.images : [],
+                                });
+                                return;
+                              }
+                              if (nextType === "buttons") {
+                                const makeId = () => (typeof crypto?.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
+                                const existing = Array.isArray(section.buttons) ? section.buttons : [];
+                                updateCustomSection(section.id, {
+                                  type: "buttons",
+                                  buttons: existing.length
+                                    ? existing
+                                    : [{ id: makeId(), label: "زر جديد", url: "", icon: "link", color: "#0A1F44" }],
+                                });
+                                return;
+                              }
+                              updateCustomSection(section.id, { type: nextType });
+                            }}
                             className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
                           >
                             <option value="text">نص فقط</option>
                             <option value="split">نص + صورة</option>
                             <option value="video">فيديو (يوتيوب، فيسبوك، انستجرام)</option>
+                            <option value="images">صور</option>
+                            <option value="buttons">أزرار</option>
                           </select>
                         </div>
                       </div>
@@ -1334,43 +1417,325 @@ export default function TabibiProfileApp() {
 
                           <div className="space-y-3">
                             {(section.videos || []).map((video, vIdx) => (
-                              <div key={vIdx} className="flex gap-2 items-start">
-                                <div className="flex-1 space-y-2">
-                                  <Input
-                                    placeholder="رابط الفيديو (YouTube, Facebook, Instagram)"
-                                    value={video.url || ""}
-                                    onChange={(e) => {
-                                      const newVideos = [...(section.videos || [])];
-                                      newVideos[vIdx] = { ...newVideos[vIdx], url: e.target.value };
-                                      updateCustomSection(section.id, { videos: newVideos });
-                                    }}
-                                    className="h-9 text-xs"
-                                  />
-                                </div>
+                              <div key={vIdx} className="flex flex-col gap-2 p-3 border rounded-lg bg-background/50 relative group">
                                 <Button
                                   size="icon"
                                   variant="ghost"
-                                  className="h-9 w-9 text-red-500"
+                                  className="h-7 w-7 text-red-500 absolute -top-2 -left-2 bg-white shadow-sm border rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
                                   onClick={() => {
                                     const newVideos = (section.videos || []).filter((_, i) => i !== vIdx);
                                     updateCustomSection(section.id, { videos: newVideos });
                                   }}
                                 >
-                                  <X className="w-4 h-4" />
+                                  <X className="w-3.5 h-3.5" />
                                 </Button>
+
+                                <div className="grid grid-cols-1 xs:grid-cols-3 gap-2">
+                                  <div className="xs:col-span-1">
+                                    <Label className="text-[10px] mb-1 block">المصدر</Label>
+                                    <select
+                                      value={video.source || "youtube"}
+                                      onChange={(e) => {
+                                        const newVideos = [...(section.videos || [])];
+                                        newVideos[vIdx] = { ...newVideos[vIdx], source: e.target.value };
+                                        updateCustomSection(section.id, { videos: newVideos });
+                                      }}
+                                      className="w-full h-9 rounded-md border border-input bg-background px-2 py-1 text-xs"
+                                    >
+                                      <option value="youtube">يوتيوب</option>
+                                      <option value="facebook">فيسبوك</option>
+                                      <option value="instagram">انستجرام</option>
+                                    </select>
+                                  </div>
+                                  <div className="xs:col-span-2">
+                                    <Label className="text-[10px] mb-1 block">الرابط</Label>
+                                    <Input
+                                      placeholder="ضع الرابط هنا..."
+                                      value={video.url || ""}
+                                      onChange={(e) => {
+                                        const newVideos = [...(section.videos || [])];
+                                        newVideos[vIdx] = { ...newVideos[vIdx], url: e.target.value };
+                                        updateCustomSection(section.id, { videos: newVideos });
+                                      }}
+                                      className="h-9 text-xs"
+                                      dir="ltr"
+                                    />
+                                  </div>
+                                </div>
                               </div>
                             ))}
                             <Button
                               size="sm"
                               variant="outline"
-                              className="w-full h-9 border-dashed text-xs gap-2"
+                              className="w-full h-10 border-dashed text-xs gap-2"
                               onClick={() => {
-                                const newVideos = [...(section.videos || []), { url: "" }];
+                                const newVideos = [...(section.videos || []), { url: "", source: "youtube" }];
                                 updateCustomSection(section.id, { videos: newVideos });
                               }}
                             >
                               <Plus className="w-3 h-3" />
                               إضافة فيديو آخر
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+
+                      {section.type === "images" && (
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-xs text-muted-foreground">طريقة العرض</Label>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant={section.displayMode === "vertical" || !section.displayMode ? "default" : "outline"}
+                                onClick={() => updateCustomSection(section.id, { displayMode: "vertical" })}
+                                className="h-7 text-[10px]"
+                              >تحت بعض</Button>
+                              <Button
+                                size="sm"
+                                variant={section.displayMode === "horizontal" ? "default" : "outline"}
+                                onClick={() => updateCustomSection(section.id, { displayMode: "horizontal" })}
+                                className="h-7 text-[10px]"
+                              >جنب بعض (Scroll)</Button>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">رفع صور</Label>
+                            <Input type="file" accept="image/*" multiple onChange={(e) => uploadCustomSectionImages(section.id, Array.from(e.target.files || []))} />
+                          </div>
+
+                          <div className="space-y-3">
+                            {(section.images || []).map((img, iIdx) => (
+                              <div key={img?.id || iIdx} className="flex flex-col gap-2 p-3 border rounded-lg bg-background/50 relative group">
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-7 w-7 text-red-500 absolute -top-2 -left-2 bg-white shadow-sm border rounded-full opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-10"
+                                  onClick={() => {
+                                    const newImages = (section.images || []).filter((_, i) => i !== iIdx);
+                                    updateCustomSection(section.id, { images: newImages });
+                                  }}
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </Button>
+
+                                <div className="flex items-center gap-2">
+                                  <Input
+                                    placeholder="رابط الصورة..."
+                                    value={img?.url || ""}
+                                    onChange={(e) => {
+                                      const newImages = [...(section.images || [])];
+                                      newImages[iIdx] = { ...newImages[iIdx], url: e.target.value };
+                                      updateCustomSection(section.id, { images: newImages });
+                                    }}
+                                    className="h-9 text-xs"
+                                    dir="ltr"
+                                  />
+                                  {img?.url ? (
+                                    <Button type="button" variant="outline" size="sm" className="h-9 shrink-0" onClick={() => window.open(img.url, "_blank")}>
+                                      عرض
+                                    </Button>
+                                  ) : null}
+                                </div>
+                              </div>
+                            ))}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="w-full h-10 border-dashed text-xs gap-2"
+                              onClick={() => {
+                                const makeId = () => (typeof crypto?.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
+                                const newImages = [...(section.images || []), { id: makeId(), url: "" }];
+                                updateCustomSection(section.id, { images: newImages });
+                              }}
+                            >
+                              <Plus className="w-3 h-3" />
+                              إضافة صورة أخرى
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+
+                      {section.type === "buttons" && (
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">قوالب سوشيال ميديا</Label>
+                            <div className="flex flex-wrap gap-2">
+                              {PROFILE_SOCIAL_BUTTON_TEMPLATES.map((tpl) => {
+                                const Icon = getProfileCustomButtonIcon(tpl.icon);
+                                return (
+                                  <Button
+                                    key={tpl.key}
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 gap-2"
+                                    onClick={() => {
+                                      const makeId = () => (typeof crypto?.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
+                                      const newButtons = [
+                                        ...(Array.isArray(section.buttons) ? section.buttons : []),
+                                        { id: makeId(), label: tpl.label, url: "", icon: tpl.icon, color: tpl.color, placeholder: tpl.placeholder },
+                                      ];
+                                      updateCustomSection(section.id, { buttons: newButtons });
+                                    }}
+                                  >
+                                    <Icon className="h-4 w-4" />
+                                    {tpl.label}
+                                  </Button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          <div className="space-y-3">
+                            {(section.buttons || []).map((btn, bIdx) => {
+                              const Icon = getProfileCustomButtonIcon(btn?.icon);
+                              const color = typeof btn?.color === "string" && btn.color ? btn.color : "#0A1F44";
+                              const style = {
+                                "--btn-color": color,
+                                "--btn-bg": hexToRgba(color, 0.1),
+                                "--btn-bg-hover": hexToRgba(color, 0.2),
+                              };
+
+                              return (
+                                <div key={btn?.id || bIdx} className="flex flex-col gap-2 p-3 border rounded-lg bg-background/50 relative group">
+                                  <div className="absolute -top-2 -left-2 flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-10">
+                                    <Button
+                                      size="icon"
+                                      variant="outline"
+                                      className="h-7 w-7 bg-white shadow-sm"
+                                      disabled={bIdx === 0}
+                                      onClick={() => moveCustomSectionButton(section.id, bIdx, "up")}
+                                    >
+                                      <ChevronUp className="w-3.5 h-3.5" />
+                                    </Button>
+                                    <Button
+                                      size="icon"
+                                      variant="outline"
+                                      className="h-7 w-7 bg-white shadow-sm"
+                                      disabled={bIdx === (section.buttons || []).length - 1}
+                                      onClick={() => moveCustomSectionButton(section.id, bIdx, "down")}
+                                    >
+                                      <ChevronDown className="w-3.5 h-3.5" />
+                                    </Button>
+                                    <Button
+                                      size="icon"
+                                      variant="outline"
+                                      className="h-7 w-7 bg-white shadow-sm text-red-500"
+                                      onClick={() => {
+                                        const newButtons = (section.buttons || []).filter((_, i) => i !== bIdx);
+                                        updateCustomSection(section.id, { buttons: newButtons });
+                                      }}
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </Button>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
+                                    <div className="sm:col-span-2">
+                                      <Label className="text-[10px] mb-1 block">النص</Label>
+                                      <Input
+                                        value={btn?.label || ""}
+                                        onChange={(e) => {
+                                          const newButtons = [...(section.buttons || [])];
+                                          newButtons[bIdx] = { ...newButtons[bIdx], label: e.target.value };
+                                          updateCustomSection(section.id, { buttons: newButtons });
+                                        }}
+                                        className="h-9 text-xs"
+                                      />
+                                    </div>
+                                    <div className="sm:col-span-2">
+                                      <Label className="text-[10px] mb-1 block">الرابط</Label>
+                                      <Input
+                                        placeholder={btn?.placeholder || "ضع الرابط هنا..."}
+                                        value={btn?.url || ""}
+                                        onChange={(e) => {
+                                          const newButtons = [...(section.buttons || [])];
+                                          newButtons[bIdx] = { ...newButtons[bIdx], url: e.target.value };
+                                          updateCustomSection(section.id, { buttons: newButtons });
+                                        }}
+                                        className="h-9 text-xs"
+                                        dir="ltr"
+                                      />
+                                    </div>
+                                    <div className="sm:col-span-1">
+                                      <Label className="text-[10px] mb-1 block">اللون</Label>
+                                      <div className="flex items-center gap-2">
+                                        <Input
+                                          type="color"
+                                          value={color}
+                                          onChange={(e) => {
+                                            const newButtons = [...(section.buttons || [])];
+                                            newButtons[bIdx] = { ...newButtons[bIdx], color: e.target.value };
+                                            updateCustomSection(section.id, { buttons: newButtons });
+                                          }}
+                                          className="h-9 w-12 p-1"
+                                        />
+                                        <Input
+                                          value={color}
+                                          onChange={(e) => {
+                                            const newButtons = [...(section.buttons || [])];
+                                            newButtons[bIdx] = { ...newButtons[bIdx], color: e.target.value };
+                                            updateCustomSection(section.id, { buttons: newButtons });
+                                          }}
+                                          className="h-9 text-xs"
+                                          dir="ltr"
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 items-end">
+                                    <div className="sm:col-span-2">
+                                      <Label className="text-[10px] mb-1 block">الأيقونة</Label>
+                                      <select
+                                        value={btn?.icon || "link"}
+                                        onChange={(e) => {
+                                          const newButtons = [...(section.buttons || [])];
+                                          newButtons[bIdx] = { ...newButtons[bIdx], icon: e.target.value };
+                                          updateCustomSection(section.id, { buttons: newButtons });
+                                        }}
+                                        className="w-full h-9 rounded-md border border-input bg-background px-2 py-1 text-xs"
+                                      >
+                                        {PROFILE_CUSTOM_BUTTON_ICON_OPTIONS.map((opt) => (
+                                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                        ))}
+                                      </select>
+                                    </div>
+
+                                    <div className="sm:col-span-3">
+                                      <Label className="text-[10px] mb-1 block">معاينة</Label>
+                                      <button
+                                        type="button"
+                                        className="w-full bg-[var(--btn-bg)] text-[var(--btn-color)] rounded-xl py-3 flex flex-col items-center gap-1 transition-all hover:bg-[var(--btn-bg-hover)] active:scale-95"
+                                        style={style}
+                                        onClick={() => {}}
+                                      >
+                                        <Icon className="w-5 h-5" />
+                                        <span className="text-xs font-medium">{btn?.label || "زر"}</span>
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="w-full h-10 border-dashed text-xs gap-2"
+                              onClick={() => {
+                                const makeId = () => (typeof crypto?.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
+                                const newButtons = [
+                                  ...(Array.isArray(section.buttons) ? section.buttons : []),
+                                  { id: makeId(), label: "زر جديد", url: "", icon: "link", color: "#0A1F44" },
+                                ];
+                                updateCustomSection(section.id, { buttons: newButtons });
+                              }}
+                            >
+                              <Plus className="w-3 h-3" />
+                              إضافة زر آخر
                             </Button>
                           </div>
                         </div>

@@ -2,7 +2,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { getClinicById, getClinicByBigintId } from "../services/apiClinic";
-import { cn } from "../lib/utils";
+import { cn, hexToRgba } from "../lib/utils";
+import { getProfileCustomButtonIcon } from "../lib/profileCustomButtons";
 
 const isUuid = (v) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(v));
@@ -575,45 +576,162 @@ export default function DoctorProfilePage() {
                     )}>
                       {videos.map((video, vIdx) => {
                         const url = typeof video?.url === "string" ? video.url.trim() : "";
+                        const source = video?.source || "youtube";
                         let embedUrl = null;
-                        let videoType = "unknown";
 
-                        // YouTube
-                        if (url.match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{6,})/)) {
+                        // YouTube logic
+                        if (source === "youtube") {
                           const videoIdMatch = url.match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{6,})/);
                           const videoId = videoIdMatch ? videoIdMatch[1] : null;
-                          embedUrl = videoId ? `https://www.youtube.com/embed/${videoId}` : null;
-                          videoType = "youtube";
+                          if (videoId) embedUrl = `https://www.youtube.com/embed/${videoId}`;
                         } 
-                        // Facebook
-                        else if (url.includes("facebook.com") || url.includes("fb.watch")) {
-                          embedUrl = `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=0`;
-                          videoType = "facebook";
+                        // Facebook logic
+                        else if (source === "facebook") {
+                          let cleanFbUrl = url;
+                          
+                          // Handle share links
+                          if (url.includes("/share/r/")) {
+                            const reelId = url.split("/share/r/")[1]?.split("/")[0]?.split("?")[0];
+                            if (reelId) cleanFbUrl = `https://www.facebook.com/reel/${reelId}/`;
+                          } else if (url.includes("/share/v/")) {
+                            const videoId = url.split("/share/v/")[1]?.split("/")[0]?.split("?")[0];
+                            if (videoId) cleanFbUrl = `https://www.facebook.com/watch/?v=${videoId}`;
+                          } else if (url.includes("facebook.com/share/")) {
+                            // Generic share link, try to keep it as is or clean it
+                            cleanFbUrl = url.split('?')[0];
+                          }
+                          
+                          // Meta Embed URL
+                          embedUrl = `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(cleanFbUrl)}&show_text=0&width=500`;
+                          console.log("FB Embed Debug:", { original: url, cleaned: cleanFbUrl, final: embedUrl });
                         }
-                        // Instagram
-                        else if (url.includes("instagram.com")) {
-                          const cleanUrl = url.split('?')[0].replace(/\/$/, '');
-                          embedUrl = `${cleanUrl}/embed`;
-                          videoType = "instagram";
+                        // Instagram logic
+                        else if (source === "instagram") {
+                          let cleanIgUrl = url.split('?')[0].replace(/\/$/, '');
+                          if (cleanIgUrl.includes("/reels/")) cleanIgUrl = cleanIgUrl.replace("/reels/", "/reel/");
+                          embedUrl = `${cleanIgUrl}/embed`;
+                          console.log("IG Embed Debug:", { original: url, cleaned: cleanIgUrl, final: embedUrl });
                         }
 
                         return embedUrl ? (
                           <div key={vIdx} className={cn(
-                            "overflow-hidden rounded-xl border border-[#E0E0E0] shrink-0 bg-black",
+                            "overflow-hidden rounded-xl border border-[#E0E0E0] shrink-0 bg-black relative",
                             displayMode === "horizontal" ? "w-[88%] sm:w-[85%] aspect-video snap-center" : "w-full aspect-video"
                           )}>
                             <iframe
                               title={`${title || "Video"} ${vIdx + 1}`}
                               src={embedUrl}
-                              className="w-full h-full"
-                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                              referrerPolicy="strict-origin-when-cross-origin"
+                              className="absolute inset-0 w-full h-full"
+                              style={{ border: 'none', overflow: 'hidden' }}
+                              scrolling="no"
+                              frameBorder="0"
+                              allowTransparency="true"
+                              allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+                              referrerPolicy="no-referrer-when-downgrade"
                               allowFullScreen
                             />
                           </div>
-                        ) : null;
+                        ) : (
+                          <div key={vIdx} className="aspect-video w-full bg-slate-100 rounded-xl flex items-center justify-center text-xs text-slate-400 border border-dashed">
+                            رابط فيديو غير صالح
+                          </div>
+                        );
                       })}
                       {videos.length === 0 && <p className="text-sm text-gray-500">لا توجد فيديوهات صالحة</p>}
+                    </div>
+                  </div>
+                );
+              }
+
+              if (section?.type === "images") {
+                const images = Array.isArray(section?.images) ? section.images : [];
+                const displayMode = section?.displayMode || "vertical";
+
+                return (
+                  <div key={id} className="bg-white rounded-2xl p-5 card-shadow-elegant border border-[#E0E0E0]">
+                    {title ? <h3 className="font-amiri font-bold text-xl text-[#0A1F44] mb-4">{title}</h3> : null}
+
+                    <div className={cn(
+                      "w-full",
+                      displayMode === "horizontal"
+                        ? "flex overflow-x-auto gap-3 pb-4 custom-scrollbar snap-x snap-mandatory -mx-5 px-5"
+                        : "space-y-4"
+                    )}>
+                      {images.map((img, iIdx) => {
+                        const url = typeof img?.url === "string" ? img.url.trim() : "";
+                        return url ? (
+                          <div
+                            key={img?.id || iIdx}
+                            className={cn(
+                              "overflow-hidden rounded-xl border border-[#E0E0E0] shrink-0 bg-slate-50 relative",
+                              displayMode === "horizontal" ? "w-[88%] sm:w-[85%] h-52 snap-center" : "w-full"
+                            )}
+                            onClick={() => window.open(url, "_blank")}
+                            role="button"
+                            tabIndex={0}
+                          >
+                            <img src={url} alt={title || "image"} className={cn("w-full object-cover", displayMode === "horizontal" ? "h-52" : "h-auto")} loading="lazy" decoding="async" />
+                          </div>
+                        ) : (
+                          <div key={img?.id || iIdx} className="h-40 w-full bg-slate-100 rounded-xl flex items-center justify-center text-xs text-slate-400 border border-dashed">
+                            صورة غير صالحة
+                          </div>
+                        );
+                      })}
+                      {images.length === 0 && <p className="text-sm text-gray-500">لا توجد صور مضافة</p>}
+                    </div>
+                  </div>
+                );
+              }
+
+              if (section?.type === "buttons") {
+                const buttons = Array.isArray(section?.buttons) ? section.buttons : [];
+                return (
+                  <div key={id} className="bg-white rounded-2xl p-5 card-shadow-elegant border border-[#E0E0E0]">
+                    {title ? <h3 className="font-amiri font-bold text-xl text-[#0A1F44] mb-4">{title}</h3> : null}
+                    <div className="flex flex-wrap gap-3">
+                      {buttons.map((btn, bIdx) => {
+                        const url = typeof btn?.url === "string" ? btn.url.trim() : "";
+                        const color = typeof btn?.color === "string" && btn.color ? btn.color : "#0A1F44";
+                        const Icon = getProfileCustomButtonIcon(btn?.icon);
+                        const style = {
+                          "--btn-color": color,
+                          "--btn-bg": hexToRgba(color, 0.1),
+                          "--btn-bg-hover": hexToRgba(color, 0.2),
+                        };
+
+                        return (
+                          <button
+                            key={btn?.id || bIdx}
+                            className={cn(
+                              "flex flex-col items-center gap-1 rounded-xl py-3 transition-all active:scale-95",
+                              "bg-[var(--btn-bg)] text-[var(--btn-color)] hover:bg-[var(--btn-bg-hover)]",
+                              "flex-[1_1_120px] min-w-[110px]",
+                              !url ? "opacity-50 cursor-not-allowed hover:bg-[var(--btn-bg)]" : null
+                            )}
+                            style={style}
+                            onClick={() => {
+                              if (!url) return;
+                              logClinicProfileEvent({
+                                clinicId,
+                                eventType: "custom_button_click",
+                                metadata: {
+                                  sectionId: section?.id,
+                                  buttonId: btn?.id || String(bIdx),
+                                  label: btn?.label || "",
+                                  url,
+                                },
+                              });
+                              window.open(url, "_blank");
+                            }}
+                            type="button"
+                          >
+                            <Icon className="w-5 h-5" />
+                            <span className="text-xs font-medium">{btn?.label || "زر"}</span>
+                          </button>
+                        );
+                      })}
+                      {buttons.length === 0 && <p className="text-sm text-gray-500">لا توجد أزرار مضافة</p>}
                     </div>
                   </div>
                 );
