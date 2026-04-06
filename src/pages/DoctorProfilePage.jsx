@@ -818,7 +818,7 @@ export default function DoctorProfilePage() {
                     {tile.key === "rating" ? (
                       <div className="flex items-center justify-center gap-1">
                         <span className="text-lg font-amiri font-bold text-white drop-shadow-sm">{tile.value}</span>
-                        <Star className="text-[#C8A155] w-4 h-4 fill-current drop-shadow-sm" />
+                        <Star color="#C8A155" fill="#C8A155" className="w-4 h-4 drop-shadow-sm" />
                       </div>
                     ) : (
                       <p className="text-lg font-amiri font-bold text-white drop-shadow-sm">{tile.value}</p>
