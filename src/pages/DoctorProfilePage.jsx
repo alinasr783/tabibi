@@ -686,10 +686,13 @@ export default function DoctorProfilePage() {
 
               if (section?.type === "buttons") {
                 const buttons = Array.isArray(section?.buttons) ? section.buttons : [];
+                const buttonsPerRowRaw = Number(section?.buttonsPerRow);
+                const buttonsPerRow = [1, 2, 3, 4].includes(buttonsPerRowRaw) ? buttonsPerRowRaw : 3;
+                const gridColsClass = buttonsPerRow === 1 ? "grid-cols-1" : buttonsPerRow === 2 ? "grid-cols-2" : buttonsPerRow === 3 ? "grid-cols-3" : "grid-cols-4";
                 return (
                   <div key={id} className="bg-white rounded-2xl p-5 card-shadow-elegant border border-[#E0E0E0]">
                     {title ? <h3 className="font-amiri font-bold text-xl text-[#0A1F44] mb-4">{title}</h3> : null}
-                    <div className="flex flex-wrap gap-3">
+                    <div className={cn("grid gap-3", gridColsClass)}>
                       {buttons.map((btn, bIdx) => {
                         const url = typeof btn?.url === "string" ? btn.url.trim() : "";
                         const color = typeof btn?.color === "string" && btn.color ? btn.color : "#0A1F44";
@@ -706,7 +709,6 @@ export default function DoctorProfilePage() {
                             className={cn(
                               "flex flex-col items-center gap-1 rounded-xl py-3 transition-all active:scale-95",
                               "bg-[var(--btn-bg)] text-[var(--btn-color)] hover:bg-[var(--btn-bg-hover)]",
-                              "flex-[1_1_120px] min-w-[110px]",
                               !url ? "opacity-50 cursor-not-allowed hover:bg-[var(--btn-bg)]" : null
                             )}
                             style={style}

@@ -9,6 +9,7 @@ import {
   Mail,
   MapPin,
   MessageCircle,
+  Music2,
   Phone,
   Twitter,
   Youtube,
@@ -29,6 +30,7 @@ export const PROFILE_CUSTOM_BUTTON_ICON_OPTIONS = [
   { value: "linkedin", label: "LinkedIn", Icon: Linkedin },
   { value: "x", label: "X", Icon: Twitter },
   { value: "youtube", label: "YouTube", Icon: Youtube },
+  { value: "tiktok", label: "TikTok", Icon: Music2 },
   { value: "thndr", label: "Thndr", Icon: Zap },
 ];
 
@@ -69,6 +71,13 @@ export const PROFILE_SOCIAL_BUTTON_TEMPLATES = [
     placeholder: "https://youtube.com/...",
   },
   {
+    key: "tiktok",
+    label: "تيك توك",
+    icon: "tiktok",
+    color: "#111827",
+    placeholder: "https://tiktok.com/@...",
+  },
+  {
     key: "thndr",
     label: "ثاندر",
     icon: "thndr",
@@ -82,4 +91,3 @@ const ICON_MAP = Object.fromEntries(PROFILE_CUSTOM_BUTTON_ICON_OPTIONS.map((o) =
 export function getProfileCustomButtonIcon(iconKey) {
   return ICON_MAP[iconKey] || Link;
 }
-

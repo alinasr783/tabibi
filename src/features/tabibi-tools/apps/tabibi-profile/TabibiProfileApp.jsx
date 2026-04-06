@@ -1338,6 +1338,7 @@ export default function TabibiProfileApp() {
                                 const existing = Array.isArray(section.buttons) ? section.buttons : [];
                                 updateCustomSection(section.id, {
                                   type: "buttons",
+                                  buttonsPerRow: Number.isInteger(section.buttonsPerRow) ? section.buttonsPerRow : 3,
                                   buttons: existing.length
                                     ? existing
                                     : [{ id: makeId(), label: "زر جديد", url: "", icon: "link", color: "#0A1F44" }],
@@ -1559,6 +1560,20 @@ export default function TabibiProfileApp() {
 
                       {section.type === "buttons" && (
                         <div className="space-y-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <Label className="text-xs text-muted-foreground">عدد الأزرار في السطر</Label>
+                            <select
+                              value={String(Number.isInteger(section.buttonsPerRow) ? section.buttonsPerRow : 3)}
+                              onChange={(e) => updateCustomSection(section.id, { buttonsPerRow: Number(e.target.value) })}
+                              className="h-9 rounded-md border border-input bg-background px-2 py-1 text-xs"
+                            >
+                              <option value="1">1</option>
+                              <option value="2">2</option>
+                              <option value="3">3</option>
+                              <option value="4">4</option>
+                            </select>
+                          </div>
+
                           <div className="space-y-2">
                             <Label className="text-xs text-muted-foreground">قوالب سوشيال ميديا</Label>
                             <div className="flex flex-wrap gap-2">
