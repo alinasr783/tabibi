@@ -352,6 +352,13 @@ export default function DoctorProfilePage() {
     .filter(Boolean);
 
   const statsGridColsClass = statTiles.length === 1 ? "grid-cols-1" : statTiles.length === 2 ? "grid-cols-2" : "grid-cols-3";
+  const headerOverlayBasicInfo = profileSettings?.header?.overlayBasicInfo !== false;
+  const bannerUrl =
+    doctor.banner_url ||
+    "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80";
+  const avatarUrl =
+    doctor.avatar_url ||
+    "https://lh3.googleusercontent.com/aida-public/AB6AXuDB3XEH1GLnnMF1LXI-gXxsHdZ2i4aMIL0B9XCTki6huDpz_FQWxwc3bH2HPtLq5m8_JkpbMQceopzUibJIE7w7lqVxv__EJwbEQcp_cRNAU4TjNs7I1IknJyfzZ-R8y-FPbNv7rLJeBq6uzTN7X8FZvffYgTumpawKxn7EvvQhMGl3jUdVMO3IEwViN5z_yZiD_YV-Y3MySPQL8jdiW2zACmsVNPuVkoOCmXk-LurEeX-u2FK_to4xAhKD6h5v9_tNod-Cxng5I0E";
 
   const sectionComponents = {
     actions: actionButtons.length ? (
@@ -778,57 +785,110 @@ export default function DoctorProfilePage() {
       <div className="max-w-md mx-auto px-4 space-y-5 pt-4 pb-32">
         
         {/* Profile Card */}
-        <div className="rounded-2xl overflow-hidden card-shadow-elegant relative border border-gray-100 h-[280px] flex flex-col justify-end">
-          {/* Banner Background */}
-          <div 
-            className="absolute inset-0 bg-cover bg-center"
-            style={{ 
-              backgroundImage: `url("${doctor.banner_url || 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80'}")` 
-            }}
-          >
-             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-          </div>
-          
-          <div className="relative px-6 pb-6 z-10">
-            <div className="flex items-end mb-4 gap-4">
-              <div className="relative shrink-0">
-                <div 
-                  className="bg-center bg-no-repeat aspect-square bg-cover rounded-2xl h-24 w-24 border-2 border-white shadow-lg" 
-                  style={{ backgroundImage: `url("${doctor.avatar_url || 'https://lh3.googleusercontent.com/aida-public/AB6AXuDB3XEH1GLnnMF1LXI-gXxsHdZ2i4aMIL0B9XCTki6huDpz_FQWxwc3bH2HPtLq5m8_JkpbMQceopzUibJIE7w7lqVxv__EJwbEQcp_cRNAU4TjNs7I1IknJyfzZ-R8y-FPbNv7rLJeBq6uzTN7X8FZvffYgTumpawKxn7EvvQhMGl3jUdVMO3IEwViN5z_yZiD_YV-Y3MySPQL8jdiW2zACmsVNPuVkoOCmXk-LurEeX-u2FK_to4xAhKD6h5v9_tNod-Cxng5I0E'}")` }}
-                ></div>
-              </div>
-              
-              <div className="glass-panel rounded-xl p-3 flex-1 mb-1">
-                <div className="flex items-center gap-2">
-                  <h1 className="text-2xl font-amiri font-bold text-white drop-shadow-md">{doctor.name}</h1>
-                  <BadgeCheck className="text-[#1877F2] w-6 h-6 drop-shadow-sm" fill="#C8A155" />
-                </div>
-                <p className="text-white text-base font-body-sans font-semibold drop-shadow-sm">{doctor.specialty}</p>
-              </div>
+        {headerOverlayBasicInfo ? (
+          <div className="rounded-2xl overflow-hidden card-shadow-elegant relative border border-gray-100 h-[280px] flex flex-col justify-end">
+            <div
+              className="absolute inset-0 bg-cover bg-center"
+              style={{
+                backgroundImage: `url("${bannerUrl}")`,
+              }}
+            >
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
             </div>
-            
-            {statTiles.length ? (
-              <div className={`glass-panel rounded-xl p-3 grid ${statsGridColsClass} gap-2`}>
-                {statTiles.map((tile, idx) => (
+
+            <div className="relative px-6 pb-6 z-10">
+              <div className="flex items-end mb-4 gap-4">
+                <div className="relative shrink-0">
                   <div
-                    key={tile.key}
-                    className={`text-center ${statTiles.length === 3 && idx === 1 ? "border-x border-white/20" : ""}`}
-                  >
-                    <p className="text-xs text-white/90 font-amiri font-bold mb-1">{tile.title}</p>
-                    {tile.key === "rating" ? (
-                      <div className="flex items-center justify-center gap-1">
-                        <span className="text-lg font-amiri font-bold text-white drop-shadow-sm">{tile.value}</span>
-                        <Star color="#C8A155" fill="#C8A155" className="w-4 h-4 drop-shadow-sm" />
-                      </div>
-                    ) : (
-                      <p className="text-lg font-amiri font-bold text-white drop-shadow-sm">{tile.value}</p>
-                    )}
+                    className="bg-center bg-no-repeat aspect-square bg-cover rounded-2xl h-24 w-24 border-2 border-white shadow-lg"
+                    style={{ backgroundImage: `url("${avatarUrl}")` }}
+                  ></div>
+                </div>
+
+                <div className="glass-panel rounded-xl p-3 flex-1 mb-1">
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-2xl font-amiri font-bold text-white drop-shadow-md">{doctor.name}</h1>
+                    <BadgeCheck className="text-[#1877F2] w-6 h-6 drop-shadow-sm" fill="#C8A155" />
                   </div>
-                ))}
+                  <p className="text-white text-base font-body-sans font-semibold drop-shadow-sm">{doctor.specialty}</p>
+                </div>
               </div>
-            ) : null}
+
+              {statTiles.length ? (
+                <div className={`glass-panel rounded-xl p-3 grid ${statsGridColsClass} gap-2`}>
+                  {statTiles.map((tile, idx) => (
+                    <div
+                      key={tile.key}
+                      className={`text-center ${statTiles.length === 3 && idx === 1 ? "border-x border-white/20" : ""}`}
+                    >
+                      <p className="text-xs text-white/90 font-amiri font-bold mb-1">{tile.title}</p>
+                      {tile.key === "rating" ? (
+                        <div className="flex items-center justify-center gap-1">
+                          <span className="text-lg font-amiri font-bold text-white drop-shadow-sm">{tile.value}</span>
+                          <Star color="#C8A155" fill="#C8A155" className="w-4 h-4 drop-shadow-sm" />
+                        </div>
+                      ) : (
+                        <p className="text-lg font-amiri font-bold text-white drop-shadow-sm">{tile.value}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="rounded-2xl overflow-hidden card-shadow-elegant border border-gray-100 bg-white">
+            <div className="relative h-[200px]">
+              <div
+                className="absolute inset-0 bg-cover bg-center"
+                style={{
+                  backgroundImage: `url("${bannerUrl}")`,
+                }}
+              />
+              <div className="absolute inset-0 bg-black/10"></div>
+            </div>
+
+            <div className="px-6 py-5">
+              <div className="flex items-end mb-4 gap-4">
+                <div className="relative shrink-0">
+                  <div
+                    className="bg-center bg-no-repeat aspect-square bg-cover rounded-2xl h-20 w-20 border border-gray-100 shadow-sm"
+                    style={{ backgroundImage: `url("${avatarUrl}")` }}
+                  ></div>
+                </div>
+
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-2xl font-amiri font-bold text-[#0A1F44]">{doctor.name}</h1>
+                    <BadgeCheck className="text-[#1877F2] w-6 h-6" fill="#C8A155" />
+                  </div>
+                  <p className="text-[#0A1F44]/80 text-base font-body-sans font-semibold">{doctor.specialty}</p>
+                </div>
+              </div>
+
+              {statTiles.length ? (
+                <div className={`rounded-xl p-3 grid ${statsGridColsClass} gap-2 bg-[#0A1F44]/5 border border-[#0A1F44]/10`}>
+                  {statTiles.map((tile, idx) => (
+                    <div
+                      key={tile.key}
+                      className={`text-center ${statTiles.length === 3 && idx === 1 ? "border-x border-[#0A1F44]/10" : ""}`}
+                    >
+                      <p className="text-xs text-[#0A1F44]/80 font-amiri font-bold mb-1">{tile.title}</p>
+                      {tile.key === "rating" ? (
+                        <div className="flex items-center justify-center gap-1">
+                          <span className="text-lg font-amiri font-bold text-[#0A1F44]">{tile.value}</span>
+                          <Star color="#C8A155" fill="#C8A155" className="w-4 h-4" />
+                        </div>
+                      ) : (
+                        <p className="text-lg font-amiri font-bold text-[#0A1F44]">{tile.value}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        )}
 
         {/* Contact Selection Modal */}
         {contactModal.show && (

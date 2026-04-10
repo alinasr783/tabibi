@@ -345,6 +345,16 @@ export default function TabibiProfileApp() {
     });
   };
 
+  const setHeaderOverlayBasicInfo = (enabled) => {
+    setProfileSettings((prev) => ({
+      ...prev,
+      header: {
+        ...(prev.header || {}),
+        overlayBasicInfo: enabled,
+      },
+    }));
+  };
+
   const setStatsEnabled = (enabled) => {
     setProfileSettings((prev) => ({ ...prev, stats: { ...prev.stats, enabled } }));
   };
@@ -1106,6 +1116,25 @@ export default function TabibiProfileApp() {
 
         <TabsContent value="display" dir="rtl">
           <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Eye className="h-5 w-5 text-primary" />
+                  عرض بيانات أعلى الصفحة
+                </CardTitle>
+                <CardDescription>تحكم في مكان ظهور الصورة والاسم والتخصص وشريط الإحصائيات بالنسبة لصورة الغلاف</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <div className="text-sm font-medium">عرض البيانات فوق الغلاف</div>
+                    <div className="text-xs text-muted-foreground">لو أوقفتها: الغلاف يظهر كصورة مستقلة والبيانات تظهر تحته</div>
+                  </div>
+                  <Switch checked={profileSettings?.header?.overlayBasicInfo !== false} onCheckedChange={setHeaderOverlayBasicInfo} />
+                </div>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">

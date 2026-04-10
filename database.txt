@@ -536,6 +536,8 @@ CREATE TABLE public.patients (
   medical_history jsonb DEFAULT '{}'::jsonb,
   insurance_info jsonb DEFAULT '{}'::jsonb,
   custom_fields jsonb NOT NULL DEFAULT '[]'::jsonb,
+  summary text,
+  ai_chat_log jsonb DEFAULT '[]'::jsonb,
   CONSTRAINT patients_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.plan_pricing (

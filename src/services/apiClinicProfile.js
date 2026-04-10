@@ -1,6 +1,9 @@
 import supabase from "./supabase";
 
 export const defaultClinicProfileSettings = {
+  header: {
+    overlayBasicInfo: true,
+  },
   stats: {
     enabled: true,
     items: [

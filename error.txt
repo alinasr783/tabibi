@@ -1,0 +1,44 @@
+
+apiPatients.js:302 Error updating patient: {code: 'PGRST204', details: null, hint: null, message: "Could not find the 'ai_chat_log' column of 'patients' in the schema cache"}
+updatePatient @ apiPatients.js:302
+await in updatePatient
+handleSend @ TabibiIntelligence.jsx:425
+await in handleSend
+handleKeyDown @ TabibiIntelligence.jsx:486
+callCallback2 @ chunk-TY5Q4DRJ.js?v=27414e53:3680
+invokeGuardedCallbackDev @ chunk-TY5Q4DRJ.js?v=27414e53:3705
+invokeGuardedCallback @ chunk-TY5Q4DRJ.js?v=27414e53:3739
+invokeGuardedCallbackAndCatchFirstError @ chunk-TY5Q4DRJ.js?v=27414e53:3742
+executeDispatch @ chunk-TY5Q4DRJ.js?v=27414e53:7046
+processDispatchQueueItemsInOrder @ chunk-TY5Q4DRJ.js?v=27414e53:7066
+processDispatchQueue @ chunk-TY5Q4DRJ.js?v=27414e53:7075
+dispatchEventsForPlugins @ chunk-TY5Q4DRJ.js?v=27414e53:7083
+(anonymous) @ chunk-TY5Q4DRJ.js?v=27414e53:7206
+batchedUpdates$1 @ chunk-TY5Q4DRJ.js?v=27414e53:18966
+batchedUpdates @ chunk-TY5Q4DRJ.js?v=27414e53:3585
+dispatchEventForPluginEventSystem @ chunk-TY5Q4DRJ.js?v=27414e53:7205
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-TY5Q4DRJ.js?v=27414e53:5484
+dispatchEvent @ chunk-TY5Q4DRJ.js?v=27414e53:5478
+dispatchDiscreteEvent @ chunk-TY5Q4DRJ.js?v=27414e53:5455Understand this error
+apiPatients.js:303 Attempted to update patient ID: 18 for clinic: 9c3e6ad9-fefa-4edc-96b2-0142488fd089
+updatePatient @ apiPatients.js:303
+await in updatePatient
+handleSend @ TabibiIntelligence.jsx:425
+await in handleSend
+handleKeyDown @ TabibiIntelligence.jsx:486
+callCallback2 @ chunk-TY5Q4DRJ.js?v=27414e53:3680
+invokeGuardedCallbackDev @ chunk-TY5Q4DRJ.js?v=27414e53:3705
+invokeGuardedCallback @ chunk-TY5Q4DRJ.js?v=27414e53:3739
+invokeGuardedCallbackAndCatchFirstError @ chunk-TY5Q4DRJ.js?v=27414e53:3742
+executeDispatch @ chunk-TY5Q4DRJ.js?v=27414e53:7046
+processDispatchQueueItemsInOrder @ chunk-TY5Q4DRJ.js?v=27414e53:7066
+processDispatchQueue @ chunk-TY5Q4DRJ.js?v=27414e53:7075
+dispatchEventsForPlugins @ chunk-TY5Q4DRJ.js?v=27414e53:7083
+(anonymous) @ chunk-TY5Q4DRJ.js?v=27414e53:7206
+batchedUpdates$1 @ chunk-TY5Q4DRJ.js?v=27414e53:18966
+batchedUpdates @ chunk-TY5Q4DRJ.js?v=27414e53:3585
+dispatchEventForPluginEventSystem @ chunk-TY5Q4DRJ.js?v=27414e53:7205
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-TY5Q4DRJ.js?v=27414e53:5484
+dispatchEvent @ chunk-TY5Q4DRJ.js?v=27414e53:5478
+dispatchDiscreteEvent @ chunk-TY5Q4DRJ.js?v=27414e53:5455Understand this error
+TabibiIntelligence.jsx:461 Error in Tabibi Intelligence: {code: 'PGRST204', details: null, hint: null, message: "Could not find the 'ai_chat_log' column of 'patients' in the schema cache"}
