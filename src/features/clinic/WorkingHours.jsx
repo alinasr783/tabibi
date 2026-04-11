@@ -1,7 +1,32 @@
 import { Button } from "../../components/ui/button"
-import { Input } from "../../components/ui/input"
 import { Label } from "../../components/ui/label"
 import { Calendar, X, Check } from "lucide-react"
+
+function parseTimeParts(time24) {
+  const raw = typeof time24 === "string" ? time24.trim() : "";
+  const [hStr, mStr] = raw.split(":");
+  const h = Number(hStr);
+  const m = Number(mStr);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) {
+    return { hour12: "09", minute: "00", period: "AM" };
+  }
+  const period = h >= 12 ? "PM" : "AM";
+  const hour12 = ((h % 12) || 12).toString().padStart(2, "0");
+  const minute = String(m).padStart(2, "0");
+  return { hour12, minute, period };
+}
+
+function toTime24({ hour12, minute, period }) {
+  const h12 = Number(hour12);
+  const m = Number(minute);
+  if (!Number.isFinite(h12) || !Number.isFinite(m)) return "09:00";
+  let h = h12 % 12;
+  if (period === "PM") h += 12;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+const hours12Options = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0"));
+const minuteOptions = ["00", "15", "30", "45"];
 
 export default function WorkingHours({
   availableTime,
@@ -53,13 +78,43 @@ export default function WorkingHours({
                     className="text-[10px] sm:text-xs text-muted-foreground block mb-0.5 sm:mb-1">
                     من
                   </Label>
-                  <Input
-                    id={`${day}-start`}
-                    type="time"
-                    value={times.start}
-                    onChange={(e) => onTimeChange(day, "start", e.target.value)}
-                    className="h-8 sm:h-9 md:h-10 text-xs sm:text-sm px-2 sm:px-3 py-1.5 w-full min-h-[36px] sm:min-h-[40px]"
-                  />
+                  {(() => {
+                    const p = parseTimeParts(times.start);
+                    return (
+                      <div className="grid grid-cols-3 gap-1.5 w-full" id={`${day}-start`}>
+                        <select
+                          value={p.hour12}
+                          onChange={(e) => onTimeChange(day, "start", toTime24({ ...p, hour12: e.target.value }))}
+                          className="h-8 sm:h-9 md:h-10 rounded-[var(--radius)] border border-input bg-background px-2 text-xs sm:text-sm font-amiri"
+                        >
+                          {hours12Options.map((h) => (
+                            <option key={h} value={h}>
+                              {h}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          value={p.minute}
+                          onChange={(e) => onTimeChange(day, "start", toTime24({ ...p, minute: e.target.value }))}
+                          className="h-8 sm:h-9 md:h-10 rounded-[var(--radius)] border border-input bg-background px-2 text-xs sm:text-sm font-amiri"
+                        >
+                          {minuteOptions.map((m) => (
+                            <option key={m} value={m}>
+                              {m}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          value={p.period}
+                          onChange={(e) => onTimeChange(day, "start", toTime24({ ...p, period: e.target.value }))}
+                          className="h-8 sm:h-9 md:h-10 rounded-[var(--radius)] border border-input bg-background px-2 text-xs sm:text-sm font-amiri"
+                        >
+                          <option value="AM">ص</option>
+                          <option value="PM">م</option>
+                        </select>
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div className="flex items-center justify-center h-8 sm:h-9 md:h-10 shrink-0 px-0.5">
                   <span className="text-muted-foreground text-xs sm:text-sm">-</span>
@@ -70,13 +125,43 @@ export default function WorkingHours({
                     className="text-[10px] sm:text-xs text-muted-foreground block mb-0.5 sm:mb-1">
                     إلى
                   </Label>
-                  <Input
-                    id={`${day}-end`}
-                    type="time"
-                    value={times.end}
-                    onChange={(e) => onTimeChange(day, "end", e.target.value)}
-                    className="h-8 sm:h-9 md:h-10 text-xs sm:text-sm px-2 sm:px-3 py-1.5 w-full min-h-[36px] sm:min-h-[40px]"
-                  />
+                  {(() => {
+                    const p = parseTimeParts(times.end);
+                    return (
+                      <div className="grid grid-cols-3 gap-1.5 w-full" id={`${day}-end`}>
+                        <select
+                          value={p.hour12}
+                          onChange={(e) => onTimeChange(day, "end", toTime24({ ...p, hour12: e.target.value }))}
+                          className="h-8 sm:h-9 md:h-10 rounded-[var(--radius)] border border-input bg-background px-2 text-xs sm:text-sm font-amiri"
+                        >
+                          {hours12Options.map((h) => (
+                            <option key={h} value={h}>
+                              {h}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          value={p.minute}
+                          onChange={(e) => onTimeChange(day, "end", toTime24({ ...p, minute: e.target.value }))}
+                          className="h-8 sm:h-9 md:h-10 rounded-[var(--radius)] border border-input bg-background px-2 text-xs sm:text-sm font-amiri"
+                        >
+                          {minuteOptions.map((m) => (
+                            <option key={m} value={m}>
+                              {m}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          value={p.period}
+                          onChange={(e) => onTimeChange(day, "end", toTime24({ ...p, period: e.target.value }))}
+                          className="h-8 sm:h-9 md:h-10 rounded-[var(--radius)] border border-input bg-background px-2 text-xs sm:text-sm font-amiri"
+                        >
+                          <option value="AM">ص</option>
+                          <option value="PM">م</option>
+                        </select>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             )}

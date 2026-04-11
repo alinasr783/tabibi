@@ -76,7 +76,7 @@ serve(async (req) => {
 
     const { data: tx, error: txError } = await supabase
       .from("transactions")
-      .select("id, status")
+      .select("id, status, type, amount, clinic_id, metadata, reference_number")
       .eq("reference_number", referenceNumber)
       .maybeSingle()
 
@@ -118,6 +118,96 @@ serve(async (req) => {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       })
+    }
+
+    if (status === "PAID") {
+      const isBooking = tx?.type === "booking" || tx?.metadata?.type === "booking";
+      if (isBooking && tx?.clinic_id) {
+        const alreadyFulfilled = tx?.metadata && typeof tx.metadata === "object" && tx.metadata.fulfilled === true;
+        if (!alreadyFulfilled) {
+          const booking = tx?.metadata?.booking && typeof tx.metadata.booking === "object" ? tx.metadata.booking : null;
+
+          const { data: walletRow } = await supabase
+            .from("clinic_profile_wallets")
+            .select("id, balance")
+            .eq("clinic_id", tx.clinic_id)
+            .maybeSingle();
+
+          let walletId = walletRow?.id;
+          let balance = Number(walletRow?.balance || 0);
+
+          if (!walletId) {
+            const { data: createdWallet } = await supabase
+              .from("clinic_profile_wallets")
+              .insert({ clinic_id: tx.clinic_id, balance: 0 })
+              .select("id, balance")
+              .single();
+            walletId = createdWallet?.id;
+            balance = Number(createdWallet?.balance || 0);
+          }
+
+          if (walletId && tx?.amount) {
+            const refId = String(tx.reference_number);
+            const { data: existingWalletTx } = await supabase
+              .from("clinic_profile_wallet_transactions")
+              .select("id")
+              .eq("reference_type", "booking")
+              .eq("reference_id", refId)
+              .maybeSingle();
+
+            if (!existingWalletTx) {
+              await supabase
+                .from("clinic_profile_wallets")
+                .update({ balance: balance + Number(tx.amount) })
+                .eq("id", walletId);
+
+              await supabase.from("clinic_profile_wallet_transactions").insert({
+                wallet_id: walletId,
+                amount: Number(tx.amount),
+                type: "customer_payment",
+                description: "حجز إلكتروني مدفوع",
+                reference_type: "booking",
+                reference_id: refId,
+                status: "completed",
+              });
+            }
+          }
+
+          let appointmentId: any = null;
+          if (booking?.patient_id && booking?.date) {
+            const insertRow: any = {
+              clinic_id: tx.clinic_id,
+              patient_id: Number(booking.patient_id),
+              date: String(booking.date),
+              notes: typeof booking.notes === "string" ? booking.notes : "",
+              price: Number(booking.price ?? tx.amount ?? 0),
+              from: String(booking.from || "booking"),
+              status: "paid",
+            };
+
+            const { data: appt, error: apptError } = await supabase
+              .from("appointments")
+              .insert(insertRow)
+              .select("id")
+              .single();
+
+            if (!apptError) {
+              appointmentId = appt?.id || null;
+            }
+          }
+
+          const nextMetadata = {
+            ...(tx?.metadata && typeof tx.metadata === "object" ? tx.metadata : {}),
+            fulfilled: true,
+            appointment_id: appointmentId,
+          };
+
+          await supabase
+            .from("transactions")
+            .update({ metadata: nextMetadata })
+            .eq("reference_number", referenceNumber);
+        }
+      }
     }
 
     return new Response(JSON.stringify({ ok: true }), {

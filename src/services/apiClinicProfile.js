@@ -4,6 +4,9 @@ export const defaultClinicProfileSettings = {
   header: {
     overlayBasicInfo: true,
   },
+  booking: {
+    requireOnlinePayment: false,
+  },
   stats: {
     enabled: true,
     items: [

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
 import { useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { 
   Calendar, 
   User, 
@@ -26,6 +27,8 @@ import usePatientHandling from "./usePatientHandling";
 import { useBookingAnalytics } from "./useBookingAnalytics";
 import { isSupabaseConfigured } from "../../services/supabase";
 import { dbg } from "../../lib/debug";
+import supabase from "../../services/supabase";
+import { defaultClinicProfileSettings, getClinicProfileSettings } from "../../services/apiClinicProfile";
 
 const isUuid = (v) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(v));
@@ -40,6 +43,16 @@ export default function BookingPage() {
   } = useClinicById(clinicId);
   
   const resolvedClinicId = clinic?.clinic_uuid || (isUuid(clinicId) ? clinicId : null);
+  const { data: profileSettingsData } = useQuery({
+    queryKey: ["clinic-profile-settings-public", resolvedClinicId],
+    queryFn: () => getClinicProfileSettings(resolvedClinicId),
+    enabled: !!resolvedClinicId,
+    retry: false,
+  });
+  const profileSettings = profileSettingsData?.settings || defaultClinicProfileSettings;
+  const requireOnlinePayment = !!profileSettings?.booking?.requireOnlinePayment;
+  const supabaseFunctionsBaseUrl =
+    (import.meta.env.VITE_SUPABASE_URL || (typeof window !== "undefined" && window.__TABIBI_ENV__?.VITE_SUPABASE_URL) || "").replace(/\/$/, "");
 
   // Analytics Hook
   const { saveDraft, checkBlocked, logConversion, logBlockedAttempt } = useBookingAnalytics(resolvedClinicId);
@@ -71,6 +84,7 @@ export default function BookingPage() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
   const [appointmentId, setAppointmentId] = useState(null);
+  const [isStartingPayment, setIsStartingPayment] = useState(false);
 
   const isOnlineBookingEnabled = clinic?.online_booking_enabled !== false;
 
@@ -105,6 +119,63 @@ export default function BookingPage() {
       setPatientValue('phone', phoneParam);
     }
   }, [setPatientValue]);
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const status = urlParams.get("status");
+    const customerReference = urlParams.get("customerReference");
+    const paymentFlag = urlParams.get("payment");
+    if (!paymentFlag || !status || !customerReference) return;
+
+    if (status === "PAID") {
+      try {
+        logConversion();
+      } catch {
+      }
+      setIsBookingComplete(true);
+      setCurrentStep(3);
+      try {
+        localStorage.removeItem(`tabibi_booking_payment_${customerReference}`);
+      } catch {
+      }
+
+      const pollAppointmentId = async () => {
+        try {
+          const ref = Number(customerReference);
+          if (!Number.isFinite(ref)) {
+            setAppointmentId(customerReference);
+            return;
+          }
+
+          for (let i = 0; i < 10; i++) {
+            const { data } = await supabase
+              .from("transactions")
+              .select("metadata")
+              .eq("reference_number", ref)
+              .maybeSingle();
+
+            const apptId = data?.metadata?.appointment_id;
+            if (apptId) {
+              setAppointmentId(String(apptId));
+              return;
+            }
+
+            await new Promise((r) => setTimeout(r, 800));
+          }
+
+          setAppointmentId(customerReference);
+        } catch {
+          setAppointmentId(customerReference);
+        }
+      };
+
+      pollAppointmentId();
+    } else if (status === "FAILED") {
+      toast.error("فشل الدفع، حاول تاني");
+    } else if (status === "PENDING") {
+      toast.success("تم إنشاء عملية الدفع، أكمل الدفع لإتمام الحجز");
+    }
+  }, [logConversion]);
 
   const handlePatientFormSubmit = async (data) => {
     try {
@@ -202,6 +273,78 @@ export default function BookingPage() {
         return;
     }
 
+    if (requireOnlinePayment) {
+      try {
+        setIsStartingPayment(true);
+        const amount = Number(clinic?.booking_price || 0);
+        if (!Number.isFinite(amount) || amount <= 0) {
+          toast.error("سعر الحجز غير متاح");
+          return;
+        }
+
+        const redirectTo = `${window.location.origin}/booking/${clinicId}?payment=1`;
+        const callbackUrl = supabaseFunctionsBaseUrl
+          ? `${supabaseFunctionsBaseUrl}/functions/v1/create-payment-link?redirect_to=${encodeURIComponent(redirectTo)}`
+          : redirectTo;
+
+        const metadata = {
+          type: "booking",
+          booking: {
+            clinic_id: resolvedClinicId,
+            patient_id: selectedPatient.id,
+            date: data.date,
+            notes: data.notes || "",
+            price: amount,
+            from: "booking",
+          },
+          buyer_name: selectedPatient?.name,
+          buyer_mobile: selectedPatient?.phone,
+        };
+
+        const payload = {
+          amount,
+          currency: "EGP",
+          user_id: null,
+          clinic_id: resolvedClinicId,
+          redirect_url: callbackUrl,
+          payment_method: "card",
+          metadata,
+        };
+
+        const { data: res, error: invokeError } = await supabase.functions.invoke("create-payment-link", { body: payload });
+        if (invokeError) throw invokeError;
+
+        const paymentUrl = (res?.url || res?.link || (res?.data && res?.data?.url) || "").toString().trim().replace(/`/g, "");
+        const referenceNumber = res?.referenceNumber || (res?.data && res?.data?.referenceNumber) || res?.customerReference || null;
+
+        if (referenceNumber) {
+          try {
+            localStorage.setItem(
+              `tabibi_booking_payment_${referenceNumber}`,
+              JSON.stringify({ clinicId: resolvedClinicId, patientId: selectedPatient.id, date: data.date })
+            );
+          } catch {
+          }
+        }
+
+        if (!paymentUrl) {
+          toast.error("تعذر الحصول على رابط الدفع");
+          return;
+        }
+
+        window.location.href = paymentUrl.startsWith("http")
+          ? paymentUrl
+          : paymentUrl.startsWith("/")
+            ? `https://www.easykash.net${paymentUrl}`
+            : `https://${paymentUrl}`;
+      } catch (error) {
+        toast.error(error?.message || "حدث خطأ أثناء بدء الدفع");
+      } finally {
+        setIsStartingPayment(false);
+      }
+      return;
+    }
+
     createAppointment(
       {
         payload: {
@@ -209,8 +352,8 @@ export default function BookingPage() {
           notes: data.notes || "",
           price: clinic?.booking_price || 0,
           patient_id: selectedPatient.id,
-          phone: selectedPatient.phone, // Pass phone for backend blocking check
-          from: "booking"
+          phone: selectedPatient.phone,
+          from: "booking",
         },
         clinicId: resolvedClinicId,
       },
@@ -423,7 +566,7 @@ export default function BookingPage() {
                 watch={watch}
                 setValue={setValue}
                 onSubmit={handleSubmit(onSubmit)}
-                isLoading={isCreatingAppointment}
+                isLoading={isCreatingAppointment || isStartingPayment}
                 clinic={clinic}
                 selectedPatient={selectedPatient}
                 onChangePatient={handleBackToPatient}
@@ -443,7 +586,7 @@ export default function BookingPage() {
                     <CreditCard className="w-5 h-5 text-amber-600" />
                     <div>
                       <p className="text-amber-800 font-medium text-sm">سعر الحجز</p>
-                      <p className="text-amber-700 text-xs">تسدد في العيادة</p>
+                      <p className="text-amber-700 text-xs">{requireOnlinePayment ? "تسدد أونلاين لإتمام الحجز" : "تسدد في العيادة"}</p>
                     </div>
                   </div>
                   <div className="text-base font-bold text-amber-700">

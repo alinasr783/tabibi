@@ -13,6 +13,19 @@ import supabase from "../services/supabase";
 import { defaultClinicProfileSettings, getClinicProfileSettings, logClinicProfileEvent } from "../services/apiClinicProfile";
 import toast from "react-hot-toast";
 
+function formatTimeArabic12(time24) {
+  const raw = typeof time24 === "string" ? time24.trim() : "";
+  const parts = raw.split(":");
+  if (parts.length < 2) return raw;
+  const h = Number(parts[0]);
+  const m = Number(parts[1]);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return raw;
+  const period = h >= 12 ? "م" : "ص";
+  const hour12 = ((h % 12) || 12).toString();
+  const minute2 = String(m).padStart(2, "0");
+  return `${hour12}:${minute2} ${period}`;
+}
+
 // Helper function to fetch extended public profile data
 async function getDoctorPublicProfile(clinicId) {
   // 1. Get Clinic Data
@@ -444,10 +457,10 @@ export default function DoctorProfilePage() {
                 <div key={day} className="flex items-center justify-between text-sm">
                   <span className="text-gray-600">{dayNames[day]}</span>
                   {time.off ? (
-                    <span className="font-body-sans italic text-red-400">مغلق</span>
+                    <span className="font-amiri italic text-red-400">مغلق</span>
                   ) : (
-                    <span className="font-body-sans font-semibold">
-                      {time.start} - {time.end}
+                    <span className="font-amiri font-semibold">
+                      {formatTimeArabic12(time.start)} - {formatTimeArabic12(time.end)}
                     </span>
                   )}
                 </div>

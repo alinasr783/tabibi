@@ -10,7 +10,7 @@ import { Badge } from "../../../../components/ui/badge";
 import { Separator } from "../../../../components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../../components/ui/tabs";
 import { Switch } from "../../../../components/ui/switch";
-import { ExternalLink, Copy, Check, User, MapPin, Phone, Stethoscope, Clock, Save, Loader2, Upload, Trash2, Plus, Award, GraduationCap, FileText, QrCode, Download, MessageCircle, ChevronUp, ChevronDown, Settings, BarChart3, Eye, MousePointerClick, Share2, X } from "lucide-react";
+import { ExternalLink, Copy, Check, User, MapPin, Phone, Stethoscope, Clock, Save, Loader2, Upload, Trash2, Plus, Award, GraduationCap, FileText, QrCode, Download, MessageCircle, ChevronUp, ChevronDown, Settings, BarChart3, Eye, MousePointerClick, Share2, X, Wallet } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import useUpdateProfile from "../../../settings/useUpdateProfile";
@@ -20,6 +20,8 @@ import supabase from "../../../../services/supabase";
 import WorkingHours from "../../../clinic/WorkingHours";
 import QRCode from "react-qr-code";
 import { defaultClinicProfileSettings, getClinicProfileAnalyticsCounts, getClinicProfileAnalyticsTopCities, getClinicProfileSettings, upsertClinicProfileSettings } from "../../../../services/apiClinicProfile";
+import { getClinicWithdrawalRequests, requestClinicWithdrawal } from "../../../../services/apiClinicWithdrawals";
+import { getClinicProfileWallet, getClinicProfileWalletTransactions } from "../../../../services/apiProfileWallet";
 import { SkeletonLine } from "../../../../components/ui/skeleton";
 import { hexToRgba } from "../../../../lib/utils";
 import { PROFILE_CUSTOM_BUTTON_ICON_OPTIONS, PROFILE_SOCIAL_BUTTON_TEMPLATES, getProfileCustomButtonIcon } from "../../../../lib/profileCustomButtons";
@@ -102,6 +104,47 @@ export default function TabibiProfileApp() {
 
   const [analyticsRangeDays, setAnalyticsRangeDays] = useState(30);
 
+  const { data: profileWallet, isLoading: isProfileWalletLoading } = useQuery({
+    queryKey: ["clinic-profile-wallet", clinic?.clinic_uuid],
+    queryFn: () => getClinicProfileWallet(clinic?.clinic_uuid),
+    enabled: !!clinic?.clinic_uuid,
+    retry: false,
+  });
+
+  const { data: profileWalletTransactions, isLoading: isProfileWalletTransactionsLoading } = useQuery({
+    queryKey: ["clinic-profile-wallet-transactions", profileWallet?.id],
+    queryFn: () => getClinicProfileWalletTransactions(profileWallet?.id),
+    enabled: !!profileWallet?.id,
+    retry: false,
+  });
+
+  const { data: withdrawalRequests, isLoading: isWithdrawalsLoading } = useQuery({
+    queryKey: ["clinic-withdrawal-requests", clinic?.clinic_uuid],
+    queryFn: async () => {
+      try {
+        return await getClinicWithdrawalRequests(clinic?.clinic_uuid);
+      } catch {
+        return [];
+      }
+    },
+    enabled: !!clinic?.clinic_uuid,
+  });
+
+  const { mutate: submitWithdrawalRequest, isPending: isSubmittingWithdrawal } = useMutation({
+    mutationFn: async ({ amount, payoutMethod, payoutDetails }) => {
+      return requestClinicWithdrawal({ amount, payoutMethod, payoutDetails });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["clinic-profile-wallet", clinic?.clinic_uuid] });
+      queryClient.invalidateQueries({ queryKey: ["clinic-profile-wallet-transactions", profileWallet?.id] });
+      queryClient.invalidateQueries({ queryKey: ["clinic-withdrawal-requests", clinic?.clinic_uuid] });
+      toast.success("تم إرسال طلب السحب");
+    },
+    onError: (e) => {
+      toast.error(e?.message || "حدث خطأ أثناء إرسال طلب السحب");
+    },
+  });
+
   const {
     data: analyticsCounts,
     isLoading: isAnalyticsLoading,
@@ -128,6 +171,9 @@ export default function TabibiProfileApp() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const [uploadingCertificate, setUploadingCertificate] = useState(false);
+  const [withdrawalAmount, setWithdrawalAmount] = useState("");
+  const [withdrawalMethod, setWithdrawalMethod] = useState("instapay");
+  const [withdrawalDetails, setWithdrawalDetails] = useState("");
   
   const [formData, setFormData] = useState({
     name: "",
@@ -357,6 +403,16 @@ export default function TabibiProfileApp() {
 
   const setStatsEnabled = (enabled) => {
     setProfileSettings((prev) => ({ ...prev, stats: { ...prev.stats, enabled } }));
+  };
+
+  const setBookingRequireOnlinePayment = (enabled) => {
+    setProfileSettings((prev) => ({
+      ...prev,
+      booking: {
+        ...(prev.booking || {}),
+        requireOnlinePayment: enabled,
+      },
+    }));
   };
 
   const setActionsEnabled = (enabled) => {
@@ -672,7 +728,7 @@ export default function TabibiProfileApp() {
       </div>
 
       <Tabs defaultValue="edit" className="w-full" dir="rtl">
-        <TabsList className="grid w-full grid-cols-3 h-auto p-1 bg-muted/50">
+        <TabsList className="grid w-full grid-cols-4 h-auto p-1 bg-muted/50">
           <TabsTrigger value="edit" className="gap-1.5 justify-center py-2.5 text-[10px] xs:text-xs sm:text-sm w-full data-[state=active]:bg-background shadow-sm">
             <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             البيانات
@@ -684,6 +740,10 @@ export default function TabibiProfileApp() {
           <TabsTrigger value="analytics" className="gap-1.5 justify-center py-2.5 text-[10px] xs:text-xs sm:text-sm w-full data-[state=active]:bg-background shadow-sm">
             <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             إحصائيات
+          </TabsTrigger>
+          <TabsTrigger value="wallet" className="gap-1.5 justify-center py-2.5 text-[10px] xs:text-xs sm:text-sm w-full data-[state=active]:bg-background shadow-sm">
+            <Wallet className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            المحفظة
           </TabsTrigger>
         </TabsList>
 
@@ -1131,6 +1191,25 @@ export default function TabibiProfileApp() {
                     <div className="text-xs text-muted-foreground">لو أوقفتها: الغلاف يظهر كصورة مستقلة والبيانات تظهر تحته</div>
                   </div>
                   <Switch checked={profileSettings?.header?.overlayBasicInfo !== false} onCheckedChange={setHeaderOverlayBasicInfo} />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MousePointerClick className="h-5 w-5 text-primary" />
+                  الحجز الإلكتروني والدفع
+                </CardTitle>
+                <CardDescription>إجبار المريض على الدفع قبل إتمام الحجز الإلكتروني</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <div className="text-sm font-medium">تفعيل الدفع الأونلاين للحجز</div>
+                    <div className="text-xs text-muted-foreground">لو فعلتها: المريض لازم يدفع قبل ما يقدر يحجز</div>
+                  </div>
+                  <Switch checked={!!profileSettings?.booking?.requireOnlinePayment} onCheckedChange={setBookingRequireOnlinePayment} />
                 </div>
               </CardContent>
             </Card>
@@ -1933,6 +2012,163 @@ export default function TabibiProfileApp() {
                 </div>
               </>
             )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="wallet" dir="rtl">
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card className="bg-primary/5 border-primary/20">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <Wallet className="w-4 h-4 text-primary" />
+                    رصيد المحفظة
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-3xl font-bold text-foreground">{Number(profileWallet?.balance || 0).toFixed(2)}</span>
+                    <span className="text-sm font-medium text-muted-foreground">جنيه</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">محفظة أرباح حجوزات Tabibi Profile (منفصلة عن محفظة العيادة)</div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Wallet className="h-5 w-5 text-primary" />
+                    طلب سحب
+                  </CardTitle>
+                  <CardDescription>أرسل طلب سحب وسيتم مراجعته من الإدارة</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>المبلغ</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={withdrawalAmount}
+                      onChange={(e) => setWithdrawalAmount(e.target.value)}
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>طريقة الاستلام</Label>
+                    <select
+                      value={withdrawalMethod}
+                      onChange={(e) => setWithdrawalMethod(e.target.value)}
+                      className="h-10 w-full rounded-[var(--radius)] border border-input bg-background px-3 text-sm"
+                    >
+                      <option value="bank">تحويل بنكي</option>
+                      <option value="instapay">انستا باي</option>
+                      <option value="wallet">محفظة إلكترونية</option>
+                      <option value="other">أخرى</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>تفاصيل السحب</Label>
+                    <Textarea
+                      value={withdrawalDetails}
+                      onChange={(e) => setWithdrawalDetails(e.target.value)}
+                      placeholder="مثال: رقم إنستا باي / رقم المحفظة / بيانات الحساب البنكي..."
+                      className="min-h-24"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    className="w-full gap-2"
+                    disabled={isSubmittingWithdrawal || isProfileWalletLoading || isProfileWalletTransactionsLoading}
+                    onClick={() => {
+                      const amount = Number(withdrawalAmount);
+                      if (!Number.isFinite(amount) || amount <= 0) {
+                        toast.error("يرجى إدخال مبلغ صحيح");
+                        return;
+                      }
+                      if (!withdrawalDetails.trim()) {
+                        toast.error("يرجى إدخال تفاصيل السحب");
+                        return;
+                      }
+                      submitWithdrawalRequest({
+                        amount,
+                        payoutMethod: withdrawalMethod,
+                        payoutDetails: withdrawalDetails.trim(),
+                      });
+                    }}
+                  >
+                    {isSubmittingWithdrawal ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    إرسال طلب السحب
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>طلبات السحب السابقة</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isWithdrawalsLoading ? (
+                  <div className="space-y-2">
+                    <SkeletonLine className="h-6" />
+                    <SkeletonLine className="h-6" />
+                  </div>
+                ) : (Array.isArray(withdrawalRequests) && withdrawalRequests.length) ? (
+                  <div className="space-y-3">
+                    {withdrawalRequests.map((r) => {
+                      const status = r?.status;
+                      const statusLabel =
+                        status === "pending" ? "قيد المراجعة" : status === "processing" ? "جارى السحب" : status === "completed" ? "تم السحب" : status;
+                      const badgeVariant = status === "completed" ? "default" : status === "processing" ? "secondary" : "outline";
+                      return (
+                        <div key={r.id} className="flex items-center justify-between gap-4 p-3 rounded-lg border bg-muted/10">
+                          <div className="space-y-1">
+                            <div className="text-sm font-medium">{Number(r.amount || 0).toFixed(2)} جنيه</div>
+                            <div className="text-xs text-muted-foreground">{r.created_at ? new Date(r.created_at).toLocaleString("ar-EG") : ""}</div>
+                          </div>
+                          <Badge variant={badgeVariant}>{statusLabel}</Badge>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground">لا توجد طلبات سحب حتى الآن</div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>سجل العمليات</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isProfileWalletLoading || isProfileWalletTransactionsLoading ? (
+                  <div className="space-y-2">
+                    <SkeletonLine className="h-6" />
+                    <SkeletonLine className="h-6" />
+                  </div>
+                ) : (Array.isArray(profileWalletTransactions) && profileWalletTransactions.length) ? (
+                  <div className="space-y-3">
+                    {profileWalletTransactions
+                      .filter((tx) => tx?.type === "customer_payment" || tx?.type === "withdrawal")
+                      .slice(0, 50)
+                      .map((tx) => (
+                        <div key={tx.id} className="flex items-center justify-between gap-4 p-3 rounded-lg border bg-muted/10">
+                          <div className="space-y-1 min-w-0">
+                            <div className="text-sm font-medium line-clamp-1">{tx.description || "عملية"}</div>
+                            <div className="text-xs text-muted-foreground">{tx.created_at ? new Date(tx.created_at).toLocaleString("ar-EG") : ""}</div>
+                          </div>
+                          <div className={`text-sm font-bold shrink-0 ${Number(tx.amount) >= 0 ? "text-green-600" : "text-red-600"}`}>
+                            {Number(tx.amount) >= 0 ? "+" : ""}{Number(tx.amount || 0).toFixed(2)} ج
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground">لا توجد عمليات لعرضها</div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
       </Tabs>
