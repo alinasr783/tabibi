@@ -6,7 +6,7 @@ import DataTable from "../../components/ui/table";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 
-function ExaminationCard({ visit, navigate }) {
+function ExaminationCard({ visit, navigate, clinicNameById }) {
   return (
     <div className="mb-4 pb-4 border-b border-border last:border-0 last:mb-0 last:pb-0">
       <div className="p-1">
@@ -26,6 +26,13 @@ function ExaminationCard({ visit, navigate }) {
               <div className="text-sm text-muted-foreground">
                 {visit.patient?.phone || "-"}
               </div>
+              {visit.clinic_id && (
+                <div className="mt-1">
+                  <Badge variant="outline" className="text-[10px] h-5 px-2">
+                    {clinicNameById?.get?.(String(visit.clinic_id)) || "فرع"}
+                  </Badge>
+                </div>
+              )}
             </div>
           </div>
           <Badge variant="secondary" className="gap-1.5 flex-shrink-0">
@@ -71,7 +78,7 @@ function ExaminationCard({ visit, navigate }) {
   );
 }
 
-export default function ExaminationsTable({ visits, total, page, pageSize, onPageChange, onLoadMore, hasMore, isLoadingMore }) {
+export default function ExaminationsTable({ visits, total, page, pageSize, onPageChange, onLoadMore, hasMore, isLoadingMore, clinicNameById }) {
   const navigate = useNavigate();
 
   const columns = [
@@ -85,6 +92,13 @@ export default function ExaminationsTable({ visits, total, page, pageSize, onPag
           <div>
             <div className="font-medium">{visit.patient?.name || "مريض غير معروف"}</div>
             <div className="text-xs text-muted-foreground">{visit.patient?.phone || "-"}</div>
+            {visit.clinic_id && (
+              <div className="mt-1">
+                <Badge variant="outline" className="text-[10px] h-5 px-2">
+                  {clinicNameById?.get?.(String(visit.clinic_id)) || "فرع"}
+                </Badge>
+              </div>
+            )}
           </div>
         </div>
       )
@@ -177,6 +191,7 @@ export default function ExaminationsTable({ visits, total, page, pageSize, onPag
             key={visit.id} 
             visit={visit} 
             navigate={navigate} 
+            clinicNameById={clinicNameById}
           />
         ))}
         

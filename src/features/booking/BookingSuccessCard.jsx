@@ -4,7 +4,7 @@ import { Button } from "../../components/ui/button";
 import { useEffect, useRef } from "react";
 import lottie from "lottie-web";
 
-export default function BookingSuccessCard({ onReset, appointmentId, clinic }) {
+export default function BookingSuccessCard({ onReset, appointmentId, clinic, locationUrl }) {
   const animationContainer = useRef(null);
 
   useEffect(() => {
@@ -56,6 +56,38 @@ export default function BookingSuccessCard({ onReset, appointmentId, clinic }) {
                   )}
                 </div>
               </div>
+
+              {(clinic.address || locationUrl) && (
+                <div className="p-3 bg-gray-50 rounded-[var(--radius)] space-y-3">
+                  {clinic.address && (
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 bg-gray-100 rounded-[var(--radius)] flex items-center justify-center flex-shrink-0">
+                        <MapPin className="w-5 h-5 text-gray-600" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm text-gray-500">عنوان العيادة</p>
+                        <p className="font-medium text-gray-900 break-words">{clinic.address}</p>
+                      </div>
+                    </div>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full h-11"
+                    onClick={() => {
+                      const url =
+                        (locationUrl && String(locationUrl).trim()) ||
+                        (clinic.address
+                          ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(clinic.address)}`
+                          : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(clinic.name || "clinic")}`);
+                      window.open(url, "_blank", "noopener,noreferrer");
+                    }}
+                  >
+                    <MapPin className="w-4 h-4 ml-2" />
+                    افتح الموقع على Google Maps
+                  </Button>
+                </div>
+              )}
 
               {clinic.phone && (
                 <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-[var(--radius)]">

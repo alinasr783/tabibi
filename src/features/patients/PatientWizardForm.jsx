@@ -33,7 +33,7 @@ export default function PatientWizardForm({ onSubmit, isSubmitting, initialData,
   const [attachmentTypes, setAttachmentTypes] = useState([]);
   const [attachmentDescriptions, setAttachmentDescriptions] = useState([]);
   
-  const { register, control, handleSubmit, trigger, formState: { errors }, watch, reset } = useForm({
+  const { register, control, handleSubmit, trigger, formState: { errors }, reset } = useForm({
     defaultValues: {
       name: initialData?.name || "",
       phone: initialData?.phone || "",

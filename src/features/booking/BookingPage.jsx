@@ -29,20 +29,57 @@ import { isSupabaseConfigured } from "../../services/supabase";
 import { dbg } from "../../lib/debug";
 import supabase from "../../services/supabase";
 import { defaultClinicProfileSettings, getClinicProfileSettings } from "../../services/apiClinicProfile";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 
 const isUuid = (v) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(v));
 
 export default function BookingPage() {
-  const { clinicId } = useParams();
+  const { clinicId, userId } = useParams();
   const topRef = useRef(null);
+  const [selectedClinicUuid, setSelectedClinicUuid] = useState(null);
+  const effectiveClinicId = selectedClinicUuid || clinicId;
   const {
     data: clinic,
     isLoading: isClinicLoading,
     isError: isClinicError,
-  } = useClinicById(clinicId);
+  } = useClinicById(effectiveClinicId);
   
-  const resolvedClinicId = clinic?.clinic_uuid || (isUuid(clinicId) ? clinicId : null);
+  const resolvedClinicId = clinic?.clinic_uuid || (isUuid(effectiveClinicId) ? effectiveClinicId : null);
+  useEffect(() => {
+    if (!resolvedClinicId) return;
+    setSelectedClinicUuid((prev) => prev || resolvedClinicId);
+  }, [resolvedClinicId]);
+
+  const ownerUserId = userId || clinic?.owner_user_id;
+  const { data: bookableClinics } = useQuery({
+    queryKey: ["bookable-clinics-by-owner", ownerUserId],
+    queryFn: async () => {
+      if (!ownerUserId) return null;
+      const { data, error } = await supabase
+        .from("clinics")
+        .select("clinic_uuid, name, address, online_booking_enabled")
+        .eq("owner_user_id", ownerUserId)
+        .eq("online_booking_enabled", true);
+
+      if (error) {
+        const msg = String(error.message || "");
+        if (msg.includes("owner_user_id")) return null;
+        throw error;
+      }
+      return data || [];
+    },
+    enabled: !!ownerUserId,
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (!userId) return;
+    if (selectedClinicUuid) return;
+    const first = (bookableClinics || [])?.[0]?.clinic_uuid;
+    if (first) setSelectedClinicUuid(first);
+  }, [userId, bookableClinics, selectedClinicUuid]);
+
   const { data: profileSettingsData } = useQuery({
     queryKey: ["clinic-profile-settings-public", resolvedClinicId],
     queryFn: () => getClinicProfileSettings(resolvedClinicId),
@@ -439,6 +476,7 @@ export default function BookingPage() {
       onReset={handleReset} 
       appointmentId={appointmentId}
       clinic={clinic}
+      locationUrl={profileSettingsData?.settings?.actions?.locationUrl}
     />;
   }
 
@@ -510,6 +548,32 @@ export default function BookingPage() {
                   <p className="text-sm text-gray-500">خلينا نعرف عنك شوية عشان نعرف نخدمك</p>
                 </div>
               </div>
+
+              {(bookableClinics || []).length > 1 && (
+                <div className="mb-5">
+                  <div className="text-sm font-medium text-gray-900 mb-2">اختيار الفرع</div>
+                  <Select
+                    value={selectedClinicUuid || ""}
+                    onValueChange={(v) => {
+                      setSelectedClinicUuid(v)
+                      setSelectedDate(null)
+                      setSelectedTime(null)
+                      reset()
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="اختر فرع" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(bookableClinics || []).map((c) => (
+                        <SelectItem key={c.clinic_uuid} value={c.clinic_uuid}>
+                          {c.name || c.clinic_uuid}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               
               <PatientFormCard
                 register={registerPatient}

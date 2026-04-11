@@ -16,6 +16,7 @@ import AppointmentCreateDialog from "./AppointmentCreateDialog"
 import AppointmentsFilter from "./AppointmentsFilter"
 import AppointmentsTable from "./AppointmentsTable"
 import useAppointments from "./useAppointments"
+import useUserClinics from "../clinic/useUserClinics"
 import OnlineBookingsSection from "./OnlineBookingsSection"
 import OnlineBookingsTable from "../online-booking/OnlineBookingsTable"
 import { useSubscriptionBlocking } from "../auth/useSubscriptionBlocking"
@@ -58,6 +59,12 @@ export default function CalendarPage() {
   const [allAppointmentsPage, setAllAppointmentsPage] = useState(1)
   const [filters, setFilters] = useState({})
   const [open, setOpen] = useState(false)
+  const { data: clinics } = useUserClinics()
+  const clinicNameById = useMemo(() => {
+    const m = new Map()
+    ;(clinics || []).forEach((c) => m.set(String(c.clinic_uuid), c.name || "فرع"))
+    return m
+  }, [clinics])
   const [showFilters, setShowFilters] = useState(false)
   const [activeTab, setActiveTab] = useState("upcoming")
   const [selectedStat, setSelectedStat] = useState(null)
@@ -645,6 +652,7 @@ export default function CalendarPage() {
               ) : upcomingList.length > 0 ? (
                 <AppointmentsTable
                   appointments={upcomingList}
+                  clinicNameById={clinicNameById}
                   total={upcomingData?.count || 0}
                   page={page}
                   pageSize={APPOINTMENTS_PAGE_SIZE}
@@ -680,6 +688,7 @@ export default function CalendarPage() {
               ) : allList.length > 0 ? (
                 <AppointmentsTable
                   appointments={allList}
+                  clinicNameById={clinicNameById}
                   total={allData?.count || 0}
                   page={allAppointmentsPage}
                   pageSize={APPOINTMENTS_PAGE_SIZE}

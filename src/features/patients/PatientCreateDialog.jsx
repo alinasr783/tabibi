@@ -32,7 +32,7 @@ export default function PatientCreateDialog({open, onClose, onPatientCreated, cl
       const payload = {
         ...values,
         age: age,
-        clinic_id: clinicId
+        clinic_id: values?.clinic_id || clinicId
       };
       
       console.log("[PATIENT_CREATE] mutateAsync start");
@@ -63,7 +63,7 @@ export default function PatientCreateDialog({open, onClose, onPatientCreated, cl
             console.log("[PATIENT_CREATE] uploading attachment", { idx, category, hasFile: !!file });
             return uploadPatientAttachment({
               patientId: createdId,
-              clinicId: clinicId,
+              clinicId: values?.clinic_id || clinicId,
               file: file,
               category,
               description

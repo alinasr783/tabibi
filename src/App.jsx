@@ -229,6 +229,14 @@ function AppRoutes() {
           }
         />
         <Route
+          path="/clinic/:clinicId"
+          element={
+            <PermissionGuard requiredPermission="clinic">
+              <MemoizedClinic />
+            </PermissionGuard>
+          }
+        />
+        <Route
           path="/online-booking"
           element={
             <PermissionGuard requiredPermission="clinic">
@@ -376,6 +384,8 @@ function AppRoutes() {
       </Route>
       <Route path="/booking/:clinicId" element={<MemoizedBooking />} />
       <Route path="/book/:clinicId" element={<MemoizedBooking />} />
+      <Route path="/booking/u/:userId" element={<MemoizedBooking />} />
+      <Route path="/book/u/:userId" element={<MemoizedBooking />} />
       <Route path="/doctor-profile/:clinicId" element={<MemoizedDoctorProfilePage />} />
       <Route path="/doctor/:clinicId" element={<MemoizedDoctorProfilePage />} />
     </Routes>

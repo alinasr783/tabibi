@@ -17,6 +17,7 @@ export default function ClinicInfoForm({
   onDayToggle,
   onSubmit,
   clinicId,
+  bookingUserId,
 }) {
   if (isClinicLoading) {
     return (
@@ -53,7 +54,9 @@ export default function ClinicInfoForm({
   }
 
   const copyShortBookingLink = () => {
-    const link = `${window.location.origin}/book/${clinicId}`
+    const link = bookingUserId
+      ? `${window.location.origin}/book/u/${bookingUserId}`
+      : `${window.location.origin}/book/${clinicId}`
     navigator.clipboard.writeText(link)
     toast.success("تم نسخ رابط الحجز المختصر")
   }
@@ -101,7 +104,9 @@ export default function ClinicInfoForm({
           <div className="flex flex-col xs:flex-row gap-1.5 sm:gap-2 w-full">
             <div className="flex-1 min-w-0 bg-muted/50 border border-border rounded-[var(--radius)] px-2.5 sm:px-3 py-2 text-[10px] sm:text-xs md:text-sm overflow-hidden">
               <span className="block truncate break-all">
-                {`${window.location.origin}/book/${clinicId}`}
+                {bookingUserId
+                  ? `${window.location.origin}/book/u/${bookingUserId}`
+                  : `${window.location.origin}/book/${clinicId}`}
               </span>
             </div>
             <Button

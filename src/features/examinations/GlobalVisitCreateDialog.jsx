@@ -9,8 +9,11 @@ import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 import { useQuery } from "@tanstack/react-query";
 import { getAppointments } from "../../services/apiAppointments";
+import useUserClinics from "../clinic/useUserClinics";
+import useClinic from "../auth/useClinic";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 
-function PatientSelection({ onSelect, onCancel }) {
+function PatientSelection({ onSelect, onCancel, clinicId }) {
   const [searchTerm, setSearchTerm] = useState("");
   const shouldFetch = searchTerm.length >= 2;
   const { data, isLoading } = usePatients(searchTerm, {}, 10, { enabled: shouldFetch });
@@ -75,10 +78,10 @@ function PatientSelection({ onSelect, onCancel }) {
   );
 }
 
-function AppointmentSelection({ patientId, onSelect, onSkip, onCancel }) {
+function AppointmentSelection({ patientId, onSelect, onSkip, onCancel, clinicId }) {
   const { data, isLoading } = useQuery({
-    queryKey: ["patient-appointments", patientId],
-    queryFn: () => getAppointments("", 1, 10, { patientId, time: "upcoming" }), 
+    queryKey: ["patient-appointments", patientId, clinicId],
+    queryFn: () => getAppointments("", 1, 10, { patientId, time: "upcoming", clinicId: clinicId || "all" }), 
   });
 
   const appointments = data?.data || [];
@@ -161,6 +164,9 @@ export default function GlobalVisitCreateDialog({ open, onOpenChange }) {
   const [step, setStep] = useState("patient"); // patient, appointment, details
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const { data: clinics } = useUserClinics();
+  const { data: activeClinic } = useClinic();
+  const [selectedClinicId, setSelectedClinicId] = useState("all");
 
   // Reset state when dialog closes
   useEffect(() => {
@@ -169,9 +175,17 @@ export default function GlobalVisitCreateDialog({ open, onOpenChange }) {
             setStep("patient");
             setSelectedPatient(null);
             setSelectedAppointment(null);
+            setSelectedClinicId("all");
         }, 300);
     }
   }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const current = activeClinic?.clinic_uuid;
+    if (!current) return;
+    setSelectedClinicId((prev) => (prev === "all" ? current : prev));
+  }, [open, activeClinic?.clinic_uuid]);
 
   const handlePatientSelect = (patient) => {
     setSelectedPatient(patient);
@@ -216,9 +230,35 @@ export default function GlobalVisitCreateDialog({ open, onOpenChange }) {
 
         <StepIndicator currentStep={step} />
 
-        <div className="mt-2">
+        <div className="mt-2 space-y-4">
+          {(clinics || []).length > 1 && step !== "details" && (
+            <div>
+              <div className="text-sm font-medium text-muted-foreground mb-2">الفرع</div>
+              <Select
+                value={selectedClinicId}
+                onValueChange={(v) => {
+                  setSelectedClinicId(v)
+                  setSelectedPatient(null)
+                  setSelectedAppointment(null)
+                  setStep("patient")
+                }}
+              >
+                <SelectTrigger className="h-11">
+                  <SelectValue placeholder="اختر فرع" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">كل الفروع</SelectItem>
+                  {(clinics || []).map((c) => (
+                    <SelectItem key={c.clinic_uuid} value={c.clinic_uuid}>
+                      {c.name || c.clinic_uuid}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           {step === "patient" && (
-            <PatientSelection onSelect={handlePatientSelect} onCancel={() => onOpenChange(false)} />
+            <PatientSelection onSelect={handlePatientSelect} onCancel={() => onOpenChange(false)} clinicId={selectedClinicId} />
           )}
 
           {step === "appointment" && selectedPatient && (
@@ -227,6 +267,7 @@ export default function GlobalVisitCreateDialog({ open, onOpenChange }) {
                 onSelect={handleAppointmentSelect} 
                 onSkip={handleSkipAppointment}
                 onCancel={() => onOpenChange(false)}
+                clinicId={selectedClinicId}
             />
           )}
 
@@ -234,6 +275,7 @@ export default function GlobalVisitCreateDialog({ open, onOpenChange }) {
             <VisitCreateForm 
                 patientId={selectedPatient.id}
                 appointmentId={selectedAppointment?.id}
+                clinicId={selectedClinicId === "all" ? activeClinic?.clinic_uuid : selectedClinicId}
                 onVisitCreated={() => {
                     onOpenChange(false);
                 }}

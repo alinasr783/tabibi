@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
+import useUserClinics from "../clinic/useUserClinics";
 import {
   Select,
   SelectContent,
@@ -15,10 +16,12 @@ import { Switch } from "../../components/ui/switch";
 
 export default function AppointmentsFilter({ onFilterChange }) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const { data: clinics } = useUserClinics();
   
   // Temporary filters (before applying)
   const [tempFilters, setTempFilters] = useState({
     status: "all",
+    clinicId: "all",
     dateFrom: "",
     dateTo: "",
     source: "all",
@@ -28,6 +31,7 @@ export default function AppointmentsFilter({ onFilterChange }) {
   // Applied filters (sent to parent)
   const [appliedFilters, setAppliedFilters] = useState({
     status: "all",
+    clinicId: "all",
     dateFrom: "",
     dateTo: "",
     source: "all",
@@ -47,6 +51,7 @@ export default function AppointmentsFilter({ onFilterChange }) {
   const handleReset = () => {
     const resetFilters = {
       status: "all",
+      clinicId: "all",
       dateFrom: "",
       dateTo: "",
       source: "all",
@@ -59,7 +64,7 @@ export default function AppointmentsFilter({ onFilterChange }) {
 
   const activeFiltersCount = Object.entries(appliedFilters).filter(
     ([key, value]) => {
-      if (key === 'status' || key === 'source') return value !== "all";
+      if (key === 'status' || key === 'source' || key === 'clinicId') return value !== "all";
       return value !== "" && value !== false;
     }
   ).length;
@@ -138,6 +143,28 @@ export default function AppointmentsFilter({ onFilterChange }) {
                   </SelectContent>
                 </Select>
               </div>
+
+              {(clinics || []).length > 1 && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">الفرع</Label>
+                  <Select
+                    value={tempFilters.clinicId}
+                    onValueChange={(value) => handleTempFilterChange("clinicId", value)}
+                  >
+                    <SelectTrigger className="h-11">
+                      <SelectValue placeholder="كل الفروع" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">كل الفروع</SelectItem>
+                      {(clinics || []).map((c) => (
+                        <SelectItem key={c.clinic_uuid} value={c.clinic_uuid}>
+                          {c.name || c.clinic_uuid}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               {/* Source Filter */}
               <div className="space-y-2">

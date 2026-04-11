@@ -21,6 +21,14 @@ export async function resolveClinicIdentifiers() {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) throw new Error("Not authenticated")
 
+  const { data: prefData, error: prefErr } = await supabase
+    .from("user_preferences")
+    .select("active_clinic_id")
+    .eq("user_id", session.user.id)
+    .maybeSingle()
+
+  if (prefErr) throw new Error(prefErr.message || "Failed to load user preferences")
+
   const { data: userData, error: userErr } = await supabase
     .from("users")
     .select("clinic_id, clinic_id_bigint")
@@ -28,10 +36,11 @@ export async function resolveClinicIdentifiers() {
     .single()
 
   if (userErr) throw new Error(userErr.message || "Failed to load clinic identifiers")
-  if (!userData?.clinic_id) throw new Error("User has no clinic assigned")
 
-  const clinicUuid = userData.clinic_id
-  let clinicIdBigint = userData.clinic_id_bigint
+  const clinicUuid = prefData?.active_clinic_id || userData?.clinic_id
+  if (!clinicUuid) throw new Error("User has no clinic assigned")
+
+  let clinicIdBigint = userData?.clinic_id_bigint
 
   if (!clinicIdBigint) {
     const { data: clinicRow, error: clinicErr } = await supabase

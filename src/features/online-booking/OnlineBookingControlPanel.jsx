@@ -6,6 +6,7 @@ import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Badge } from "../../components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { 
   MessageCircle,
   Clock,
@@ -34,11 +35,19 @@ import useScrollToTop from "../../hooks/useScrollToTop";
 import AnalyticsDashboard from "./components/AnalyticsDashboard";
 import DraftsTable from "./components/DraftsTable";
 import BlockedNumbersManager from "./components/BlockedNumbersManager";
+import useUserClinics from "../clinic/useUserClinics";
+import { setActiveClinic } from "../../services/apiClinic";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { getClinicProfileSettings, upsertClinicProfileSettings } from "../../services/apiClinicProfile";
+import WorkingHours from "../clinic/WorkingHours";
+import { getDayName, initializeAvailableTime } from "../clinic/clinicUtils";
 
 export default function OnlineBookingControlPanel() {
   useScrollToTop();
   const { data: clinic, isLoading: isClinicLoading, isError, error } = useClinic();
   const { mutate: updateClinic, isPending: isUpdating } = useUpdateClinic();
+  const { data: clinics } = useUserClinics();
+  const queryClient = useQueryClient();
   
   const [clinicFormData, setClinicFormData] = useState({
     booking_price: "",
@@ -46,8 +55,19 @@ export default function OnlineBookingControlPanel() {
     whatsapp_enabled: false,
     whatsapp_number: "",
     prevent_conflicts: false,
-    min_time_gap: "30"
+    min_time_gap: "30",
+    available_time: initializeAvailableTime(null),
   });
+
+  const { data: profileSettingsData } = useQuery({
+    queryKey: ["clinic-profile-settings", clinic?.clinic_uuid],
+    queryFn: () => getClinicProfileSettings(clinic?.clinic_uuid),
+    enabled: !!clinic?.clinic_uuid,
+    retry: false,
+  });
+
+  const [locationUrl, setLocationUrl] = useState("");
+  const [showLocation, setShowLocation] = useState(false);
   
   const [showQRCode, setShowQRCode] = useState(false);
   
@@ -62,9 +82,17 @@ export default function OnlineBookingControlPanel() {
       whatsapp_enabled: clinic.whatsapp_enabled || false,
       whatsapp_number: clinic.whatsapp_number || "",
       prevent_conflicts: clinic.prevent_conflicts || false,
-      min_time_gap: clinic.min_time_gap || "30"
+      min_time_gap: clinic.min_time_gap || "30",
+      available_time: initializeAvailableTime(clinic.available_time),
     });
   }, [clinic]);
+
+  useEffect(() => {
+    const s = profileSettingsData?.settings;
+    if (!s) return;
+    setLocationUrl(s?.actions?.locationUrl || "");
+    setShowLocation(!!s?.actions?.showLocation);
+  }, [profileSettingsData?.settings]);
   
   const handleClinicChange = (e) => {
     const { name, value } = e.target;
@@ -91,6 +119,50 @@ export default function OnlineBookingControlPanel() {
     e.preventDefault();
     updateClinic(clinicFormData);
   };
+
+  const handleTimeChange = (day, field, value) => {
+    setClinicFormData((prev) => ({
+      ...prev,
+      available_time: {
+        ...prev.available_time,
+        [day]: { ...prev.available_time[day], [field]: value },
+      },
+    }));
+  };
+
+  const toggleDayOff = (day) => {
+    setClinicFormData((prev) => ({
+      ...prev,
+      available_time: {
+        ...prev.available_time,
+        [day]: { ...prev.available_time[day], off: !prev.available_time[day].off },
+      },
+    }));
+  };
+
+  const handleSaveLocationSettings = async () => {
+    const clinicId = clinic?.clinic_uuid;
+    if (!clinicId) return;
+    const base = profileSettingsData?.settings;
+    if (!base) return;
+
+    const next = {
+      ...base,
+      actions: {
+        ...(base.actions || {}),
+        showLocation: !!showLocation,
+        locationUrl: locationUrl || "",
+      },
+    };
+
+    try {
+      await upsertClinicProfileSettings({ clinicId, settings: next });
+      queryClient.invalidateQueries({ queryKey: ["clinic-profile-settings", clinicId] });
+      toast.success("تم حفظ بيانات الموقع");
+    } catch (e) {
+      toast.error(e?.message || "فشل حفظ بيانات الموقع");
+    }
+  };
   
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
@@ -99,9 +171,9 @@ export default function OnlineBookingControlPanel() {
   
   const getBookingLink = () => {
     if (!clinic) return "";
-    const clinicId = clinic.clinic_uuid;
-    if (!clinicId) return "";
-    return `${window.location.origin}/booking/${clinicId}`;
+    const userId = clinic.owner_user_id;
+    if (!userId) return "";
+    return `${window.location.origin}/booking/u/${userId}`;
   };
   
   const getEmbedCode = () => {
@@ -241,6 +313,39 @@ export default function OnlineBookingControlPanel() {
                 </TabsList>
 
         <TabsContent value="settings" className="space-y-6">
+            {(clinics || []).length > 1 && (
+                <Card className="bg-card/70" style={{direction: 'rtl'}}>
+                    <CardContent className="p-3 md:p-6">
+                        <div className="space-y-2">
+                            <Label className="text-xs md:text-sm">الفرع</Label>
+                            <Select
+                                value={clinic?.clinic_uuid || ""}
+                                onValueChange={async (v) => {
+                                    try {
+                                        await setActiveClinic(v);
+                                        queryClient.invalidateQueries({ queryKey: ["clinic"] });
+                                        queryClient.invalidateQueries({ queryKey: ["user-clinics"] });
+                                    } catch (e) {
+                                        toast.error(e?.message || "تعذر تغيير الفرع");
+                                    }
+                                }}
+                            >
+                                <SelectTrigger className="h-10 md:h-11">
+                                    <SelectValue placeholder="اختر فرع" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {(clinics || []).map((c) => (
+                                        <SelectItem key={c.clinic_uuid} value={c.clinic_uuid}>
+                                            {c.name || c.clinic_uuid}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
             {/* Online Booking Status Card */}
             <Card className="bg-card/70" style={{direction: 'rtl'}}>
                 <CardHeader className="p-3 md:p-6">
@@ -398,6 +503,16 @@ export default function OnlineBookingControlPanel() {
                             />
                         </div>
 
+                        <div className="space-y-3 pt-4 border-t">
+                            <Label className="text-xs md:text-sm">أوقات العمل</Label>
+                            <WorkingHours
+                                availableTime={clinicFormData.available_time}
+                                onTimeChange={handleTimeChange}
+                                onDayToggle={toggleDayOff}
+                                getDayName={getDayName}
+                            />
+                        </div>
+
                         {/* WhatsApp Setting */}
                         <div className="space-y-4 pt-4 border-t">
                             <div className="flex items-center justify-between">
@@ -464,6 +579,34 @@ export default function OnlineBookingControlPanel() {
                                     </div>
                                 </div>
                             )}
+                        </div>
+
+                        <div className="space-y-4 pt-4 border-t">
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-0.5">
+                                    <Label className="text-sm font-medium flex items-center gap-2">
+                                        <Globe className="w-4 h-4 text-primary" />
+                                        إظهار الموقع
+                                    </Label>
+                                    <p className="text-xs text-muted-foreground">إظهار زر الموقع في صفحة نجاح الحجز</p>
+                                </div>
+                                <Switch checked={showLocation} onCheckedChange={setShowLocation} />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="locationUrl" className="text-xs">رابط Google Maps</Label>
+                                <Input
+                                    id="locationUrl"
+                                    value={locationUrl}
+                                    onChange={(e) => setLocationUrl(e.target.value)}
+                                    placeholder="https://maps.app.goo.gl/..."
+                                    className="text-sm"
+                                />
+                            </div>
+
+                            <Button type="button" variant="outline" size="sm" className="w-full" onClick={handleSaveLocationSettings}>
+                                حفظ بيانات الموقع
+                            </Button>
                         </div>
                         
                         <Button type="submit" disabled={isUpdating} size="sm" className="w-full">

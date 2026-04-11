@@ -22,6 +22,7 @@ import { useSubscriptionBlocking } from "../auth/useSubscriptionBlocking";
 import SubscriptionBlockingModal from "../auth/SubscriptionBlockingModal";
 import SortableStat from "../../components/ui/sortable-stat";
 import { SkeletonLine } from "../../components/ui/skeleton";
+import useUserClinics from "../clinic/useUserClinics";
 
 function StatCard({ icon: Icon, label, value, isLoading, iconColorClass = "bg-primary/10 text-primary", onClick, active }) {
   return (
@@ -57,8 +58,15 @@ export default function ExaminationsPage() {
   const [statsFilter, setStatsFilter] = useState("month");
   const [genderFilter, setGenderFilter] = useState(null);
   const [dateFilter, setDateFilter] = useState(null);
+  const [clinicFilter, setClinicFilter] = useState("all");
 
   const navigate = useNavigate();
+  const { data: clinics } = useUserClinics();
+  const clinicNameById = useMemo(() => {
+    const m = new Map();
+    (clinics || []).forEach((c) => m.set(String(c.clinic_uuid), c.name || "فرع"));
+    return m;
+  }, [clinics]);
 
   // Calculate dates
   const { weekStart, monthStart, threeMonthsStart } = useMemo(() => {
@@ -72,7 +80,10 @@ export default function ExaminationsPage() {
   const filterStartDate = statsFilter === "week" ? weekStart : statsFilter === "month" ? monthStart : threeMonthsStart;
 
   // Memoize filters
-  const filters = useMemo(() => ({ gender: genderFilter, createdAfter: dateFilter }), [genderFilter, dateFilter]);
+  const filters = useMemo(
+    () => ({ gender: genderFilter, createdAfter: dateFilter, clinicId: clinicFilter }),
+    [genderFilter, dateFilter, clinicFilter]
+  );
 
   const toggleGenderFilter = (gender) => {
     if (genderFilter === gender) {
@@ -264,6 +275,24 @@ export default function ExaminationsPage() {
             }}
           />
         </div>
+
+        {(clinics || []).length > 1 && (
+          <div className="mb-3">
+            <Select value={clinicFilter} onValueChange={setClinicFilter}>
+              <SelectTrigger className="w-full h-10 md:h-11">
+                <SelectValue placeholder="الفرع" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">كل الفروع</SelectItem>
+                {(clinics || []).map((c) => (
+                  <SelectItem key={c.clinic_uuid} value={c.clinic_uuid}>
+                    {c.name || c.clinic_uuid}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         
         {/* Action Buttons - Mobile Grid */}
         <div className="grid grid-cols-2 md:flex gap-2">
@@ -291,6 +320,7 @@ export default function ExaminationsPage() {
           ) : (
             <ExaminationsTable
               visits={allVisits}
+              clinicNameById={clinicNameById}
               total={totalVisits}
               page={1}
               pageSize={15}

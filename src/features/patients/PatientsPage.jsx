@@ -211,16 +211,18 @@ export default function PatientsPage() {
           <h3 className="text-sm font-medium text-muted-foreground">
             احصائيات مرضاك
           </h3>
-          <Select value={statsFilter} onValueChange={setStatsFilter}>
-            <SelectTrigger className="w-[140px] h-9">
-              <SelectValue placeholder="اختر الفترة" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="week">اخر اسبوع</SelectItem>
-              <SelectItem value="month">اخر شهر</SelectItem>
-              <SelectItem value="threeMonths">اخر 3 شهور</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            <Select value={statsFilter} onValueChange={setStatsFilter}>
+              <SelectTrigger className="w-[140px] h-9">
+                <SelectValue placeholder="اختر الفترة" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="week">اخر اسبوع</SelectItem>
+                <SelectItem value="month">اخر شهر</SelectItem>
+                <SelectItem value="threeMonths">اخر 3 شهور</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

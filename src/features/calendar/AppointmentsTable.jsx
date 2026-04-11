@@ -50,6 +50,7 @@ export default function AppointmentsTable({
   hasMore = false,
   isLoadingMore = false,
   onAppointmentUpdated,
+  clinicNameById,
 }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -144,6 +145,13 @@ export default function AppointmentsTable({
               onClick={() => handlePhoneClick(appointment.patient?.phone, appointment.patient?.name)}>
               {appointment.patient?.phone || "-"}
             </Button>
+            {appointment.clinic_id && (
+              <div className="mt-1">
+                <Badge variant="outline" className="text-[10px] h-5 px-2">
+                  {clinicNameById?.get?.(String(appointment.clinic_id)) || "فرع"}
+                </Badge>
+              </div>
+            )}
           </div>
         </div>
       ),

@@ -1,5 +1,5 @@
 import { ArrowRight, Phone, Calendar, Wallet, User, Edit, ClipboardList, Stethoscope, CreditCard, FileText, Upload, Plus, FileUp, Banknote, ClipboardPlus, X, MessageCircle, Shield, Trash2, AlertCircle, Loader2 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";

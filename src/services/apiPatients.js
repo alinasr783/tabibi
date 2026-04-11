@@ -3,6 +3,8 @@ import { dbg } from "../lib/debug"
 import { createFinancialRecord } from "./apiFinancialRecords"
 import { getAllItems, STORE_NAMES } from "../features/offline-mode/offlineDB"
 import { create as dsCreate, update as dsUpdate, remove as dsRemove } from "./dataService"
+import { resolveClinicIdentifiers, resolveClinicUuid } from "./clinicIds"
+import { assertClinicAllowed, getAllowedOwnerUserIdsForPermission } from "./clinicAccess"
 import {
   normalizePlanLimits,
   requireActiveSubscription,
@@ -15,11 +17,7 @@ export async function getPatients(search, page, pageSize, filters = {}) {
   })()
   const browserOffline = typeof navigator !== "undefined" && navigator.onLine === false
   if (offlineEnabled && browserOffline) {
-    const clinicUuid = (() => {
-      try { return localStorage.getItem("tabibi_clinic_id") } catch { return null }
-    })()
     let items = await getAllItems(STORE_NAMES.PATIENTS)
-    if (clinicUuid) items = items.filter((p) => String(p?.clinic_id || "") === String(clinicUuid))
 
     if (filters.gender) items = items.filter((p) => String(p?.gender || "") === String(filters.gender))
     if (filters.createdAfter) items = items.filter((p) => String(p?.created_at || "") >= String(filters.createdAfter))
@@ -42,17 +40,14 @@ export async function getPatients(search, page, pageSize, filters = {}) {
     return { items: pageItems, total: items.length }
   }
 
-  // Get current user's clinic_id
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) throw new Error("Not authenticated")
-
-  const { data: userData } = await supabase
-    .from("users")
-    .select("clinic_id")
-    .eq("user_id", session.user.id)
-    .single()
-
-  if (!userData?.clinic_id) throw new Error("User has no clinic assigned")
+  let allowedOwnerUserIds = []
+  try {
+    allowedOwnerUserIds = await getAllowedOwnerUserIdsForPermission("patients")
+  } catch {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.user?.id) allowedOwnerUserIds = [session.user.id]
+  }
+  if (allowedOwnerUserIds.length === 0) throw new Error("User has no clinic assigned")
 
 
   const from = Math.max(0, (page - 1) * pageSize)
@@ -70,9 +65,10 @@ export async function getPatients(search, page, pageSize, filters = {}) {
       blood_type,
       created_at,
       medical_history,
-      appointments(date, status)
+      owner_user_id,
+      appointments(date, status, clinic_id)
     `, { count: "exact" })
-    .eq("clinic_id", userData.clinic_id)
+    .in("owner_user_id", allowedOwnerUserIds)
     .order("created_at", { ascending: false })
     .range(from, to)
     
@@ -112,23 +108,15 @@ export async function createPatient(payload) {
     return dsCreate("patients", patientData)
   }
 
-  // Get current user's clinic_id
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) throw new Error("Not authenticated")
+  const clinicUuid = payload?.clinic_id || await resolveClinicUuid()
+  if (!clinicUuid) throw new Error("User has no clinic assigned")
+  await assertClinicAllowed("patients", clinicUuid)
 
-  const { data: userData } = await supabase
-    .from("users")
-    .select("clinic_id")
-    .eq("user_id", session.user.id)
-    .single()
-
-  if (!userData?.clinic_id) throw new Error("User has no clinic assigned")
-
-  const subscription = await requireActiveSubscription(userData.clinic_id)
+  const subscription = await requireActiveSubscription(clinicUuid)
   const limits = normalizePlanLimits(subscription?.plans?.limits)
 
   await assertMonthlyLimit({
-    clinicId: userData.clinic_id,
+    clinicId: clinicUuid,
     table: "patients",
     dateColumn: "created_at",
     monthDate: new Date(),
@@ -136,10 +124,28 @@ export async function createPatient(payload) {
     errorMessage: "لقد تجاوزت الحد المسموح من المرضى لهذا الشهر. يرجى ترقية الباقة.",
   })
 
-  // Add clinic_id to the patient data
+  let ownerUserId = null
+  try {
+    const { data: clinicRow } = await supabase
+      .from("clinics")
+      .select("owner_user_id")
+      .eq("clinic_uuid", clinicUuid)
+      .single()
+    ownerUserId = clinicRow?.owner_user_id || null
+  } catch {
+  }
+
+  if (!ownerUserId) {
+    const { data: { session } } = await supabase.auth.getSession()
+    ownerUserId = session?.user?.id || null
+  }
+
+  if (!ownerUserId) throw new Error("تعذر تحديد مالك الحساب")
+
+  const { clinic_id, owner_user_id, ...rest } = payload || {}
   const patientData = {
-    ...payload,
-    clinic_id: payload.clinic_id || userData.clinic_id
+    ...rest,
+    owner_user_id: ownerUserId,
   }
 
   const { data, error } = await supabase
@@ -200,12 +206,25 @@ export async function createPatientPublic(payload) {
     patientData.age = null;
   }
 
+  let ownerUserId = null
+  try {
+    const { data: clinicRow } = await supabase
+      .from("clinics")
+      .select("owner_user_id")
+      .eq("clinic_uuid", patientData.clinic_id)
+      .single()
+    ownerUserId = clinicRow?.owner_user_id || null
+  } catch {
+  }
+
+  if (!ownerUserId) throw new Error("تعذر تحديد مالك الحساب")
+
   const insertData = {
     name: patientData.name,
     phone: patientData.phone,
     gender: patientData.gender,
     age: patientData.age,
-    clinic_id: patientData.clinic_id,
+    owner_user_id: ownerUserId,
   }
 
   dbg("booking/createPatientPublic/sanitized", {
@@ -233,34 +252,31 @@ export async function getPatientById(id) {
   // Debug: Log the ID being used for fetching
   console.log("getPatientById called with ID:", id);
 
-  // Get current user's clinic_id for security
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) throw new Error("Not authenticated")
-
-  const { data: userData } = await supabase
-    .from("users")
-    .select("clinic_id")
-    .eq("user_id", session.user.id)
-    .single()
-
-  if (!userData?.clinic_id) throw new Error("User has no clinic assigned")
+  let allowedOwnerUserIds = []
+  try {
+    allowedOwnerUserIds = await getAllowedOwnerUserIdsForPermission("patients")
+  } catch {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.user?.id) allowedOwnerUserIds = [session.user.id]
+  }
+  if (allowedOwnerUserIds.length === 0) throw new Error("User has no clinic assigned")
 
   // Query patients table - using id and clinic_id
   // Note: The id might be a number or UUID, and clinic_id might be a number or UUID
   // depending on the actual database schema
   const { data, error } = await supabase
     .from("patients")
-    .select("id,name,phone,gender,address,date_of_birth,age,blood_type,job,marital_status,email,medical_history,insurance_info,age_unit,notes,custom_fields,summary,ai_chat_log")
+    .select("id,name,phone,gender,address,date_of_birth,age,blood_type,job,marital_status,email,medical_history,insurance_info,age_unit,notes,custom_fields,summary,ai_chat_log,owner_user_id")
     .eq("id", id.toString())  // Convert to string to handle both number and UUID IDs
-    .eq("clinic_id", userData.clinic_id)
+    .in("owner_user_id", allowedOwnerUserIds)
     .single()
   if (error) {
     console.error("Error fetching patient by ID:", error);
-    console.error("Attempted to fetch patient ID:", id, "for clinic:", userData.clinic_id);
+    console.error("Attempted to fetch patient ID:", id, "for ownerUserIds:", allowedOwnerUserIds);
 
     // Check if the error is because the patient doesn't exist
     if (error.code === 'PGRST116' && error.details === 'The result contains 0 rows') {
-      console.warn(`Patient with ID ${id} not found in clinic ${userData.clinic_id}`);
+      console.warn(`Patient with ID ${id} not found in clinics`);
       return null; // Return null instead of throwing for missing patient
     }
 
@@ -278,29 +294,26 @@ export async function updatePatient(id, payload) {
     return dsUpdate("patients", id, { ...payload, updated_at: new Date().toISOString() })
   }
 
-  // Get current user's clinic_id for security
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) throw new Error("Not authenticated")
-
-  const { data: userData } = await supabase
-    .from("users")
-    .select("clinic_id")
-    .eq("user_id", session.user.id)
-    .single()
-
-  if (!userData?.clinic_id) throw new Error("User has no clinic assigned")
+  let allowedOwnerUserIds = []
+  try {
+    allowedOwnerUserIds = await getAllowedOwnerUserIdsForPermission("patients")
+  } catch {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.user?.id) allowedOwnerUserIds = [session.user.id]
+  }
+  if (allowedOwnerUserIds.length === 0) throw new Error("User has no clinic assigned")
 
   // Update patient - convert id to string to handle both number and UUID IDs
   const { data, error } = await supabase
     .from("patients")
     .update(payload)
     .eq("id", id.toString())  // Convert to string to handle both number and UUID IDs
-    .eq("clinic_id", userData.clinic_id)
+    .in("owner_user_id", allowedOwnerUserIds)
     .select()
     .single()
   if (error) {
     console.error("Error updating patient:", error);
-    console.error("Attempted to update patient ID:", id, "for clinic:", userData.clinic_id);
+    console.error("Attempted to update patient ID:", id, "for ownerUserIds:", allowedOwnerUserIds);
     throw error
   }
   return data
@@ -316,38 +329,49 @@ export async function deletePatient(id) {
         return
     }
 
-    // Get current user's clinic_id for security
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) throw new Error("Not authenticated")
-
-    const { data: userData } = await supabase
-        .from("users")
-        .select("clinic_id, clinic_id_bigint")
-        .eq("user_id", session.user.id)
-        .single()
-
-    if (!userData?.clinic_id) throw new Error("User has no clinic assigned")
-
-    // Get clinic_id_bigint for financial_records if not in userData
-    let clinicIdBigint = userData.clinic_id_bigint
-    if (!clinicIdBigint) {
-        const { data: clinicData } = await supabase
-            .from("clinics")
-            .select("clinic_id_bigint, id")
-            .eq("clinic_uuid", userData.clinic_id)
-            .single()
-        
-        clinicIdBigint = clinicData?.clinic_id_bigint || clinicData?.id
+    let allowedOwnerUserIds = []
+    try {
+        allowedOwnerUserIds = await getAllowedOwnerUserIdsForPermission("patients")
+    } catch {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.user?.id) allowedOwnerUserIds = [session.user.id]
     }
+    if (allowedOwnerUserIds.length === 0) throw new Error("User has no clinic assigned")
 
     const patientIdStr = id.toString();
+
+    const { data: patientRow } = await supabase
+        .from("patients")
+        .select("owner_user_id")
+        .eq("id", patientIdStr)
+        .in("owner_user_id", allowedOwnerUserIds)
+        .maybeSingle()
+
+    const ownerUserId = patientRow?.owner_user_id
+    if (!ownerUserId) throw new Error("المريض غير موجود")
+
+    const { data: clinics } = await supabase
+        .from("clinics")
+        .select("clinic_uuid, clinic_id_bigint, id")
+        .eq("owner_user_id", ownerUserId)
+
+    const clinicUuids = (clinics || []).map((c) => c.clinic_uuid).filter(Boolean)
+    const clinicBigints = (clinics || []).map((c) => c.clinic_id_bigint || c.id).filter((v) => v != null)
+
+    let clinicIdBigint = null
+    try {
+        clinicIdBigint = clinicBigints?.[0] || null
+    } catch {
+        const res = await resolveClinicIdentifiers()
+        clinicIdBigint = res?.clinicIdBigint || null
+    }
 
     // 1. Delete notifications
     await supabase
         .from("notifications")
         .delete()
         .eq("patient_id", patientIdStr)
-        .eq("clinic_id", userData.clinic_id);
+        .in("clinic_id", clinicUuids);
 
     // 2. Delete related records for each appointment
     // First, get all appointment IDs for this patient
@@ -355,7 +379,7 @@ export async function deletePatient(id) {
         .from("appointments")
         .select("id")
         .eq("patient_id", patientIdStr)
-        .eq("clinic_id", userData.clinic_id);
+        .in("clinic_id", clinicUuids);
 
     if (appointments?.length > 0) {
         const appointmentIds = appointments.map(app => app.id.toString());
@@ -382,7 +406,7 @@ export async function deletePatient(id) {
         .from("visits")
         .delete()
         .eq("patient_id", patientIdStr)
-        .eq("clinic_id", userData.clinic_id);
+        .in("clinic_id", clinicUuids);
 
     // 4. Delete financial records linked directly to patient
     if (clinicIdBigint) {
@@ -433,7 +457,7 @@ export async function deletePatient(id) {
         .from("patients")
         .delete()
         .eq("id", patientIdStr)
-        .eq("clinic_id", userData.clinic_id)
+        .eq("owner_user_id", ownerUserId)
 
     if (error) {
         console.error("Error deleting patient:", error);
@@ -442,30 +466,7 @@ export async function deletePatient(id) {
 }
 
 export async function getPatientFinancialData(patientId) {
-  // Get current user's clinic_id
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error("Not authenticated");
-
-  const { data: userData } = await supabase
-    .from("users")
-    .select("clinic_id, clinic_id_bigint")
-    .eq("user_id", session.user.id)
-    .single();
-
-  if (!userData?.clinic_id) throw new Error("User has no clinic assigned");
-
-  // Get clinic_id_bigint for financial_records
-  let clinicIdBigint = userData?.clinic_id_bigint
-  
-  if (!clinicIdBigint && userData?.clinic_id) {
-      const { data: clinicData } = await supabase
-          .from("clinics")
-          .select("clinic_id_bigint, id")
-          .eq("clinic_uuid", userData.clinic_id)
-          .single()
-      
-      clinicIdBigint = clinicData?.clinic_id_bigint || clinicData?.id
-  }
+  const { clinicIdBigint } = await resolveClinicIdentifiers()
 
   // Get financial records (transactions)
   let transactions = [];
@@ -543,34 +544,33 @@ export async function addPatientTransaction(payload) {
 
 export async function getPatientStats(startDate) {
   try {
-    // Get current user's clinic_id
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return { maleCount: 0, femaleCount: 0, totalCount: 0 }
 
-    const { data: userData } = await supabase
-      .from("users")
-      .select("clinic_id")
-      .eq("user_id", session.user.id)
-      .single()
-
-    if (!userData?.clinic_id) return { maleCount: 0, femaleCount: 0, totalCount: 0 }
+    let allowedOwnerUserIds = []
+    try {
+      allowedOwnerUserIds = await getAllowedOwnerUserIdsForPermission("patients")
+    } catch {
+      if (session?.user?.id) allowedOwnerUserIds = [session.user.id]
+    }
+    if (allowedOwnerUserIds.length === 0) return { maleCount: 0, femaleCount: 0, totalCount: 0 }
 
     let maleQuery = supabase
       .from("patients")
       .select("*", { count: "exact", head: true })
-      .eq("clinic_id", userData.clinic_id)
+      .in("owner_user_id", allowedOwnerUserIds)
       .eq("gender", "male")
 
     let femaleQuery = supabase
       .from("patients")
       .select("*", { count: "exact", head: true })
-      .eq("clinic_id", userData.clinic_id)
+      .in("owner_user_id", allowedOwnerUserIds)
       .eq("gender", "female")
       
     let totalQuery = supabase
       .from("patients")
       .select("*", { count: "exact", head: true })
-      .eq("clinic_id", userData.clinic_id)
+      .in("owner_user_id", allowedOwnerUserIds)
 
     if (startDate) {
       maleQuery = maleQuery.gte("created_at", startDate)

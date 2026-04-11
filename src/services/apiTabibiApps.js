@@ -263,6 +263,34 @@ export async function getInstalledApps(clinicId) {
     });
 }
 
+export async function getInstalledAppsForClinics(clinicIds) {
+  const ids = Array.isArray(clinicIds) ? clinicIds.filter(Boolean) : []
+  if (ids.length === 0) return []
+
+  const all = await Promise.all(
+    ids.map(async (cid) => {
+      try {
+        const apps = await getInstalledApps(cid)
+        return (apps || []).map((a) => ({ ...a, __clinic_id: cid }))
+      } catch {
+        return []
+      }
+    })
+  )
+
+  const merged = []
+  const seen = new Set()
+  for (const arr of all) {
+    for (const app of arr) {
+      const key = String(app?.component_key || app?.id || "")
+      if (!key || seen.has(key)) continue
+      seen.add(key)
+      merged.push(app)
+    }
+  }
+  return merged
+}
+
 async function installAppV2(clinicId, appId) {
   const numericAppId = Number(appId);
 

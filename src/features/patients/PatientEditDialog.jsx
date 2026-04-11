@@ -7,6 +7,7 @@ import toast from "react-hot-toast"
 import { uploadPatientAttachment } from "../../services/apiAttachments"
 import { X } from "lucide-react"
 import { useOfflineData } from "../offline-mode/useOfflineData"
+import { resolveClinicUuid } from "../../services/clinicIds"
 
 export default function PatientEditDialog({ open, onClose, patient }) {
   const { mutateAsync, isPending } = useUpdatePatient()
@@ -46,10 +47,11 @@ export default function PatientEditDialog({ open, onClose, patient }) {
 
       // Handle attachments if any
       if (attachments && attachments.length > 0 && !String(patient?.id || "").startsWith("local_")) {
+        const clinicUuid = await resolveClinicUuid()
         const uploadPromises = attachments.map(file => 
           uploadPatientAttachment({
             patientId: patient.id,
-            clinicId: patient.clinic_id, // Assuming patient object has clinic_id
+            clinicId: clinicUuid,
             file: file,
             category: 'initial_upload',
             description: 'Uploaded during patient update'

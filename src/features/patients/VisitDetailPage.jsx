@@ -23,6 +23,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Badge } from "../../components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../components/ui/tabs";
 import {
     Dialog,
@@ -64,6 +65,7 @@ import {
   normalizeMedicalFieldsConfig,
 } from "../../lib/medicalFieldsConfig";
 import { useOffline } from "../offline-mode/OfflineContext";
+import useUserClinics from "../clinic/useUserClinics";
 
 export default function VisitDetailPage() {
   const {visitId} = useParams();
@@ -71,6 +73,12 @@ export default function VisitDetailPage() {
   const {data: visit, isLoading, error} = useVisit(visitId);
   const {data: clinic} = useClinic();
   const {user} = useAuth();
+  const { data: clinics } = useUserClinics();
+  const clinicNameById = useMemo(() => {
+    const m = new Map();
+    (clinics || []).forEach((c) => m.set(String(c.clinic_uuid), c.name || "فرع"));
+    return m;
+  }, [clinics]);
   const {data: planData} = usePlan();
   const { data: preferences } = useUserPreferences();
   const navigate = useNavigate();
@@ -677,6 +685,13 @@ export default function VisitDetailPage() {
               : "غير محدد"
             }
           </div>
+          {visit?.clinic_id && (
+            <div className="mt-2">
+              <Badge variant="outline" className="text-[10px] h-5 px-2">
+                {clinicNameById.get(String(visit.clinic_id)) || "فرع"}
+              </Badge>
+            </div>
+          )}
         </div>
       </div>
 

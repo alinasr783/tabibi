@@ -1,13 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { getInstalledApps } from "../../services/apiTabibiApps";
-import { useAuth } from "../auth/AuthContext";
+import useClinic from "../auth/useClinic";
 
 export default function useInstalledApps() {
-    const { user } = useAuth();
-    const clinicId = user?.clinic_id;
+    const { data: clinic } = useClinic();
+    const clinicId = clinic?.clinic_uuid;
 
     return useQuery({
-        queryKey: ["installedApps", clinicId],
+        queryKey: ["installed_apps", clinicId],
         queryFn: () => getInstalledApps(clinicId),
         enabled: !!clinicId,
     });

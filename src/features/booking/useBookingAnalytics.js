@@ -31,8 +31,16 @@ export const useBookingAnalytics = (clinicId) => {
   const [geoData, setGeoData] = useState(null);
   const sessionIdRef = useRef(generateUUID());
   const hasLoggedViewRef = useRef(false);
-  const draftIdRef = useRef(null);
+  const draftIdRef = useRef(generateUUID());
   const isConvertedRef = useRef(false);
+
+  useEffect(() => {
+    if (!clinicId) return;
+    hasLoggedViewRef.current = false;
+    isConvertedRef.current = false;
+    sessionIdRef.current = generateUUID();
+    draftIdRef.current = generateUUID();
+  }, [clinicId]);
 
   // Fetch Geo Data
   useEffect(() => {
@@ -77,6 +85,7 @@ export const useBookingAnalytics = (clinicId) => {
       if (!clinicId || isConvertedRef.current) return;
       
       const payload = {
+            id: draftIdRef.current,
             clinic_id: clinicId,
             visitor_id: visitorId,
             session_id: sessionIdRef.current,
@@ -92,19 +101,13 @@ export const useBookingAnalytics = (clinicId) => {
             selected_time: data?.time || data?.selectedTime
       };
       
-      if (draftIdRef.current) {
-          payload.id = draftIdRef.current;
-      }
-      
       try {
-          const { data: saved, error } = await supabase
+          const { error } = await supabase
             .from('booking_drafts')
-            .upsert(payload)
-            .select()
-            .single();
-            
-          if (saved) {
-              draftIdRef.current = saved.id;
+            .upsert(payload, { onConflict: "id" });
+
+          if (error) {
+            console.error('Error saving draft:', error);
           }
       } catch (err) {
           console.error('Error saving draft:', err);
@@ -180,7 +183,7 @@ export const useBookingAnalytics = (clinicId) => {
         if (draftIdRef.current) {
             await supabase
               .from('booking_drafts')
-              .update({ status: 'abandoned', form_data: { ...draftIdRef.current?.form_data, blocked: true } })
+              .update({ status: 'abandoned' })
               .eq('id', draftIdRef.current);
         }
     } catch (err) {

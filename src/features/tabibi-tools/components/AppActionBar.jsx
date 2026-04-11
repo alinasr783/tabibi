@@ -74,9 +74,12 @@ export default function AppActionBar({ app, isInstalled, subscription, uninstall
           border: '1px solid #BBF7D0',
         },
       });
-      queryClient.invalidateQueries(["installed_apps"]);
-      queryClient.invalidateQueries(["clinicWallet"]);
-      queryClient.invalidateQueries(["walletTransactions"]);
+      queryClient.invalidateQueries({ queryKey: ["installed_apps", clinic?.clinic_uuid] });
+      queryClient.invalidateQueries({ queryKey: ["installed_apps"] });
+      queryClient.invalidateQueries({ queryKey: ["installedApps"] });
+      queryClient.invalidateQueries({ queryKey: ["clinicWallet", clinic?.clinic_uuid] });
+      queryClient.invalidateQueries({ queryKey: ["clinicWallet"] });
+      queryClient.invalidateQueries({ queryKey: ["walletTransactions"] });
     },
     onError: (err) => {
       toast.error(`خطأ في الاشتراك: ${err.message}`, {
@@ -90,7 +93,9 @@ export default function AppActionBar({ app, isInstalled, subscription, uninstall
     onSuccess: (data) => {
       const status = data.is_integrated ? "تفعيل" : "إلغاء";
       toast.success(`تم ${status} الدمج بنجاح`);
-      queryClient.invalidateQueries(["installed_apps"]);
+      queryClient.invalidateQueries({ queryKey: ["installed_apps", clinic?.clinic_uuid] });
+      queryClient.invalidateQueries({ queryKey: ["installed_apps"] });
+      queryClient.invalidateQueries({ queryKey: ["installedApps"] });
     },
     onError: (err) => {
       toast.error(`حدث خطأ: ${err.message}`);

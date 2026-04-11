@@ -16,10 +16,12 @@ import PatientCreateDialog from "../patients/PatientCreateDialog";
 import useSearchPatients from "./useSearchPatients";
 import useCreateAppointmentHandler from "./useCreateAppointmentHandler";
 import useClinic from "../auth/useClinic";
+import useUserClinics from "../clinic/useUserClinics";
 import { Card, CardContent } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
 import toast from "react-hot-toast";
 import { ScrollArea } from "../../components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 
 export default function AppointmentCreateDialog({ open, onClose, initialPatient }) {
   const {
@@ -39,6 +41,8 @@ export default function AppointmentCreateDialog({ open, onClose, initialPatient 
   
   const { handleAppointmentSubmit, isPending } = useCreateAppointmentHandler();
   const { data: clinicData } = useClinic();
+  const { data: clinics } = useUserClinics();
+  const [selectedClinicUuid, setSelectedClinicUuid] = useState(null);
   const [patientSearch, setPatientSearch] = useState("");
   const [selectedPatient, setSelectedPatient] = useState(initialPatient || null);
   const [showPatientDialog, setShowPatientDialog] = useState(false);
@@ -46,7 +50,14 @@ export default function AppointmentCreateDialog({ open, onClose, initialPatient 
   const [selectedTime, setSelectedTime] = useState(null);
   const [step, setStep] = useState(initialPatient ? 2 : 1);
   const [autoSelectEnabled, setAutoSelectEnabled] = useState(true);
-  const { data: searchResults, isLoading: isSearching } = useSearchPatients(patientSearch);
+  const { data: searchResults, isLoading: isSearching } = useSearchPatients(patientSearch, selectedClinicUuid || clinicData?.clinic_uuid);
+
+  useEffect(() => {
+    if (!open) return;
+    const current = clinicData?.clinic_uuid;
+    if (!current) return;
+    setSelectedClinicUuid((prev) => prev || current);
+  }, [open, clinicData?.clinic_uuid]);
 
   useEffect(() => {
     if (initialPatient && open) {
@@ -60,6 +71,7 @@ export default function AppointmentCreateDialog({ open, onClose, initialPatient 
 
   const watchPrice = watch("price");
   const watchNotes = watch("notes");
+  const selectedClinic = (clinics || []).find((c) => String(c?.clinic_uuid || "") === String(selectedClinicUuid || "")) || clinicData;
 
   // إعادة تعيين النموذج عند الإغلاق
   const handleClose = () => {
@@ -72,6 +84,7 @@ export default function AppointmentCreateDialog({ open, onClose, initialPatient 
     setSelectedDate(null);
     setSelectedTime(null);
     setAutoSelectEnabled(true); // Reset auto-select for next time
+    setSelectedClinicUuid(null);
     onClose();
   };
 
@@ -123,7 +136,7 @@ export default function AppointmentCreateDialog({ open, onClose, initialPatient 
     }
     
     // التحقق من أن clinic_id هو UUID صالح
-    const clinicUuid = clinicData?.clinic_uuid;
+    const clinicUuid = selectedClinicUuid || clinicData?.clinic_uuid;
     if (!clinicUuid) {
       toast.error("خطأ في تحميل بيانات العيادة");
       return;
@@ -258,6 +271,34 @@ export default function AppointmentCreateDialog({ open, onClose, initialPatient 
               {/* الخطوة 1: اختيار المريض والموعد */}
               {step === 1 && (
                 <div className="space-y-5">
+                  {(clinics || []).length > 1 && (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">الفرع</Label>
+                      <Select
+                        value={selectedClinicUuid || ""}
+                        onValueChange={(v) => {
+                          setSelectedClinicUuid(v)
+                          setSelectedPatient(null)
+                          setPatientSearch("")
+                          setSelectedDate(null)
+                          setSelectedTime(null)
+                          setAutoSelectEnabled(true)
+                        }}
+                      >
+                        <SelectTrigger className="h-11">
+                          <SelectValue placeholder="اختر فرع" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(clinics || []).map((c) => (
+                            <SelectItem key={c.clinic_uuid} value={c.clinic_uuid}>
+                              {c.name || c.clinic_uuid}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
                   {/* اختيار المريض */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
@@ -393,7 +434,7 @@ export default function AppointmentCreateDialog({ open, onClose, initialPatient 
                         onDateChange={handleDateChange}
                         selectedTime={selectedTime}
                         onTimeChange={handleTimeChange}
-                        clinicAvailableTime={clinicData?.available_time}
+                        clinicAvailableTime={selectedClinic?.available_time}
                         autoSelectFirstAvailable={autoSelectEnabled}
                         className="w-full"
                       />
@@ -601,6 +642,7 @@ export default function AppointmentCreateDialog({ open, onClose, initialPatient 
         open={showPatientDialog}
         onClose={() => setShowPatientDialog(false)}
         onPatientCreated={handlePatientCreated}
+        clinicId={selectedClinicUuid || clinicData?.clinic_uuid}
       />
     </>
   );

@@ -1,5 +1,6 @@
 import supabase from "./supabase"
 import { generateClinicId } from "../lib/clinicIdGenerator"
+import { resolveClinicUuid } from "./clinicIds"
 import {
   normalizePlanLimits,
   requireActiveSubscription,
@@ -371,6 +372,29 @@ export async function getCurrentUser() {
                     permissions = [];
                 }
             }
+
+            if (userData.role !== "doctor") {
+                try {
+                    const clinicUuid = await resolveClinicUuid()
+                    if (clinicUuid) {
+                        const { data: mem } = await supabase
+                            .from("clinic_memberships")
+                            .select("permissions")
+                            .eq("user_id", session.user.id)
+                            .eq("clinic_id", clinicUuid)
+                            .maybeSingle()
+
+                        const p = mem?.permissions
+                        if (Array.isArray(p)) permissions = p
+                        else if (typeof p === "string") {
+                            try { permissions = JSON.parse(p) } catch { permissions = [] }
+                        } else if (p && typeof p === "object") {
+                            permissions = []
+                        }
+                    }
+                } catch {
+                }
+            }
             
             // Merge session user data with our user data
             const mergedUser = {
@@ -454,20 +478,48 @@ export async function getClinicSecretaries(clinicId) {
         throw new Error("معرف العيادة مطلوب")
     }
 
-    const { data, error } = await supabase
-        .from("users")
-        .select("user_id, name, email, phone, created_at, permissions")
-        .eq("clinic_id", clinicId) // Use clinic_id instead of clinic_id_bigint
-        .eq("role", "secretary")
-        .order("created_at", { ascending: false })
+    try {
+        const { data: memberships, error: mErr } = await supabase
+            .from("clinic_memberships")
+            .select("user_id, permissions, created_at")
+            .eq("clinic_id", clinicId)
+            .eq("role", "secretary")
+            .order("created_at", { ascending: false })
 
-    if (error) throw error
-    return data
+        if (mErr) throw mErr
+
+        const ids = (memberships || []).map((m) => m.user_id).filter(Boolean)
+        if (ids.length === 0) return []
+
+        const { data: usersData, error: uErr } = await supabase
+            .from("users")
+            .select("user_id, name, email, phone, created_at")
+            .in("user_id", ids)
+            .order("created_at", { ascending: false })
+
+        if (uErr) throw uErr
+
+        const permsByUser = new Map((memberships || []).map((m) => [String(m.user_id), m.permissions]))
+        return (usersData || []).map((u) => ({ ...u, permissions: permsByUser.get(String(u.user_id)) || [] }))
+    } catch (e) {
+        const { data, error } = await supabase
+            .from("users")
+            .select("user_id, name, email, phone, created_at, permissions")
+            .eq("clinic_id", clinicId)
+            .eq("role", "secretary")
+            .order("created_at", { ascending: false })
+
+        if (error) throw error
+        return data
+    }
 }
 
-export async function addSecretary({ name, email, password, phone, clinicId, permissions = [] }) {
+export async function addSecretary({ name, email, password, phone, clinicId, clinicIds, permissions = [] }) {
   // Validate inputs
-  if (!name || !email || !password || !clinicId) {
+  const clinicIdsList = Array.isArray(clinicIds) && clinicIds.length > 0 ? clinicIds : (clinicId ? [clinicId] : [])
+  const primaryClinicId = clinicIdsList[0]
+
+  if (!name || !email || !password || !primaryClinicId) {
     throw new Error("لازم تدخل كل البيانات");
   }
 
@@ -475,11 +527,11 @@ export async function addSecretary({ name, email, password, phone, clinicId, per
     throw new Error("كلمة السر لازم 6 أحرف على الأقل");
   }
 
-  const subscription = await requireActiveSubscription(clinicId)
+  const subscription = await requireActiveSubscription(primaryClinicId)
   const limits = normalizePlanLimits(subscription?.plans?.limits)
 
   await assertCountLimit({
-    clinicId,
+    clinicId: primaryClinicId,
     table: "users",
     maxAllowed: limits.maxSecretaries,
     errorMessage: "لقد تجاوزت الحد المسموح من السكرتارية. يرجى ترقية الباقة.",
@@ -531,7 +583,7 @@ export async function addSecretary({ name, email, password, phone, clinicId, per
       name,
       phone: phone || "",
       role: "secretary",
-      clinic_id: clinicId,
+      clinic_id: primaryClinicId,
       permissions: permissions.length > 0 ? permissions : ["dashboard", "calendar", "patients"],
     },
   ]);
@@ -539,6 +591,20 @@ export async function addSecretary({ name, email, password, phone, clinicId, per
   if (insertError) {
     console.error("Failed to insert user data:", insertError);
     throw new Error("حصل خطأ في إضافة بيانات الموظف");
+  }
+
+  try {
+    const perms = permissions.length > 0 ? permissions : ["dashboard", "calendar", "patients"]
+    const membershipRows = clinicIdsList.map((cid) => ({
+      user_id: authData.user.id,
+      clinic_id: cid,
+      role: "secretary",
+      permissions: perms,
+    }))
+    if (membershipRows.length > 0) {
+      await supabase.from("clinic_memberships").upsert(membershipRows, { onConflict: "user_id,clinic_id" })
+    }
+  } catch {
   }
 
   return authData.user;
@@ -593,6 +659,21 @@ export async function updateSecretaryPermissions(secretaryId, permissions) {
     // Validate inputs
     if (!secretaryId) {
         throw new Error("معرف السكرتير مطلوب")
+    }
+
+    const clinicUuid = await resolveClinicUuid()
+
+    try {
+        if (clinicUuid) {
+            const { error: mErr } = await supabase
+                .from("clinic_memberships")
+                .upsert(
+                    { user_id: secretaryId, clinic_id: clinicUuid, role: "secretary", permissions },
+                    { onConflict: "user_id,clinic_id" }
+                )
+            if (mErr) throw mErr
+        }
+    } catch {
     }
 
     const { data, error } = await supabase

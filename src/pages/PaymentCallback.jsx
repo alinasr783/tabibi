@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 
 import supabase from '@/services/supabase';
+import { resolveClinicUuid } from '@/services/clinicIds';
 
 export default function PaymentCallback() {
   const [searchParams] = useSearchParams();
@@ -252,6 +253,7 @@ export default function PaymentCallback() {
       }
 
       const pendingMethod = localStorage.getItem('pending_payment_method');
+      const activeClinicUuid = await resolveClinicUuid();
 
       if (tx.type === 'subscription') {
         const planIdLocal = localStorage.getItem('pending_subscription_plan_id');
@@ -264,9 +266,9 @@ export default function PaymentCallback() {
         const amount = amountLocal ? parseFloat(amountLocal) : tx.amount || 0;
         const discountId = discountIdLocal || tx.metadata?.discountId;
 
-        if (planId && user?.clinic_id) {
+        if (planId && activeClinicUuid) {
           await createSubscription({
-            clinicId: user.clinic_id,
+            clinicId: activeClinicUuid,
             planId,
             billingPeriod,
             amount
@@ -300,13 +302,13 @@ export default function PaymentCallback() {
         }
       } else {
         try {
-          if (tx.type === 'wallet' && user?.clinic_id && tx.amount) {
+          if (tx.type === 'wallet' && activeClinicUuid && tx.amount) {
             const referenceId = ekRef || ekCustomerRef;
 
             const { data: wallet } = await supabase
               .from('clinic_wallets')
               .select('id, balance')
-              .eq('clinic_id', user.clinic_id)
+              .eq('clinic_id', activeClinicUuid)
               .maybeSingle();
 
             let walletId = wallet?.id;
@@ -315,7 +317,7 @@ export default function PaymentCallback() {
             if (!walletId) {
               const { data: newWallet } = await supabase
                 .from('clinic_wallets')
-                .insert({ clinic_id: user.clinic_id, balance: 0 })
+                .insert({ clinic_id: activeClinicUuid, balance: 0 })
                 .select('id, balance')
                 .single();
 

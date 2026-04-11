@@ -16,6 +16,11 @@ import { Input } from "../../components/ui/input";
 import DataTable from "../../components/ui/table";
 import supabase from "../../services/supabase";
 import { SkeletonLine } from "../../components/ui/skeleton";
+import useUserClinics from "../clinic/useUserClinics";
+import useClinic from "../auth/useClinic";
+import { setActiveClinic } from "../../services/apiClinic";
+import { resolveClinicUuid } from "../../services/clinicIds";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 
 const statusMap = {
   pending: { label: "جديد", variant: "warning" },
@@ -61,6 +66,8 @@ export default function WorkModePage() {
   const [statusFilter, setStatusFilter] = useState(null);
   const [query, setQuery] = useState("");
   const [weeklyNewCount, setWeeklyNewCount] = useState(0);
+  const { data: clinics } = useUserClinics();
+  const { data: clinic } = useClinic();
 
   // Fetch appointments for today
   const dateFilter = useMemo(() => ({ date: new Date() }), [new Date().toDateString()]);
@@ -97,16 +104,8 @@ export default function WorkModePage() {
   useEffect(() => {
     const fetchWeeklyCount = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return;
-        
-        const { data: userData } = await supabase
-          .from("users")
-          .select("clinic_id")
-          .eq("user_id", session.user.id)
-          .single();
-          
-        if (!userData?.clinic_id) return;
+        const clinicUuid = await resolveClinicUuid();
+        if (!clinicUuid) return;
 
         const now = new Date();
         const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
@@ -114,7 +113,7 @@ export default function WorkModePage() {
         const { count } = await supabase
           .from("appointments")
           .select("*", { count: "exact", head: true })
-          .eq("clinic_id", userData.clinic_id)
+          .eq("clinic_id", clinicUuid)
           .gte("created_at", weekStart);
           
         setWeeklyNewCount(count || 0);
@@ -347,6 +346,43 @@ export default function WorkModePage() {
           تحديث
         </Button>
       </div>
+
+      {(clinics || []).length > 1 && (
+        <Card className="bg-card/70 border border-border/50">
+          <CardContent className="py-4">
+            <div className="flex flex-col md:flex-row md:items-center gap-3">
+              <div className="text-sm font-medium text-foreground">الفرع</div>
+              <div className="flex-1">
+                <Select
+                  value={clinic?.clinic_uuid || ""}
+                  onValueChange={async (v) => {
+                    try {
+                      await setActiveClinic(v)
+                      queryClient.invalidateQueries({ queryKey: ["clinic"] })
+                      queryClient.invalidateQueries({ queryKey: ["appointments"] })
+                      queryClient.invalidateQueries({ queryKey: ["patients"] })
+                      refetch()
+                    } catch (e) {
+                      toast.error(e?.message || "تعذر تغيير الفرع")
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="اختر عيادة" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(clinics || []).map((c) => (
+                      <SelectItem key={c.clinic_uuid} value={c.clinic_uuid}>
+                        {c.name || c.clinic_uuid}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

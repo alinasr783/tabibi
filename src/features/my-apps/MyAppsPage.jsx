@@ -1,20 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
-import { getInstalledApps } from "../../services/apiTabibiApps";
-import useClinic from "../auth/useClinic";
+import { getInstalledAppsForClinics } from "../../services/apiTabibiApps";
 import { Loader2, Zap } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { APPS_ICON_REGISTRY } from "../tabibi-tools/appsRegistry.jsx";
+import useUserClinics from "../clinic/useUserClinics";
 
 export default function MyAppsPage() {
-  const { data: clinic } = useClinic();
-  const clinicId = clinic?.clinic_uuid;
+  const { data: clinics } = useUserClinics();
   const navigate = useNavigate();
 
   const { data: installedApps = [], isLoading, error } = useQuery({
-    queryKey: ['installed_apps', clinicId],
-    queryFn: () => getInstalledApps(clinicId),
-    enabled: !!clinicId
+    queryKey: ['installed_apps', 'all-clinics', (clinics || []).map((c) => c.clinic_uuid).join("|")],
+    queryFn: () => getInstalledAppsForClinics((clinics || []).map((c) => c.clinic_uuid)),
+    enabled: (clinics || []).length > 0
   });
 
   if (isLoading) {

@@ -142,7 +142,7 @@ function AddPlanDialog({ open, onClose, patientId, onPlanCreated }) {
     )
 }
 
-export default function VisitCreateForm({ patientId, patientPlanId: externalPatientPlanId, appointmentId, onVisitCreated, onCancel }) {
+export default function VisitCreateForm({ patientId, patientPlanId: externalPatientPlanId, appointmentId, clinicId, onVisitCreated, onCancel }) {
     const [diagnosis, setDiagnosis] = useState("")
     const [notes, setNotes] = useState("")
     const [treatment, setTreatment] = useState("")
@@ -402,7 +402,8 @@ export default function VisitCreateForm({ patientId, patientPlanId: externalPati
         const visitData = {
             patient_id: patientId,
             diagnosis,
-            notes
+            notes,
+            clinic_id: clinicId
         }
 
         if (visitFields.treatment?.enabled !== false && treatment.trim()) {

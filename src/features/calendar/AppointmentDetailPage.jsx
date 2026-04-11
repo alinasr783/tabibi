@@ -80,6 +80,7 @@ import {
   normalizeMedicalFieldsConfig,
 } from "../../lib/medicalFieldsConfig";
 import { useOffline } from "../offline-mode/OfflineContext";
+import useUserClinics from "../clinic/useUserClinics";
 
 export default function AppointmentDetailPage() {
   useScrollToTop(); // Auto scroll to top on page load
@@ -89,6 +90,12 @@ export default function AppointmentDetailPage() {
   const {data: patientAppointments} = usePatientAppointments(appointment?.patient?.id);
   const { data: preferences } = useUserPreferences();
   const navigate = useNavigate();
+  const { data: clinics } = useUserClinics();
+  const clinicNameById = useMemo(() => {
+    const m = new Map();
+    (clinics || []).forEach((c) => m.set(String(c.clinic_uuid), c.name || "فرع"));
+    return m;
+  }, [clinics]);
   const {handleAppointmentUpdate, isPending: isUpdating} = useUpdateAppointmentHandler();
   const {mutate: deleteAppointment, isPending: isDeleting} = useDeleteAppointment();
 
@@ -633,6 +640,13 @@ export default function AppointmentDetailPage() {
               <p className="text-xs text-muted-foreground">
                 تاريخ الإنشاء: {format(new Date(appointment?.created_at || appointment?.date || Date.now()), "d MMM yyyy - hh:mm a", {locale: ar})}
               </p>
+              {appointment?.clinic_id && (
+                <div className="mt-2">
+                  <Badge variant="outline" className="text-[10px] h-5 px-2">
+                    {clinicNameById.get(String(appointment.clinic_id)) || "فرع"}
+                  </Badge>
+                </div>
+              )}
             </div>
           </div>
         </div>

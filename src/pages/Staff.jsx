@@ -41,6 +41,7 @@ import useUpdateSecretaryPermissions from "../features/clinic/useUpdateSecretary
 import { SECRETARY_PERMISSIONS } from "../features/clinic/clinicUtils";
 import { toast } from "react-hot-toast";
 import SortableStat from "../components/ui/sortable-stat";
+import useUserClinics from "../features/clinic/useUserClinics";
 import {
   Dialog,
   DialogContent,
@@ -81,13 +82,14 @@ function StatCard({ icon: Icon, label, value, isLoading, iconColorClass = "bg-pr
 export default function Staff() {
   const { user } = useAuth();
   const { data: clinic } = useClinic();
+  const { data: clinics } = useUserClinics();
   
   // -- Data Fetching --
   const {
     data: secretaries,
     isLoading,
     isError,
-  } = useClinicSecretaries(user?.clinic_id);
+  } = useClinicSecretaries(clinic?.clinic_uuid);
   
   const { mutate: addSecretary } = useAddSecretary();
   const { mutate: updateSecretary } = useUpdateSecretary();
@@ -113,8 +115,17 @@ export default function Staff() {
     email: "",
     password: "",
     phone: "",
+    clinicIds: [],
     permissions: ["dashboard", "calendar", "patients"],
   });
+
+  useEffect(() => {
+    if (!clinic?.clinic_uuid) return;
+    setNewSecretary((prev) => {
+      if (Array.isArray(prev.clinicIds) && prev.clinicIds.length > 0) return prev;
+      return { ...prev, clinicIds: [clinic.clinic_uuid] };
+    });
+  }, [clinic?.clinic_uuid]);
 
   // -- Stats Ordering --
   const defaultOrder = ["total", "new", "full_access", "limited"];
@@ -180,6 +191,10 @@ export default function Staff() {
       toast.error("لازم تدخل الاسم والإيميل وكلمة السر");
       return;
     }
+    if (!Array.isArray(newSecretary.clinicIds) || newSecretary.clinicIds.length === 0) {
+      toast.error("لازم تختار عيادة واحدة على الأقل");
+      return;
+    }
     if (newSecretary.password.length < 6) {
       toast.error("كلمة السر لازم 6 أحرف على الأقل");
       return;
@@ -189,7 +204,8 @@ export default function Staff() {
         email: newSecretary.email,
         password: newSecretary.password,
         phone: newSecretary.phone,
-        clinicId: user?.clinic_id,
+        clinicId: clinic?.clinic_uuid,
+        clinicIds: newSecretary.clinicIds,
         permissions: newSecretary.permissions,
       },
       {
@@ -204,6 +220,7 @@ export default function Staff() {
           setIsSuccessDialogOpen(true);
           setNewSecretary({ 
             name: "", email: "", password: "", phone: "", 
+            clinicIds: [clinic?.clinic_uuid].filter(Boolean),
             permissions: ["dashboard", "calendar", "patients"],
           });
         },
@@ -594,6 +611,34 @@ export default function Staff() {
                     onChange={(e) => setNewSecretary({ ...newSecretary, phone: e.target.value })}
                   />
                 </div>
+                {(clinics || []).length > 1 && (
+                  <div className="space-y-2">
+                    <Label>العيادات</Label>
+                    <div className="space-y-2 border rounded-md p-3">
+                      {(clinics || []).map((c) => {
+                        const checked = Array.isArray(newSecretary.clinicIds) && newSecretary.clinicIds.includes(c.clinic_uuid)
+                        return (
+                          <div key={c.clinic_uuid} className="flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="text-sm font-medium truncate">{c.name || "بدون اسم"}</div>
+                              <div className="text-xs text-muted-foreground truncate">{c.address || ""}</div>
+                            </div>
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={(v) => {
+                                setNewSecretary((prev) => {
+                                  const ids = Array.isArray(prev.clinicIds) ? prev.clinicIds : []
+                                  const next = v ? Array.from(new Set([...ids, c.clinic_uuid])) : ids.filter((id) => id !== c.clinic_uuid)
+                                  return { ...prev, clinicIds: next }
+                                })
+                              }}
+                            />
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
             {addStaffStep === 2 && (
