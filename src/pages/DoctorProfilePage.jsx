@@ -4,14 +4,15 @@ import { useEffect, useState } from "react";
 import { getClinicById, getClinicByBigintId } from "../services/apiClinic";
 import { cn, hexToRgba } from "../lib/utils";
 import { getProfileCustomButtonIcon } from "../lib/profileCustomButtons";
-
-const isUuid = (v) =>
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(v));
+import usePageMeta from "../hooks/usePageMeta";
 import { Button } from "../components/ui/button";
 import { Loader2, CheckCircle, BadgeCheck, Star, Share2, GraduationCap, Award, MapPin, Phone, MessageCircle, User, Building2, Banknote, Clock, X } from "lucide-react";
 import supabase from "../services/supabase";
 import { defaultClinicProfileSettings, getClinicProfileSettings, logClinicProfileEvent } from "../services/apiClinicProfile";
 import toast from "react-hot-toast";
+
+const isUuid = (v) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(v));
 
 function formatTimeArabic12(time24) {
   const raw = typeof time24 === "string" ? time24.trim() : "";
@@ -24,6 +25,23 @@ function formatTimeArabic12(time24) {
   const hour12 = ((h % 12) || 12).toString();
   const minute2 = String(m).padStart(2, "0");
   return `${hour12}:${minute2} ${period}`;
+}
+
+function normalizeBaseUrl(input, fallback) {
+  const raw = String(input || "").trim();
+  if (!raw) return fallback;
+  try {
+    const u = new URL(raw);
+    return u.origin;
+  } catch {
+    return fallback;
+  }
+}
+
+function makeCanonicalUrl({ baseUrl, clinicId }) {
+  const base = String(baseUrl || "").replace(/\/+$/, "");
+  const id = encodeURIComponent(String(clinicId || "").trim());
+  return id ? `${base}/doctor/${id}` : base;
 }
 
 // Helper function to fetch extended public profile data
@@ -127,6 +145,68 @@ export default function DoctorProfilePage() {
     queryKey: ['public-doctor-profile', clinicId],
     queryFn: () => getDoctorPublicProfile(clinicId),
     enabled: !!clinicId
+  });
+
+  const seoSettings = profile?.profileSettings?.seo || defaultClinicProfileSettings.seo;
+  const brandingSettings = profile?.profileSettings?.branding || defaultClinicProfileSettings.branding;
+  const doctorName = profile?.doctor?.name || "دكتور";
+  const doctorSpecialty = profile?.doctor?.specialty || "";
+  const clinicName = profile?.name || "";
+  const fallbackBaseUrl = typeof window !== "undefined" ? window.location.origin : "https://tabibi.site";
+  const canonicalBaseUrl = normalizeBaseUrl(seoSettings?.canonicalBaseUrl, fallbackBaseUrl);
+  const canonicalUrl = makeCanonicalUrl({ baseUrl: canonicalBaseUrl, clinicId });
+  const metaTitleRaw = typeof seoSettings?.title === "string" ? seoSettings.title.trim() : "";
+  const metaTitle = metaTitleRaw || [doctorName, doctorSpecialty, clinicName].filter(Boolean).join(" - ");
+  const metaDescRaw = typeof seoSettings?.description === "string" ? seoSettings.description.trim() : "";
+  const metaDescription =
+    metaDescRaw ||
+    (typeof profile?.doctor?.bio === "string" && profile.doctor.bio.trim()
+      ? profile.doctor.bio.trim()
+      : [doctorName, doctorSpecialty, clinicName, profile?.address].filter(Boolean).join(" - "));
+  const ogImageMode = seoSettings?.ogImage || "auto";
+  const ogImageCustom = typeof seoSettings?.ogImageUrl === "string" ? seoSettings.ogImageUrl.trim() : "";
+  const ogImageAuto =
+    ogImageMode === "custom"
+      ? ogImageCustom
+      : ogImageMode === "avatar"
+        ? profile?.doctor?.avatar_url
+        : ogImageMode === "banner"
+          ? profile?.doctor?.banner_url
+          : (profile?.doctor?.banner_url || profile?.doctor?.avatar_url);
+  const metaImage = (typeof ogImageAuto === "string" && ogImageAuto.trim()) ? ogImageAuto.trim() : "https://tabibi.site/logo.jpeg";
+  const siteNameRaw = typeof seoSettings?.siteName === "string" ? seoSettings.siteName.trim() : "";
+  const siteName = siteNameRaw || doctorName;
+  const robots = seoSettings?.noindex ? "noindex,nofollow" : "index,follow";
+  const jsonLd = profile
+    ? {
+        "@context": "https://schema.org",
+        "@type": "Physician",
+        name: doctorName,
+        image: metaImage,
+        description: metaDescription,
+        medicalSpecialty: doctorSpecialty || undefined,
+        url: canonicalUrl,
+        telephone: profile?.doctor?.phone || undefined,
+        address: profile?.address
+          ? {
+              "@type": "PostalAddress",
+              streetAddress: profile.address,
+            }
+          : undefined,
+      }
+    : null;
+
+  usePageMeta({
+    title: metaTitle,
+    description: metaDescription,
+    image: metaImage,
+    url: canonicalUrl,
+    canonical: canonicalUrl,
+    jsonLd,
+    robots,
+    siteName,
+    type: "profile",
+    locale: "ar_EG",
   });
 
   useEffect(() => {
@@ -286,7 +366,7 @@ export default function DoctorProfilePage() {
             await navigator.share({
               title: doctor.name,
               text: `احجز موعد مع ${doctor.name} في ${profile.name}`,
-              url: window.location.href,
+              url: canonicalUrl,
             });
             logClinicProfileEvent({ clinicId, eventType: "action_share" });
           } catch (err) {
@@ -294,7 +374,7 @@ export default function DoctorProfilePage() {
           }
         } else {
           try {
-            await navigator.clipboard.writeText(window.location.href);
+            await navigator.clipboard.writeText(canonicalUrl);
             logClinicProfileEvent({ clinicId, eventType: "action_share" });
             alert("تم نسخ الرابط");
           } catch (err) {
@@ -970,10 +1050,12 @@ export default function DoctorProfilePage() {
             >
             احجز موعد الآن
             </Button>
-            <div className="flex items-center justify-center gap-1 mt-2 text-[10px] text-gray-400 font-body-sans">
-              <span>تم التصميم بواسطة</span>
-              <a href="https://tabibi.site" target="_blank" rel="noopener noreferrer" className="font-bold text-[#C8A155] hover:underline">Tabibi</a>
-            </div>
+            {brandingSettings?.hideTabibiFooter ? null : (
+              <div className="flex items-center justify-center gap-1 mt-2 text-[10px] text-gray-400 font-body-sans">
+                <span>تم التصميم بواسطة</span>
+                <a href="https://tabibi.site" target="_blank" rel="noopener noreferrer" className="font-bold text-[#C8A155] hover:underline">Tabibi</a>
+              </div>
+            )}
         </div>
 
       </div>

@@ -4,6 +4,19 @@ export const defaultClinicProfileSettings = {
   header: {
     overlayBasicInfo: true,
   },
+  seo: {
+    enabled: true,
+    title: "",
+    description: "",
+    siteName: "",
+    canonicalBaseUrl: "",
+    ogImage: "auto",
+    ogImageUrl: "",
+    noindex: false,
+  },
+  branding: {
+    hideTabibiFooter: false,
+  },
   booking: {
     requireOnlinePayment: false,
   },

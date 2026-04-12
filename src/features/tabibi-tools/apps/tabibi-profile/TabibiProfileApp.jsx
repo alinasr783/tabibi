@@ -427,6 +427,18 @@ export default function TabibiProfileApp() {
     setProfileSettings((prev) => ({ ...prev, actions: { ...prev.actions, locationUrl: url } }));
   };
 
+  const setSeoEnabled = (enabled) => {
+    setProfileSettings((prev) => ({ ...prev, seo: { ...(prev.seo || {}), enabled } }));
+  };
+
+  const setSeoFields = (patch) => {
+    setProfileSettings((prev) => ({ ...prev, seo: { ...(prev.seo || {}), ...(patch || {}) } }));
+  };
+
+  const setHideTabibiFooter = (enabled) => {
+    setProfileSettings((prev) => ({ ...prev, branding: { ...(prev.branding || {}), hideTabibiFooter: enabled } }));
+  };
+
   const moveActionButton = (key, direction) => {
     setProfileSettings((prev) => {
       const order = Array.isArray(prev.actions?.order) ? prev.actions.order : [];
@@ -670,9 +682,18 @@ export default function TabibiProfileApp() {
     });
   };
 
-  const publicProfileUrl = clinic?.id 
-    ? `${window.location.origin}/doctor/${clinic.id}`
-    : "";
+  const profileBaseUrl = (() => {
+    const fallback = window.location.origin;
+    const raw = String(profileSettings?.seo?.canonicalBaseUrl || "").trim();
+    if (!raw) return fallback;
+    try {
+      return new URL(raw).origin;
+    } catch {
+      return fallback;
+    }
+  })();
+
+  const publicProfileUrl = clinic?.id ? `${profileBaseUrl}/doctor/${clinic.id}` : "";
 
   const copyLink = () => {
     navigator.clipboard.writeText(publicProfileUrl);
@@ -1338,6 +1359,114 @@ export default function TabibiProfileApp() {
                       </div>
                     ))}
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Share2 className="h-5 w-5 text-primary" />
+                  SEO ومشاركة الرابط
+                </CardTitle>
+                <CardDescription>تحكم في عنوان الصفحة ووصفها وصورة المشاركة والرابط الأساسي (دومينك)</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <div className="text-sm font-medium">تفعيل SEO للصفحة</div>
+                    <div className="text-xs text-muted-foreground">لو أوقفتها: سيتم الاعتماد على القيم الافتراضية</div>
+                  </div>
+                  <Switch checked={profileSettings?.seo?.enabled !== false} onCheckedChange={setSeoEnabled} />
+                </div>
+
+                <Separator />
+
+                <div className="space-y-2">
+                  <Label>اسم الموقع (Site Name)</Label>
+                  <Input
+                    value={profileSettings?.seo?.siteName || ""}
+                    onChange={(e) => setSeoFields({ siteName: e.target.value })}
+                    placeholder="اسم الدكتور أو اسم العيادة"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>عنوان الصفحة (Title)</Label>
+                  <Input
+                    value={profileSettings?.seo?.title || ""}
+                    onChange={(e) => setSeoFields({ title: e.target.value })}
+                    placeholder="مثال: د. أحمد محمد - استشاري عيون"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>وصف الصفحة (Description)</Label>
+                  <Textarea
+                    value={profileSettings?.seo?.description || ""}
+                    onChange={(e) => setSeoFields({ description: e.target.value })}
+                    placeholder="اكتب وصف مختصر يظهر في نتائج البحث ومشاركة واتساب..."
+                    className="min-h-24"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>الرابط الأساسي (Canonical Base URL)</Label>
+                  <Input
+                    value={profileSettings?.seo?.canonicalBaseUrl || ""}
+                    onChange={(e) => setSeoFields({ canonicalBaseUrl: e.target.value })}
+                    placeholder="مثال: https://dr-ahmed.com"
+                    dir="ltr"
+                    className="text-right"
+                  />
+                  <div className="text-xs text-muted-foreground">
+                    {publicProfileUrl ? `الرابط النهائي: ${publicProfileUrl}` : "الرابط النهائي غير متاح"}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>صورة المشاركة (OG Image)</Label>
+                  <select
+                    value={profileSettings?.seo?.ogImage || "auto"}
+                    onChange={(e) => setSeoFields({ ogImage: e.target.value })}
+                    className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="auto">تلقائي (الغلاف ثم الصورة)</option>
+                    <option value="banner">صورة الغلاف</option>
+                    <option value="avatar">الصورة الشخصية</option>
+                    <option value="custom">رابط مخصص</option>
+                  </select>
+                </div>
+
+                {profileSettings?.seo?.ogImage === "custom" ? (
+                  <div className="space-y-2">
+                    <Label>رابط الصورة المخصصة</Label>
+                    <Input
+                      value={profileSettings?.seo?.ogImageUrl || ""}
+                      onChange={(e) => setSeoFields({ ogImageUrl: e.target.value })}
+                      placeholder="https://..."
+                      dir="ltr"
+                      className="text-right"
+                    />
+                  </div>
+                ) : null}
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <div className="text-sm font-medium">منع الأرشفة (noindex)</div>
+                    <div className="text-xs text-muted-foreground">يخلي جوجل ما يرشّحش الصفحة في نتائج البحث</div>
+                  </div>
+                  <Switch checked={!!profileSettings?.seo?.noindex} onCheckedChange={(v) => setSeoFields({ noindex: v })} />
+                </div>
+
+                <Separator />
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <div className="text-sm font-medium">إخفاء عبارة “تم التصميم بواسطة Tabibi”</div>
+                    <div className="text-xs text-muted-foreground">اختياري، يخلي الصفحة تبدو ملكك بالكامل</div>
+                  </div>
+                  <Switch checked={!!profileSettings?.branding?.hideTabibiFooter} onCheckedChange={setHideTabibiFooter} />
                 </div>
               </CardContent>
             </Card>

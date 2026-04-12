@@ -12,7 +12,7 @@ function setMetaTag(name, content, attr = 'name') {
   el.setAttribute('content', content)
 }
 
-export default function usePageMeta({ title, description, image, url, canonical, jsonLd, robots }) {
+export default function usePageMeta({ title, description, image, url, canonical, jsonLd, robots, siteName, type, locale }) {
   useEffect(() => {
     if (title) document.title = title
 
@@ -21,10 +21,14 @@ export default function usePageMeta({ title, description, image, url, canonical,
     setMetaTag('og:description', description, 'property')
     setMetaTag('og:image', image, 'property')
     setMetaTag('og:url', url, 'property')
+    setMetaTag('og:site_name', siteName, 'property')
+    setMetaTag('og:type', type, 'property')
+    setMetaTag('og:locale', locale, 'property')
     setMetaTag('twitter:card', image ? 'summary_large_image' : 'summary', 'name')
     setMetaTag('twitter:title', title, 'name')
     setMetaTag('twitter:description', description, 'name')
     setMetaTag('twitter:image', image, 'name')
+    setMetaTag('twitter:url', url, 'name')
     setMetaTag('robots', robots || 'index,follow')
 
     if (canonical) {
@@ -38,10 +42,11 @@ export default function usePageMeta({ title, description, image, url, canonical,
     }
 
     if (jsonLd) {
-      let script = document.querySelector("script[type='application/ld+json']")
+      let script = document.querySelector("script#page-jsonld[type='application/ld+json']")
       if (!script) {
         script = document.createElement('script')
         script.setAttribute('type', 'application/ld+json')
+        script.setAttribute('id', 'page-jsonld')
         document.head.appendChild(script)
       }
       try {
@@ -52,5 +57,5 @@ export default function usePageMeta({ title, description, image, url, canonical,
     }
 
     // cleanup is intentionally omitted because we want meta persistence across navigation
-  }, [title, description, image, url, canonical, JSON.stringify(jsonLd), robots])
+  }, [title, description, image, url, canonical, JSON.stringify(jsonLd), robots, siteName, type, locale])
 }

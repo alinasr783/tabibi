@@ -80,6 +80,19 @@ async function generateSitemap() {
   const articleCount = articles ? articles.length : 0;
   console.log(`Found ${articleCount} published articles.`);
 
+  console.log('Fetching clinics for public profiles (optional)...');
+  const { data: clinics, error: clinicsError } = await supabase
+    .from('clinics')
+    .select('id, updated_at')
+    .order('id', { ascending: true })
+    .limit(5000);
+
+  if (clinicsError) {
+    console.warn('Could not fetch clinics (maybe RLS), skipping doctor profile routes:', clinicsError?.message || clinicsError);
+  } else {
+    console.log(`Found ${clinics?.length || 0} clinics for profile routes.`);
+  }
+
   let sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`;
 
@@ -107,6 +120,20 @@ async function generateSitemap() {
     <lastmod>${lastmod}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
+  </url>`;
+    });
+  }
+
+  if (clinics && Array.isArray(clinics)) {
+    clinics.forEach((clinic) => {
+      const dateToUse = clinic.updated_at || new Date();
+      const lastmod = new Date(dateToUse).toISOString().split('T')[0];
+      sitemap += `
+  <url>
+    <loc>${SITE_URL}/doctor/${clinic.id}</loc>
+    <lastmod>${lastmod}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
   </url>`;
     });
   }
