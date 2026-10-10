@@ -37,6 +37,7 @@ import {
   ChevronDown
 } from "lucide-react";
 import {useEffect, useMemo, useState} from "react";
+import {useQuery} from "@tanstack/react-query";
 import {useNavigate, useParams} from "react-router-dom";
 import useScrollToTop from "../../hooks/useScrollToTop";
 import {Button} from "../../components/ui/button";
@@ -68,7 +69,7 @@ import AppointmentIntelligence from "./AppointmentIntelligence";
 import useAppointment from "./useAppointment";
 import useUpdateAppointmentHandler from "./useUpdateAppointmentHandler";
 import useDeleteAppointment from "./useDeleteAppointment";
-import { subscribeToAppointments } from "../../services/apiAppointments";
+import { subscribeToAppointments, getUserByAuthUid } from "../../services/apiAppointments";
 import { getIntegration } from "../../services/integrationService";
 import generatePrescriptionPdfNew from "../../lib/generatePrescriptionPdfNew";
 import VisitCreateForm from "../patients/VisitCreateForm";
@@ -87,6 +88,11 @@ export default function AppointmentDetailPage() {
   const {appointmentId} = useParams();
   const { isOfflineMode } = useOffline();
   const {data: appointment, isLoading, error, refetch} = useAppointment(appointmentId);
+  const {data: creatorUser} = useQuery({
+    queryKey: ["user", appointment?.created_by_user_id],
+    queryFn: () => getUserByAuthUid(appointment?.created_by_user_id),
+    enabled: !!appointment?.created_by_user_id
+  });
   const {data: patientAppointments} = usePatientAppointments(appointment?.patient?.id);
   const { data: preferences } = useUserPreferences();
   const navigate = useNavigate();
@@ -644,6 +650,13 @@ export default function AppointmentDetailPage() {
                 <div className="mt-2">
                   <Badge variant="outline" className="text-[10px] h-5 px-2">
                     {clinicNameById.get(String(appointment.clinic_id)) || "فرع"}
+                  </Badge>
+                </div>
+              )}
+              {appointment?.created_by_user_id && creatorUser && (
+                <div className="mt-2">
+                  <Badge variant="secondary" className="text-[10px] h-5 px-2 bg-blue-50 text-blue-700 border-blue-200">
+                    أنشأه: {creatorUser.name || "غير معروف"} ({creatorUser.role === "doctor" ? "دكتور" : creatorUser.role === "secretary" ? "سكرتير" : creatorUser.role})
                   </Badge>
                 </div>
               )}

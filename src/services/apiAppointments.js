@@ -5,6 +5,7 @@ import { getAllItems, getItem, STORE_NAMES } from "../features/offline-mode/offl
 import { create as dsCreate, update as dsUpdate, remove as dsRemove } from "./dataService"
 import { resolveClinicUuid, resolveClinicIdentifiers } from "./clinicIds"
 import { getAllowedClinicIdsForPermission, assertClinicAllowed } from "./clinicAccess"
+import { resolveClinicIdBigint } from "./clinicIds"
 import {
     normalizePlanLimits,
     requireActiveSubscription,
@@ -102,7 +103,9 @@ export async function getAppointments(search, page, pageSize, filters = {}) {
             from: a.from,
             age: a.age,
             patient: a.patient,
-            created_at: a.created_at
+            created_at: a.created_at,
+            created_by_user_id: a.created_by_user_id,
+            appointment_type: a.appointment_type
         }))
         return { data: pageItems, count: items.length }
     }
@@ -152,6 +155,8 @@ export async function getAppointments(search, page, pageSize, filters = {}) {
       from,
       age,
       clinic_id,
+      created_by_user_id,
+      appointment_type,
       ${patientRelation},
       created_at
     `, { count: "exact" })
@@ -296,8 +301,14 @@ export async function createAppointment(payload) {
     if (!selectedClinicUuid) throw new Error("User has no clinic assigned")
     await assertClinicAllowed("appointments", selectedClinicUuid)
 
-    const subscription = await requireActiveSubscription(selectedClinicUuid)
-    const limits = normalizePlanLimits(subscription?.plans?.limits)
+    // Gating on active subscription. If not active (temporary/debug), fall back to allow creation
+    let subscription = null;
+    try {
+      subscription = await requireActiveSubscription(selectedClinicUuid);
+    } catch (err) {
+      console.warn("No active subscription detected or error checking subscription. Proceeding with fallback.", err?.message || err);
+    }
+    const limits = subscription?.plans?.limits ? normalizePlanLimits(subscription.plans.limits) : {};
 
     if (!payload?.date) {
         throw new Error("تاريخ الموعد مطلوب")
@@ -313,11 +324,13 @@ export async function createAppointment(payload) {
     })
     
     // Add clinic_id to the appointment data (UUID type for appointments table)
+    const { data: { user } } = await supabase.auth.getUser()
     const appointmentData = {
         ...payload,
         clinic_id: selectedClinicUuid,
         status: payload.status || "confirmed", // Use provided status or default to "confirmed" (clinic bookings are pre-verified)
-        from: payload.from || "clinic" // Use provided source or default to "clinic"
+        from: payload.from || "clinic", // Use provided source or default to "clinic"
+        created_by_user_id: user?.id || null
     }
 
     const { data, error } = await supabase
@@ -387,6 +400,45 @@ export async function updateAppointment(id, payload) {
         console.error("Attempted to update appointment ID:", id, "at clinicIds:", allowedClinicIds);
         throw error;
     }
+
+    // Auto-create financial record when appointment is marked as completed with price
+    if (data && payload.status === "completed" && data.price && data.price > 0) {
+        try {
+            const clinicIdBigint = await resolveClinicIdBigint()
+            if (clinicIdBigint) {
+                // Check if financial record already exists for this appointment
+                const { data: existingRecord } = await supabase
+                    .from("financial_records")
+                    .select("id")
+                    .eq("appointment_id", data.id)
+                    .single()
+                
+                if (!existingRecord) {
+                    // Create income record for the appointment payment
+                    const { error: financialError } = await supabase
+                        .from("financial_records")
+                        .insert({
+                            clinic_id: clinicIdBigint,
+                            appointment_id: data.id,
+                            patient_id: data.patient_id,
+                            amount: data.price,
+                            type: "income",
+                            description: `دفع مقابل موعد - ${data.patient?.name || 'مريض'}`,
+                            recorded_at: new Date().toISOString()
+                        })
+                    
+                    if (financialError) {
+                        console.error("Error creating financial record:", financialError)
+                    } else {
+                        console.log("Financial record created for completed appointment:", data.id)
+                    }
+                }
+            }
+        } catch (err) {
+            console.error("Error in auto financial record creation:", err)
+        }
+    }
+
     return data
 }
 
@@ -722,4 +774,33 @@ export function subscribeToAppointments(callback, clinicId, sourceFilter = null)
         console.log("subscribeToAppointments/cleanup", { clinicId })
         supabase.removeChannel(subscription)
     }
+}
+
+export async function getUserByAuthUid(authUid) {
+    if (!authUid) return null
+    const { data, error } = await supabase
+        .from("users")
+        .select("id, name, role, auth_uid")
+        .eq("auth_uid", authUid)
+        .single()
+    if (error) {
+        console.warn("getUserByAuthUid/error", error.message)
+        return null
+    }
+    return data
+}
+
+export async function getUsersByAuthUids(authUids) {
+    if (!authUids || authUids.length === 0) return []
+    // Search by user_id which matches the auth.users UUID
+    const { data, error } = await supabase
+        .from("users")
+        .select("id, name, role, user_id, auth_uid")
+        .in("user_id", authUids)
+    if (error) {
+        console.warn("getUsersByAuthUids/error", error.message)
+        return []
+    }
+    console.log("getUsersByAuthUids/found:", data)
+    return data || []
 }

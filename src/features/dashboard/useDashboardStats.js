@@ -5,5 +5,8 @@ export default function useDashboardStats() {
     return useQuery({
         queryKey: ["dashboardStats"],
         queryFn: getDashboardStats,
+        staleTime: 0,
+        refetchOnMount: true,
+        refetchOnWindowFocus: true,
     })
 }

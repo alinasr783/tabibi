@@ -1,7 +1,7 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
-import { Bell, Eye, MoreHorizontal, Clock, Calendar, Phone, User, Receipt, Tag, Download, ChevronLeft, ChevronRight, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { Bell, Eye, MoreHorizontal, Clock, Calendar, Phone, User, Receipt, Tag, Download, ChevronLeft, ChevronRight, CheckCircle, XCircle, AlertCircle, UserCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
@@ -26,7 +26,8 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog";
 import DataTable from "../../components/ui/table";
-import { updateAppointment } from "../../services/apiAppointments";
+import { updateAppointment, getUsersByAuthUids } from "../../services/apiAppointments";
+import { getAppointmentTypes } from "../../services/apiAppointmentTypes";
 import usePlan from "../auth/usePlan";
 import { useNavigate } from "react-router-dom";
 import { cn } from "../../lib/utils";
@@ -57,6 +58,17 @@ export default function AppointmentsTable({
   const [showContactDialog, setShowContactDialog] = useState(false);
   const [selectedPhone, setSelectedPhone] = useState("");
   const [selectedPatientName, setSelectedPatientName] = useState("");
+
+  const creatorIds = [...new Set(appointments?.map(a => a.created_by_user_id).filter(Boolean) || [])];
+  const { data: creatorsMap = [] } = useQuery({
+    queryKey: ["appointmentCreators", creatorIds],
+    queryFn: () => getUsersByAuthUids(creatorIds),
+    enabled: creatorIds.length > 0
+  });
+  const { data: appointmentTypes = [] } = useQuery({
+    queryKey: ["appointmentTypes"],
+    queryFn: getAppointmentTypes,
+  });
 
   const { mutate: updateStatus } = useMutation({
     mutationFn: ({ id, status }) => updateAppointment(id, { status }),
@@ -181,12 +193,28 @@ export default function AppointmentsTable({
       header: "نوع الحجز",
       accessor: "notes",
       cellClassName: "text-muted-foreground",
-      render: (appointment) => (
-        <div className="flex items-center gap-2">
-          <Tag className="w-3.5 h-3.5 text-gray-400" />
-          <span className="max-w-[120px] truncate">{appointment.notes}</span>
-        </div>
-      ),
+      render: (appointment) => {
+        const type = appointmentTypes.find(t => t.id === appointment.appointment_type);
+        if (type) {
+          return (
+            <div className="flex items-center gap-2">
+              <div 
+                className="w-3 h-3 rounded-full flex-shrink-0" 
+                style={{ backgroundColor: type.color }}
+              />
+              <span className="max-w-[120px] truncate font-medium" style={{ color: type.color }}>
+                {type.name}
+              </span>
+            </div>
+          );
+        }
+        return (
+          <div className="flex items-center gap-2">
+            <Tag className="w-3.5 h-3.5 text-gray-400" />
+            <span className="max-w-[120px] truncate">{appointment.notes || "-"}</span>
+          </div>
+        );
+      },
     },
     {
       header: "السعر",
@@ -211,6 +239,35 @@ export default function AppointmentsTable({
             <StatusIcon className="w-3.5 h-3.5" />
             {statusInfo.label}
           </Badge>
+        );
+      },
+    },
+    {
+      header: "أنشأه",
+      accessor: "created_by_user_id",
+      render: (appointment) => {
+        // If it's an online booking (from = "booking"), show it
+        if (appointment.from === "booking") {
+          return (
+            <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+              حجز إلكتروني
+            </Badge>
+          );
+        }
+        // If no creator info, show dash
+        if (!appointment.created_by_user_id) return <span className="text-gray-400 text-xs">-</span>;
+        // Find creator by user_id (matches the auth.users UUID)
+        const creator = creatorsMap.find(u => u.user_id === appointment.created_by_user_id);
+        if (!creator) return <span className="text-gray-400 text-xs">...</span>;
+        const roleLabel = creator.role === "doctor" ? "دكتور" : creator.role === "secretary" ? "سكرتير" : creator.role || "مستخدم";
+        return (
+          <div className="flex items-center gap-2">
+            <UserCircle className="w-4 h-4 text-gray-400" />
+            <div className="text-xs">
+              <div className="font-medium">{creator.name || "غير معروف"}</div>
+              <div className="text-gray-500">{roleLabel}</div>
+            </div>
+          </div>
         );
       },
     },
@@ -312,15 +369,15 @@ export default function AppointmentsTable({
       {/* Mobile View - Cards */}
       <div className="block md:hidden pt-2">
         {appointments.map((appointment) => (
-          <AppointmentCard 
-            key={appointment.id} 
-            appointment={appointment}
-            statusMap={statusMap}
-            navigate={navigate}
-            handlePhoneClick={handlePhoneClick}
-            handleViewDetails={handleViewDetails}
-            handleStatusChange={handleStatusChange}
-          />
+<AppointmentCard 
+                appointment={appointment} 
+                statusMap={statusMap} 
+                navigate={navigate}
+                handlePhoneClick={handlePhoneClick}
+                handleViewDetails={handleViewDetails}
+                handleStatusChange={handleStatusChange}
+                appointmentTypes={appointmentTypes}
+              />
         ))}
         
         {onLoadMore ? (
@@ -415,14 +472,23 @@ const AppointmentCard = ({
   navigate, 
   handlePhoneClick, 
   handleViewDetails, 
-  handleStatusChange 
+  handleStatusChange,
+  appointmentTypes = []
 }) => {
   const status = appointment.status?.toLowerCase() || 'pending';
   const statusInfo = statusMap[status] || statusMap.pending;
   const StatusIcon = statusInfo.icon;
+  const type = appointmentTypes.find(t => t.id === appointment.appointment_type);
 
   return (
-    <div className="mb-4 pb-4 border-b border-border last:border-0 last:mb-0 last:pb-0">
+    <div 
+      className="mb-4 pb-4 border-b border-border last:border-0 last:mb-0 last:pb-0"
+      style={{ 
+        borderLeftWidth: '6px',
+        borderLeftColor: type?.color || '#e5e7eb',
+        backgroundColor: type?.color ? `${type.color}08` : 'transparent'
+      }}
+    >
       <div className="p-1">
         {/* Header - اسم المريض والحالة */}
         <div className="flex items-start justify-between mb-3">

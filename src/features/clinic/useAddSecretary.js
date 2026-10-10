@@ -9,11 +9,12 @@ export default function useAddSecretary() {
         mutationFn: addSecretary,
         onSuccess: () => {
             toast.success("تمت إضافة السكرتير بنجاح");
-            // Invalidate relevant queries to refetch updated data
             queryClient.invalidateQueries(["clinicSecretaries"]);
         },
         onError: (error) => {
-            toast.error("حدث خطأ أثناء إضافة السكرتير: " + error.message);
+            console.error("addSecretary error:", error);
+            const errorMessage = error?.message || error?.error_description || "حدث خطأ";
+            toast.error(errorMessage);
         }
     });
 }

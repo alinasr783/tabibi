@@ -22,6 +22,8 @@ import { Badge } from "../../components/ui/badge";
 import toast from "react-hot-toast";
 import { ScrollArea } from "../../components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
+import { useQuery } from "@tanstack/react-query";
+import { getAppointmentTypes } from "../../services/apiAppointmentTypes";
 
 export default function AppointmentCreateDialog({ open, onClose, initialPatient }) {
   const {
@@ -50,7 +52,12 @@ export default function AppointmentCreateDialog({ open, onClose, initialPatient 
   const [selectedTime, setSelectedTime] = useState(null);
   const [step, setStep] = useState(initialPatient ? 2 : 1);
   const [autoSelectEnabled, setAutoSelectEnabled] = useState(true);
+  const [selectedType, setSelectedType] = useState("");
   const { data: searchResults, isLoading: isSearching } = useSearchPatients(patientSearch, selectedClinicUuid || clinicData?.clinic_uuid);
+  const { data: appointmentTypes = [] } = useQuery({
+    queryKey: ["appointmentTypes"],
+    queryFn: getAppointmentTypes,
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -85,6 +92,7 @@ export default function AppointmentCreateDialog({ open, onClose, initialPatient 
     setSelectedTime(null);
     setAutoSelectEnabled(true); // Reset auto-select for next time
     setSelectedClinicUuid(null);
+    setSelectedType("");
     onClose();
   };
 
@@ -150,7 +158,8 @@ export default function AppointmentCreateDialog({ open, onClose, initialPatient 
       ...data,
       price: priceValue,
       patient_id: selectedPatient.id,
-      clinic_id: clinicUuid  // Use the UUID for appointments table
+      clinic_id: clinicUuid,  // Use the UUID for appointments table
+      appointment_type: selectedType || null
     };
     
     // Remove age field if it's empty or invalid
@@ -553,20 +562,33 @@ export default function AppointmentCreateDialog({ open, onClose, initialPatient 
                       <FileText className="w-4 h-4 text-primary" />
                       نوع الحجز
                     </Label>
-                    <Textarea
-                      className="min-h-[80px] resize-none"
-                      placeholder="مثال: كشف أولي، متابعة..."
-                      {...register("notes", { 
-                        required: "يرجى إدخال نوع الحجز",
-                        maxLength: {
-                          value: 100,
-                          message: "يجب ألا يتجاوز 100 حرف"
-                        }
-                      })}
-                    />
-                    {errors.notes && (
+                    <Select 
+                      value={selectedType} 
+                      onValueChange={(value) => {
+                        setSelectedType(value);
+                        setValue("notes", value); // Store the type ID in notes field
+                      }}
+                    >
+                      <SelectTrigger className="h-10">
+                        <SelectValue placeholder="اختر نوع الحجز" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {appointmentTypes.map((type) => (
+                          <SelectItem key={type.id} value={type.id}>
+                            <div className="flex items-center gap-2">
+                              <div 
+                                className="w-3 h-3 rounded-full" 
+                                style={{ backgroundColor: type.color }}
+                              />
+                              {type.name}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {!selectedType && errors.notes && (
                       <p className="text-xs text-red-500">
-                        {errors.notes.message}
+                        يرجى اختيار نوع الحجز
                       </p>
                     )}
                     

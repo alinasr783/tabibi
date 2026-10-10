@@ -1,54 +1,78 @@
 import supabase from "./supabase"
+import { getAllowedClinicIdsForPermission, getAllMyClinicIds } from "./clinicAccess"
 
 export async function getDashboardStats() {
-    // Get current user's clinic_id
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) throw new Error("Not authenticated")
 
-    const { data: userData } = await supabase
-        .from("users")
-        .select("clinic_id")
-        .eq("user_id", session.user.id)
-        .single()
+    // Get ALL clinic IDs that user owns or is member of (for multi-branch support)
+    let clinicIds = []
+    try {
+        clinicIds = await getAllMyClinicIds()
+    } catch (e) {
+        console.warn("Could not get all clinics, falling back to user clinic", e)
+        const { data: userData } = await supabase
+            .from("users")
+            .select("clinic_id")
+            .eq("user_id", session.user.id)
+            .single()
+        if (userData?.clinic_id) {
+            clinicIds = [userData.clinic_id]
+        }
+    }
 
-    if (!userData?.clinic_id) throw new Error("User has no clinic assigned")
+    console.log("getDashboardStats - All clinic IDs:", clinicIds)
 
-    const clinicId = userData.clinic_id
+    if (clinicIds.length === 0) throw new Error("User has no clinic assigned")
 
-    // Get total patients count
+    // Get total patients count across all clinics
     const { count: totalPatients, error: patientsError } = await supabase
         .from("patients")
         .select("*", { count: "exact", head: true })
-        .eq("clinic_id", clinicId)
+        .in("clinic_id", clinicIds)
+
+    console.log("getDashboardStats - Total patients:", totalPatients, patientsError)
 
     if (patientsError) throw patientsError
 
-    // Get all appointments and filter manually for better reliability
+    // Get all appointments across all clinics
     const { data: allAppointments, error: allAppointmentsError } = await supabase
         .from("appointments")
         .select("*")
-        .eq("clinic_id", clinicId)
+        .in("clinic_id", clinicIds)
+
+    console.log("getDashboardStats - Total appointments fetched:", allAppointments?.length || 0, allAppointmentsError)
 
     if (allAppointmentsError) throw allAppointmentsError
 
-    // Count today's appointments
-    const today = new Date().toISOString().split('T')[0]
+    // Count today's appointments using local date
+    const todayLocal = new Date()
+    const todayYear = todayLocal.getFullYear()
+    const todayMonth = String(todayLocal.getMonth() + 1).padStart(2, '0')
+    const todayDay = String(todayLocal.getDate()).padStart(2, '0')
+    const todayStr = `${todayYear}-${todayMonth}-${todayDay}`
+    
+    console.log("getDashboardStats - Today's date (local):", todayStr)
+    
     const todayAppointments = allAppointments?.filter(appointment => {
         if (!appointment.date) return false
-        const appointmentDate = new Date(appointment.date).toISOString().split('T')[0]
-        return appointmentDate === today
+        // Extract date part - handle both ISO strings and plain date strings
+        const appointmentDateStr = appointment.date.toString().split('T')[0]
+        return appointmentDateStr === todayStr
     }).length || 0
+    
+    console.log("getDashboardStats - Today's appointments:", todayAppointments)
 
     // Count pending appointments
     const pendingAppointments = allAppointments?.filter(
         appointment => appointment.status === 'pending'
     ).length || 0
 
-    // Get total income from completed appointments (similar to finance page approach)
+    // Get total income from completed appointments across all clinics
     const { data: completedAppointments, error: completedAppointmentsError } = await supabase
         .from("appointments")
         .select("price")
-        .eq("clinic_id", clinicId)
+        .in("clinic_id", clinicIds)
         .eq("status", "completed")
 
     if (completedAppointmentsError) throw completedAppointmentsError
@@ -65,25 +89,34 @@ export async function getDashboardStats() {
 }
 
 export async function getFilteredPatientStats(filter) {
-    // Get current user's clinic_id
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) throw new Error("Not authenticated")
 
-    const { data: userData } = await supabase
-        .from("users")
-        .select("clinic_id")
-        .eq("user_id", session.user.id)
-        .single()
+    // Get ALL clinic IDs that user owns or is member of (for multi-branch support)
+    let clinicIds = []
+    try {
+        clinicIds = await getAllMyClinicIds()
+    } catch (e) {
+        console.warn("Could not get all clinics, falling back to user clinic", e)
+        const { data: userData } = await supabase
+            .from("users")
+            .select("clinic_id")
+            .eq("user_id", session.user.id)
+            .single()
+        if (userData?.clinic_id) {
+            clinicIds = [userData.clinic_id]
+        }
+    }
 
-    if (!userData?.clinic_id) throw new Error("User has no clinic assigned")
+    console.log("getFilteredPatientStats - All clinic IDs:", clinicIds)
 
-    const clinicId = userData.clinic_id
+    if (clinicIds.length === 0) throw new Error("User has no clinic assigned")
 
-    // Get all appointments and filter manually for better reliability
+    // Get all appointments across all clinics
     const { data: allAppointments, error: allAppointmentsError } = await supabase
         .from("appointments")
         .select("*")
-        .eq("clinic_id", clinicId)
+        .in("clinic_id", clinicIds)
 
     if (allAppointmentsError) throw allAppointmentsError
 
@@ -109,12 +142,20 @@ export async function getFilteredPatientStats(filter) {
             startDate.setMonth(startDate.getMonth() - 1)
     }
 
-    // Filter appointments within date range
+    // Filter appointments within date range using string comparison
+    const startDateStr = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-${String(startDate.getDate()).padStart(2, '0')}`
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+    
+    console.log("getFilteredPatientStats - Date range:", startDateStr, "to", todayStr)
+    
     const filteredAppointments = allAppointments?.filter(appointment => {
         if (!appointment.date) return false
-        const appointmentDate = new Date(appointment.date)
-        return appointmentDate >= startDate && appointmentDate <= today
+        // Extract date string directly without Date conversion
+        const appointmentDateStr = appointment.date.toString().split('T')[0]
+        return appointmentDateStr >= startDateStr && appointmentDateStr <= todayStr
     }) || []
+    
+    console.log("getFilteredPatientStats - Filtered appointments:", filteredAppointments.length)
 
     // Count unique patients
     const uniquePatients = new Set(filteredAppointments.map(app => app.patient_id))
@@ -144,19 +185,28 @@ export async function getFilteredPatientStats(filter) {
 }
 
 export async function getTodayAppointments() {
-    // Get current user's clinic_id
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) throw new Error("Not authenticated")
 
-    const { data: userData } = await supabase
-        .from("users")
-        .select("clinic_id")
-        .eq("user_id", session.user.id)
-        .single()
+    // Get all allowed clinic IDs (for multi-branch support)
+    let clinicIds = []
+    try {
+        clinicIds = await getAllMyClinicIds()
+    } catch (e) {
+        console.warn("Could not get all clinics, falling back to user clinic", e)
+        const { data: userData } = await supabase
+            .from("users")
+            .select("clinic_id")
+            .eq("user_id", session.user.id)
+            .single()
+        if (userData?.clinic_id) {
+            clinicIds = [userData.clinic_id]
+        }
+    }
 
-    if (!userData?.clinic_id) throw new Error("User has no clinic assigned")
+    console.log("getTodayAppointments - All clinic IDs:", clinicIds)
 
-    const clinicId = userData.clinic_id
+    if (clinicIds.length === 0) throw new Error("User has no clinic assigned")
 
     // Get today's date in local YYYY-MM-DD format
     const today = new Date()
@@ -165,8 +215,8 @@ export async function getTodayAppointments() {
     const day = String(today.getDate()).padStart(2, '0')
     const localToday = `${year}-${month}-${day}`
 
-    // Get all appointments with patient info for today
-    // Using simple string comparison for the date part (Postgres will handle the cast)
+    // Get all appointments with patient info for today across all clinics
+    // Use like to match date strings since stored dates might have time component
     const { data: appointments, error } = await supabase
         .from("appointments")
         .select(`
@@ -175,11 +225,10 @@ export async function getTodayAppointments() {
             status,
             patient:patients(name)
         `)
-        .eq("clinic_id", clinicId)
-        .gte("date", `${localToday}T00:00:00`)
-        .lte("date", `${localToday}T23:59:59`)
+        .in("clinic_id", clinicIds)
+        .like("date", localToday + "%")
         .order("date", { ascending: true })
-        .limit(5)
+        .limit(10)
 
     if (error) throw error
 
@@ -190,15 +239,25 @@ export async function getAppointmentsStatsForLast7Days() {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) throw new Error("Not authenticated")
 
-    const { data: userData } = await supabase
-        .from("users")
-        .select("clinic_id")
-        .eq("user_id", session.user.id)
-        .single()
+    // Get ALL clinic IDs that user owns or is member of (for multi-branch support)
+    let clinicIds = []
+    try {
+        clinicIds = await getAllMyClinicIds()
+    } catch (e) {
+        console.warn("Could not get all clinics, falling back to user clinic", e)
+        const { data: userData } = await supabase
+            .from("users")
+            .select("clinic_id")
+            .eq("user_id", session.user.id)
+            .single()
+        if (userData?.clinic_id) {
+            clinicIds = [userData.clinic_id]
+        }
+    }
 
-    if (!userData?.clinic_id) throw new Error("User has no clinic assigned")
+    console.log("getAppointmentsStatsForLast7Days - All clinic IDs:", clinicIds)
 
-    const clinicId = userData.clinic_id
+    if (clinicIds.length === 0) throw new Error("User has no clinic assigned")
 
     // Get current local date and the date 6 days ago
     const today = new Date()
@@ -212,14 +271,16 @@ export async function getAppointmentsStatsForLast7Days() {
     const startStr = sevenDaysAgo.toISOString().split('T')[0]
     const endStr = today.toISOString().split('T')[0]
 
-    // Get appointments in this range
-    // We fetch a bit more just to be safe with timezones, then filter locally
+    console.log("getAppointmentsStatsForLast7Days - Date range:", startStr, "to", endStr)
+
+    // Get appointments in this range across all clinics
+    // Use like filter for date strings since stored dates might have time component
     const { data, error } = await supabase
         .from("appointments")
         .select("date")
-        .eq("clinic_id", clinicId)
-        .gte("date", `${startStr}T00:00:00`)
-        .lte("date", `${endStr}T23:59:59`)
+        .in("clinic_id", clinicIds)
+        .gte("date", startStr)
+        .lte("date", endStr + "T23:59:59")
 
     if (error) throw error
 

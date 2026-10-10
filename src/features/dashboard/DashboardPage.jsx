@@ -1,6 +1,7 @@
 import { Stethoscope } from "lucide-react";
 import { Card, CardContent, CardHeader } from "../../components/ui/card";
 import SwipeableMiniSchedule from "./SwipeableMiniSchedule";
+import DailyRevenueWidget from "./DailyRevenueWidget";
 import SubscriptionBanner from "./SubscriptionBanner";
 import LatestNotifications from "./LatestNotifications";
 import AppointmentsChart from "./AppointmentsChart";
@@ -122,6 +123,7 @@ function DashboardContent() {
   const [filter, setFilter] = useState("month");
   const [sections, setSections] = useState([
     { id: 'schedule', component: <SwipeableMiniSchedule />, name: 'مواعيدك انهاردة' },
+    { id: 'revenue', component: <DailyRevenueWidget />, name: 'إيرادات اليوم' },
     { id: 'subscription', component: <SubscriptionBanner />, name: 'الباقة' },
     { id: 'notifications', component: <LatestNotifications />, name: 'آخر الإشعارات' },
     { id: 'chart', component: <AppointmentsChart />, name: 'نشاط الحجوزات' }
@@ -141,6 +143,7 @@ function DashboardContent() {
       case 'subscription': return <SubscriptionBanner />;
       case 'notifications': return <LatestNotifications />;
       case 'chart': return <AppointmentsChart />;
+      case 'revenue': return <DailyRevenueWidget />;
       default: return null;
     }
   };
@@ -189,10 +192,10 @@ function DashboardContent() {
       </div>
 
       {/* On Desktop: Two columns with specific placement */}
-      <div className="hidden lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
-        {/* Left Column on Desktop: Schedule and Chart */}
+        <div className="hidden lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
+        {/* Left Column on Desktop: Schedule, Revenue, and Chart */}
         <div className="space-y-6">
-          {sections.filter(s => s.id === 'schedule' || s.id === 'chart').map((section) => (
+          {sections.filter(s => s.id === 'schedule' || s.id === 'chart' || s.id === 'revenue').map((section) => (
             <DraggableSection 
               key={section.id} 
               id={section.id} 

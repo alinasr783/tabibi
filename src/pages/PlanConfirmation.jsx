@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   Clock,
   CreditCard,
+  Gift,
   Shield,
   Calendar,
   Zap,
@@ -27,6 +28,7 @@ import { useCreateSubscription } from '@/features/auth/useSubscription'
 import { getPlanById } from '@/services/apiSubscriptions'
 import { getPlanIcon } from '@/lib/planUtils.jsx'
 import { formatCurrency } from '@/lib/utils'
+import { getEffectiveMonthlyPrice, isPlanDiscountActive, describeDiscount } from '@/lib/planDiscount'
 import { DiscountCodeInput, useDiscountCode } from '@/features/discount-code'
 import usePricingPlan from '@/features/settings/usePricingPlan'
 import { initiatePayment } from '@/services/easykashService'
@@ -45,17 +47,21 @@ export default function PlanConfirmation() {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('card')
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
   const [paymentUrl, setPaymentUrl] = useState(null)
-  const discount = useDiscountCode(plan?.price || 0, planId, billingPeriod)
-  
+  const discount = useDiscountCode(getEffectiveMonthlyPrice(plan) || 0, planId, billingPeriod)
+
   const isLoading = isPlanLoading
   const isSubmitting = isCreating || isPaymentLoading
 
-  // Calculate pricing with discount
-  const monthlyPrice = plan?.price || 0
+  // Calculate pricing with plan discount (Super Admin) first, then coupon code
+  const monthlyPrice = getEffectiveMonthlyPrice(plan)
+  const originalMonthlyPrice = plan?.price || 0
+  const hasPlanDiscount = isPlanDiscountActive(plan)
   const isAnnual = billingPeriod === 'annual'
-  
-  // Base price before any discounts
+
+  // Base price before any discounts (after plan discount, before coupon)
   const basePrice = isAnnual ? monthlyPrice * 10 : monthlyPrice
+  const originalBasePrice = isAnnual ? originalMonthlyPrice * 10 : originalMonthlyPrice
+  const planDiscountAmount = Math.max(0, originalBasePrice - basePrice)
   
   // Calculate discount amount based on billing period
   let discountAmount = discount.discountAmount
@@ -70,6 +76,10 @@ export default function PlanConfirmation() {
   
   const pricing = {
     basePrice: basePrice,
+    originalBasePrice: originalBasePrice,
+    planDiscountAmount: planDiscountAmount,
+    hasPlanDiscount: hasPlanDiscount,
+    planDiscountLabel: describeDiscount(plan),
     finalPrice: finalPriceAfterDiscount,
     savings: isAnnual ? monthlyPrice * 2 : 0,
     duration: isAnnual ? 12 : 1,
@@ -78,6 +88,35 @@ export default function PlanConfirmation() {
   }
 
   const finalPrice = pricing.finalPrice
+
+  // الباقة مجانية تماماً بعد الخصم (من أي نوع) → اشتراك مباشر بدون دفع
+  const isFreePlan = !!plan && getEffectiveMonthlyPrice(plan) === 0
+
+  // اشتراك مجاني مباشر لمدة سنة كاملة بدون بوابة دفع
+  const handleFreeSubscribe = () => {
+    if (!user) {
+      setIsAuthModalOpen(true)
+      return
+    }
+
+    if (!plan) {
+      toast.error("لم يتم تحميل تفاصيل الخطة")
+      return
+    }
+
+    createSubscription({
+      clinicId: user.clinic_id,
+      planId: plan.id,
+      billingPeriod: "annual",
+      amount: 0,
+      paymentMethod: "free"
+    }, {
+      onSuccess: () => {
+        toast.success("تم تفعيل اشتراكك المجاني لمدة سنة بنجاح")
+        navigate("/subscriptions")
+      }
+    })
+  }
 
   // Handle subscription confirmation
   const handleConfirmSubscription = async (paymentMethod = 'card') => {
@@ -385,10 +424,49 @@ export default function PlanConfirmation() {
                   <div className="bg-blue-100 p-2 rounded-[var(--radius)]">
                     <CreditCard className="w-5 h-5 text-blue-600" />
                   </div>
-                  ملخص الدفع
+                  {isFreePlan ? "اشتراك مجاني" : "ملخص الدفع"}
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6 space-y-6">
+                {/* اشتراك مجاني مباشر — يظهر بدل ملخص الدفع بالكامل */}
+                {isFreePlan && (
+                  <div className="space-y-4 py-2 text-center">
+                    <div className="mx-auto w-14 h-14 bg-green-100 rounded-full flex items-center justify-center">
+                      <Gift className="w-7 h-7 text-green-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-lg text-gray-900">الباقة مجانية الآن</h3>
+                      {pricing.hasPlanDiscount ? (
+                        <p className="mt-1 text-sm text-gray-600">
+                          <span className="text-gray-400 line-through ml-2">{formatCurrency(plan.price)}</span>
+                          <span className="font-bold text-green-600">مجاناً</span>
+                        </p>
+                      ) : (
+                        <p className="mt-1 text-sm text-gray-600">متاحة للاشتراك الفوري بدون دفع</p>
+                      )}
+                    </div>
+                    <Button
+                      onClick={handleFreeSubscribe}
+                      className="w-full bg-green-600 hover:bg-green-700 text-white py-3 text-base font-bold"
+                      disabled={isCreating}
+                    >
+                      {isCreating ? (
+                        <>
+                          <Clock className="w-4 h-4 ml-2 animate-spin" />
+                          جاري التفعيل...
+                        </>
+                      ) : (
+                        <>
+                          <Gift className="w-4 h-4 ml-2" />
+                          اشترك مجاناً الآن لمدة سنة
+                        </>
+                      )}
+                    </Button>
+                    <p className="text-xs text-gray-500">بدون بطاقة بنكية • اشتراك سنوي مجاني لمدة 12 شهر</p>
+                  </div>
+                )}
+                {!isFreePlan && (
+                <>
                 {/* Billing Period Selector */}
                 <div className="space-y-3">
                   <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
@@ -480,8 +558,24 @@ export default function PlanConfirmation() {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center py-2">
                     <span className="text-gray-600">سعر الخطة</span>
-                    <span className="font-semibold">{formatCurrency(pricing.basePrice)}</span>
+                    {pricing.hasPlanDiscount ? (
+                      <span className="text-left">
+                        <span className="block text-sm text-gray-400 line-through">{formatCurrency(pricing.originalBasePrice)}</span>
+                        <span className="font-semibold text-primary">{formatCurrency(pricing.basePrice)}</span>
+                      </span>
+                    ) : (
+                      <span className="font-semibold">{formatCurrency(pricing.basePrice)}</span>
+                    )}
                   </div>
+
+                  {pricing.hasPlanDiscount && (
+                    <div className="flex justify-between items-center py-2">
+                      <span className="text-gray-600">خصم الباقة{pricing.planDiscountLabel ? ` (${pricing.planDiscountLabel})` : ''}</span>
+                      <span className="font-semibold text-green-600">
+                        -{formatCurrency(pricing.planDiscountAmount)}
+                      </span>
+                    </div>
+                  )}
                   
                   {billingPeriod === 'annual' && (
                     <div className="flex justify-between items-center py-2">
@@ -578,6 +672,7 @@ export default function PlanConfirmation() {
                     </li>
                   </ul>
                 </div>
+                </>)}
               </CardContent>
             </Card>
           </div>

@@ -14,8 +14,17 @@ export default function useCreateAppointmentHandler() {
       return await createAppointment(appointmentData);
     },
     onSuccess: (data) => {
+      // Invalidate all appointment-related queries to ensure dashboard updates
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
+      queryClient.invalidateQueries({ queryKey: ["filteredPatientStats"] });
+      queryClient.invalidateQueries({ queryKey: ["todayAppointments"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-chart"] });
       queryClient.invalidateQueries({ queryKey: ["patients"] });
+      
+      // Force refetch all dashboard data
+      queryClient.refetchQueries({ queryKey: ["dashboardStats"] });
+      queryClient.refetchQueries({ queryKey: ["appointments"] });
       
       // إرجاع البيانات للمكون
       return data;

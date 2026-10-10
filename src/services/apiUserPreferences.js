@@ -31,6 +31,7 @@ const DEFAULT_PREFERENCES = {
   daily_appointments_email_enabled: false,
   daily_appointments_email_time: '07:00',
   timezone: 'Africa/Cairo',
+  home_date_model: 'days',
   // AI Customization Settings
   ai_settings: {
     enabled_pages: {

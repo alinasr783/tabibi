@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import usePricingPlans from "../../features/settings/usePricingPlans";
 import { useAuth } from "../../features/auth/AuthContext";
 import { formatCurrency } from "../../lib/utils";
+import { getPlanPriceView } from "../../lib/planDiscount";
 import { Badge } from "../ui/badge";
 import { Card, CardContent, CardFooter, CardHeader } from "../ui/card";
 // Import the hooks we need for usage statistics
@@ -281,9 +282,9 @@ export default function Pricing() {
             }
             
             return reorderedPlans.map((plan, index) => {
-              const annualPrice = plan.price * 10;
+              const priceView = getPlanPriceView(plan, showAnnual ? "annual" : "monthly");
               const annualSavings = plan.price * 2;
-              const displayPrice = showAnnual ? annualPrice : plan.price;
+              const displayPrice = priceView.final;
               
               return (
                 <motion.div
@@ -317,6 +318,16 @@ export default function Pricing() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div>
+                        {priceView.hasDiscount && (
+                          <div className="mb-1 flex items-center gap-2">
+                            <span className="text-lg text-muted-foreground line-through">
+                              {formatCurrency(priceView.base)}
+                            </span>
+                            <Badge className="bg-destructive text-destructive-foreground">
+                              خصم {priceView.percentOff}%
+                            </Badge>
+                          </div>
+                        )}
                         <div className="text-3xl font-bold">
                           {plan.price === 0 ? "مجاني" : formatCurrency(displayPrice)}
                           {plan.price > 0 && (
@@ -363,7 +374,7 @@ export default function Pricing() {
                             : "bg-muted text-muted-foreground hover:bg-muted/80"
                         }`}
                       >
-                        {plan.price === 0 ? "ابدأ الآن" : "اختر الخطة"}
+                        {priceView.final === 0 ? "اشترك مجاناً" : "اختر الخطة"}
                       </button>
                     </CardFooter>
                   </Card>

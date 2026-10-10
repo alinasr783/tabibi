@@ -31,13 +31,125 @@ export async function getMyClinicMemberships() {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) throw new Error("Not authenticated")
 
-  const { data, error } = await supabase
+  // First try clinic_memberships table
+  const { data: membershipsData, error: membershipsError } = await supabase
     .from("clinic_memberships")
     .select("clinic_id, role, permissions")
     .eq("user_id", session.user.id)
 
-  if (error) throw error
-  return data || []
+  if (membershipsError) {
+    console.warn("Error fetching memberships, trying clinics table:", membershipsError)
+  }
+
+  // Also get clinics where user is owner from clinics table
+  const { data: ownedClinics, error: ownedError } = await supabase
+    .from("clinics")
+    .select("clinic_uuid")
+    .eq("owner_user_id", session.user.id)
+
+  if (ownedError) {
+    console.warn("Error fetching owned clinics:", ownedError)
+  }
+
+  // Combine both sources
+  let allClinics = []
+
+  if (membershipsData && membershipsData.length > 0) {
+    allClinics = membershipsData.map(m => ({
+      clinic_id: m.clinic_id,
+      role: m.role,
+      permissions: m.permissions
+    }))
+  }
+
+  if (ownedClinics && ownedClinics.length > 0) {
+    const ownedClinicIds = ownedClinics.map(c => c.clinic_uuid)
+    // Add owned clinics if not already present
+    ownedClinicIds.forEach(clinicId => {
+      if (!allClinics.find(c => c.clinic_id === clinicId)) {
+        allClinics.push({
+          clinic_id: clinicId,
+          role: "owner",
+          permissions: ["*"]
+        })
+      }
+    })
+  }
+
+  return allClinics
+}
+
+// Helper function to get ALL clinic IDs owned by current user (regardless of permissions)
+export async function getAllMyClinicIds() {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) throw new Error("Not authenticated")
+
+  console.log("getAllMyClinicIds - User ID:", session.user.id)
+
+  // First: Get user's primary clinic from users table
+  const { data: userData } = await supabase
+    .from("users")
+    .select("clinic_id")
+    .eq("user_id", session.user.id)
+    .single()
+  
+  console.log("getAllMyClinicIds - User's primary clinic_id:", userData?.clinic_id)
+
+  // Second: Get clinics where user is owner
+  const { data: ownedClinics, error: ownedError } = await supabase
+    .from("clinics")
+    .select("clinic_uuid")
+    .eq("owner_user_id", session.user.id)
+
+  console.log("getAllMyClinicIds - Owned clinics:", ownedClinics, ownedError)
+
+  // Third: Try to get clinics from memberships (if table exists)
+  let membershipClinicIds = []
+  try {
+    const { data: memberships, error: membershipError } = await supabase
+      .from("clinic_memberships")
+      .select("clinic_id")
+      .eq("user_id", session.user.id)
+    
+    console.log("getAllMyClinicIds - Memberships:", memberships, membershipError)
+    
+    if (memberships && !membershipError) {
+      membershipClinicIds = memberships.map(m => m.clinic_id).filter(Boolean)
+    }
+  } catch (e) {
+    console.log("getAllMyClinicIds - clinic_memberships table not available:", e.message)
+  }
+
+  // Combine all clinic IDs
+  let allClinicIds = []
+
+  // Add user's primary clinic
+  if (userData?.clinic_id) {
+    allClinicIds.push(userData.clinic_id)
+  }
+
+  // Add owned clinics
+  if (ownedClinics) {
+    ownedClinics.forEach(c => {
+      if (c.clinic_uuid && !allClinicIds.includes(c.clinic_uuid)) {
+        allClinicIds.push(c.clinic_uuid)
+      }
+    })
+  }
+
+  // Add membership clinics
+  membershipClinicIds.forEach(clinicId => {
+    if (clinicId && !allClinicIds.includes(clinicId)) {
+      allClinicIds.push(clinicId)
+    }
+  })
+
+  // Remove duplicates
+  const uniqueClinicIds = [...new Set(allClinicIds)]
+  
+  console.log("getAllMyClinicIds - Final clinic IDs:", uniqueClinicIds)
+
+  return uniqueClinicIds
 }
 
 export async function getAllowedClinicIdsForPermission(permissionKey) {

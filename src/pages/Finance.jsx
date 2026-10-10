@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { 
   Wallet, 
   TrendingUp, 
@@ -61,6 +61,44 @@ export default function Finance() {
   const [filterType, setFilterType] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [statsDateFilter, setStatsDateFilter] = useState("month"); // week, month, 3months
+  const [dateFilter, setDateFilter] = useState("all"); // all, today, yesterday, week, month, 3months, 6months, year
+
+  // Calculate date filter range
+  const getDateFilterRange = () => {
+    const now = new Date();
+    const end = endOfDay(now).toISOString();
+    let start;
+    
+    switch (dateFilter) {
+      case "today":
+        start = startOfDay(now).toISOString();
+        break;
+      case "yesterday":
+        start = startOfDay(subDays(now, 1)).toISOString();
+        break;
+      case "week":
+        start = startOfDay(subDays(now, 7)).toISOString();
+        break;
+      case "month":
+        start = startOfDay(subMonths(now, 1)).toISOString();
+        break;
+      case "3months":
+        start = startOfDay(subMonths(now, 3)).toISOString();
+        break;
+      case "6months":
+        start = startOfDay(subMonths(now, 6)).toISOString();
+        break;
+      case "year":
+        start = startOfDay(new Date(now.getFullYear(), 0, 1)).toISOString();
+        break;
+      default:
+        return null; // "all" - no date filter
+    }
+    
+    return { startDate: start, endDate: end };
+  };
+  
+  const dateFilterRange = getDateFilterRange();
 
   // Calculate stats date range
   const getStatsDateRange = () => {
@@ -86,8 +124,13 @@ export default function Finance() {
 
   const statsFilters = getStatsDateRange();
   
-  // Fetch records
-  const { data: recordsData, isLoading: isRecordsLoading } = useFinancialRecords(1, 100, { type: filterType !== "all" ? filterType : undefined });
+  // Fetch records with date filter
+  const recordsFilters = {
+    type: filterType !== "all" ? filterType : undefined,
+    ...(dateFilterRange || {})
+  };
+  
+  const { data: recordsData, isLoading: isRecordsLoading } = useFinancialRecords(1, 100, recordsFilters);
   const records = recordsData?.items || [];
   
   // Fetch Stats
@@ -180,6 +223,32 @@ export default function Finance() {
     record.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     record.patient?.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Calculate totals
+  const totals = useMemo(() => {
+    let totalIncome = 0;
+    let totalExpense = 0;
+    let totalCharges = 0;
+    
+    filteredRecords.forEach(record => {
+      const amount = Number(record.amount) || 0;
+      if (record.type === 'income') {
+        totalIncome += amount;
+      } else if (record.type === 'expense') {
+        totalExpense += amount;
+      } else if (record.type === 'charge') {
+        totalCharges += amount;
+      }
+    });
+    
+    return {
+      totalIncome,
+      totalExpense,
+      totalCharges,
+      netProfit: totalIncome - totalExpense + totalCharges,
+      count: filteredRecords.length
+    };
+  }, [filteredRecords]);
 
   const columns = [
     {
@@ -548,6 +617,22 @@ export default function Finance() {
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
                   </div>
+                  <Select value={dateFilter} onValueChange={setDateFilter}>
+                    <SelectTrigger className="w-[140px]">
+                      <Calendar className="ml-2 h-4 w-4" />
+                      <SelectValue placeholder="الفترة" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">كل الفترات</SelectItem>
+                      <SelectItem value="today">اليوم</SelectItem>
+                      <SelectItem value="yesterday">امبارح</SelectItem>
+                      <SelectItem value="week">هذا الاسبوع</SelectItem>
+                      <SelectItem value="month">هذا الشهر</SelectItem>
+                      <SelectItem value="3months">3 شهور</SelectItem>
+                      <SelectItem value="6months">6 شهور</SelectItem>
+                      <SelectItem value="year">السنة</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <Select value={filterType} onValueChange={setFilterType}>
                     <SelectTrigger className="w-[130px]">
                       <Filter className="ml-2 h-4 w-4" />
@@ -582,6 +667,55 @@ export default function Finance() {
                 </div>
               )}
             </CardContent>
+            
+            {/* Summary Footer */}
+            {filteredRecords.length > 0 && (
+              <div className="border-t border-border bg-muted/30 p-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <span className="text-muted-foreground">إجمالي المعاملات:</span>
+                    <Badge variant="outline">{totals.count} عملية</Badge>
+                  </div>
+                  
+                  <div className="flex flex-wrap items-center gap-3 sm:gap-6">
+                    {/* Income */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-green-600 font-medium">الدخل:</span>
+                      <span className="text-sm font-bold text-green-700">
+                        {formatCurrency(totals.totalIncome)}
+                      </span>
+                    </div>
+                    
+                    {/* Expenses */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-red-600 font-medium">المصروفات:</span>
+                      <span className="text-sm font-bold text-red-700">
+                        {formatCurrency(totals.totalExpense)}
+                      </span>
+                    </div>
+                    
+                    {/* Charges */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-amber-600 font-medium">المستحقات:</span>
+                      <span className="text-sm font-bold text-amber-700">
+                        {formatCurrency(totals.totalCharges)}
+                      </span>
+                    </div>
+                    
+                    {/* Divider */}
+                    <div className="hidden sm:block w-px h-8 bg-border"></div>
+                    
+                    {/* Net Profit */}
+                    <div className="flex items-center gap-2 bg-primary/10 px-3 py-1.5 rounded-lg">
+                      <span className="text-sm text-primary font-medium">صافي الربح:</span>
+                      <span className={`text-base font-bold ${totals.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {formatCurrency(totals.netProfit)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </Card>
         </TabsContent>
 

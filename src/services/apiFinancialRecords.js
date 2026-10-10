@@ -218,36 +218,52 @@ export async function getFinancialSummary(filters = {}) {
 }
 
 export async function getFinancialChartData(filters = {}) {
-    // Get current user's clinic_id (bigint)
+    // Get current user's session
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) throw new Error("Not authenticated")
 
-    const { data: userData } = await supabase
-        .from("users")
-        .select("clinic_id_bigint, clinic_id")
-        .eq("user_id", session.user.id)
-        .single()
-
-    // Use clinic_id_bigint for financial_records table
-    let clinicIdBigint = userData?.clinic_id_bigint
-    
-    if (!clinicIdBigint && userData?.clinic_id) {
-        const { data: clinicData } = await supabase
-            .from("clinics")
-            .select("clinic_id_bigint, id")
-            .eq("clinic_uuid", userData.clinic_id)
+    // Get all clinic IDs (UUID) that user owns or is member of
+    const { getAllMyClinicIds } = await import("./clinicAccess")
+    let clinicUuids = []
+    try {
+        clinicUuids = await getAllMyClinicIds()
+    } catch (e) {
+        console.warn("Could not get all clinics, falling back to user clinic", e)
+        const { data: userData } = await supabase
+            .from("users")
+            .select("clinic_id")
+            .eq("user_id", session.user.id)
             .single()
-        
-        clinicIdBigint = clinicData?.clinic_id_bigint || clinicData?.id
+        if (userData?.clinic_id) {
+            clinicUuids = [userData.clinic_id]
+        }
     }
 
-    if (!clinicIdBigint) throw new Error("User has no clinic assigned")
+    console.log("getFinancialChartData - All clinic UUIDs:", clinicUuids)
 
-    // Get all records for charts
+    if (clinicUuids.length === 0) throw new Error("User has no clinic assigned")
+
+    // Get all clinic_id_bigint values for these UUIDs
+    const { data: clinicsData, error: clinicsError } = await supabase
+        .from("clinics")
+        .select("id, clinic_id_bigint")
+        .in("clinic_uuid", clinicUuids)
+
+    if (clinicsError) throw clinicsError
+
+    const clinicIdsBigint = clinicsData
+        .map(c => c.clinic_id_bigint || c.id)
+        .filter(Boolean)
+
+    console.log("getFinancialChartData - All clinic bigint IDs:", clinicIdsBigint)
+
+    if (clinicIdsBigint.length === 0) throw new Error("User has no clinic assigned")
+
+    // Get all records for charts across all clinics
     let query = supabase
         .from("financial_records")
         .select("amount, type, recorded_at, description")
-        .eq("clinic_id", clinicIdBigint)
+        .in("clinic_id", clinicIdsBigint)
         .order("recorded_at", { ascending: true })
 
     // Apply date filter if provided

@@ -7,6 +7,7 @@ import PermissionGuard from "./features/auth/PermissionGuard";
 import ProtectedRoute from "./features/auth/ProtectedRoute";
 import PublicRoute from "./features/auth/PublicRoute";
 import RoleGuard from "./features/auth/RoleGuard";
+import SuperAdminGuard from "./features/auth/SuperAdminGuard";
 import SubscriptionExpiryGuard from "./features/auth/SubscriptionExpiryGuard";
 import NoSubscriptionGuard from "./features/auth/NoSubscriptionGuard";
 import IntegrationGuard from "./features/tabibi-tools/components/IntegrationGuard";
@@ -54,6 +55,13 @@ import useScrollToTop from "./hooks/useScrollToTop";
 import { useAuth } from "./features/auth/AuthContext";
 
 const DoctorLayout = lazy(() => import("./components/layout/DoctorLayout"));
+const AdminLayout = lazy(() => import("./components/layout/AdminLayout"));
+const AdminOverview = lazy(() => import("./pages/admin/AdminOverview"));
+const AdminUsers = lazy(() => import("./pages/admin/AdminUsers"));
+const AdminClinics = lazy(() => import("./pages/admin/AdminClinics"));
+const AdminSubscriptions = lazy(() => import("./pages/admin/AdminSubscriptions"));
+const AdminApps = lazy(() => import("./pages/admin/AdminApps"));
+const AdminAudit = lazy(() => import("./pages/admin/AdminAudit"));
 const AffiliateLayout = lazy(() => import("./components/layout/AffiliateLayout"));
 const AppAuthedProviders = lazy(() => import("./AppAuthedProviders"));
 
@@ -97,6 +105,12 @@ const MemoizedAskTabibi = memo(AskTabibiPage);
 const MemoizedLearnTabibi = memo(LearnTabibi);
 const MemoizedBlogPage = memo(BlogPage);
 const MemoizedArticlePage = memo(ArticlePage);
+const MemoizedAdminOverview = memo(AdminOverview);
+const MemoizedAdminUsers = memo(AdminUsers);
+const MemoizedAdminClinics = memo(AdminClinics);
+const MemoizedAdminSubscriptions = memo(AdminSubscriptions);
+const MemoizedAdminApps = memo(AdminApps);
+const MemoizedAdminAudit = memo(AdminAudit);
 
 function AppRoutes() {
   // Auto scroll to top when route changes
@@ -371,6 +385,21 @@ function AppRoutes() {
             </PermissionGuard>
           }
         />
+      </Route>
+      <Route
+        element={
+          <ProtectedRoute>
+            <SuperAdminGuard>
+              <AdminLayout />
+            </SuperAdminGuard>
+          </ProtectedRoute>
+        }>
+        <Route path="/admin" element={<MemoizedAdminOverview />} />
+        <Route path="/admin/users" element={<MemoizedAdminUsers />} />
+        <Route path="/admin/clinics" element={<MemoizedAdminClinics />} />
+        <Route path="/admin/subscriptions" element={<MemoizedAdminSubscriptions />} />
+        <Route path="/admin/apps" element={<MemoizedAdminApps />} />
+        <Route path="/admin/audit" element={<MemoizedAdminAudit />} />
       </Route>
       <Route
         element={

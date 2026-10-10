@@ -1,4 +1,4 @@
-import { Key, User, Settings, Palette, Bell, ClipboardList, Brain, WifiOff } from "lucide-react";
+import { Key, User, Settings, Palette, Bell, ClipboardList, Brain, WifiOff, CalendarCheck } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import ChangePasswordTab from "./ChangePasswordTab";
@@ -9,11 +9,13 @@ import { PersonalizationSettings } from "../user-preferences/PersonalizationSett
 import { useLocation } from "react-router-dom";
 import MedicalFieldsSettingsTab from "./MedicalFieldsSettingsTab";
 import OfflineSettingsTab from "../offline-mode/OfflineSettingsTab";
+import AppointmentTypesSettings from "./AppointmentTypesSettings";
 
 const tabs = [
   { id: "personal", label: "بياناتك", fullLabel: "بياناتك الشخصية", icon: User },
   { id: "password", label: "الباسوورد", fullLabel: "غير الباسوورد", icon: Key },
   { id: "personalization", label: "التخصيص", fullLabel: "التخصيص والألوان", icon: Palette },
+  { id: "appointment-types", label: "الأنواع", fullLabel: "أنواع الحجوزات", icon: CalendarCheck },
   { id: "ai-customization", label: "الذكاء", fullLabel: "تخصيص الذكاء", icon: Brain },
   { id: "notifications", label: "الاشعارات", fullLabel: "إعدادات الاشعارات", icon: Bell },
   { id: "medical-fields", label: "الحقول", fullLabel: "تخصيص الحقول", icon: ClipboardList },
@@ -84,6 +86,10 @@ export default function SettingsPage() {
 
         <TabsContent value="personalization" className="mt-4 sm:mt-6">
           <PersonalizationSettings />
+        </TabsContent>
+
+        <TabsContent value="appointment-types" className="mt-4 sm:mt-6">
+          <AppointmentTypesSettings />
         </TabsContent>
 
         <TabsContent value="ai-customization" className="mt-4 sm:mt-6">

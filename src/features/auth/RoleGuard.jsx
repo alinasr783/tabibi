@@ -20,6 +20,11 @@ export default function RoleGuard({ allowedRoles = [], children, redirectTo }) {
     return <Navigate to="/login" replace state={{ from: location }} />
   }
 
+  const isSuperAdmin = user.is_admin === true || user.isSuperAdmin === true || user.role === "super_admin"
+  if (isSuperAdmin && !allowedRoles.includes("super_admin")) {
+    return <Navigate to="/admin" replace />
+  }
+
   if (allowedRoles.length === 0 || allowedRoles.includes(user.role)) return children
 
   if (redirectTo) return <Navigate to={redirectTo} replace />

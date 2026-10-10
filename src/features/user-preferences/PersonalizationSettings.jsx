@@ -15,6 +15,7 @@ import { useUserPreferencesContext } from './UserPreferencesProvider';
 
 export function PersonalizationSettings() {
   const { data: preferences, isLoading } = useUserPreferences();
+  const [homeDateModel, setHomeDateModel] = useState('days');
   const { mutate: updatePreferences, isPending } = useUpdateUserPreferences();
   const { applyColors, applyThemeMode } = useUserPreferencesContext();
 
@@ -54,6 +55,7 @@ export function PersonalizationSettings() {
       });
       setThemeMode(preferences.theme_mode || 'light');
       setSidebarLargeScreenBehavior(preferences.sidebar_large_screen_behavior || 'persistent');
+      setHomeDateModel(preferences.home_date_model ?? 'days');
       
       // Notifications sync
       setNotificationTypes(prev => ({
@@ -389,6 +391,25 @@ export function PersonalizationSettings() {
                     <SelectContent>
                       <SelectItem value="persistent">مفتوحة دائمًا</SelectItem>
                       <SelectItem value="toggle">زر (تفتح عند الضغط)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* New input: التاريخ في الصفحة الرئيسية */}
+              <div className="space-y-2">
+                <Label className="block text-sm font-medium">نموذج التاريخ في الصفحة الرئيسية</Label>
+                <div className="max-w-sm">
+                  <Select
+                    value={homeDateModel}
+                    onValueChange={(value) => { setHomeDateModel(value); updatePreferences({ home_date_model: value }); }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="اختر النموذج" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="days">بالايام</SelectItem>
+                      <SelectItem value="date">بالتاريخ</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

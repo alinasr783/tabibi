@@ -289,6 +289,44 @@ CREATE TABLE public.clinic_profile_settings (
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT clinic_profile_settings_pkey PRIMARY KEY (clinic_id)
 );
+CREATE TABLE public.clinic_profile_wallet_transactions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  wallet_id uuid NOT NULL,
+  amount numeric NOT NULL,
+  type text NOT NULL CHECK (type = ANY (ARRAY['customer_payment'::text, 'withdrawal'::text])),
+  description text,
+  reference_type text,
+  reference_id text,
+  status text DEFAULT 'completed'::text CHECK (status = ANY (ARRAY['pending'::text, 'completed'::text, 'failed'::text, 'cancelled'::text])),
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT clinic_profile_wallet_transactions_pkey PRIMARY KEY (id),
+  CONSTRAINT clinic_profile_wallet_transactions_wallet_id_fkey FOREIGN KEY (wallet_id) REFERENCES public.clinic_profile_wallets(id)
+);
+CREATE TABLE public.clinic_profile_wallets (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  clinic_id uuid NOT NULL UNIQUE,
+  balance numeric NOT NULL DEFAULT 0.00,
+  currency text DEFAULT 'EGP'::text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT clinic_profile_wallets_pkey PRIMARY KEY (id),
+  CONSTRAINT clinic_profile_wallets_clinic_id_fkey FOREIGN KEY (clinic_id) REFERENCES public.clinics(clinic_uuid)
+);
+CREATE TABLE public.clinic_profile_withdrawal_requests (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  clinic_id uuid NOT NULL,
+  wallet_id uuid NOT NULL,
+  amount numeric NOT NULL CHECK (amount > 0::numeric),
+  payout_method text NOT NULL CHECK (payout_method = ANY (ARRAY['bank'::text, 'instapay'::text, 'wallet'::text, 'other'::text])),
+  payout_details text NOT NULL,
+  status text NOT NULL DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'processing'::text, 'completed'::text])),
+  admin_note text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT clinic_profile_withdrawal_requests_pkey PRIMARY KEY (id),
+  CONSTRAINT clinic_profile_withdrawal_requests_clinic_id_fkey FOREIGN KEY (clinic_id) REFERENCES public.clinics(clinic_uuid),
+  CONSTRAINT clinic_profile_withdrawal_requests_wallet_id_fkey FOREIGN KEY (wallet_id) REFERENCES public.clinic_profile_wallets(id)
+);
 CREATE TABLE public.clinic_wallets (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   clinic_id uuid NOT NULL UNIQUE,
@@ -298,6 +336,21 @@ CREATE TABLE public.clinic_wallets (
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT clinic_wallets_pkey PRIMARY KEY (id),
   CONSTRAINT clinic_wallets_clinic_id_fkey FOREIGN KEY (clinic_id) REFERENCES public.clinics(clinic_uuid)
+);
+CREATE TABLE public.clinic_withdrawal_requests (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  clinic_id uuid NOT NULL,
+  wallet_id uuid NOT NULL,
+  amount numeric NOT NULL CHECK (amount > 0::numeric),
+  payout_method text NOT NULL CHECK (payout_method = ANY (ARRAY['bank'::text, 'instapay'::text, 'wallet'::text, 'other'::text])),
+  payout_details text NOT NULL,
+  status text NOT NULL DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'processing'::text, 'completed'::text])),
+  admin_note text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT clinic_withdrawal_requests_pkey PRIMARY KEY (id),
+  CONSTRAINT clinic_withdrawal_requests_clinic_id_fkey FOREIGN KEY (clinic_id) REFERENCES public.clinics(clinic_uuid),
+  CONSTRAINT clinic_withdrawal_requests_wallet_id_fkey FOREIGN KEY (wallet_id) REFERENCES public.clinic_wallets(id)
 );
 CREATE TABLE public.clinics (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
@@ -874,7 +927,7 @@ CREATE TABLE public.wallet_transactions (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   wallet_id uuid NOT NULL,
   amount numeric NOT NULL,
-  type text NOT NULL CHECK (type = ANY (ARRAY['deposit'::text, 'payment'::text, 'refund'::text, 'adjustment'::text, 'bonus'::text])),
+  type text NOT NULL CHECK (type = ANY (ARRAY['deposit'::text, 'payment'::text, 'refund'::text, 'adjustment'::text, 'bonus'::text, 'withdrawal'::text])),
   description text,
   reference_type text,
   reference_id text,

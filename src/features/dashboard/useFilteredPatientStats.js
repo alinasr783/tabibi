@@ -6,5 +6,8 @@ export default function useFilteredPatientStats(filter) {
         queryKey: ["filteredPatientStats", filter],
         queryFn: () => getFilteredPatientStats(filter),
         enabled: !!filter,
+        staleTime: 0,
+        refetchOnMount: true,
+        refetchOnWindowFocus: true,
     })
 }

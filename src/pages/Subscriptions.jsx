@@ -28,6 +28,7 @@ import usePatientCount from "../features/subscriptions/usePatientCount";
 import useSubscriptionUsage from "../features/subscriptions/useSubscriptionUsage";
 import usePlanLimits from "../features/subscriptions/usePlanLimits";
 import { formatCurrency } from "../lib/utils";
+import { getPlanPriceView } from "../lib/planDiscount";
 
 export default function Subscriptions() {
   const navigate = useNavigate();
@@ -472,7 +473,9 @@ export default function Subscriptions() {
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {upgradePlans.map((plan) => (
+                  {upgradePlans.map((plan) => {
+                    const pv = getPlanPriceView(plan, "monthly");
+                    return (
                     <Card 
                       key={plan.id} 
                       className="rounded-[var(--radius)] overflow-hidden transition-all duration-300 hover:shadow-lg bg-card/70"
@@ -484,10 +487,23 @@ export default function Subscriptions() {
                           </div>
                         </div>
                         <CardTitle className="text-xl font-bold">{plan.name}</CardTitle>
-                        <div className="flex items-baseline gap-1 mt-2">
-                          <span className="text-2xl font-bold">{formatCurrency(plan.price)}</span>
-                          <span className="text-sm text-muted-foreground">/ {plan.billing_period === 'annual' ? 'سنة' : 'شهر'}</span>
-                        </div>
+                        {(() => {
+                          const priceView = getPlanPriceView(plan, "monthly");
+                          return (
+                            <>
+                              {priceView.hasDiscount && (
+                                <div className="mt-2 flex items-center gap-2">
+                                  <span className="text-sm text-muted-foreground line-through">{formatCurrency(priceView.base)}</span>
+                                  <Badge className="bg-destructive text-destructive-foreground">خصم {priceView.percentOff}%</Badge>
+                                </div>
+                              )}
+                              <div className="flex items-baseline gap-1 mt-2">
+                                <span className={`text-2xl font-bold ${priceView.hasDiscount ? "text-primary" : ""}`}>{formatCurrency(priceView.final)}</span>
+                                <span className="text-sm text-muted-foreground">/ {plan.billing_period === 'annual' ? 'سنة' : 'شهر'}</span>
+                              </div>
+                            </>
+                          );
+                        })()}
                       </CardHeader>
                       <CardContent className="p-6 pt-0">
                         <p className="text-sm text-muted-foreground mb-6 line-clamp-2">
@@ -507,11 +523,12 @@ export default function Subscriptions() {
                           className="w-full rounded-[var(--radius)]"
                           onClick={() => handleSwitchPlan(plan.id)}
                         >
-                          اشترك الآن
+                          {pv.final === 0 ? "اشترك مجاناً" : "اشترك الآن"}
                         </Button>
                       </CardContent>
                     </Card>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}

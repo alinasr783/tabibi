@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 import { Check, X, User, Calendar, Clock, Phone, Tag, Eye, MoreHorizontal, CheckCircle, XCircle, Receipt } from "lucide-react";
@@ -19,6 +19,7 @@ import {
 } from "../../components/ui/dialog";
 import DataTable from "../../components/ui/table";
 import { updateAppointment } from "../../services/apiAppointments";
+import { getAppointmentTypes } from "../../services/apiAppointmentTypes";
 import toast from "react-hot-toast";
 import { cn } from "../../lib/utils";
 import { useNavigate } from "react-router-dom";
@@ -45,6 +46,10 @@ export default function OnlineBookingsTable({
   const [showContactDialog, setShowContactDialog] = useState(false);
   const [selectedPhone, setSelectedPhone] = useState("");
   const [selectedPatientName, setSelectedPatientName] = useState("");
+  const { data: appointmentTypes = [] } = useQuery({
+    queryKey: ["appointmentTypes"],
+    queryFn: getAppointmentTypes,
+  });
 
   const { mutate: updateStatus } = useMutation({
     mutationFn: ({ id, status }) => updateAppointment(id, { status }),
@@ -190,6 +195,23 @@ export default function OnlineBookingsTable({
       header: "نوع الحجز",
       accessor: "notes",
       cellClassName: "text-muted-foreground",
+      render: (appointment) => {
+        const type = appointmentTypes.find(t => t.id === appointment.appointment_type);
+        if (type) {
+          return (
+            <div className="flex items-center gap-2">
+              <div 
+                className="w-3 h-3 rounded-full flex-shrink-0" 
+                style={{ backgroundColor: type.color }}
+              />
+              <span className="font-medium" style={{ color: type.color }}>
+                {type.name}
+              </span>
+            </div>
+          );
+        }
+        return <span>{appointment.notes || "-"}</span>;
+      },
     },
     {
       header: "",
@@ -238,10 +260,18 @@ export default function OnlineBookingsTable({
     const status = appointment.status?.toLowerCase() || 'pending';
     const statusInfo = statusMap[status] || statusMap.pending;
     const StatusIcon = statusInfo.icon || Clock;
+    const type = appointmentTypes.find(t => t.id === appointment.appointment_type);
 
     return (
       <div className={cn("relative group h-full", className)} style={{direction: 'rtl'}}>
-        <div className="flex flex-col h-full p-4 rounded-lg border bg-card hover:bg-accent/5 transition-colors shadow-sm">
+        <div 
+          className="flex flex-col h-full p-4 rounded-lg border bg-card hover:bg-accent/5 transition-colors shadow-sm"
+          style={{ 
+            borderLeftWidth: '6px',
+            borderLeftColor: type?.color || '#e5e7eb',
+            backgroundColor: type?.color ? `${type.color}08` : 'transparent'
+          }}
+        >
           {/* Header - اسم المريض والحالة */}
           <div className="flex items-start justify-between mb-3" style={{direction: 'rtl'}}>
             <div className="flex items-center gap-3 flex-1 min-w-0">

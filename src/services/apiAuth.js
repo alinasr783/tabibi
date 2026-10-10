@@ -266,7 +266,7 @@ export async function getCurrentUser() {
             console.log("getCurrentUser: Creating user data promise");
             const { data: userData, error: userError } = await supabase
                 .from("users")
-                .select("user_id, email, name, phone, role, clinic_id, permissions, avatar_url, banner_url, bio, education, certificates, specialty, contacts")
+                .select("user_id, email, name, phone, role, is_admin, clinic_id, permissions, avatar_url, banner_url, bio, education, certificates, specialty, contacts")
                 .eq("user_id", session.user.id)
                 .single();
             
@@ -375,24 +375,32 @@ export async function getCurrentUser() {
 
             if (userData.role !== "doctor") {
                 try {
-                    const clinicUuid = await resolveClinicUuid()
-                    if (clinicUuid) {
-                        const { data: mem } = await supabase
-                            .from("clinic_memberships")
-                            .select("permissions")
-                            .eq("user_id", session.user.id)
-                            .eq("clinic_id", clinicUuid)
-                            .maybeSingle()
+                    // Get all clinic memberships for this secretary
+                    const { data: memberships } = await supabase
+                        .from("clinic_memberships")
+                        .select("permissions")
+                        .eq("user_id", session.user.id)
 
-                        const p = mem?.permissions
-                        if (Array.isArray(p)) permissions = p
-                        else if (typeof p === "string") {
-                            try { permissions = JSON.parse(p) } catch { permissions = [] }
-                        } else if (p && typeof p === "object") {
-                            permissions = []
-                        }
+                    if (memberships && memberships.length > 0) {
+                        // Collect all unique permissions from all memberships
+                        const allPerms = new Set()
+                        memberships.forEach(mem => {
+                            const p = mem?.permissions
+                            if (Array.isArray(p)) {
+                                p.forEach(perm => allPerms.add(perm))
+                            } else if (typeof p === "string") {
+                                try {
+                                    const parsed = JSON.parse(p)
+                                    if (Array.isArray(parsed)) {
+                                        parsed.forEach(perm => allPerms.add(perm))
+                                    }
+                                } catch {}
+                            }
+                        })
+                        permissions = Array.from(allPerms)
                     }
-                } catch {
+                } catch (e) {
+                    console.warn("getCurrentUser: failed to fetch memberships:", e)
                 }
             }
             
@@ -400,6 +408,8 @@ export async function getCurrentUser() {
             const mergedUser = {
                 ...session.user,
                 ...userData,
+                is_admin: userData.is_admin === true,
+                isSuperAdmin: userData.is_admin === true || userData.role === "super_admin",
                 permissions: permissions
             };
             
@@ -415,7 +425,7 @@ export async function getCurrentUser() {
                 const { data: fallbackData, error: fallbackError } = await withTimeout(
                     supabase
                         .from("users")
-                        .select("user_id, role, clinic_id, contacts")
+                        .select("user_id, role, is_admin, clinic_id, contacts")
                         .eq("user_id", session.user.id)
                         .single(),
                     10000 // 10 second timeout for fallback
@@ -431,6 +441,8 @@ export async function getCurrentUser() {
                 const mergedUser = {
                     ...session.user,
                     ...fallbackData,
+                    is_admin: fallbackData.is_admin === true,
+                    isSuperAdmin: fallbackData.is_admin === true || fallbackData.role === "super_admin",
                     permissions: []
                 };
                 
@@ -519,16 +531,26 @@ export async function addSecretary({ name, email, password, phone, clinicId, cli
   const clinicIdsList = Array.isArray(clinicIds) && clinicIds.length > 0 ? clinicIds : (clinicId ? [clinicId] : [])
   const primaryClinicId = clinicIdsList[0]
 
+  console.log("addSecretary debug:", { name, email, clinicId, clinicIds, clinicIdsList, primaryClinicId })
+
   if (!name || !email || !password || !primaryClinicId) {
-    throw new Error("لازم تدخل كل البيانات");
+    throw new Error("لازم تدخل كل البيانات (عيادة غير محددة)");
   }
 
   if (password.length < 6) {
     throw new Error("كلمة السر لازم 6 أحرف على الأقل");
   }
 
-  const subscription = await requireActiveSubscription(primaryClinicId)
-  const limits = normalizePlanLimits(subscription?.plans?.limits)
+  console.log("addSecretary/primaryClinicId", primaryClinicId)
+  
+  let subscription = null;
+  try {
+    subscription = await requireActiveSubscription(primaryClinicId)
+    console.log("addSecretary/subscription found", subscription)
+  } catch (subError) {
+    console.warn("addSecretary/subscription check failed:", subError.message)
+  }
+  const limits = normalizePlanLimits(subscription?.plans?.limits || {})
 
   await assertCountLimit({
     clinicId: primaryClinicId,

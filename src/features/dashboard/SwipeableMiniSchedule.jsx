@@ -8,14 +8,26 @@ import { SkeletonLine } from "../../components/ui/skeleton";
 import { Button } from "../../components/ui/button";
 import { ScrollArea, ScrollBar } from "../../components/ui/scroll-area";
 import { useNavigate } from "react-router-dom";
+import { useUserPreferences } from '../../hooks/useUserPreferences';
 import AppointmentCreateDialog from "../calendar/AppointmentCreateDialog";
 import { useSubscriptionBlocking } from "../auth/useSubscriptionBlocking";
 import SubscriptionBlockingModal from "../auth/SubscriptionBlockingModal";
 import { useQuery } from "@tanstack/react-query";
 import supabase from "../../services/supabase.js";
+import { getUsersByAuthUids } from "../../services/apiAppointments";
+import { getAppointmentTypes } from "../../services/apiAppointmentTypes";
 
 // Helper function to get date display text based on offset
-const getDateDisplayText = (offset) => {
+const getDateDisplayText = (offset, model) => {
+  // If a custom date model is provided, use that; otherwise default to the current model
+  const dateModel = model;
+  if (dateModel === 'date') {
+    const targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() + offset);
+    const dayName = format(targetDate, 'EEEE', { locale: ar });
+    const dateStr = format(targetDate, 'd MMM', { locale: ar });
+    return `${dayName}, ${dateStr}`;
+  }
   if (offset === 0) return "مواعيدك انهاردة";  if (offset === 1) return "مواعيدك بكرة";
   if (offset === 2) return "مواعيدك بعد بكرة";
   if (offset === 3) return "مواعيدك بعد يومين"
@@ -29,43 +41,68 @@ const getDateDisplayText = (offset) => {
   return "مواعيدك إنهااردة";
 };
 
-// Function to fetch appointments for a specific date
+// Function to fetch appointments for a specific date across all clinics
 async function getAppointmentsForDate(dateOffset = 0) {
-  // Get current user's clinic_id
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) throw new Error("Not authenticated");
 
-  const { data: userData } = await supabase
-    .from("users")
-    .select("clinic_id")
-    .eq("user_id", session.user.id)
-    .single();
+  // Import the clinic access function
+  const { getAllMyClinicIds } = await import('../../services/clinicAccess');
+  
+  // Get ALL clinic IDs that user owns or is member of (for multi-branch support)
+  let clinicIds = [];
+  try {
+    clinicIds = await getAllMyClinicIds();
+  } catch (e) {
+    console.warn("Could not get all clinics, falling back to user clinic", e);
+    const { data: userData } = await supabase
+      .from("users")
+      .select("clinic_id")
+      .eq("user_id", session.user.id)
+      .single();
+    if (userData?.clinic_id) {
+      clinicIds = [userData.clinic_id];
+    }
+  }
 
-  if (!userData?.clinic_id) throw new Error("User has no clinic assigned");
+  console.log("getAppointmentsForDate - All clinic IDs:", clinicIds);
 
-  const clinicId = userData.clinic_id;
+  if (clinicIds.length === 0) throw new Error("User has no clinic assigned");
 
-  // Calculate the target date based on offset
+  // Calculate the target date based on offset (use local time)
   const targetDate = new Date();
   targetDate.setDate(targetDate.getDate() + dateOffset);
-  const targetDateString = targetDate.toISOString().split('T')[0];
+  const year = targetDate.getFullYear();
+  const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+  const day = String(targetDate.getDate()).padStart(2, '0');
+  const targetDateString = `${year}-${month}-${day}`;
 
-  // Get all appointments with patient info for the target date
+  console.log("getAppointmentsForDate - Querying for date:", targetDateString, "offset:", dateOffset);
+
+// Get all appointments with patient info for the target date across all clinics
+  // Use like to match date strings since stored dates might have time component
   const { data: appointments, error } = await supabase
     .from("appointments")
     .select(`
       id,
       date,
       status,
+      clinic_id,
+      created_by_user_id,
+      appointment_type,
       patient:patients(name)
     `)
-    .eq("clinic_id", clinicId)
-    .gte("date", targetDateString + "T00:00:00")
-    .lte("date", targetDateString + "T23:59:59")
+    .in("clinic_id", clinicIds)
+    .like("date", targetDateString + "%")
     .order("date", { ascending: true })
-    .limit(5);
+    .limit(10);
 
-  if (error) throw error;
+  console.log("getAppointmentsForDate - Found appointments:", appointments?.length, appointments?.map(a => ({ id: a.id, date: a.date, clinic: a.clinic_id })))
+  
+  if (error) {
+    console.error("getAppointmentsForDate - Error:", error)
+    throw error
+  }
 
   return appointments || [];
 }
@@ -80,15 +117,34 @@ const statusMap = {
 
 export default function SwipeableMiniSchedule() {
   const [dateOffset, setDateOffset] = useState(0);
+  const { data: preferences } = useUserPreferences();
+  const dateModelValue = preferences?.home_date_model ?? 'days';
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const { checkAction, isBlockingModalOpen, closeBlockingModal, subscriptionStatus } = useSubscriptionBlocking();
   const navigate = useNavigate();
   
-  // Fetch appointments for the current date offset
+// Fetch appointments for the current date offset
   const { data: appointments, isLoading, isError, error } = useQuery({
     queryKey: ["appointments", dateOffset],
     queryFn: () => getAppointmentsForDate(dateOffset),
     keepPreviousData: true,
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+  });
+
+  // Fetch creators for appointments
+  const creatorIds = [...new Set(appointments?.map(a => a.created_by_user_id).filter(Boolean) || [])];
+  const { data: creatorsMap = [] } = useQuery({
+    queryKey: ["appointmentCreators", creatorIds],
+    queryFn: () => getUsersByAuthUids(creatorIds),
+    enabled: creatorIds.length > 0
+  });
+
+  // Fetch appointment types
+  const { data: appointmentTypes = [] } = useQuery({
+    queryKey: ["appointmentTypes"],
+    queryFn: getAppointmentTypes,
   });
 
   // Navigation functions
@@ -107,7 +163,7 @@ export default function SwipeableMiniSchedule() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Clock className="size-5 text-primary" />
-              <h3 className="text-lg font-semibold">{getDateDisplayText(dateOffset)}</h3>
+            <h3 className="text-lg font-semibold">{getDateDisplayText(dateOffset, dateModelValue)}</h3>
             </div>
             <div className="flex gap-1">
               <Button 
@@ -145,7 +201,7 @@ export default function SwipeableMiniSchedule() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Clock className="size-5 text-primary" />
-              <h3 className="text-lg font-semibold">{getDateDisplayText(dateOffset)}</h3>
+            <h3 className="text-lg font-semibold">{getDateDisplayText(dateOffset, dateModelValue)}</h3>
             </div>
             <div className="flex gap-1">
               <Button 
@@ -184,7 +240,7 @@ export default function SwipeableMiniSchedule() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Clock className="size-5 text-primary" />
-                <h3 className="text-lg font-semibold">{getDateDisplayText(dateOffset)}</h3>
+                <h3 className="text-lg font-semibold">{getDateDisplayText(dateOffset, dateModelValue)}</h3>
               </div>
               <div className="flex gap-1">
                 <Button 
@@ -209,7 +265,7 @@ export default function SwipeableMiniSchedule() {
           <CardContent>
             <div className="text-center py-8 text-muted-foreground">
               <Clock className="size-12 mx-auto mb-2 opacity-30 text-primary" />
-              <p className="mb-4">مفيش مواعيد {getDateDisplayText(dateOffset).replace("مواعيدك", "")}</p>
+              <p className="mb-4">مفيش مواعيد {getDateDisplayText(dateOffset, dateModelValue).replace("مواعيدك", "")}</p>
               <Button 
                 onClick={() => checkAction(() => setShowAppointmentModal(true))} 
                 className="hover:bg-primary text-white bg-primary"
@@ -240,7 +296,7 @@ export default function SwipeableMiniSchedule() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Clock className="size-5 text-primary" />
-              <h3 className="text-lg font-semibold">{getDateDisplayText(dateOffset)}</h3>
+              <h3 className="text-lg font-semibold">{getDateDisplayText(dateOffset, dateModelValue)}</h3>
             </div>
             <div className="flex gap-1">
               <Button 
@@ -268,11 +324,34 @@ export default function SwipeableMiniSchedule() {
               {appointments && appointments.map((appointment) => (
                 <div
                   key={appointment.id}
-                  className="flex items-center justify-between p-3 rounded-[var(--radius)] border border-border hover:bg-accent/50 transition-colors cursor-pointer"
+                  className="flex items-center justify-between p-3 rounded-[var(--radius)] border border-border hover:bg-accent/50 transition-colors cursor-pointer relative overflow-hidden"
+                  style={{ 
+                    borderLeftWidth: '6px',
+                    borderLeftColor: (() => {
+                      const type = appointmentTypes.find(t => t.id === appointment.appointment_type);
+                      return type?.color || '#e5e7eb';
+                    })(),
+                    backgroundColor: (() => {
+                      const type = appointmentTypes.find(t => t.id === appointment.appointment_type);
+                      return type?.color ? `${type.color}08` : 'transparent';
+                    })()
+                  }}
                   onClick={() => navigate(`/appointments/${appointment.id}`)}
                 >
                   <div className="flex items-center gap-3 flex-1">
-                    <div className="size-10 rounded-full bg-primary/10 text-primary grid place-items-center">
+                    <div 
+                      className="size-10 rounded-full grid place-items-center"
+                      style={{ 
+                        backgroundColor: (() => {
+                          const type = appointmentTypes.find(t => t.id === appointment.appointment_type);
+                          return type?.color ? `${type.color}20` : '#f3f4f6';
+                        })(),
+                        color: (() => {
+                          const type = appointmentTypes.find(t => t.id === appointment.appointment_type);
+                          return type?.color || '#1AA19C';
+                        })()
+                      }}
+                    >
                       <User className="size-5" />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -285,11 +364,36 @@ export default function SwipeableMiniSchedule() {
                             : "غير محدد"}
                         </span>
                       </div>
+                      {appointment.from === "booking" ? (
+                        <div className="text-xs text-green-600 mt-1 truncate">حجز إلكتروني</div>
+                      ) : appointment.created_by_user_id ? (
+                        (() => {
+                          const creator = creatorsMap.find(u => u.user_id === appointment.created_by_user_id);
+                          return creator ? (
+                            <div className="text-xs text-blue-600 mt-1 truncate">
+                              أنشأه: {creator.name} ({creator.role === "doctor" ? "دكتور" : creator.role === "secretary" ? "س" : creator.role})
+                            </div>
+                          ) : null;
+                        })()
+                      ) : null}
                     </div>
                   </div>
-                  <Badge variant={statusMap[appointment.status]?.variant || "secondary"}>
-                    {statusMap[appointment.status]?.label || appointment.status}
-                  </Badge>
+                  <div className="flex flex-col items-end gap-1">
+                    {appointment.appointment_type && (() => {
+                      const type = appointmentTypes.find(t => t.id === appointment.appointment_type);
+                      return type ? (
+                        <div 
+                          className="text-[10px] px-2 py-0.5 rounded-full text-white font-medium"
+                          style={{ backgroundColor: type.color }}
+                        >
+                          {type.name}
+                        </div>
+                      ) : null;
+                    })()}
+                    <Badge variant={statusMap[appointment.status]?.variant || "secondary"}>
+                      {statusMap[appointment.status]?.label || appointment.status}
+                    </Badge>
+                  </div>
                 </div>
               ))}
             </div>
